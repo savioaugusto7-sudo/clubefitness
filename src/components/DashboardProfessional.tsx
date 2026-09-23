@@ -5184,10 +5184,11 @@ goniometria: {
             };
 
             const formatRelativeDate = (dateStr: string) => {
-              if (!dateStr) return { formatted: '', relative: '' };
+              if (!dateStr) return { formatted: '', fullFormatted: '', relative: '' };
               const cleanDate = dateStr.split('T')[0];
               const parts = cleanDate.split('-');
               const formatted = parts.length === 3 ? `${parts[2]}/${parts[1]}` : cleanDate;
+              const fullFormatted = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : cleanDate;
               let relative = '';
               try {
                 const dLast = new Date(parts[0] + '-' + parts[1] + '-' + parts[2] + 'T12:00:00');
@@ -5198,7 +5199,7 @@ goniometria: {
                 else if (diffDays === 1) relative = 'ontem';
                 else relative = `há ${diffDays} dias`;
               } catch (e) {}
-              return { formatted, relative };
+              return { formatted, fullFormatted, relative };
             };
 
             const getClientDualHistory = (clientId: string, currentAptId: string) => {
@@ -5254,19 +5255,38 @@ goniometria: {
 
               // 4. Último treino / ficha executada REAL em atendimentos passados (SEM fallbacks de data de edição da ficha)
               const pastTreinosApts = pastApts.filter((a: any) => Boolean(a.treinoExecutado));
-              let lastWorkoutInfo: { label: string; detail: string; date: string; isFallbackNotice?: boolean } | null = null;
+              let lastWorkoutInfo: { label: string; detail: string; date: string; isFallbackNotice?: boolean; isLivre?: boolean } | null = null;
 
               if (pastTreinosApts.length > 0) {
                 const lastTApt = pastTreinosApts[0];
                 const te = lastTApt.treinoExecutado;
-                const desc = te.fichaNome || (te.tipo === 'livre' ? (te.fichaId ? `TREINO LIVRE ${te.fichaId}` : 'Treino Livre') : (te.fichaId ? `Ficha ${te.fichaId}` : 'Treino'));
+                const isLivre = te.categoria === 'fichasLivre' || te.tipo === 'livre' || lastTApt.servico === 'Treino Livre';
+                const modalityLabel = isLivre ? 'Treino Livre' : 'Treino Monitorado';
+
+                let fichaStr = '';
+                if (te.fichaId) {
+                  fichaStr = `Ficha ${String(te.fichaId).toUpperCase()}`;
+                } else if (te.fichaNome) {
+                  fichaStr = te.fichaNome;
+                } else {
+                  fichaStr = isLivre ? 'Avulso' : 'Ficha';
+                }
+
+                if (te.fichaNome && te.fichaNome !== fichaStr && !te.fichaNome.toUpperCase().startsWith('TREINO LIVRE') && !te.fichaNome.toUpperCase().startsWith('FICHA')) {
+                  fichaStr = `${fichaStr} (${te.fichaNome})`;
+                }
+
+                const desc = `${modalityLabel} • ${fichaStr}`;
                 const dateInfo = formatRelativeDate(lastTApt.data);
+                const horarioStr = lastTApt.horario ? ` • ${lastTApt.horario}` : '';
+                const detailStr = `${dateInfo.fullFormatted}${dateInfo.relative ? ` (${dateInfo.relative})` : ''}${horarioStr}`;
 
                 lastWorkoutInfo = {
                   label: `Último Treino: ${desc}`,
-                  detail: `${dateInfo.formatted}${dateInfo.relative ? ` (${dateInfo.relative})` : ''}`,
+                  detail: detailStr,
                   date: lastTApt.data,
-                  isFallbackNotice: false
+                  isFallbackNotice: false,
+                  isLivre
                 };
               } else {
                 if (hasRegisteredSheets) {
@@ -5873,7 +5893,14 @@ goniometria: {
                                         fontSize: '0.74rem'
                                       }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                                          <i className={dualHistory.lastWorkout.isFallbackNotice ? 'fa-solid fa-circle-info' : 'fa-solid fa-dumbbell'} style={{ color: dualHistory.lastWorkout.isFallbackNotice ? '#f59e0b' : '#10b981', fontSize: '0.75rem', flexShrink: 0 }}></i>
+                                          <i 
+                                            className={dualHistory.lastWorkout.isFallbackNotice ? 'fa-solid fa-circle-info' : dualHistory.lastWorkout.isLivre ? 'fa-solid fa-person-walking' : 'fa-solid fa-dumbbell'} 
+                                            style={{ 
+                                              color: dualHistory.lastWorkout.isFallbackNotice ? '#f59e0b' : dualHistory.lastWorkout.isLivre ? '#38bdf8' : '#10b981', 
+                                              fontSize: '0.75rem', 
+                                              flexShrink: 0 
+                                            }}
+                                          ></i>
                                           <span style={{ fontWeight: 700, color: dualHistory.lastWorkout.isFallbackNotice ? '#fbbf24' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {dualHistory.lastWorkout.label}
                                           </span>

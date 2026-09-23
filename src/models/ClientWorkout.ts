@@ -9,6 +9,7 @@ const WorkoutExerciseSchema = new Schema({
   observacao: { type: String, default: '' },
   ritmo: { type: String, default: '' },
   combinaGrupo: { type: String, default: '' },
+  unidadeCarga: { type: String, default: '' },
   dropSet: {
     tipo: { type: String, default: 'none' },
     escopo: { type: String, default: 'ultima_serie' },

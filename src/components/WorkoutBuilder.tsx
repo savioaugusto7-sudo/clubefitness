@@ -59,6 +59,99 @@ export const calculateDropSuggestions = (baseCarga: number, tipo: 'none' | 'sing
   return [];
 };
 
+export const parseExerciseCarga = (ex: any) => {
+  let rawCarga = ex.carga !== undefined && ex.carga !== null ? ex.carga : (ex.carga_sugerida !== undefined && ex.carga_sugerida !== null ? ex.carga_sugerida : '');
+  let unidade = ex.unidadeCarga || '';
+  let val: any = '';
+
+  if (typeof rawCarga === 'number') {
+    val = rawCarga;
+  } else if (typeof rawCarga === 'string') {
+    const s = rawCarga.trim();
+    if (!s) {
+      val = '';
+    } else if (/^livre$/i.test(s)) {
+      val = '';
+      if (!unidade) unidade = 'Livre';
+    } else {
+      const match = s.match(/^([0-9.,]+)\s*([a-zA-Z%]*)$/);
+      if (match) {
+        val = parseFloat(match[1].replace(',', '.')) || '';
+        if (!unidade && match[2]) unidade = match[2];
+      } else {
+        const numOnly = parseFloat(s.replace(/[^0-9.]/g, ''));
+        val = isNaN(numOnly) ? '' : numOnly;
+      }
+    }
+  }
+  return { carga: val, unidadeCarga: unidade };
+};
+
+export const computeClientLastWorkout = (targetClientId: string, aptsList: any[], currentAptId?: string) => {
+  if (!targetClientId || !Array.isArray(aptsList)) return null;
+  const cIdStr = String(targetClientId);
+  const now = new Date();
+  const hojeISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const pastTreinosApts = aptsList.filter((a: any) => {
+    const aClientId = String(a.clienteId?._id || a.clienteId || '');
+    if (aClientId !== cIdStr) return false;
+    if (currentAptId && String(a._id) === String(currentAptId)) return false;
+    if (a.data > hojeISO) return false;
+    if (a.data === hojeISO && a.status !== 'presenca' && !a.treinoExecutado) return false;
+    return Boolean(a.treinoExecutado);
+  }).sort((a: any, b: any) => {
+    const dateComp = (b.data || '').localeCompare(a.data || '');
+    if (dateComp !== 0) return dateComp;
+    return (b.horario || '').localeCompare(a.horario || '');
+  });
+
+  if (pastTreinosApts.length === 0) return null;
+
+  const lastTApt = pastTreinosApts[0];
+  const te = lastTApt.treinoExecutado;
+  const isLivre = te.categoria === 'fichasLivre' || te.tipo === 'livre' || lastTApt.servico === 'Treino Livre';
+  const modalityLabel = isLivre ? 'Treino Livre' : 'Treino Monitorado';
+
+  let fichaStr = '';
+  if (te.fichaId) {
+    fichaStr = `Ficha ${String(te.fichaId).toUpperCase()}`;
+  } else if (te.fichaNome) {
+    fichaStr = te.fichaNome;
+  } else {
+    fichaStr = isLivre ? 'Avulso' : 'Ficha';
+  }
+
+  if (te.fichaNome && te.fichaNome !== fichaStr && !te.fichaNome.toUpperCase().startsWith('TREINO LIVRE') && !te.fichaNome.toUpperCase().startsWith('FICHA')) {
+    fichaStr = `${fichaStr} (${te.fichaNome})`;
+  }
+
+  // Format relative date with time: DD/MM/YYYY (relativo) • HH:MM
+  const cleanDate = (lastTApt.data || '').split('T')[0];
+  const parts = cleanDate.split('-');
+  const fullFormatted = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : cleanDate;
+
+  let relative = '';
+  try {
+    const dLast = new Date(parts[0] + '-' + parts[1] + '-' + parts[2] + 'T12:00:00');
+    const dToday = new Date(hojeISO + 'T12:00:00');
+    const diffTime = Math.abs(dToday.getTime() - dLast.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) relative = 'hoje';
+    else if (diffDays === 1) relative = 'ontem';
+    else relative = `há ${diffDays} dias`;
+  } catch (e) {}
+
+  const horarioStr = lastTApt.horario ? ` • ${lastTApt.horario}` : '';
+  const detailStr = `${fullFormatted}${relative ? ` (${relative})` : ''}${horarioStr}`;
+
+  return {
+    label: `${modalityLabel} • ${fichaStr}`,
+    detail: detailStr,
+    isLivre
+  };
+};
+
 interface WorkoutBuilderProps {
   onClose: () => void;
   clientId: string;
@@ -80,8 +173,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [search, setSearch] = useState('');
   
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
+  const [allAppointments, setAllAppointments] = useState<any[]>([]);
   const [allClients, setAllClients] = useState<any[]>([]);
   const [currentHourFilter, setCurrentHourFilter] = useState<'current' | 'all'>('current');
+  const [lastWorkoutInfo, setLastWorkoutInfo] = useState<{ label: string; detail: string; isLivre: boolean } | null>(null);
+
+  // Modal de Substituição de Exercício
+  const [substitutingItem, setSubstitutingItem] = useState<{ id: string; index: number; nome: string; combinaGrupo: string; grupo: string } | null>(null);
+  const [substituteSearch, setSubstituteSearch] = useState('');
+  const [substituteMuscle, setSubstituteMuscle] = useState('Todos');
 
   const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>(initialCategory || 'fichasMonitorado');
   const [activeTabLetter, setActiveTabLetter] = useState<string>(initialFichaId?.toUpperCase() || 'A');
@@ -150,6 +250,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         series: it.series,
         reps: it.reps,
         carga: it.carga,
+        unidadeCarga: it.unidadeCarga,
         descanso: it.descanso,
         observacao: it.observacao,
         ritmo: it.ritmo,
@@ -310,7 +411,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         fetch(`/api/clients?id=${targetClientId}`).then(r => r.json()).catch(() => ({ success: false }))
       ];
 
-      if (isInitial || exercises.length === 0 || allClients.length === 0) {
+      if (isInitial || exercises.length === 0 || allClients.length === 0 || allAppointments.length === 0) {
         fetchPromises.push(fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })));
         fetchPromises.push(fetch(`/api/appointments?t=${Date.now()}`).then(r => r.json()).catch(() => ({ success: false })));
         fetchPromises.push(fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })));
@@ -328,10 +429,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       }
 
       let currentTodayApts = todayAppointments;
+      let aptsListForHistory = allAppointments;
       if (resApts?.success && Array.isArray(resApts.data)) {
         const hojeISO = getLocalDateISO();
         currentTodayApts = resApts.data.filter((a: any) => a.data === hojeISO && a.status !== 'cancelado');
         setTodayAppointments(currentTodayApts);
+        setAllAppointments(resApts.data);
+        aptsListForHistory = resApts.data;
       }
 
       let loadedExercises = exercises;
@@ -358,6 +462,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       // 🌟 Regra Estrita SEM FALLBACK: Buscar estritamente o agendamento do horário ativo
       const clientApt = clientApts.find((a: any) => a.horario === effectiveSlot) || null;
       setActiveAppointment(clientApt);
+
+      const lastTreino = computeClientLastWorkout(targetClientId, aptsListForHistory, clientApt?._id);
+      setLastWorkoutInfo(lastTreino);
 
       if (clientApt && clientApt.wellness?.realizado) {
         setTodayWellness(clientApt.wellness);
@@ -415,15 +522,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             const matchedDbEx = loadedExercises.find(e => e.nome === exName || e._id === exName);
             const grupo = matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral';
             
+            const { carga, unidadeCarga } = parseExerciseCarga(ex);
             return {
               _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
               id: String(Date.now() + idx + Math.random()),
               nome: exName || 'Exercício',
               grupo,
-              series: Number(ex.series) || 3,
-              reps: String(ex.repeticoes || '12'),
-              carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
-              descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
+              series: ex.series !== undefined && ex.series !== null ? ex.series : 3,
+              reps: String(ex.repeticoes !== undefined && ex.repeticoes !== null ? ex.repeticoes : '12'),
+              carga,
+              unidadeCarga,
+              descanso: ex.descanso !== undefined && ex.descanso !== null ? parseInt(String(ex.descanso).replace('s', '')) || 60 : 60,
               observacao: ex.observacao || ex.observacoes || '',
               ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
               combinaGrupo: ex.combinaGrupo || '',
@@ -594,15 +703,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       const items = (sheet.exercicios || []).map((ex: any, idx: number) => {
         const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
         const matchedDbEx = exercises.find(e => e.nome === exName || e._id === exName);
+        const { carga, unidadeCarga } = parseExerciseCarga(ex);
         return {
           _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
           id: String(Date.now() + idx + Math.random()),
           nome: exName || 'Exercício',
           grupo: matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral',
-          series: Number(ex.series) || 3,
-          reps: String(ex.repeticoes || '12'),
-          carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
-          descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
+          series: ex.series !== undefined && ex.series !== null ? ex.series : 3,
+          reps: String(ex.repeticoes !== undefined && ex.repeticoes !== null ? ex.repeticoes : '12'),
+          carga,
+          unidadeCarga,
+          descanso: ex.descanso !== undefined && ex.descanso !== null ? parseInt(String(ex.descanso).replace('s', '')) || 60 : 60,
           observacao: ex.observacao || ex.observacoes || '',
           ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
           combinaGrupo: ex.combinaGrupo || '',
@@ -692,6 +803,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       series: 3,
       reps: '12',
       carga: parseFloat(String(ex.carga_sugerida || '10').replace('kg', '')) || 10,
+      unidadeCarga: 'kg',
       descanso: 60,
       observacao: '',
       ritmo: '',
@@ -699,6 +811,47 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     };
     setWorkoutItems(prev => [...prev, newItem]);
   };
+
+  const handleSubstituteExercise = (oldItemId: string, newDbEx: any) => {
+    setWorkoutItems(prev => prev.map(item => {
+      if (item.id === oldItemId) {
+        return {
+          _id: newDbEx._id || `ex_${Date.now()}`,
+          id: String(Date.now() + Math.random()),
+          nome: newDbEx.nome,
+          grupo: newDbEx.grupo || newDbEx.grupo_muscular || 'Geral',
+          // 🌟 Regra do Usuário: manter ativada a combinação (ex: G1)
+          combinaGrupo: item.combinaGrupo || '',
+          // 🌟 Regra do Usuário: dados prescritivos em branco para nova prescrição!
+          series: '',
+          reps: '',
+          ritmo: '',
+          carga: '',
+          unidadeCarga: '',
+          descanso: '',
+          observacao: '',
+          dropSet: undefined
+        };
+      }
+      return item;
+    }));
+    setSubstitutingItem(null);
+  };
+
+  const substituteFilteredExercises = useMemo(() => {
+    const rawSearch = normalizeText(substituteSearch).trim();
+    return exercises
+      .filter(ex => {
+        const g = ex.grupo || ex.grupo_muscular || 'Geral';
+        const matchMuscle = substituteMuscle === 'Todos' || normalizeText(g) === normalizeText(substituteMuscle);
+        if (!matchMuscle) return false;
+        if (!rawSearch) return true;
+        const exNomeNorm = normalizeText(ex.nome);
+        const exGrupoNorm = normalizeText(g);
+        return exNomeNorm.includes(rawSearch) || exGrupoNorm.includes(rawSearch);
+      })
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+  }, [exercises, substituteMuscle, substituteSearch]);
 
   const addToWorkout = addExercise;
 
@@ -784,7 +937,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     workoutItems.forEach(it => {
       const s = Number(it.series) || 0;
       const r = parseInt(String(it.reps).match(/\d+/)?.[0] || '10', 10);
-      const c = parseFloat(String(it.carga)) || 0;
+      const rawC = parseFloat(String(it.carga)) || 0;
+      const c = (it.unidadeCarga && String(it.unidadeCarga).toLowerCase().includes('lb')) ? rawC * 0.453592 : rawC;
       series += s;
 
       const dropSet = it.dropSet;
@@ -822,21 +976,31 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         nome: workoutName,
         ultimaAtualizacao: new Date().toISOString().split('T')[0],
         observacoesGerais: workoutGoal,
-        exercicios: workoutItems.map(item => ({
-          exercicioId: item.nome,
-          series: Number(item.series) || 3,
-          repeticoes: String(item.reps || '12'),
-          carga: `${item.carga}kg`,
-          descanso: `${item.descanso}s`,
-          observacao: item.observacao || '',
-          ritmo: item.ritmo || '',
-          combinaGrupo: item.combinaGrupo || '',
-          dropSet: (item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none') ? {
-            tipo: item.dropSet.tipo,
-            escopo: item.dropSet.escopo || 'ultima_serie',
-            drops: item.dropSet.drops || []
-          } : undefined
-        }))
+        exercicios: workoutItems.map(item => {
+          let cargaFinal: any = '';
+          if (item.unidadeCarga) {
+            cargaFinal = (item.carga !== '' && item.carga !== undefined && item.carga !== null) ? `${item.carga}${item.unidadeCarga}` : item.unidadeCarga;
+          } else if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
+            cargaFinal = `${item.carga}`;
+          }
+
+          return {
+            exercicioId: item.nome,
+            series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : '',
+            repeticoes: String(item.reps || ''),
+            carga: cargaFinal,
+            unidadeCarga: item.unidadeCarga || '',
+            descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null ? `${item.descanso}s` : '',
+            observacao: item.observacao || '',
+            ritmo: item.ritmo || '',
+            combinaGrupo: item.combinaGrupo || '',
+            dropSet: (item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none') ? {
+              tipo: item.dropSet.tipo,
+              escopo: item.dropSet.escopo || 'ultima_serie',
+              drops: item.dropSet.drops || []
+            } : undefined
+          };
+        })
       };
 
       const existingSheets = rawWorkoutDoc?.[activeCategory] || [
@@ -1371,8 +1535,27 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   Ficha de Treino
                 </span>
               </div>
-              <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fa-solid fa-dumbbell" style={{ color: '#10b981' }}></i> Prescrição e Acompanhamento Clínico
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-dumbbell" style={{ color: '#10b981' }}></i> Prescrição e Acompanhamento Clínico
+                </span>
+                {lastWorkoutInfo && (
+                  <span style={{
+                    background: lastWorkoutInfo.isLivre ? 'rgba(56, 189, 248, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                    border: lastWorkoutInfo.isLivre ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                    color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981',
+                    borderRadius: '6px',
+                    padding: '2px 8px',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    <i className={lastWorkoutInfo.isLivre ? 'fa-solid fa-person-walking' : 'fa-solid fa-dumbbell'}></i>
+                    <span>Último Treino: {lastWorkoutInfo.label} — {lastWorkoutInfo.detail}</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1787,6 +1970,61 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         <div style={{ flex: 1, padding: '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
           <div style={{ maxWidth: '1050px', margin: '0 auto' }}>
             
+            {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno */}
+            {lastWorkoutInfo && (
+              <div style={{
+                background: lastWorkoutInfo.isLivre ? 'linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(13, 19, 34, 0.6) 100%)' : 'linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(13, 19, 34, 0.6) 100%)',
+                border: lastWorkoutInfo.isLivre ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(16, 185, 129, 0.25)',
+                borderLeft: lastWorkoutInfo.isLivre ? '4px solid #38bdf8' : '4px solid #10b981',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: lastWorkoutInfo.isLivre ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981'
+                  }}>
+                    <i className={lastWorkoutInfo.isLivre ? 'fa-solid fa-person-walking' : 'fa-solid fa-dumbbell'}></i>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981', letterSpacing: '0.5px' }}>
+                      Último Treino Realizado pelo Aluno
+                    </div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                      {lastWorkoutInfo.label}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '4px 12px',
+                    fontSize: '0.78rem',
+                    color: '#cbd5e1',
+                    fontWeight: 700
+                  }}>
+                    <i className="fa-regular fa-clock" style={{ marginRight: '6px', color: '#94a3b8' }}></i>
+                    {lastWorkoutInfo.detail}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -1994,10 +2232,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 </span>
               </div>
               
+              <datalist id="unidades-carga-list">
+                <option value="kg" />
+                <option value="lbs" />
+                <option value="Livre" />
+                <option value="placas" />
+                <option value="barra" />
+              </datalist>
+
               {workoutItems.length > 0 && !isLoading && (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 130px 65px 50px 110px 65px',
+                  gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
                   gap: '8px',
                   padding: '10px 20px',
                   background: 'rgba(0, 0, 0, 0.25)',
@@ -2057,7 +2303,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                         <div
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 130px 65px 50px 110px 65px',
+                            gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
                             gap: '8px',
                             alignItems: 'center'
                           }}
@@ -2174,22 +2420,23 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             />
                           </div>
 
-                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '5px', width: '100%', height: '36px' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '3px', width: '100%', height: '36px' }}>
                             <input
                               type="number"
                               className="form-control form-control-sm"
-                              value={item.carga}
+                              value={item.carga !== undefined && item.carga !== null ? item.carga : ''}
                               onChange={e => {
-                                const newCarga = Number(e.target.value);
+                                const valStr = e.target.value;
+                                const newCarga = valStr === '' ? '' : Number(valStr);
                                 updateItem(item.id, 'carga', newCarga);
                                 if (item.dropSet && item.dropSet.tipo !== 'none') {
-                                  const drops = calculateDropSuggestions(newCarga, item.dropSet.tipo);
+                                  const drops = calculateDropSuggestions(typeof newCarga === 'number' ? newCarga : 0, item.dropSet.tipo);
                                   setWorkoutItems(prev => prev.map(it => it.id === item.id ? { ...it, carga: newCarga, dropSet: { ...it.dropSet!, drops } } : it));
                                 }
                               }}
-                              placeholder="10"
+                              placeholder="0"
                               style={{
-                                width: '56px',
+                                width: '48px',
                                 height: '36px',
                                 textAlign: 'center',
                                 padding: '0 2px',
@@ -2198,7 +2445,28 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 color: hasDrop ? '#f59e0b' : '#10b981',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.85rem'
+                                fontSize: '0.84rem'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              list="unidades-carga-list"
+                              className="form-control form-control-sm"
+                              value={item.unidadeCarga || ''}
+                              onChange={e => updateItem(item.id, 'unidadeCarga', e.target.value)}
+                              placeholder="Unid"
+                              title="Unidade de medida da carga (ex: kg, lbs, Livre, placas - campo livre)"
+                              style={{
+                                width: '44px',
+                                height: '36px',
+                                textAlign: 'center',
+                                padding: '0 2px',
+                                background: '#070b14',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#cbd5e1',
+                                borderRadius: '7px',
+                                fontWeight: 700,
+                                fontSize: '0.74rem'
                               }}
                             />
                             <button
@@ -2467,7 +2735,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               disabled={index === 0}
                               title="Subir"
                               style={{
-                                width: '24px',
+                                width: '22px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
@@ -2489,7 +2757,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               disabled={index === workoutItems.length - 1}
                               title="Descer"
                               style={{
-                                width: '24px',
+                                width: '22px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
@@ -2507,10 +2775,44 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
                             <button
                               type="button"
+                              onClick={() => {
+                                setSubstitutingItem({
+                                  id: item.id,
+                                  index,
+                                  nome: item.nome,
+                                  combinaGrupo: item.combinaGrupo || '',
+                                  grupo: item.grupo || 'Geral'
+                                });
+                                setSubstituteSearch('');
+                                setSubstituteMuscle(item.grupo && muscles.includes(item.grupo) ? item.grupo : 'Todos');
+                              }}
+                              title="Substituir Exercício (mantém a posição e a combinação G1 ativada)"
+                              style={{
+                                width: '22px',
+                                height: '36px',
+                                padding: 0,
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#38bdf8',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'color 0.15s'
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#7dd3fc')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#38bdf8')}
+                            >
+                              <i className="fa-solid fa-arrows-rotate"></i>
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => removeItem(item.id)}
                               title="Excluir Exercício"
                               style={{
-                                width: '24px',
+                                width: '22px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
@@ -2547,7 +2849,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 <i className="fa-solid fa-layer-group"></i> {item.dropSet.tipo === 'single' ? 'Single Drop' : item.dropSet.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}:
                               </span>
                               
-                              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Base: <strong style={{ color: '#fff' }}>{item.carga}kg</strong></span>
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Base: <strong style={{ color: '#fff' }}>{item.carga}{item.unidadeCarga || ''}</strong></span>
                               
                               {item.dropSet.drops.map((dropVal: any, dIdx: number) => (
                                 <div key={dIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -2570,7 +2872,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                         borderRadius: '4px'
                                       }}
                                     />
-                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: '3px' }}>kg</span>
+                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: '3px' }}>{item.unidadeCarga || ''}</span>
                                   </div>
                                 </div>
                               ))}
@@ -2753,6 +3055,200 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               >
                 Salvar Observação
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 Modal de Substituição de Exercício */}
+      {substitutingItem && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000000,
+            padding: '20px'
+          }}
+          onClick={() => setSubstitutingItem(null)}
+        >
+          <div
+            style={{
+              background: '#0d1322',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 25px rgba(56, 189, 248, 0.15)',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, transparent 100%)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-arrows-rotate" style={{ color: '#38bdf8', fontSize: '1.1rem' }}></i>
+                  <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.05rem', fontWeight: 800 }}>
+                    Substituir Exercício
+                  </h3>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
+                  Substituindo <strong style={{ color: '#f8fafc' }}>"{substitutingItem.nome}"</strong> (Posição #{substitutingItem.index + 1})
+                  {substitutingItem.combinaGrupo && (
+                    <span style={{
+                      marginLeft: '8px',
+                      background: getGroupColor(substitutingItem.combinaGrupo),
+                      color: substitutingItem.combinaGrupo === 'G5' ? '#000' : '#fff',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>
+                      {substitutingItem.combinaGrupo} Ativo
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSubstitutingItem(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '1.4rem',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  lineHeight: 1
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Busca & Filtros Musculares */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              <div style={{ position: 'relative', marginBottom: '10px' }}>
+                <input
+                  type="text"
+                  autoFocus
+                  className="form-control"
+                  placeholder="Buscar exercício substituto..."
+                  value={substituteSearch}
+                  onChange={e => setSubstituteSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 34px',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.86rem'
+                  }}
+                />
+                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '0.8rem' }}></i>
+              </div>
+
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {muscles.map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setSubstituteMuscle(m)}
+                    style={{
+                      padding: '3px 9px',
+                      borderRadius: '100px',
+                      border: '1px solid',
+                      borderColor: substituteMuscle === m ? '#38bdf8' : 'rgba(255,255,255,0.08)',
+                      background: substituteMuscle === m ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
+                      color: substituteMuscle === m ? '#38bdf8' : '#94a3b8',
+                      cursor: 'pointer',
+                      fontSize: '0.72rem',
+                      fontWeight: substituteMuscle === m ? 800 : 500,
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Lista de Exercícios Filtrados */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {substituteFilteredExercises.slice(0, 50).map(ex => (
+                <button
+                  key={ex._id}
+                  type="button"
+                  onClick={() => handleSubstituteExercise(substitutingItem.id, ex)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: '10px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#f8fafc', whiteSpace: 'normal' }}>
+                      {ex.nome}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', marginTop: '2px' }}>
+                      {ex.grupo || ex.grupo_muscular || 'Geral'}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    color: '#38bdf8',
+                    fontWeight: 800,
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    flexShrink: 0
+                  }}>
+                    Substituir
+                  </span>
+                </button>
+              ))}
+
+              {substituteFilteredExercises.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '30px 10px', color: '#64748b' }}>
+                  Nenhum exercício encontrado com esses filtros.
+                </div>
+              )}
             </div>
           </div>
         </div>
