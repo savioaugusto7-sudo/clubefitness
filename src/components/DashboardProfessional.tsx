@@ -30,6 +30,7 @@ import ComparisonPill, { ComparisonActiveBar } from './ComparisonPill';
 import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 import { getWeeklyFrequencyMetrics } from '@/utils/retentionEngine';
 import { getContractValidityInfo } from '@/utils/contractValidity';
+import { getUpcomingBirthdays, BirthdaySummary, BirthdayItem } from '@/utils/dateUtils';
 
 export { normalizeText, smartSearchMatch };
 
@@ -196,6 +197,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   );
 
   const [filtroAgendaResumo, setFiltroAgendaResumo] = useState<'todos' | 'academia' | 'dr_albert' | 'dr_guilherme'>('todos');
+  const [bdayScopeFilter, setBdayScopeFilter] = useState<'ativos' | 'todos'>('ativos');
+  const [bdayCardCollapsed, setBdayCardCollapsed] = useState(false);
 
   // PIN verification states
   const [showPinModal, setShowPinModal] = useState(false);
@@ -5387,6 +5390,25 @@ goniometria: {
               }
             });
 
+            // Lógica de Aniversariantes do Dia e Próximos 15 Dias (Não podemos perder)
+            const filteredClientsForBday = (clients || []).filter(c => {
+              if (!c) return false;
+              if (c.dadosComerciais?.status === 'excluido_anonimizado') return false;
+              if (bdayScopeFilter === 'ativos') {
+                return c.dadosComerciais?.status === 'ativo';
+              }
+              return true;
+            });
+
+            const bdaySummary = getUpcomingBirthdays(filteredClientsForBday, hojeISO, 15);
+
+            const getClientTodayAppointments = (clientId: string) => {
+              return allTodayApts.filter(a => {
+                const cId = a.clienteId?._id || a.clienteId;
+                return String(cId) === String(clientId) && a.status !== 'cancelado';
+              });
+            };
+
             return (
               <>
                 <div className="view-header" style={{ marginBottom: '16px' }}>
@@ -5397,6 +5419,391 @@ goniometria: {
                     </h1>
                     <p>Visão executiva, histórico do último atendimento, registro em tempo real e controle de agendas de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
+                </div>
+
+                {/* CARD DE ANIVERSARIANTES (HOJE + 15 DIAS) - NÃO PODEMOS PERDER */}
+                <div
+                  className="content-panel"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(20, 24, 38, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderLeft: '5px solid #f59e0b',
+                    borderRadius: '16px',
+                    padding: '18px 22px',
+                    marginBottom: '20px',
+                    boxShadow: '0 12px 30px -10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(245, 158, 11, 0.08)'
+                  }}
+                >
+                  {/* Cabeçalho do Card de Aniversariantes */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.15) 100%)',
+                        border: '1px solid rgba(245, 158, 11, 0.45)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fbbf24',
+                        fontSize: '1.2rem',
+                        boxShadow: '0 0 12px rgba(245, 158, 11, 0.2)'
+                      }}>
+                        <i className="fa-solid fa-cake-candles"></i>
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            Aniversariantes do Dia & Próximos 15 Dias
+                          </h2>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            background: 'rgba(245, 158, 11, 0.18)',
+                            color: '#fbbf24',
+                            border: '1px solid rgba(245, 158, 11, 0.3)'
+                          }}>
+                            ⭐ Não podemos perder
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>
+                          Celebre e acolha cada aluno. Todos os aniversariantes do dia são exibidos com o status de treino.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Contadores, Filtro de Escopo e Ação de Expandir */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '16px',
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        background: bdaySummary.today.length > 0 ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'rgba(255, 255, 255, 0.05)',
+                        color: bdaySummary.today.length > 0 ? '#111827' : '#94a3b8',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <i className="fa-solid fa-cake-candles"></i> {bdaySummary.today.length} Hoje
+                      </span>
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '16px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        background: 'rgba(56, 189, 248, 0.12)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <i className="fa-regular fa-calendar-days"></i> {bdaySummary.upcoming.length} nos próx. 15 dias
+                      </span>
+
+                      {/* Alternador Ativos / Todos */}
+                      <div style={{ display: 'inline-flex', borderRadius: '14px', background: 'rgba(0,0,0,0.3)', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <button
+                          type="button"
+                          onClick={() => setBdayScopeFilter('ativos')}
+                          style={{
+                            background: bdayScopeFilter === 'ativos' ? '#f59e0b' : 'transparent',
+                            color: bdayScopeFilter === 'ativos' ? '#111827' : '#94a3b8',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '3px 9px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Ativos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBdayScopeFilter('todos')}
+                          style={{
+                            background: bdayScopeFilter === 'todos' ? '#f59e0b' : 'transparent',
+                            color: bdayScopeFilter === 'todos' ? '#111827' : '#94a3b8',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '3px 9px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Todos
+                        </button>
+                      </div>
+
+                      {/* Botão Recolher/Expandir */}
+                      <button
+                        type="button"
+                        onClick={() => setBdayCardCollapsed(!bdayCardCollapsed)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#cbd5e1',
+                          borderRadius: '8px',
+                          padding: '5px 9px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.75rem'
+                        }}
+                        title={bdayCardCollapsed ? 'Expandir Aniversariantes' : 'Recolher Aniversariantes'}
+                      >
+                        <i className={`fa-solid ${bdayCardCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'}`}></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Corpo do Card (se não estiver recolhido) */}
+                  {!bdayCardCollapsed && (
+                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* 1. SEÇÃO HOJE (Destaque Ouro - SEMPRE EXIBE TODOS OS DO DIA) */}
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                          <i className="fa-solid fa-star"></i> Aniversariantes de Hoje ({bdaySummary.today.length})
+                        </div>
+
+                        {bdaySummary.today.length > 0 ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '10px' }}>
+                            {bdaySummary.today.map((item, idx) => {
+                              const clientApts = getClientTodayAppointments(item.client._id);
+                              const hasAptToday = clientApts.length > 0;
+                              const aptToday = hasAptToday ? clientApts[0] : null;
+                              const cName = (item.client.dadosPessoais?.nome || item.client.nome || 'Aluno').trim();
+                              const cInitial = cName.charAt(0).toUpperCase();
+                              const status = item.client.dadosComerciais?.status || 'ativo';
+
+                              return (
+                                <div
+                                  key={`bday-today-${item.client._id || idx}`}
+                                  style={{
+                                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                                    borderRadius: '12px',
+                                    padding: '12px 14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '12px',
+                                    boxShadow: '0 4px 15px rgba(245, 158, 11, 0.08)'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                    <div style={{
+                                      width: '38px',
+                                      height: '38px',
+                                      borderRadius: '10px',
+                                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                      color: '#111827',
+                                      fontWeight: 900,
+                                      fontSize: '1.05rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0,
+                                      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
+                                    }}>
+                                      {cInitial}
+                                    </div>
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        <strong style={{ fontSize: '0.92rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          {cName}
+                                        </strong>
+                                        {status !== 'ativo' && (
+                                          <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1' }}>
+                                            {status}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: '0.78rem', color: '#fef3c7', marginTop: '2px', fontWeight: 600 }}>
+                                        🎂 {item.turningAge ? `Completa ${item.turningAge} anos hoje!` : 'Aniversário hoje!'}
+                                      </div>
+
+                                      {/* Status de Treino no Dia */}
+                                      <div style={{ marginTop: '5px' }}>
+                                        {hasAptToday && aptToday ? (
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            background: 'rgba(16, 185, 129, 0.2)',
+                                            color: '#34d399',
+                                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                                            fontSize: '0.74rem',
+                                            fontWeight: 700
+                                          }}>
+                                            <i className="fa-solid fa-bolt"></i> Treina hoje às {aptToday.horario} • {aptToday.servico}
+                                          </span>
+                                        ) : (
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            background: 'rgba(148, 163, 184, 0.12)',
+                                            color: '#cbd5e1',
+                                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                                            fontSize: '0.74rem',
+                                            fontWeight: 500
+                                          }}>
+                                            <i className="fa-regular fa-calendar-xmark"></i> Sem agendamento hoje
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenWorkoutInNewTab(item.client._id)}
+                                      style={{
+                                        background: 'rgba(255, 255, 255, 0.08)',
+                                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                                        color: '#e2e8f0',
+                                        borderRadius: '8px',
+                                        padding: '5px 10px',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Abrir ficha do aluno"
+                                    >
+                                      <i className="fa-solid fa-dumbbell"></i>
+                                      <span>Ficha</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px dashed rgba(255, 255, 255, 0.1)',
+                            fontSize: '0.82rem',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <i className="fa-regular fa-calendar-check" style={{ color: '#64748b' }}></i>
+                            <span>Nenhum aniversariante no dia de hoje. Acompanhe os próximos 15 dias logo abaixo.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. SEÇÃO PRÓXIMOS 15 DIAS */}
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                          <i className="fa-solid fa-clock-rotate-left"></i> Próximos 15 Dias ({bdaySummary.upcoming.length})
+                        </div>
+
+                        {bdaySummary.upcoming.length > 0 ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                            {bdaySummary.upcoming.map((item, idx) => {
+                              const cName = (item.client.dadosPessoais?.nome || item.client.nome || 'Aluno').trim();
+                              const cInitial = cName.charAt(0).toUpperCase();
+
+                              return (
+                                <div
+                                  key={`bday-up-${item.client._id || idx}`}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: item.isTomorrow ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                    borderRadius: '10px',
+                                    padding: '10px 12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '10px'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                    <div style={{
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '8px',
+                                      background: item.isTomorrow ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                                      color: item.isTomorrow ? '#38bdf8' : '#cbd5e1',
+                                      fontWeight: 800,
+                                      fontSize: '0.9rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0
+                                    }}>
+                                      {cInitial}
+                                    </div>
+                                    <div style={{ minWidth: 0 }}>
+                                      <strong style={{ fontSize: '0.85rem', color: '#e2e8f0', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {cName}
+                                      </strong>
+                                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>
+                                        {item.turningAge ? `Fará ${item.turningAge} anos` : `Data: ${item.formattedDayMonth}`}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '2px 8px',
+                                      borderRadius: '10px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 800,
+                                      background: item.isTomorrow ? 'rgba(56, 189, 248, 0.15)' : 'rgba(168, 85, 247, 0.12)',
+                                      color: item.isTomorrow ? '#38bdf8' : '#c084fc',
+                                      border: item.isTomorrow ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(168, 85, 247, 0.25)'
+                                    }}>
+                                      {item.isTomorrow ? `Amanhã (${item.formattedDayMonth})` : `Em ${item.diffDays}d (${item.formattedDayMonth})`}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px dashed rgba(255, 255, 255, 0.1)',
+                            fontSize: '0.82rem',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <i className="fa-regular fa-clock" style={{ color: '#64748b' }}></i>
+                            <span>Nenhum aniversário nos próximos 15 dias.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Barra de Filtros Rápidos de Agenda */}
