@@ -8217,55 +8217,44 @@ goniometria: {
                                     </div>
                                   </div>
 
-                                  {/* Action buttons unificados para WorkoutBuilder */}
-                                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {hasWorkout && (
-                                      <button 
-                                        type="button"
-                                        className="btn btn-secondary" 
-                                        style={{ 
-                                          width: '100%', 
-                                          display: 'flex', 
-                                          alignItems: 'center', 
-                                          justifyContent: 'center', 
-                                          gap: '8px', 
-                                          padding: '10px', 
-                                          fontWeight: 750, 
-                                          borderRadius: '10px',
-                                          background: 'rgba(59, 130, 246, 0.12)',
-                                          color: '#60a5fa',
-                                          border: '1px solid rgba(59, 130, 246, 0.3)',
-                                          transition: 'all 0.2s ease',
-                                          fontSize: '0.86rem',
-                                          cursor: 'pointer'
-                                        }}
-                                        onMouseEnter={e => {
-                                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.22)';
-                                          e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-                                        }}
-                                        onMouseLeave={e => {
-                                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
-                                          e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-                                        }}
-                                        onClick={() => {
-                                          setBuilderClient(c);
-                                          setShowWorkoutBuilder(true);
-                                        }}
-                                        title="Abrir a ficha completa do aluno"
-                                      >
-                                        <i className="fa-solid fa-book-open"></i> Abrir ficha de treino
-                                      </button>
-                                    )}
+                                  {/* Action button unificado para WorkoutBuilder */}
+                                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
                                     <button 
                                       type="button"
                                       className="btn btn-primary" 
-                                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', fontWeight: 750, borderRadius: '10px', fontSize: '0.86rem', cursor: 'pointer' }}
+                                      style={{ 
+                                        width: '100%', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        gap: '8px', 
+                                        padding: '11px 16px', 
+                                        fontWeight: 750, 
+                                        borderRadius: '10px', 
+                                        fontSize: '0.9rem', 
+                                        cursor: 'pointer',
+                                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
+                                        border: 'none',
+                                        color: '#ffffff',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                      onMouseEnter={e => {
+                                        e.currentTarget.style.filter = 'brightness(1.08)';
+                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                        e.currentTarget.style.boxShadow = '0 6px 18px rgba(16, 185, 129, 0.35)';
+                                      }}
+                                      onMouseLeave={e => {
+                                        e.currentTarget.style.filter = 'none';
+                                        e.currentTarget.style.transform = 'none';
+                                        e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.25)';
+                                      }}
                                       onClick={() => {
                                         setBuilderClient(c);
                                         setShowWorkoutBuilder(true);
                                       }}
                                     >
-                                      <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar / Editar Ficha' : 'Criar Nova Ficha'}
+                                      <i className="fa-solid fa-book-open"></i> {hasWorkout ? 'Abrir Ficha de Treino' : 'Criar Ficha de Treino'}
                                     </button>
                                   </div>
                                 </div>
