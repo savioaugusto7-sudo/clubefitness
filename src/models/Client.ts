@@ -168,5 +168,10 @@ const ClientSchema = new Schema({
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null }
 }, { timestamps: true });
 
+ClientSchema.index({ userId: 1 });
+ClientSchema.index({ 'dadosComerciais.status': 1 });
+ClientSchema.index({ 'dadosPessoais.cpf': 1 });
+ClientSchema.index({ 'dadosPessoais.nome': 1 });
+
 export default models.Client || model('Client', ClientSchema);
 

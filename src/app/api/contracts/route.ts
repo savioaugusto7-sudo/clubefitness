@@ -37,10 +37,15 @@ export async function GET(request: Request) {
       }
     }
 
-    // Excluir base64 pesados das listagens para economizar tráfego e acelerar resposta
-    const selectProjection = (!id && !includeAnexo)
-      ? '-contratoAnexo -assinaturaPresencialImage'
-      : '';
+    const syncParam = searchParams.get('sync') === 'true';
+
+    // Excluir textos longos (HTML) e base64 pesados das listagens globais para economizar tráfego e acelerar resposta
+    const isGlobalList = !id && !clientId;
+    const selectProjection = isGlobalList
+      ? '-contratoAnexo -assinaturaPresencialImage -contratoTexto -asaasBoletoPdf -asaasPixQrCode'
+      : (!id && !includeAnexo)
+        ? '-contratoAnexo -assinaturaPresencialImage -asaasBoletoPdf'
+        : '';
 
     let contracts: any[] = await Contract.find(query)
       .select(selectProjection)
@@ -51,7 +56,9 @@ export async function GET(request: Request) {
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
     const baseUrl = process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com';
 
-    if (token) {
+    // Apenas sincroniza com Clicksign se for consulta pontual (id/clientId) ou sincronização explícita (sync=true)
+    // para não bloquear a thread ou o pool de conexões em listagens globais da academia
+    if (token && (id || clientId || syncParam)) {
       const pendingClicksign = contracts.filter((c: any) => 
         c.clicksignDocKey && 
         (c.status === 'pendente' || c.status === 'aguardando_assinatura' || c.clicksignStatus === 'pendente' || c.clicksignStatus === 'enviado')

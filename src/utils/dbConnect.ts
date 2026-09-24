@@ -40,14 +40,14 @@ async function dbConnect(forceReconnect = false) {
     }
   }
 
-  // 3. Force IPv4 (family: 4), optimize pool size for Serverless (M0 Atlas) and auto-close idle connections
+  // 3. Force IPv4 (family: 4), optimize pool size for Serverless (Atlas) and auto-close idle connections
   const opts: mongoose.ConnectOptions = {
     bufferCommands: false,
-    maxPoolSize: 2,
-    minPoolSize: 0,
-    maxIdleTimeMS: 5000,
-    serverSelectionTimeoutMS: 8000,
-    connectTimeoutMS: 8000,
+    maxPoolSize: 10,
+    minPoolSize: 1,
+    maxIdleTimeMS: 10000,
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
     socketTimeoutMS: 30000,
     family: 4,
     retryReads: true,

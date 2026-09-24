@@ -62,4 +62,8 @@ const ContractSchema = new Schema({
   congelamento: { type: CongelamentoSchema, default: null }
 }, { timestamps: true });
 
+ContractSchema.index({ clientId: 1, versao: -1, dataEmissao: -1 });
+ContractSchema.index({ status: 1 });
+ContractSchema.index({ clicksignDocKey: 1 });
+
 export default models.Contract || model('Contract', ContractSchema);
