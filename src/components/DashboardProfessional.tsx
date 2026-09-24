@@ -8071,32 +8071,91 @@ goniometria: {
                               );
 
                               const getUltimaFichaInfo = () => {
-                                if (!userWorkout) return { dateStr: '—', isExpired: false, diffDays: null };
-                                const dates: string[] = [];
+                                if (!userWorkout) return { dateStr: '—', isExpired: false, diffDays: null, hasValidity: false, badgeText: 'Sem Ficha', badgeColor: '#f59e0b', badgeBg: 'rgba(245, 158, 11, 0.15)', badgeBorder: 'rgba(245, 158, 11, 0.3)' };
+                                
+                                const allSheets: any[] = [];
                                 if (userWorkout.fichasMonitorado) {
                                   userWorkout.fichasMonitorado.forEach((f: any) => {
-                                    if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+                                    if (f.exercicios && f.exercicios.length > 0) allSheets.push(f);
                                   });
                                 }
                                 if (userWorkout.fichasLivre) {
                                   userWorkout.fichasLivre.forEach((f: any) => {
-                                    if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+                                    if (f.exercicios && f.exercicios.length > 0) allSheets.push(f);
                                   });
                                 }
-                                if (dates.length === 0) return { dateStr: '—', isExpired: false, diffDays: null };
-                                dates.sort((a, b) => b.localeCompare(a));
-                                const latestDateStr = dates[0];
-                                const latestDate = new Date(latestDateStr + 'T12:00:00');
-                                const today = new Date();
-                                const diffTime = today.getTime() - latestDate.getTime();
-                                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                                const isExpired = diffDays > 60;
+
+                                if (allSheets.length === 0) {
+                                  return { dateStr: '—', isExpired: false, diffDays: null, hasValidity: false, badgeText: 'Sem Ficha', badgeColor: '#f59e0b', badgeBg: 'rgba(245, 158, 11, 0.15)', badgeBorder: 'rgba(245, 158, 11, 0.3)' };
+                                }
+
+                                allSheets.sort((a, b) => (b.ultimaAtualizacao || '').localeCompare(a.ultimaAtualizacao || ''));
+                                const activeSheet = allSheets[0];
+                                const latestDateStr = activeSheet.ultimaAtualizacao || '';
                                 const parts = latestDateStr.split('-');
-                                const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : latestDateStr;
-                                return { dateStr: formattedDate, isExpired, diffDays };
+                                const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : (latestDateStr || '—');
+
+                                const validade = activeSheet.validadeDias;
+                                const expiracaoStr = activeSheet.dataExpiracao;
+
+                                if (!validade || !expiracaoStr) {
+                                  return {
+                                    dateStr: formattedDate,
+                                    isExpired: false,
+                                    hasValidity: false,
+                                    diffDays: null,
+                                    badgeText: '⚠️ Sem validade informada',
+                                    badgeColor: '#fbbf24',
+                                    badgeBg: 'rgba(251, 191, 36, 0.15)',
+                                    badgeBorder: 'rgba(251, 191, 36, 0.4)'
+                                  };
+                                }
+
+                                const expDate = new Date(expiracaoStr + 'T12:00:00');
+                                const today = new Date();
+                                const diffDays = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                const isExpired = diffDays <= 0;
+                                const isExpiringSoon = diffDays > 0 && diffDays <= 7;
+
+                                if (isExpired) {
+                                  return {
+                                    dateStr: formattedDate,
+                                    isExpired: true,
+                                    hasValidity: true,
+                                    diffDays,
+                                    badgeText: `🔴 Vencida há ${Math.abs(diffDays)}d`,
+                                    badgeColor: '#ef4444',
+                                    badgeBg: 'rgba(239, 68, 68, 0.15)',
+                                    badgeBorder: 'rgba(239, 68, 68, 0.4)'
+                                  };
+                                } else if (isExpiringSoon) {
+                                  return {
+                                    dateStr: formattedDate,
+                                    isExpired: false,
+                                    hasValidity: true,
+                                    diffDays,
+                                    badgeText: `🟡 Vence em ${diffDays}d`,
+                                    badgeColor: '#fbbf24',
+                                    badgeBg: 'rgba(251, 191, 36, 0.15)',
+                                    badgeBorder: 'rgba(251, 191, 36, 0.4)'
+                                  };
+                                } else {
+                                  return {
+                                    dateStr: formattedDate,
+                                    isExpired: false,
+                                    hasValidity: true,
+                                    diffDays,
+                                    badgeText: `🟢 Vigente (${diffDays}d)`,
+                                    badgeColor: '#10b981',
+                                    badgeBg: 'rgba(16, 185, 129, 0.15)',
+                                    badgeBorder: 'rgba(16, 185, 129, 0.4)'
+                                  };
+                                }
                               };
 
-                              const { dateStr, isExpired } = getUltimaFichaInfo();
+                              const fichaInfo = getUltimaFichaInfo();
+                              const dateStr = fichaInfo.dateStr;
+                              const isExpired = fichaInfo.isExpired;
                               const isFemale = c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F');
 
                               return (
@@ -8127,9 +8186,9 @@ goniometria: {
                                       </div>
 
                                       <span style={{
-                                        background: hasWorkout ? (isExpired ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)') : 'rgba(245, 158, 11, 0.15)',
-                                        color: hasWorkout ? (isExpired ? '#ef4444' : '#10b981') : '#f59e0b',
-                                        border: `1px solid ${hasWorkout ? (isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)') : 'rgba(245, 158, 11, 0.3)'}`,
+                                        background: fichaInfo.badgeBg,
+                                        color: fichaInfo.badgeColor,
+                                        border: `1px solid ${fichaInfo.badgeBorder}`,
                                         padding: '3px 8px',
                                         borderRadius: '8px',
                                         fontSize: '0.72rem',
@@ -8137,7 +8196,7 @@ goniometria: {
                                         whiteSpace: 'nowrap',
                                         flexShrink: 0
                                       }}>
-                                        {hasWorkout ? (isExpired ? 'Ficha Vencida' : 'Ficha Ativa') : 'Sem Ficha'}
+                                        {fichaInfo.badgeText}
                                       </span>
                                     </div>
 
@@ -8158,7 +8217,7 @@ goniometria: {
                                     </div>
                                   </div>
 
-                                  {/* Action buttons */}
+                                  {/* Action buttons unificados para WorkoutBuilder */}
                                   <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {hasWorkout && (
                                       <button 
@@ -8177,7 +8236,8 @@ goniometria: {
                                           color: '#60a5fa',
                                           border: '1px solid rgba(59, 130, 246, 0.3)',
                                           transition: 'all 0.2s ease',
-                                          fontSize: '0.86rem'
+                                          fontSize: '0.86rem',
+                                          cursor: 'pointer'
                                         }}
                                         onMouseEnter={e => {
                                           e.currentTarget.style.background = 'rgba(59, 130, 246, 0.22)';
@@ -8187,16 +8247,23 @@ goniometria: {
                                           e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
                                           e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
                                         }}
-                                        onClick={() => handleOpenWorkoutReader(c)}
-                                        title="Abrir a ficha apenas para leitura (sem editar)"
+                                        onClick={() => {
+                                          setBuilderClient(c);
+                                          setShowWorkoutBuilder(true);
+                                        }}
+                                        title="Abrir a ficha completa do aluno"
                                       >
                                         <i className="fa-solid fa-book-open"></i> Abrir ficha de treino
                                       </button>
                                     )}
                                     <button 
+                                      type="button"
                                       className="btn btn-primary" 
-                                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', fontWeight: 750, borderRadius: '10px', fontSize: '0.86rem' }}
-                                      onClick={() => handleOpenWorkoutEditor(c)}
+                                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', fontWeight: 750, borderRadius: '10px', fontSize: '0.86rem', cursor: 'pointer' }}
+                                      onClick={() => {
+                                        setBuilderClient(c);
+                                        setShowWorkoutBuilder(true);
+                                      }}
                                     >
                                       <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar / Editar Ficha' : 'Criar Nova Ficha'}
                                     </button>

@@ -201,6 +201,25 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [justSaved, setJustSaved] = useState(false);
   const [saveToast, setSaveToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // 🌟 Validade da Ficha (15, 30, 60 dias)
+  const [workoutValidade, setWorkoutValidade] = useState<number | undefined>(undefined);
+  const [workoutDataInicio, setWorkoutDataInicio] = useState<string>('');
+  const [workoutDataExpiracao, setWorkoutDataExpiracao] = useState<string>('');
+
+  // 🌟 Auto-Save em Tempo Real
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastAutoSaveTime, setLastAutoSaveTime] = useState<string>('');
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isReadyForAutoSaveRef = useRef<boolean>(false);
+
+  // 🌟 Histórico de Versões / Ciclos
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyList, setHistoryList] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // 🌟 Popover / Modal de Evolução de Carga
+  const [selectedProgressionItem, setSelectedProgressionItem] = useState<any | null>(null);
+
   // Unsaved changes protection
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
@@ -516,6 +535,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           setActiveTabLetter(sheetTab);
           setWorkoutName(sheetName);
           setWorkoutGoal(sheetGoal);
+          setWorkoutValidade(initialSheet.validadeDias ? Number(initialSheet.validadeDias) : undefined);
+          setWorkoutDataInicio(initialSheet.dataInicio || '');
+          setWorkoutDataExpiracao(initialSheet.dataExpiracao || '');
           
           const items = (initialSheet.exercicios || []).map((ex: any, idx: number) => {
             const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
@@ -536,6 +558,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               observacao: ex.observacao || ex.observacoes || '',
               ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
               combinaGrupo: ex.combinaGrupo || '',
+              historicoCargas: Array.isArray(ex.historicoCargas) ? ex.historicoCargas : [],
               dropSet: ex.dropSet ? {
                 tipo: ex.dropSet.tipo || 'none',
                 escopo: ex.dropSet.escopo || 'ultima_serie',
@@ -545,10 +568,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           });
           setWorkoutItems(items);
           setInitialSnapshot(computeSnapshot(items, sheetName, sheetGoal, chosenCategory, sheetTab));
+
+          setTimeout(() => {
+            isReadyForAutoSaveRef.current = true;
+          }, 600);
         }
       } else {
         setWorkoutItems([]);
+        setWorkoutValidade(undefined);
+        setWorkoutDataInicio('');
+        setWorkoutDataExpiracao('');
         setInitialSnapshot(computeSnapshot([], 'Ficha A', '', 'fichasMonitorado', 'A'));
+        setTimeout(() => {
+          isReadyForAutoSaveRef.current = true;
+        }, 600);
       }
 
     } catch (err) {
@@ -692,6 +725,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   }, [rawWorkoutDoc, activeCategory, activeTabLetter]);
 
   const handleChangeSheet = (letter: string, categoryOverride?: 'fichasMonitorado' | 'fichasLivre') => {
+    isReadyForAutoSaveRef.current = false;
     const targetLetter = (letter || 'A').toUpperCase();
     setActiveTabLetter(targetLetter);
     const cat = categoryOverride || activeCategory;
@@ -700,6 +734,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     if (sheet) {
       setWorkoutName(sheet.nome || (cat === 'fichasLivre' ? `TREINO LIVRE ${targetLetter}` : `Ficha ${targetLetter}`));
       setWorkoutGoal(sheet.observacoesGerais || '');
+      setWorkoutValidade(sheet.validadeDias ? Number(sheet.validadeDias) : undefined);
+      setWorkoutDataInicio(sheet.dataInicio || '');
+      setWorkoutDataExpiracao(sheet.dataExpiracao || '');
+
       const items = (sheet.exercicios || []).map((ex: any, idx: number) => {
         const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
         const matchedDbEx = exercises.find(e => e.nome === exName || e._id === exName);
@@ -717,6 +755,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           observacao: ex.observacao || ex.observacoes || '',
           ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
           combinaGrupo: ex.combinaGrupo || '',
+          historicoCargas: Array.isArray(ex.historicoCargas) ? ex.historicoCargas : [],
           dropSet: ex.dropSet ? {
             tipo: ex.dropSet.tipo || 'none',
             escopo: ex.dropSet.escopo || 'ultima_serie',
@@ -728,8 +767,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     } else {
       setWorkoutName(cat === 'fichasLivre' ? `TREINO LIVRE ${targetLetter}` : `Ficha ${targetLetter}`);
       setWorkoutGoal('');
+      setWorkoutValidade(undefined);
+      setWorkoutDataInicio('');
+      setWorkoutDataExpiracao('');
       setWorkoutItems([]);
     }
+
+    setTimeout(() => {
+      isReadyForAutoSaveRef.current = true;
+    }, 400);
   };
 
   const handleAddCustomFicha = () => {
@@ -807,22 +853,23 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       descanso: 60,
       observacao: '',
       ritmo: '',
-      combinaGrupo: ''
+      combinaGrupo: '',
+      historicoCargas: []
     };
-    setWorkoutItems(prev => [...prev, newItem]);
+    const updated = [...workoutItems, newItem];
+    setWorkoutItems(updated);
+    persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
   };
 
   const handleSubstituteExercise = (oldItemId: string, newDbEx: any) => {
-    setWorkoutItems(prev => prev.map(item => {
+    const updated = workoutItems.map(item => {
       if (item.id === oldItemId) {
         return {
           _id: newDbEx._id || `ex_${Date.now()}`,
           id: String(Date.now() + Math.random()),
           nome: newDbEx.nome,
           grupo: newDbEx.grupo || newDbEx.grupo_muscular || 'Geral',
-          // 🌟 Regra do Usuário: manter ativada a combinação (ex: G1)
           combinaGrupo: item.combinaGrupo || '',
-          // 🌟 Regra do Usuário: dados prescritivos em branco para nova prescrição!
           series: '',
           reps: '',
           ritmo: '',
@@ -830,12 +877,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           unidadeCarga: '',
           descanso: '',
           observacao: '',
+          historicoCargas: [],
           dropSet: undefined
         };
       }
       return item;
-    }));
+    });
+    setWorkoutItems(updated);
     setSubstitutingItem(null);
+    persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
   };
 
   const substituteFilteredExercises = useMemo(() => {
@@ -856,16 +906,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const addToWorkout = addExercise;
 
   const removeItem = (id: string) => {
-    setWorkoutItems(prev => prev.filter(item => item.id !== id));
+    const updated = workoutItems.filter(item => item.id !== id);
+    setWorkoutItems(updated);
+    persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
   };
 
   const updateItem = (id: string, field: string, value: any) => {
-    setWorkoutItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, [field]: value };
-      }
-      return item;
-    }));
+    setWorkoutItems(prev => {
+      const updated = prev.map(item => {
+        if (item.id === id) {
+          return { ...item, [field]: value };
+        }
+        return item;
+      });
+      triggerDebouncedAutoSave(updated);
+      return updated;
+    });
   };
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
@@ -876,10 +932,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     newItems[index] = newItems[targetIndex];
     newItems[targetIndex] = temp;
     setWorkoutItems(newItems);
+    persistWorkoutData(newItems, workoutName, workoutGoal, workoutValidade, true);
   };
 
   const handleSetDropTipo = (id: string, newTipo: 'none' | 'single' | 'double' | 'triple') => {
-    setWorkoutItems(prev => prev.map(item => {
+    const updated = workoutItems.map(item => {
       if (item.id === id) {
         if (newTipo === 'none') {
           return { ...item, dropSet: undefined };
@@ -896,28 +953,34 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         };
       }
       return item;
-    }));
+    });
+    setWorkoutItems(updated);
+    persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
   };
 
   const handleUpdateDropValue = (id: string, dropIndex: number, val: number) => {
-    setWorkoutItems(prev => prev.map(item => {
-      if (item.id === id && item.dropSet) {
-        const newDrops = [...(item.dropSet.drops || [])];
-        newDrops[dropIndex] = val;
-        return {
-          ...item,
-          dropSet: {
-            ...item.dropSet,
-            drops: newDrops
-          }
-        };
-      }
-      return item;
-    }));
+    setWorkoutItems(prev => {
+      const updated = prev.map(item => {
+        if (item.id === id && item.dropSet) {
+          const newDrops = [...(item.dropSet.drops || [])];
+          newDrops[dropIndex] = val;
+          return {
+            ...item,
+            dropSet: {
+              ...item.dropSet,
+              drops: newDrops
+            }
+          };
+        }
+        return item;
+      });
+      triggerDebouncedAutoSave(updated);
+      return updated;
+    });
   };
 
   const handleToggleDropEscopo = (id: string, escopo: 'ultima_serie' | 'todas_series') => {
-    setWorkoutItems(prev => prev.map(item => {
+    const updated = workoutItems.map(item => {
       if (item.id === id && item.dropSet) {
         return {
           ...item,
@@ -928,7 +991,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         };
       }
       return item;
-    }));
+    });
+    setWorkoutItems(updated);
+    persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
   };
 
   const metrics = useMemo(() => {
@@ -953,7 +1018,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         if (dropSet.escopo === 'todas_series') {
           volume += s * volumeUmaSerieComDrop;
         } else {
-          // 'ultima_serie'
           const seriesNormais = Math.max(0, s - 1);
           volume += (seriesNormais * r * c) + volumeUmaSerieComDrop;
         }
@@ -966,42 +1030,69 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     };
   }, [workoutItems]);
 
-  const handleSave = async () => {
+  // 🌟 Gerador de payload da ficha atual
+  const buildCurrentSheetPayload = (
+    items = workoutItems,
+    name = workoutName,
+    goal = workoutGoal,
+    validade = workoutValidade,
+    dataInicio = workoutDataInicio,
+    dataExpiracao = workoutDataExpiracao
+  ) => {
+    return {
+      id: activeTabLetter,
+      nome: name,
+      ultimaAtualizacao: new Date().toISOString().split('T')[0],
+      observacoesGerais: goal,
+      validadeDias: validade,
+      dataInicio: dataInicio || new Date().toISOString().split('T')[0],
+      dataExpiracao: dataExpiracao,
+      exercicios: items.map(item => {
+        let cargaFinal: any = '';
+        if (item.unidadeCarga) {
+          cargaFinal = (item.carga !== '' && item.carga !== undefined && item.carga !== null) ? `${item.carga}${item.unidadeCarga}` : item.unidadeCarga;
+        } else if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
+          cargaFinal = `${item.carga}`;
+        }
+
+        return {
+          exercicioId: item.nome,
+          series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : '',
+          repeticoes: String(item.reps || ''),
+          carga: cargaFinal,
+          unidadeCarga: item.unidadeCarga || '',
+          descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null ? `${item.descanso}s` : '',
+          observacao: item.observacao || '',
+          ritmo: item.ritmo || '',
+          combinaGrupo: item.combinaGrupo || '',
+          historicoCargas: Array.isArray(item.historicoCargas) ? item.historicoCargas : [],
+          dropSet: (item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none') ? {
+            tipo: item.dropSet.tipo,
+            escopo: item.dropSet.escopo || 'ultima_serie',
+            drops: item.dropSet.drops || []
+          } : undefined
+        };
+      })
+    };
+  };
+
+  // 🌟 Motor de persistência unificado (Manual ou Auto-Save)
+  const persistWorkoutData = async (
+    items = workoutItems,
+    name = workoutName,
+    goal = workoutGoal,
+    validade = workoutValidade,
+    isAutoSave = false
+  ) => {
     try {
-      setIsSaving(true);
-      setSaveToast(null);
+      if (isAutoSave) {
+        setAutoSaveStatus('saving');
+      } else {
+        setIsSaving(true);
+        setSaveToast(null);
+      }
 
-      const currentSheetPayload = {
-        id: activeTabLetter,
-        nome: workoutName,
-        ultimaAtualizacao: new Date().toISOString().split('T')[0],
-        observacoesGerais: workoutGoal,
-        exercicios: workoutItems.map(item => {
-          let cargaFinal: any = '';
-          if (item.unidadeCarga) {
-            cargaFinal = (item.carga !== '' && item.carga !== undefined && item.carga !== null) ? `${item.carga}${item.unidadeCarga}` : item.unidadeCarga;
-          } else if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
-            cargaFinal = `${item.carga}`;
-          }
-
-          return {
-            exercicioId: item.nome,
-            series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : '',
-            repeticoes: String(item.reps || ''),
-            carga: cargaFinal,
-            unidadeCarga: item.unidadeCarga || '',
-            descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null ? `${item.descanso}s` : '',
-            observacao: item.observacao || '',
-            ritmo: item.ritmo || '',
-            combinaGrupo: item.combinaGrupo || '',
-            dropSet: (item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none') ? {
-              tipo: item.dropSet.tipo,
-              escopo: item.dropSet.escopo || 'ultima_serie',
-              drops: item.dropSet.drops || []
-            } : undefined
-          };
-        })
-      };
+      const currentSheetPayload = buildCurrentSheetPayload(items, name, goal, validade);
 
       const existingSheets = rawWorkoutDoc?.[activeCategory] || [
         { id: 'A', nome: 'Ficha A', exercicios: [] },
@@ -1013,9 +1104,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       const prevExCount = (sheetIdx !== -1 && existingSheets[sheetIdx].exercicios) ? existingSheets[sheetIdx].exercicios.length : 0;
 
       let confirmEmpty = false;
-      if (prevExCount > 0 && workoutItems.length === 0) {
+      if (!isAutoSave && prevExCount > 0 && items.length === 0) {
         const ok = window.confirm(
-          `⚠️ ATENÇÃO: A ${workoutName || ('Ficha ' + activeTabLetter)} de ${realClientName || 'Aluno'} continha ${prevExCount} exercício(s) e agora está totalmente vazia.\n\nSalvar agora apagará todos os exercícios do aluno.\n\nDeseja realmente salvar a ficha vazia?`
+          `⚠️ ATENÇÃO: A ${name || ('Ficha ' + activeTabLetter)} de ${realClientName || 'Aluno'} continha ${prevExCount} exercício(s) e agora está totalmente vazia.\n\nSalvar agora apagará todos os exercícios do aluno.\n\nDeseja realmente salvar a ficha vazia?`
         );
         if (!ok) {
           setIsSaving(false);
@@ -1037,6 +1128,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         workoutData: updatedSheets,
         [activeCategory]: updatedSheets,
         confirmEmpty,
+        motivo: isAutoSave ? 'Salvamento automático de treino' : 'Atualização manual de ficha de treino',
         profissionalNome: realClientName ? `Edição: ${displayName}` : ''
       };
 
@@ -1048,45 +1140,149 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       const data = await res.json();
 
       if (data.success || res.ok) {
+        const savedDoc = data.data || {};
         setRawWorkoutDoc((prev: any) => ({
           ...(prev || {}),
-          [activeCategory]: updatedSheets
+          [activeCategory]: savedDoc[activeCategory] || updatedSheets
         }));
 
-        setInitialSnapshot(computeSnapshot(workoutItems, workoutName, workoutGoal, activeCategory, activeTabLetter));
+        const savedSheet = (savedDoc[activeCategory] || updatedSheets).find((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
+        if (savedSheet) {
+          if (savedSheet.dataInicio) setWorkoutDataInicio(savedSheet.dataInicio);
+          if (savedSheet.dataExpiracao) setWorkoutDataExpiracao(savedSheet.dataExpiracao);
+          if (savedSheet.validadeDias) setWorkoutValidade(Number(savedSheet.validadeDias));
+
+          if (Array.isArray(savedSheet.exercicios)) {
+            setWorkoutItems(prev => prev.map(it => {
+              const returnedEx = savedSheet.exercicios.find((e: any) => {
+                const eNome = typeof e.exercicioId === 'object' ? e.exercicioId?.nome : e.exercicioId;
+                return eNome === it.nome;
+              });
+              if (returnedEx && Array.isArray(returnedEx.historicoCargas)) {
+                return { ...it, historicoCargas: returnedEx.historicoCargas };
+              }
+              return it;
+            }));
+          }
+        }
+
+        setInitialSnapshot(computeSnapshot(items, name, goal, activeCategory, activeTabLetter));
 
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        
-        setJustSaved(true);
-        setSaveToast({
-          message: `✨ ${workoutName} de ${realClientName || 'Aluno'} salva com sucesso às ${timeStr}!`,
-          type: 'success'
-        });
 
-        setTimeout(() => {
-          setJustSaved(false);
-        }, 3000);
+        setAutoSaveStatus('saved');
+        setLastAutoSaveTime(timeStr);
 
-        setTimeout(() => {
-          setSaveToast(null);
-        }, 5000);
+        if (!isAutoSave) {
+          setJustSaved(true);
+          setSaveToast({
+            message: `✨ ${name} de ${realClientName || 'Aluno'} salva com sucesso às ${timeStr}!`,
+            type: 'success'
+          });
 
+          setTimeout(() => {
+            setJustSaved(false);
+          }, 3000);
+
+          setTimeout(() => {
+            setSaveToast(null);
+          }, 5000);
+        }
+      } else {
+        if (isAutoSave) {
+          setAutoSaveStatus('error');
+        } else {
+          setSaveToast({
+            message: `Erro ao salvar: ${data.error || 'Falha na resposta do servidor'}`,
+            type: 'error'
+          });
+        }
+      }
+    } catch (err: any) {
+      if (isAutoSave) {
+        setAutoSaveStatus('error');
       } else {
         setSaveToast({
-          message: `Erro ao salvar: ${data.error || 'Falha na resposta do servidor'}`,
+          message: `Erro de conexão ao salvar: ${err.message}`,
           type: 'error'
         });
       }
-    } catch (err: any) {
-      setSaveToast({
-        message: `Erro de conexão ao salvar: ${err.message}`,
-        type: 'error'
-      });
     } finally {
-      setIsSaving(false);
+      if (!isAutoSave) {
+        setIsSaving(false);
+      }
     }
   };
+
+  // 🌟 Disparador com Debounce Inteligente (800ms)
+  const triggerDebouncedAutoSave = (updatedItems?: any[], updatedName?: string, updatedGoal?: string, updatedValidade?: number) => {
+    if (!isReadyForAutoSaveRef.current) return;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    setAutoSaveStatus('saving');
+    autoSaveTimerRef.current = setTimeout(() => {
+      persistWorkoutData(
+        updatedItems !== undefined ? updatedItems : workoutItems,
+        updatedName !== undefined ? updatedName : workoutName,
+        updatedGoal !== undefined ? updatedGoal : workoutGoal,
+        updatedValidade !== undefined ? updatedValidade : workoutValidade,
+        true
+      );
+    }, 800);
+  };
+
+  // 🌟 Seletor de Validade da Ficha (15, 30 ou 60 dias)
+  const handleSetValidade = (days: number) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const baseDate = new Date(todayStr + 'T12:00:00');
+    baseDate.setDate(baseDate.getDate() + days);
+    const expStr = baseDate.toISOString().split('T')[0];
+
+    setWorkoutValidade(days);
+    setWorkoutDataInicio(todayStr);
+    setWorkoutDataExpiracao(expStr);
+
+    persistWorkoutData(workoutItems, workoutName, workoutGoal, days, true);
+  };
+
+  // 🌟 Cálculo de Evolução de Carga (Overload Progressivo)
+  const getExerciseLoadProgression = (historico: any[]) => {
+    if (!Array.isArray(historico) || historico.length < 2) return null;
+    const first = historico[0];
+    const last = historico[historico.length - 1];
+    const cFirst = parseFloat(String(first.carga).replace(/[^\d.-]/g, '')) || 0;
+    const cLast = parseFloat(String(last.carga).replace(/[^\d.-]/g, '')) || 0;
+    const diff = Math.round((cLast - cFirst) * 10) / 10;
+
+    let dias = 0;
+    if (first.data && last.data) {
+      const d1 = new Date(first.data + 'T12:00:00');
+      const d2 = new Date(last.data + 'T12:00:00');
+      dias = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+    return { diff, dias, first, last, unit: last.unidadeCarga || first.unidadeCarga || 'kg' };
+  };
+
+  // 🌟 Modal de Histórico de Versões
+  const handleOpenHistory = async () => {
+    try {
+      setIsLoadingHistory(true);
+      setShowHistoryModal(true);
+      const res = await fetch(`/api/workouts?clientId=${currentClientId}&history=true`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setHistoryList(data.data);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar histórico:', e);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleSave = () => persistWorkoutData(workoutItems, workoutName, workoutGoal, workoutValidade, false);
 
   const handleSaveAndSwitch = async () => {
     if (!pendingTargetClient) return;
@@ -1593,6 +1789,88 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>{metrics.totalExercicios} ex • {metrics.totalSeries} séries</div>
             </div>
           </div>
+
+          {/* 🌟 Botão Histórico de Ciclos */}
+          <button
+            type="button"
+            onClick={handleOpenHistory}
+            style={{
+              padding: '9px 16px',
+              borderRadius: '10px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#e2e8f0',
+              fontWeight: 700,
+              fontSize: '0.84rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Ver histórico de ciclos e versões passadas deste aluno"
+          >
+            <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+            <span>Histórico de Ciclos</span>
+          </button>
+
+          {/* 🌟 Indicador de Auto-Save em Tempo Real */}
+          {autoSaveStatus === 'saving' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              color: '#fbbf24',
+              fontSize: '0.78rem',
+              fontWeight: 750
+            }}>
+              <i className="fa-solid fa-spinner fa-spin"></i>
+              <span>Salvando alterações...</span>
+            </div>
+          )}
+          {autoSaveStatus === 'saved' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: '#34d399',
+              fontSize: '0.78rem',
+              fontWeight: 750
+            }}>
+              <i className="fa-solid fa-check"></i>
+              <span>Salvo automaticamente {lastAutoSaveTime ? `(${lastAutoSaveTime})` : ''}</span>
+            </div>
+          )}
+          {autoSaveStatus === 'error' && (
+            <div 
+              onClick={() => handleSave()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#f87171',
+                fontSize: '0.78rem',
+                fontWeight: 750,
+                cursor: 'pointer'
+              }}
+              title="Clique para tentar salvar novamente"
+            >
+              <i className="fa-solid fa-triangle-exclamation"></i>
+              <span>Falha no salvamento automático • Tentar novamente</span>
+            </div>
+          )}
 
           <button
             type="button"
@@ -2152,8 +2430,81 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </div>
             </div>
 
+            {/* ⚠️ Banner para Ficha sem Validade Informada (Legada) */}
+            {!workoutValidade && (
+              <div style={{
+                background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.24) 100%)',
+                border: '1.5px solid rgba(245, 158, 11, 0.5)',
+                borderRadius: '12px',
+                padding: '14px 20px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '14px',
+                boxShadow: '0 4px 16px rgba(245, 158, 11, 0.15)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'rgba(245, 158, 11, 0.25)',
+                    border: '1px solid #f59e0b',
+                    color: '#fbbf24',
+                    fontSize: '1.1rem'
+                  }}>
+                    <i className="fa-solid fa-triangle-exclamation"></i>
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#fef3c7', fontSize: '0.92rem' }}>
+                      Ficha sem validade informada
+                    </div>
+                    <div style={{ color: '#fde68a', fontSize: '0.80rem', marginTop: '2px' }}>
+                      Por favor, defina a validade deste treino para ativar o acompanhamento de ciclo e a contagem regressiva:
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[15, 30, 60].map(days => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => handleSetValidade(days)}
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #f59e0b',
+                        background: 'rgba(245, 158, 11, 0.25)',
+                        color: '#ffffff',
+                        fontWeight: 850,
+                        fontSize: '0.84rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#f59e0b';
+                        e.currentTarget.style.color = '#000000';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                        e.currentTarget.style.color = '#ffffff';
+                      }}
+                    >
+                      ⏱️ {days} dias
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '220px' }}>
+              <div style={{ flex: 1, minWidth: '180px' }}>
                 <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                   NOME DA FICHA
                 </label>
@@ -2161,7 +2512,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   type="text" 
                   className="form-control" 
                   value={workoutName} 
-                  onChange={e => setWorkoutName(e.target.value)}
+                  onChange={e => {
+                    const newName = e.target.value;
+                    setWorkoutName(newName);
+                    triggerDebouncedAutoSave(workoutItems, newName);
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px 14px',
@@ -2174,7 +2529,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   }} 
                 />
               </div>
-              <div style={{ flex: 2, minWidth: '280px' }}>
+
+              <div style={{ flex: 2, minWidth: '260px' }}>
                 <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                   OBSERVAÇÕES GERAIS / FOCO DO TREINO
                 </label>
@@ -2183,7 +2539,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   className="form-control" 
                   placeholder="Ex: Foco em Hipertrofia Peitoral e Deltoide Anterior • Intervalos estritos" 
                   value={workoutGoal} 
-                  onChange={e => setWorkoutGoal(e.target.value)}
+                  onChange={e => {
+                    const newGoal = e.target.value;
+                    setWorkoutGoal(newGoal);
+                    triggerDebouncedAutoSave(workoutItems, workoutName, newGoal);
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px 14px',
@@ -2194,6 +2554,57 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     fontSize: '0.9rem'
                   }} 
                 />
+              </div>
+
+              {/* 🌟 Campo de Validade da Ficha */}
+              <div style={{ width: '280px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
+                    VALIDADE DA FICHA
+                  </label>
+                  {workoutValidade && workoutDataExpiracao && (() => {
+                    const expD = new Date(workoutDataExpiracao + 'T12:00:00');
+                    const diff = Math.ceil((expD.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    const isExp = diff <= 0;
+                    const isSoon = diff > 0 && diff <= 7;
+                    const formattedExp = workoutDataExpiracao.split('-').reverse().join('/');
+                    return (
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: isExp ? '#ef4444' : isSoon ? '#fbbf24' : '#10b981'
+                      }} title={`Expira em ${formattedExp}`}>
+                        {isExp ? `Vencida há ${Math.abs(diff)}d` : isSoon ? `Vence em ${diff}d (${formattedExp})` : `Vigente (${diff}d • ${formattedExp})`}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {[15, 30, 60].map(days => {
+                    const isSel = workoutValidade === days;
+                    return (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => handleSetValidade(days)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 6px',
+                          borderRadius: '8px',
+                          border: isSel ? '1.5px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
+                          background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          color: isSel ? '#34d399' : '#94a3b8',
+                          fontWeight: isSel ? 850 : 600,
+                          fontSize: '0.80rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        ⏱️ {days} dias
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -2284,6 +2695,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     const groupColor = getGroupColor(item.combinaGrupo);
                     const isGrouped = Boolean(item.combinaGrupo);
                     const hasDrop = item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none' && Array.isArray(item.dropSet.drops) && item.dropSet.drops.length > 0;
+                    const loadProg = getExerciseLoadProgression(item.historicoCargas);
 
                     return (
                       <div
@@ -2348,8 +2760,34 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
-                                {item.grupo}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                                <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
+                                  {item.grupo}
+                                </div>
+                                {loadProg && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedProgressionItem(item)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '1px 7px',
+                                      borderRadius: '6px',
+                                      background: loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                      border: `1px solid ${loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                                      color: loadProg.diff >= 0 ? '#34d399' : '#f87171',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Clique para ver a evolução de carga deste exercício ao longo do tempo"
+                                  >
+                                    <i className="fa-solid fa-arrow-trend-up"></i>
+                                    <span>{loadProg.diff >= 0 ? `+${loadProg.diff}` : loadProg.diff} {loadProg.unit} em {loadProg.dias}d</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -3505,6 +3943,356 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </div>
         </div>
       )}
+
+      {/* 🌟 Modal de Histórico de Versões / Ciclos */}
+      {showHistoryModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#0d1322',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '18px',
+            width: '100%',
+            maxWidth: '680px',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)'
+          }}>
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
+                <div>
+                  <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.1rem', fontWeight: 800 }}>
+                    Histórico de Ciclos e Versões
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+                    {displayName} • Registro de alterações e snapshots passados
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '1.3rem',
+                  cursor: 'pointer'
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {isLoadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                  <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '1.8rem', color: '#38bdf8', marginBottom: '10px' }}></i>
+                  <p style={{ margin: 0, fontWeight: 700 }}>Carregando histórico de fichas...</p>
+                </div>
+              ) : historyList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  <i className="fa-solid fa-folder-open" style={{ fontSize: '2rem', opacity: 0.4, marginBottom: '10px' }}></i>
+                  <p style={{ margin: 0, fontWeight: 700, color: '#94a3b8' }}>Nenhum ciclo histórico anterior registrado para este aluno.</p>
+                  <small style={{ color: '#475569' }}>Novos snapshots são gerados automaticamente a cada atualização de ciclo.</small>
+                </div>
+              ) : (
+                historyList.map((entry, idx) => {
+                  const entryDate = entry.createdAt ? new Date(entry.createdAt).toLocaleString('pt-BR') : 'Data não registrada';
+                  const monSheets = entry.snapshot?.fichasMonitorado || [];
+                  const livSheets = entry.snapshot?.fichasLivre || [];
+                  const totalExercises = [...monSheets, ...livSheets].reduce((acc: number, s: any) => acc + (s.exercicios?.length || 0), 0);
+
+                  return (
+                    <div
+                      key={entry._id || idx}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '12px',
+                        padding: '14px 18px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '14px',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            color: '#38bdf8',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            Versão #{historyList.length - idx}
+                          </span>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f1f5f9' }}>
+                            {entry.motivo || 'Atualização de ficha'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '4px' }}>
+                          <i className="fa-regular fa-clock" style={{ marginRight: '5px' }}></i>
+                          {entryDate}
+                          {entry.profissionalNome && (
+                            <span style={{ marginLeft: '8px', color: '#cbd5e1' }}>
+                              • <i className="fa-solid fa-user-doctor" style={{ marginRight: '4px' }}></i> {entry.profissionalNome}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
+                          Conteúdo: {monSheets.length} ficha(s) monitoradas, {livSheets.length} ficha(s) livres • {totalExercises} exercícios no snapshot
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const confirmRestore = window.confirm(`Deseja restaurar a Versão #${historyList.length - idx} (${entryDate}) como a ficha ativa do aluno? As alterações atuais serão arquivadas.`);
+                          if (!confirmRestore) return;
+
+                          try {
+                            const res = await fetch('/api/workouts', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                clientId: currentClientId,
+                                action: 'restore',
+                                historyId: entry._id,
+                                profissionalNome: realClientName ? `Restauração: ${displayName}` : ''
+                              })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              alert('✨ Ficha de treino restaurada com sucesso!');
+                              setShowHistoryModal(false);
+                              await loadDataForClient(currentClientId, realClientName, false, activeSlotTime || undefined);
+                            } else {
+                              alert(data.error || 'Erro ao restaurar versão.');
+                            }
+                          } catch (err: any) {
+                            alert('Erro de conexão ao restaurar: ' + err.message);
+                          }
+                        }}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(56, 189, 248, 0.4)',
+                          background: 'rgba(56, 189, 248, 0.12)',
+                          color: '#38bdf8',
+                          fontSize: '0.78rem',
+                          fontWeight: 750,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <i className="fa-solid fa-arrow-rotate-left"></i>
+                        <span>Restaurar esta Versão</span>
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 Modal de Detalhes da Evolução de Carga do Exercício */}
+      {selectedProgressionItem && (() => {
+        const historico = selectedProgressionItem.historicoCargas || [];
+        const progression = getExerciseLoadProgression(historico);
+
+        return (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999999,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: '#0d1322',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '18px',
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)'
+            }}>
+              <div style={{
+                padding: '18px 24px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-arrow-trend-up" style={{ color: '#10b981', fontSize: '1.2rem' }}></i>
+                  <div>
+                    <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.05rem', fontWeight: 800 }}>
+                      Evolução de Carga (Overload Progressivo)
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+                      {selectedProgressionItem.nome} • {displayName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedProgressionItem(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '1.3rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
+                {progression && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '10px',
+                    marginBottom: '18px'
+                  }}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Carga Inicial</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', marginTop: '2px' }}>
+                        {progression.first.carga} {progression.unit}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                        {progression.first.data ? progression.first.data.split('-').reverse().join('/') : 'Início'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Carga Atual</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>
+                        {progression.last.carga} {progression.unit}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                        {progression.last.data ? progression.last.data.split('-').reverse().join('/') : 'Hoje'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Progressão</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: progression.diff >= 0 ? '#34d399' : '#f87171', marginTop: '2px' }}>
+                        {progression.diff >= 0 ? `+${progression.diff}` : progression.diff} {progression.unit}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                        em {progression.dias} dias
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ fontSize: '0.80rem', fontWeight: 800, color: '#cbd5e1', marginBottom: '8px' }}>
+                  Linha do Tempo dos Registros:
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {historico.length === 0 ? (
+                    <p style={{ color: '#64748b', fontSize: '0.82rem', textAlign: 'center', margin: '20px 0' }}>
+                      Nenhum histórico de cargas registrado ainda para este exercício.
+                    </p>
+                  ) : (
+                    historico.map((h: any, hIdx: number) => {
+                      const prev = hIdx > 0 ? historico[hIdx - 1] : null;
+                      const cCurrent = parseFloat(String(h.carga).replace(/[^\d.-]/g, '')) || 0;
+                      const cPrev = prev ? (parseFloat(String(prev.carga).replace(/[^\d.-]/g, '')) || 0) : null;
+                      const stepDiff = cPrev !== null ? Math.round((cCurrent - cPrev) * 10) / 10 : null;
+
+                      return (
+                        <div
+                          key={hIdx}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: '10px',
+                            padding: '10px 14px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 700 }}>
+                              #{hIdx + 1}
+                            </span>
+                            <div>
+                              <div style={{ fontWeight: 800, color: '#f8fafc', fontSize: '0.90rem' }}>
+                                {h.carga} {h.unidadeCarga || selectedProgressionItem.unidadeCarga || 'kg'}
+                                {h.reps ? ` • ${h.reps} reps` : ''}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                                📅 {h.data ? h.data.split('-').reverse().join('/') : 'Data não informada'} • Origem: {h.origem || 'prescrição'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {stepDiff !== null && (
+                            <span style={{
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              color: stepDiff >= 0 ? '#34d399' : '#f87171',
+                              background: stepDiff >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                              padding: '2px 8px',
+                              borderRadius: '6px'
+                            }}>
+                              {stepDiff >= 0 ? `+${stepDiff}` : stepDiff} {h.unidadeCarga || 'kg'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 🌟 Modal Wellness Integrado na Ficha de Treino */}
       {showWellnessModal && activeAppointment && (

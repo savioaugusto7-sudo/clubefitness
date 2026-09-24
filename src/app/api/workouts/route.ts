@@ -120,8 +120,82 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'No update data provided' }, { status: 400 });
     }
 
+    // 🌟 Processar datas de validade e histórico de carga para cada ficha
+    const processSheetData = (sheets: any[], existingCategorySheets: any[] = []) => {
+      if (!Array.isArray(sheets)) return sheets;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      return sheets.map(sheet => {
+        const existingSheet = existingCategorySheets.find(s => String(s.id).toUpperCase() === String(sheet.id).toUpperCase());
+        
+        // Validade
+        let validadeDias = sheet.validadeDias ? Number(sheet.validadeDias) : (existingSheet?.validadeDias ? Number(existingSheet.validadeDias) : undefined);
+        let dataInicio = sheet.dataInicio || existingSheet?.dataInicio || '';
+        let dataExpiracao = sheet.dataExpiracao || existingSheet?.dataExpiracao || '';
+
+        if (validadeDias && [15, 30, 60].includes(validadeDias)) {
+          if (!dataInicio) {
+            dataInicio = todayStr;
+          }
+          const baseDate = new Date(dataInicio + 'T12:00:00');
+          baseDate.setDate(baseDate.getDate() + validadeDias);
+          dataExpiracao = baseDate.toISOString().split('T')[0];
+        }
+
+        // Exercícios e histórico de carga
+        const exercicios = (sheet.exercicios || []).map((ex: any) => {
+          const exNome = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
+          const existingEx = (existingSheet?.exercicios || []).find((e: any) => {
+            const eNome = typeof e.exercicioId === 'object' ? e.exercicioId?.nome : e.exercicioId;
+            return eNome === exNome || (e._id && String(e._id) === String(ex._id));
+          });
+
+          let historicoCargas: any[] = Array.isArray(ex.historicoCargas) && ex.historicoCargas.length > 0 
+            ? [...ex.historicoCargas] 
+            : (Array.isArray(existingEx?.historicoCargas) ? [...existingEx.historicoCargas] : []);
+
+          const currentCarga = ex.carga !== undefined && ex.carga !== null && String(ex.carga).trim() !== '' ? String(ex.carga).trim() : null;
+
+          if (currentCarga) {
+            const lastEntry = historicoCargas[historicoCargas.length - 1];
+            const lastCargaStr = lastEntry ? String(lastEntry.carga).trim() : null;
+
+            if (!lastEntry || lastCargaStr !== currentCarga) {
+              historicoCargas.push({
+                data: todayStr,
+                carga: currentCarga,
+                unidadeCarga: ex.unidadeCarga || lastEntry?.unidadeCarga || 'kg',
+                reps: String(ex.repeticoes || ''),
+                origem: 'prescricao'
+              });
+            }
+          }
+
+          return {
+            ...ex,
+            historicoCargas
+          };
+        });
+
+        return {
+          ...sheet,
+          validadeDias,
+          dataInicio,
+          dataExpiracao,
+          exercicios
+        };
+      });
+    };
+
     // 🌟 1. Trava de Segurança e Auditoria de Snapshot
     const existingWorkout = await ClientWorkout.findOne({ clienteId: clientId });
+
+    if (updateQuery.fichasMonitorado) {
+      updateQuery.fichasMonitorado = processSheetData(updateQuery.fichasMonitorado, existingWorkout?.fichasMonitorado || []);
+    }
+    if (updateQuery.fichasLivre) {
+      updateQuery.fichasLivre = processSheetData(updateQuery.fichasLivre, existingWorkout?.fichasLivre || []);
+    }
 
     if (existingWorkout) {
       // Calcular quantos exercícios existiam antes

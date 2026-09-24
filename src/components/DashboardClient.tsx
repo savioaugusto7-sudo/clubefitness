@@ -300,6 +300,36 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       </div>
                     </div>
                   )}
+                  {(() => {
+                    if (!Array.isArray(ex.historicoCargas) || ex.historicoCargas.length < 2) return null;
+                    const first = ex.historicoCargas[0];
+                    const last = ex.historicoCargas[ex.historicoCargas.length - 1];
+                    const cFirst = parseFloat(String(first.carga).replace(/[^\d.-]/g, '')) || 0;
+                    const cLast = parseFloat(String(last.carga).replace(/[^\d.-]/g, '')) || 0;
+                    const diff = Math.round((cLast - cFirst) * 10) / 10;
+                    let dias = 0;
+                    if (first.data && last.data) {
+                      const d1 = new Date(first.data + 'T12:00:00');
+                      const d2 = new Date(last.data + 'T12:00:00');
+                      dias = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+                    }
+                    return (
+                      <div style={{
+                        gridColumn: 'span 2',
+                        background: diff >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        border: `1px solid ${diff >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        textAlign: 'center',
+                        fontSize: '0.74rem',
+                        fontWeight: 800,
+                        color: diff >= 0 ? '#34d399' : '#f87171',
+                        marginTop: '4px'
+                      }}>
+                        📈 Sua evolução: {diff >= 0 ? `+${diff}` : diff} {last.unidadeCarga || 'kg'} em {dias} dias ({first.carga} → {last.carga})
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {ex.observacao && (
@@ -335,6 +365,49 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         })}
       </div>
     );
+  };
+
+  const renderFichaValidadeBadge = (f: any) => {
+    if (!f.validadeDias && !f.dataExpiracao) {
+      return (
+        <span style={{ 
+          display: 'inline-flex', alignItems: 'center', gap: '5px',
+          padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
+          background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)'
+        }}>
+          ⚠️ Sem validade informada
+        </span>
+      );
+    }
+    const expDate = f.dataExpiracao ? new Date(f.dataExpiracao) : null;
+    const now = new Date();
+    if (expDate && !isNaN(expDate.getTime())) {
+      const diffMs = expDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        return (
+          <span style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '5px',
+            padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
+            background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'
+          }}>
+            🔴 Vencida ({Math.abs(diffDays)}d atrás) • Ciclo {f.validadeDias}d
+          </span>
+        );
+      }
+      return (
+        <span style={{ 
+          display: 'inline-flex', alignItems: 'center', gap: '5px',
+          padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
+          background: diffDays <= 5 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+          color: diffDays <= 5 ? '#fbbf24' : '#34d399',
+          border: diffDays <= 5 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)'
+        }}>
+          ⏳ Vigente ({diffDays} dias restantes • Ciclo {f.validadeDias}d)
+        </span>
+      );
+    }
+    return null;
   };
 
   const user = session?.user as any;
@@ -1213,8 +1286,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </div>
                 {workout.fichasMonitorado?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
                   <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
-                      {f.nome} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span>{f.nome}</span>
+                        {renderFichaValidadeBadge(f)}
+                      </div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
                       <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-primary)' }}>
@@ -1242,8 +1319,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </div>
                 {workout.fichasLivre?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
                   <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
-                      {f.nome && !f.nome.toLowerCase().startsWith('ficha') ? (f.nome.toUpperCase().startsWith('TREINO LIVRE') ? f.nome : `TREINO LIVRE ${f.id} - ${f.nome}`) : `TREINO LIVRE ${f.id}`} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span>{f.nome && !f.nome.toLowerCase().startsWith('ficha') ? (f.nome.toUpperCase().startsWith('TREINO LIVRE') ? f.nome : `TREINO LIVRE ${f.id} - ${f.nome}`) : `TREINO LIVRE ${f.id}`}</span>
+                        {renderFichaValidadeBadge(f)}
+                      </div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
                       <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-secondary)' }}>

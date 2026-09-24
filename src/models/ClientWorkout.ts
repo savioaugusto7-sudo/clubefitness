@@ -14,7 +14,14 @@ const WorkoutExerciseSchema = new Schema({
     tipo: { type: String, default: 'none' },
     escopo: { type: String, default: 'ultima_serie' },
     drops: [{ type: Number }]
-  }
+  },
+  historicoCargas: [{
+    data: { type: String, default: '' },
+    carga: { type: Schema.Types.Mixed },
+    unidadeCarga: { type: String, default: 'kg' },
+    reps: { type: String, default: '' },
+    origem: { type: String, default: 'prescricao' }
+  }]
 });
 
 const WorkoutSheetSchema = new Schema({
@@ -22,6 +29,9 @@ const WorkoutSheetSchema = new Schema({
   nome: { type: String, required: true },
   ultimaAtualizacao: { type: String, default: '' },
   dataCriacao: { type: String, default: '' },
+  validadeDias: { type: Number, required: false }, // 15, 30, 60
+  dataInicio: { type: String, default: '' },
+  dataExpiracao: { type: String, default: '' },
   observacoesGerais: { type: String, default: '' },
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', required: false },
   profissionalNome: { type: String, default: '' },
