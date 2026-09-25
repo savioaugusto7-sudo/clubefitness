@@ -205,12 +205,17 @@ export async function GET(request: Request) {
     } else if (mes) {
       query.data = new RegExp('^' + mes);
     } else if (!all && !clientId) {
-      // Otimização crítica: se não foi especificada data nem clientId, limitar aos últimos 60 dias em diante
-      // para evitar transferir 6.000+ registros históricos sem necessidade e causar timeout 504 no Vercel
-      const d = new Date();
-      d.setDate(d.getDate() - 60);
-      const defaultMinDate = d.toISOString().split('T')[0];
-      query.data = { $gte: defaultMinDate };
+      // Otimização Crítica de Performance: limitar a janela padrão em torno da data atual (-7 dias a +14 dias)
+      // evitando transferir 6.000+ registros históricos e futuros gerados por horários fixos
+      const dMin = new Date();
+      dMin.setDate(dMin.getDate() - 7);
+      const defaultMinDate = dMin.toISOString().split('T')[0];
+
+      const dMax = new Date();
+      dMax.setDate(dMax.getDate() + 14);
+      const defaultMaxDate = dMax.toISOString().split('T')[0];
+
+      query.data = { $gte: defaultMinDate, $lte: defaultMaxDate };
     }
 
     const appointments = await Appointment.find(query)

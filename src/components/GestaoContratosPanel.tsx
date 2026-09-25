@@ -1074,8 +1074,10 @@ export default function GestaoContratosPanel({
     if (!hasPendingSignatures) return;
 
     const intervalId = setInterval(() => {
-      loadContractsAndProposalsOverview();
-    }, 30000); // Consulta suave a cada 30 segundos
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadContractsAndProposalsOverview();
+      }
+    }, 60000); // Consulta suave a cada 60 segundos com aba ativa
 
     return () => clearInterval(intervalId);
   }, [allContractsMap]);

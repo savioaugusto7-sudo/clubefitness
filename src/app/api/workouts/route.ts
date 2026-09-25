@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const includeHistory = searchParams.get('history') === 'true';
 
     if (!clientId) {
-      const workouts = await ClientWorkout.find({});
+      const workouts = await ClientWorkout.find({}).lean();
       return NextResponse.json({ success: true, data: workouts });
     }
 

@@ -1147,47 +1147,93 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     { id: '6668ab010101010101010103', nome: 'Clube Completo (Fisio + Academia)', preco: 490 }
   ];
 
-  const fetchData = async (silent = false) => {
+  const fetchData = async (silent = false, forceAll = false) => {
     try {
       if (!silent && clients.length === 0) setLoading(true);
 
-      const endpoints = [
-        fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/appointments').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/users').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/plans').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/financial').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/medications').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/fixed-schedules').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/exercises?status=pending').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/trancamentos').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/contracts').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/admin/agenda-config').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/admin/activity-logs').then(r => r.json()).catch(() => ({ success: false }))
-      ];
+      const promises: Promise<any>[] = [];
 
-      const [
-        jsonClients, jsonProfs, jsonApts, jsonUsers, jsonPlans,
-        jsonFin, jsonMed, jsonFs, jsonSt, jsonExs,
-        jsonTranc, jsonContracts, jsonAc, jsonLogs
-      ] = await Promise.all(endpoints);
+      // 1. Carga básica essencial (apenas se ainda não carregados ou se forceAll)
+      if (clients.length === 0 || forceAll) {
+        promises.push(
+          fetch('/api/clients').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setClients(res.data); }).catch(() => {})
+        );
+      }
+      if (professionals.length === 0 || forceAll) {
+        promises.push(
+          fetch('/api/professionals').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setProfessionals(res.data); }).catch(() => {})
+        );
+      }
+      if (plans.length === 0 || forceAll) {
+        promises.push(
+          fetch('/api/plans').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setPlans(res.data); }).catch(() => {})
+        );
+      }
+      if (users.length === 0 || forceAll) {
+        promises.push(
+          fetch('/api/users').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setUsers(res.data); }).catch(() => {})
+        );
+      }
 
-      if (jsonClients?.success) setClients(jsonClients.data);
-      if (jsonProfs?.success) setProfessionals(jsonProfs.data);
-      if (jsonApts?.success) setAppointments(jsonApts.data);
-      if (jsonUsers?.success) setUsers(jsonUsers.data);
-      if (jsonPlans?.success) setPlans(jsonPlans.data);
-      if (jsonFin?.success) setFinancials(jsonFin.data);
-      if (jsonMed?.success) setMedications(jsonMed.data);
-      if (jsonFs?.success) setFixedSchedules(jsonFs.data);
-      if (jsonSt?.success) setStrengthTests(jsonSt.data);
-      if (jsonExs?.success) setExerciseRequests(jsonExs.data);
-      if (jsonTranc?.success) setTrancamentosAdminList(jsonTranc.data);
-      if (jsonContracts?.success) setContractsAdminList(jsonContracts.data);
-      if (jsonAc?.success) setAgendaConfigs(jsonAc.data);
-      if (jsonLogs?.success) setActivityLogs(jsonLogs.data);
+      // 2. Carga sob demanda por aba ativa (Lazy-Loading)
+      if (forceAll || activeTab === 'visao_geral' || activeTab === 'agenda') {
+        promises.push(
+          fetch('/api/appointments').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); }).catch(() => {})
+        );
+        promises.push(
+          fetch('/api/admin/agenda-config').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setAgendaConfigs(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'financeiro') {
+        promises.push(
+          fetch('/api/financial').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setFinancials(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'contratos') {
+        promises.push(
+          fetch('/api/contracts').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setContractsAdminList(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'medicamentos') {
+        promises.push(
+          fetch('/api/medications').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setMedications(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'horarios_fixos') {
+        promises.push(
+          fetch('/api/fixed-schedules').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setFixedSchedules(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'testes_forca') {
+        promises.push(
+          fetch('/api/strength-tests').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'exercicios') {
+        promises.push(
+          fetch('/api/exercises?status=pending').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setExerciseRequests(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'trancamentos') {
+        promises.push(
+          fetch('/api/trancamentos').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setTrancamentosAdminList(res.data); }).catch(() => {})
+        );
+      }
+
+      if (forceAll || activeTab === 'logs') {
+        promises.push(
+          fetch('/api/admin/activity-logs').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setActivityLogs(res.data); }).catch(() => {})
+        );
+      }
+
+      await Promise.all(promises);
       fetchLinkMovements();
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
@@ -1591,7 +1637,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   }, [paymentsSearch, paymentsStatusFilter]);
 
   useEffect(() => {
-    fetchPayments();
+    if (activeTab === 'financeiro') {
+      fetchPayments();
+    }
     fetchData();
   }, [activeTab]);
 

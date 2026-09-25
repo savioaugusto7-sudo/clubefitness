@@ -247,7 +247,11 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
       window.addEventListener('pendingExercisesUpdated', onUpdated);
     }
 
-    const interval = setInterval(fetchPendingExercises, 25000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchPendingExercises();
+      }
+    }, 120000);
 
     return () => {
       isMounted = false;
