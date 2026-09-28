@@ -101,6 +101,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [savingClientProf, setSavingClientProf] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   // Pagination & UX states
   const [pages, setPages] = useState<Record<string, number>>({});
@@ -1147,89 +1149,107 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     { id: '6668ab010101010101010103', nome: 'Clube Completo (Fisio + Academia)', preco: 490 }
   ];
 
+  const safeFetchJson = async (url: string) => {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        console.warn(`[DashboardAdmin] Fetch ${url} falhou com status ${res.status}`);
+        return { success: false, error: `HTTP ${res.status}` };
+      }
+      const data = await res.json();
+      setConnectionError(false);
+      return data;
+    } catch (e: any) {
+      console.error(`[DashboardAdmin] Erro de rede ao buscar ${url}:`, e?.message);
+      setConnectionError(true);
+      return { success: false, error: e?.message || 'Falha de rede' };
+    }
+  };
+
   const fetchData = async (silent = false, forceAll = false) => {
     try {
       if (!silent && clients.length === 0) setLoading(true);
+      if (forceAll) setIsReconnecting(true);
 
       const promises: Promise<any>[] = [];
 
       // 1. Carga básica essencial (apenas se ainda não carregados ou se forceAll)
       if (clients.length === 0 || forceAll) {
         promises.push(
-          fetch('/api/clients').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setClients(res.data); }).catch(() => {})
+          safeFetchJson('/api/clients').then(res => { if (res?.success && Array.isArray(res.data)) setClients(res.data); })
         );
       }
       if (professionals.length === 0 || forceAll) {
         promises.push(
-          fetch('/api/professionals').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setProfessionals(res.data); }).catch(() => {})
+          safeFetchJson('/api/professionals').then(res => { if (res?.success && Array.isArray(res.data)) setProfessionals(res.data); })
         );
       }
       if (plans.length === 0 || forceAll) {
         promises.push(
-          fetch('/api/plans').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setPlans(res.data); }).catch(() => {})
+          safeFetchJson('/api/plans').then(res => { if (res?.success && Array.isArray(res.data)) setPlans(res.data); })
         );
       }
       if (users.length === 0 || forceAll) {
         promises.push(
-          fetch('/api/users').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setUsers(res.data); }).catch(() => {})
+          safeFetchJson('/api/users').then(res => { if (res?.success && Array.isArray(res.data)) setUsers(res.data); })
         );
       }
 
-      // 2. Carga sob demanda por aba ativa (Lazy-Loading)
-      if (forceAll || activeTab === 'visao_geral' || activeTab === 'agenda') {
+      // 2. Carga sob demanda por aba ativa (Lazy-Loading com IDs unificados com Sidebar)
+      if (forceAll || activeTab === 'visao_geral' || activeTab === 'agenda' || activeTab === 'agenda_completa' || activeTab === 'dashboard') {
         promises.push(
-          fetch('/api/appointments').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); }).catch(() => {})
+          safeFetchJson('/api/appointments').then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
         );
         promises.push(
-          fetch('/api/admin/agenda-config').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setAgendaConfigs(res.data); }).catch(() => {})
+          safeFetchJson('/api/admin/agenda-config').then(res => { if (res?.success && Array.isArray(res.data)) setAgendaConfigs(res.data); })
         );
       }
 
       if (forceAll || activeTab === 'financeiro') {
         promises.push(
-          fetch('/api/financial').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setFinancials(res.data); }).catch(() => {})
+          safeFetchJson('/api/financial').then(res => { if (res?.success && Array.isArray(res.data)) setFinancials(res.data); })
         );
       }
 
-      if (forceAll || activeTab === 'contratos') {
+      if (forceAll || activeTab === 'gestao_contratos' || activeTab === 'contratos') {
         promises.push(
-          fetch('/api/contracts').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setContractsAdminList(res.data); }).catch(() => {})
+          safeFetchJson('/api/contracts').then(res => { if (res?.success && Array.isArray(res.data)) setContractsAdminList(res.data); })
         );
       }
 
       if (forceAll || activeTab === 'medicamentos') {
         promises.push(
-          fetch('/api/medications').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setMedications(res.data); }).catch(() => {})
+          safeFetchJson('/api/medications').then(res => { if (res?.success && Array.isArray(res.data)) setMedications(res.data); })
         );
       }
 
-      if (forceAll || activeTab === 'horarios_fixos') {
+      if (forceAll || activeTab === 'agenda_fixa' || activeTab === 'horarios_fixos') {
         promises.push(
-          fetch('/api/fixed-schedules').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setFixedSchedules(res.data); }).catch(() => {})
+          safeFetchJson('/api/fixed-schedules').then(res => { if (res?.success && Array.isArray(res.data)) setFixedSchedules(res.data); })
         );
       }
 
       if (forceAll || activeTab === 'testes_forca') {
         promises.push(
-          fetch('/api/strength-tests').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); }).catch(() => {})
+          safeFetchJson('/api/strength-tests').then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); })
         );
       }
 
-      if (forceAll || activeTab === 'exercicios') {
+      if (forceAll || activeTab === 'solicitacoes_exercicios' || activeTab === 'exercicios') {
         promises.push(
-          fetch('/api/exercises?status=pending').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setExerciseRequests(res.data); }).catch(() => {})
+          safeFetchJson('/api/exercises?status=pending').then(res => { if (res?.success && Array.isArray(res.data)) setExerciseRequests(res.data); })
         );
       }
 
-      if (forceAll || activeTab === 'trancamentos') {
+      if (forceAll || activeTab === 'trancamentos_admin' || activeTab === 'trancamentos') {
         promises.push(
-          fetch('/api/trancamentos').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setTrancamentosAdminList(res.data); }).catch(() => {})
+          safeFetchJson('/api/trancamentos').then(res => { if (res?.success && Array.isArray(res.data)) setTrancamentosAdminList(res.data); })
         );
       }
 
-      if (forceAll || activeTab === 'logs') {
+      if (forceAll || activeTab === 'log_atividades' || activeTab === 'logs') {
         promises.push(
-          fetch('/api/admin/activity-logs').then(r => r.json()).then(res => { if (res?.success && Array.isArray(res.data)) setActivityLogs(res.data); }).catch(() => {})
+          safeFetchJson('/api/admin/activity-logs').then(res => { if (res?.success && Array.isArray(res.data)) setActivityLogs(res.data); })
         );
       }
 
@@ -1237,8 +1257,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       fetchLinkMovements();
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
+      setConnectionError(true);
     } finally {
       setLoading(false);
+      setIsReconnecting(false);
     }
   };
 
@@ -1642,6 +1664,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
     fetchData();
   }, [activeTab]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      fetchData(false, true);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
 
   const exportToCSV = (data: any[], filename: string, columns: { key: string; label: string; formatter?: (val: any) => string }[]) => {
     let csvContent = "data:text/csv;charset=utf-8,";
@@ -2373,6 +2403,57 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   return (
     <div>
+      {/* Banner de Erro de Conexão com o Servidor Local */}
+      {connectionError && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.22), rgba(185, 28, 28, 0.32))',
+          border: '1px solid #ef4444',
+          borderRadius: '12px',
+          padding: '12px 18px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          color: '#fee2e2',
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 4px 14px rgba(239, 68, 68, 0.2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <i className="fa-solid fa-triangle-exclamation" style={{ color: '#ef4444', fontSize: '1.4rem' }}></i>
+            <div>
+              <strong style={{ display: 'block', color: '#fff', fontSize: '0.95rem' }}>
+                Conexão com o servidor local perdida ou instável
+              </strong>
+              <span style={{ fontSize: '0.84rem', color: '#fca5a5' }}>
+                Não foi possível sincronizar todos os dados da tela com a porta 3005. Seus dados estão seguros no banco.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => fetchData(false, true)}
+            disabled={isReconnecting}
+            style={{
+              background: '#ef4444',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '8px 18px',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: isReconnecting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <i className={`fa-solid fa-arrows-rotate ${isReconnecting ? 'fa-spin' : ''}`}></i>
+            {isReconnecting ? 'Reconectando...' : 'Reconectar Agora'}
+          </button>
+        </div>
+      )}
       {/* 1. View: Dashboard Principal 2.0 */}
       {activeTab === 'dashboard' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>

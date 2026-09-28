@@ -321,34 +321,36 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const valorParcela = valorLiquido / (Number(dcParcelas) || 1);
   const hasActiveSignedContract = clientContracts.some(c => c.status === 'assinado' || c.status === 'congelado');
 
+  const safeFetch = async (url: string) => {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return { success: false };
+      return await res.json();
+    } catch (e) {
+      console.warn(`[DashboardReceptionist] Falha ao carregar ${url}:`, e);
+      return { success: false };
+    }
+  };
+
   const fetchData = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [resC, resA, resP, resF, resFs, resAc, resProf] = await Promise.all([
-        fetch('/api/clients'),
-        fetch('/api/appointments'),
-        fetch('/api/plans'),
-        fetch('/api/financial'),
-        fetch('/api/fixed-schedules'),
-        fetch('/api/admin/agenda-config'),
-        fetch('/api/professionals')
-      ]);
       const [jC, jA, jP, jF, jFs, jAc, jProf] = await Promise.all([
-        resC.json(),
-        resA.json(),
-        resP.json(),
-        resF.json(),
-        resFs.json(),
-        resAc.json(),
-        resProf.json()
+        safeFetch('/api/clients'),
+        safeFetch('/api/appointments'),
+        safeFetch('/api/plans'),
+        safeFetch('/api/financial'),
+        safeFetch('/api/fixed-schedules'),
+        safeFetch('/api/admin/agenda-config'),
+        safeFetch('/api/professionals')
       ]);
-      if (jC.success) setClients(jC.data);
-      if (jA.success) setAppointments(jA.data);
-      if (jP.success) setPlans(jP.data);
-      if (jF.success) setFinancials(jF.data);
-      if (jFs.success) setFixedSchedules(jFs.data);
-      if (jAc.success) setAgendaConfigs(jAc.data);
-      if (jProf.success) setProfessionals(jProf.data);
+      if (jC?.success && Array.isArray(jC.data)) setClients(jC.data);
+      if (jA?.success && Array.isArray(jA.data)) setAppointments(jA.data);
+      if (jP?.success && Array.isArray(jP.data)) setPlans(jP.data);
+      if (jF?.success && Array.isArray(jF.data)) setFinancials(jF.data);
+      if (jFs?.success && Array.isArray(jFs.data)) setFixedSchedules(jFs.data);
+      if (jAc?.success && Array.isArray(jAc.data)) setAgendaConfigs(jAc.data);
+      if (jProf?.success && Array.isArray(jProf.data)) setProfessionals(jProf.data);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
