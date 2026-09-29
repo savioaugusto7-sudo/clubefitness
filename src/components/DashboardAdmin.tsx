@@ -4236,7 +4236,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       })()}
 
       {/* 7. View: Horários Fixos */}
-      {activeTab === 'agenda_fixa' && (
+      {(activeTab === 'agenda_fixa' || activeTab === 'horarios_fixos') && (
         <HorariosFixosPanel
           fixedSchedules={fixedSchedules}
           clients={clients}

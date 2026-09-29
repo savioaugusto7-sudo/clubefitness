@@ -35,14 +35,96 @@ const STANDARD_HOURS = [
 ];
 
 export default function HorariosFixosPanel({
-  fixedSchedules = [],
-  clients = [],
-  professionals = [],
+  fixedSchedules: externalFixedSchedules = [],
+  clients: externalClients = [],
+  professionals: externalProfessionals = [],
   contractsList = [],
   onRefresh,
   readOnly = false,
   defaultAgendaFilter = 'todas'
 }: HorariosFixosPanelProps) {
+  // --- Camada de Self-Healing & Resiliência Autônoma ---
+  const [internalFixedSchedules, setInternalFixedSchedules] = useState<any[]>(externalFixedSchedules);
+  const [internalClients, setInternalClients] = useState<any[]>(externalClients);
+  const [internalProfessionals, setInternalProfessionals] = useState<any[]>(externalProfessionals);
+  const [loadingRules, setLoadingRules] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sincronização reativa com props externas quando fornecidas
+  useEffect(() => {
+    if (Array.isArray(externalFixedSchedules) && externalFixedSchedules.length > 0) {
+      setInternalFixedSchedules(externalFixedSchedules);
+    }
+  }, [externalFixedSchedules]);
+
+  useEffect(() => {
+    if (Array.isArray(externalClients) && externalClients.length > 0) {
+      setInternalClients(externalClients);
+    }
+  }, [externalClients]);
+
+  useEffect(() => {
+    if (Array.isArray(externalProfessionals) && externalProfessionals.length > 0) {
+      setInternalProfessionals(externalProfessionals);
+    }
+  }, [externalProfessionals]);
+
+  // Autonomia: fetch direto na API se os dados estiverem ausentes ou incompletos
+  const fetchFixedSchedulesSelf = async (showSpinner = false) => {
+    try {
+      if (showSpinner) setLoadingRules(true);
+      setLoadError(null);
+      const res = await fetch('/api/fixed-schedules', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.data)) {
+        setInternalFixedSchedules(data.data);
+      } else {
+        throw new Error(data?.error || 'Formato de resposta inválido');
+      }
+    } catch (err: any) {
+      console.error('[HorariosFixosPanel] Erro ao buscar horários fixos diretamente:', err);
+      setLoadError(err?.message || 'Falha de rede ao buscar horários');
+    } finally {
+      if (showSpinner) setLoadingRules(false);
+    }
+  };
+
+  // Recuperação de clientes e profissionais caso cheguem vazios
+  const fetchAuxDataIfNeeded = async () => {
+    if (internalClients.length === 0) {
+      try {
+        const res = await fetch('/api/clients', { cache: 'no-store' });
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) setInternalClients(json.data);
+      } catch (e) {
+        console.warn('Erro ao carregar clientes no HorariosFixosPanel:', e);
+      }
+    }
+    if (internalProfessionals.length === 0) {
+      try {
+        const res = await fetch('/api/professionals', { cache: 'no-store' });
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) setInternalProfessionals(json.data);
+      } catch (e) {
+        console.warn('Erro ao carregar profissionais no HorariosFixosPanel:', e);
+      }
+    }
+  };
+
+  // Self-Healing ao montar: se o componente pai passou array vazio, busca de imediato
+  useEffect(() => {
+    if (!externalFixedSchedules || externalFixedSchedules.length === 0) {
+      fetchFixedSchedulesSelf(true);
+    }
+    fetchAuxDataIfNeeded();
+  }, []);
+
+  // Dados efetivos unificados (resilientes a props vazias ou dessincronizadas)
+  const fixedSchedules = internalFixedSchedules.length > 0 ? internalFixedSchedules : externalFixedSchedules;
+  const clients = internalClients.length > 0 ? internalClients : externalClients;
+  const professionals = internalProfessionals.length > 0 ? internalProfessionals : externalProfessionals;
   // --- Estados de Visualização & Filtros ---
   const [viewMode, setViewMode] = useState<'tabela' | 'grade'>('tabela');
   const [searchQuery, setSearchQuery] = useState('');
@@ -488,6 +570,7 @@ export default function HorariosFixosPanel({
       const data = await res.json();
       if (data.success) {
         setShowModal(false);
+        await fetchFixedSchedulesSelf(false);
         if (onRefresh) await onRefresh();
       } else {
         alert('Erro ao salvar horários fixos: ' + (data.error || 'Falha na requisição'));
@@ -508,6 +591,7 @@ export default function HorariosFixosPanel({
       const res = await fetch(`/api/fixed-schedules?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        await fetchFixedSchedulesSelf(false);
         if (onRefresh) await onRefresh();
       } else {
         alert('Erro ao excluir: ' + data.error);
@@ -527,6 +611,7 @@ export default function HorariosFixosPanel({
       const res = await fetch(`/api/fixed-schedules?clientId=${clientId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        await fetchFixedSchedulesSelf(false);
         if (onRefresh) await onRefresh();
       } else {
         alert('Erro ao excluir regras: ' + data.error);
@@ -552,6 +637,7 @@ export default function HorariosFixosPanel({
       const data = await res.json();
       if (data.success) {
         alert('Sincronização concluída com sucesso! Todas as regras foram propagadas na grade da agenda.');
+        await fetchFixedSchedulesSelf(false);
         if (onRefresh) await onRefresh();
       } else {
         alert('Erro ao sincronizar: ' + data.error);
@@ -579,6 +665,25 @@ export default function HorariosFixosPanel({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={async () => {
+              setIsRefreshing(true);
+              await Promise.all([
+                fetchFixedSchedulesSelf(false),
+                fetchAuxDataIfNeeded(),
+                onRefresh ? Promise.resolve(onRefresh()) : Promise.resolve()
+              ]);
+              setIsRefreshing(false);
+            }}
+            disabled={isRefreshing || loadingRules}
+            title="Recarregar horários fixos diretamente do servidor"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, padding: '9px 15px' }}
+          >
+            <i className={`fa-solid fa-rotate-right ${isRefreshing || loadingRules ? 'fa-spin' : ''}`}></i>
+            {isRefreshing || loadingRules ? 'Atualizando...' : 'Atualizar'}
+          </button>
+
           <button
             className="btn btn-secondary"
             onClick={() => setShowPrintModal(true)}
@@ -1046,7 +1151,46 @@ export default function HorariosFixosPanel({
                   );
                 })}
 
-                {filteredGroups.length === 0 && (
+                {/* 1. Estado de Carregamento */}
+                {loadingRules && filteredGroups.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <div className="empty-state-card" style={{ padding: '48px 20px', textAlign: 'center' }}>
+                        <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '2.5rem', color: 'var(--color-primary)', marginBottom: '14px' }}></i>
+                        <div className="empty-state-title" style={{ fontSize: '1.1rem', fontWeight: 700 }}>Carregando horários fixos...</div>
+                        <div className="empty-state-desc" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                          Buscando regras e agenda de horários fixos no servidor...
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {/* 2. Estado de Erro de Conexão */}
+                {!loadingRules && loadError && filteredGroups.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <div className="empty-state-card" style={{ padding: '40px 20px', textAlign: 'center' }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '2.5rem', color: '#f59e0b', marginBottom: '14px' }}></i>
+                        <div className="empty-state-title" style={{ fontSize: '1.1rem', fontWeight: 700 }}>Não foi possível carregar os horários</div>
+                        <div className="empty-state-desc" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                          {loadError}. Verifique sua conexão e tente novamente.
+                        </div>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => fetchFixedSchedulesSelf(true)}
+                          style={{ marginTop: '14px', fontSize: '0.85rem', padding: '8px 16px' }}
+                        >
+                          <i className="fa-solid fa-rotate-right" style={{ marginRight: '6px' }}></i>
+                          Tentar Novamente
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {/* 3. Estado Realmente Vazio */}
+                {!loadingRules && !loadError && filteredGroups.length === 0 && (
                   <tr>
                     <td colSpan={6}>
                       <div className="empty-state-card" style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -1083,7 +1227,16 @@ export default function HorariosFixosPanel({
       {/* 5. VISUALIZAÇÃO EM GRADE SEMANAL COM RESUMO DE OCUPAÇÃO */}
       {viewMode === 'grade' && (
         <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
+          {loadingRules && fixedSchedules.length === 0 ? (
+            <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '2.5rem', color: 'var(--color-primary)', marginBottom: '14px' }}></i>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Carregando grade semanal...</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                Buscando regras e agenda de horários fixos no servidor...
+              </div>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(6, minmax(130px, 1fr))', gap: '8px', minWidth: '850px' }}>
               
               {/* Header da Grade */}
@@ -1234,6 +1387,7 @@ export default function HorariosFixosPanel({
               })}
             </div>
           </div>
+          )}
         </div>
       )}
 

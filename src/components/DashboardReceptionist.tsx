@@ -3096,7 +3096,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     );
   }
 
-  if (activeTab === 'agenda_fixa') {
+  if (activeTab === 'agenda_fixa' || activeTab === 'horarios_fixos') {
     return (
       <HorariosFixosPanel
         fixedSchedules={fixedSchedules}
