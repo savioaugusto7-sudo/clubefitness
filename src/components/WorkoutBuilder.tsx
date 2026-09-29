@@ -220,6 +220,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   // 🌟 Popover / Modal de Evolução de Carga
   const [selectedProgressionItem, setSelectedProgressionItem] = useState<any | null>(null);
 
+  // 🌟 Modo Mobile (Ficha de Treino vs Banco de Exercícios)
+  const [mobileTab, setMobileTab] = useState<'ficha' | 'exercicios'>('ficha');
+
   // Unsaved changes protection
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
@@ -859,6 +862,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     const updated = [...workoutItems, newItem];
     setWorkoutItems(updated);
     persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setMobileTab('ficha');
+    }
   };
 
   const handleSubstituteExercise = (oldItemId: string, newDbEx: any) => {
@@ -1681,6 +1687,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
       <div style={{
         padding: '14px 28px',
+        paddingTop: 'max(14px, var(--safe-top, 0px))',
         background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         display: 'flex',
@@ -2103,9 +2110,63 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* 🌟 Chaveador Móvel de Abas: Ficha vs Banco de Exercícios */}
+      <div className="workout-mobile-tab-bar" style={{
+        display: 'none',
+        padding: '8px 12px',
+        background: '#0a0f1d',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        gap: '8px'
+      }}>
+        <button
+          type="button"
+          onClick={() => setMobileTab('ficha')}
+          style={{
+            flex: 1,
+            padding: '9px 12px',
+            borderRadius: '8px',
+            border: mobileTab === 'ficha' ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
+            background: mobileTab === 'ficha' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+            color: mobileTab === 'ficha' ? '#10b981' : '#94a3b8',
+            fontWeight: 800,
+            fontSize: '0.82rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          <i className="fa-solid fa-clipboard-list"></i>
+          <span>Ficha ({workoutItems.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('exercicios')}
+          style={{
+            flex: 1,
+            padding: '9px 12px',
+            borderRadius: '8px',
+            border: mobileTab === 'exercicios' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+            background: mobileTab === 'exercicios' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+            color: mobileTab === 'exercicios' ? '#38bdf8' : '#94a3b8',
+            fontWeight: 800,
+            fontSize: '0.82rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          <i className="fa-solid fa-plus-circle"></i>
+          <span>+ Exercícios ({filteredExercises.length})</span>
+        </button>
+      </div>
+
+      <div className={`workout-split-container mobile-tab-${mobileTab}`} style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
-        <div style={{
+        <div className="workout-sidebar-panel" style={{
           width: '380px',
           background: '#0d1322',
           borderRight: '1px solid rgba(255, 255, 255, 0.08)',
@@ -2245,7 +2306,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
+        <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
           <div style={{ maxWidth: '1050px', margin: '0 auto' }}>
             
             {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno */}
@@ -3377,6 +3438,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </div>
             </div>
 
+            {/* Espaçador de segurança contra a barra inferior mobile */}
+            <div className="mobile-bottom-spacer" />
           </div>
         </div>
 

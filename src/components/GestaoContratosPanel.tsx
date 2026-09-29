@@ -3457,7 +3457,7 @@ export default function GestaoContratosPanel({
         ) : (
           <>
             {/* 2. BARRA MODOS RÁPIDOS */}
-            <div style={{
+            <div className="contratos-quick-bar" style={{
               display: 'flex',
               alignItems: 'stretch',
               gap: '12px',
@@ -3469,7 +3469,7 @@ export default function GestaoContratosPanel({
               overflowX: 'auto'
             }}>
               {/* Etiqueta vertical MODOS RÁPIDOS */}
-              <div style={{
+              <div className="contratos-quick-label" style={{
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
@@ -5172,7 +5172,7 @@ export default function GestaoContratosPanel({
       )}
     </div>
   ) : (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="workspace-scroll-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingTop: 'max(8px, var(--safe-top, 0px))' }}>
       {/* Workspace Top Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <button
@@ -5189,7 +5189,7 @@ export default function GestaoContratosPanel({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, 0.9fr)', gap: '20px', alignItems: 'start' }}>
+      <div className="contratos-workspace-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, 0.9fr)', gap: '20px', alignItems: 'start' }}>
         
         {/* Left Column: Commercial settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -6316,6 +6316,8 @@ export default function GestaoContratosPanel({
           </div>
         </div>
       </div>
+      {/* Espaçador de segurança contra o menu inferior mobile */}
+      <div className="mobile-bottom-spacer" />
     </div>
   )}
 
