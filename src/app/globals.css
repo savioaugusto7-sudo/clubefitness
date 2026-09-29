@@ -3055,20 +3055,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* 📱 CELULARES (Telas até 768px / 600px) */
 @media (max-width: 768px) {
-  /* Sidebar lateral mantida contínua na borda esquerda */
   aside.sidebar {
-    width: var(--sidebar-width) !important;
-    min-width: var(--sidebar-width) !important;
-    display: flex !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    bottom: 0 !important;
-    height: 100vh !important;
-    min-height: 100vh !important;
-    max-height: 100vh !important;
-    z-index: 1000 !important;
-    box-sizing: border-box !important;
+    display: none !important;
   }
 
   main.main-content,
@@ -3843,9 +3831,26 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* Mobile: Telas até 768px (Smartphones e Tablets Pequenos) */
 @media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100% !important;
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  body {
+    display: block !important;
+  }
+
   .app-container {
+    display: block !important;
     flex-direction: column !important;
     width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
   aside.sidebar {
@@ -3854,10 +3859,15 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
   main.main-content,
   .main-content {
+    display: block !important;
     margin-left: 0 !important;
     width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
     padding: calc(14px + var(--safe-top)) 14px var(--mobile-bottom-clearance) 14px !important;
     box-sizing: border-box !important;
+    touch-action: pan-y !important;
   }
 
   /* Barra de Navegação Inferior Fixa */
@@ -4254,9 +4264,19 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     gap: 16px !important;
   }
 
-  /* Suavização de scroll no touch */
-  * {
-    -webkit-overflow-scrolling: touch;
+  /* Suavização de rolagem por toque estritamente em containers de scroll real */
+  .bottom-drawer-content,
+  .table-responsive,
+  .overflow-x-auto,
+  .badge-filter-scroll,
+  .modal-body {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .table-responsive,
+  .overflow-x-auto,
+  .badge-filter-scroll {
+    touch-action: pan-x pan-y !important;
   }
 }
 
