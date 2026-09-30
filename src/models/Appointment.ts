@@ -53,5 +53,13 @@ AppointmentSchema.index({ data: 1, horario: 1 });
 AppointmentSchema.index({ clienteId: 1, data: 1, status: 1 });
 AppointmentSchema.index({ status: 1, data: 1 });
 AppointmentSchema.index({ profissionalId: 1, data: 1 });
+AppointmentSchema.index(
+  { clienteId: 1, data: 1, horario: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ['agendado', 'presenca', 'falta'] } },
+    name: 'unique_active_client_slot'
+  }
+);
 
 export default models.Appointment || model('Appointment', AppointmentSchema);
