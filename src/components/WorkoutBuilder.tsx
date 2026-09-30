@@ -223,6 +223,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   // 🌟 Modo Mobile (Ficha de Treino vs Banco de Exercícios)
   const [mobileTab, setMobileTab] = useState<'ficha' | 'exercicios'>('ficha');
 
+  // 🌟 Detecção de Viewport Mobile / Desktop para isolamento estrito
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Unsaved changes protection
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
@@ -1691,41 +1700,138 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
       </div>
 
-      <div 
-        className="workout-builder-header"
-        style={{
-        padding: '14px 28px',
-        paddingTop: 'max(14px, var(--safe-top, 0px))',
-        background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button 
-            type="button"
-            className="btn btn-secondary" 
-            onClick={onClose} 
-            style={{
-              padding: '8px 16px',
-              borderRadius: '10px',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              background: 'rgba(255, 255, 255, 0.04)',
-              color: '#e2e8f0',
-              fontWeight: 600,
-              fontSize: '0.86rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer'
-            }}
-          >
-            <i className="fa-solid fa-arrow-left"></i> Voltar para Lista
-          </button>
+      {/* 🌟 Top Navigation Bar */}
+      {isMobile ? (
+        <div 
+          className="workout-builder-header"
+          style={{
+            background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
+            padding: '8px 12px',
+            paddingTop: 'max(8px, var(--safe-top, 0px))',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+            <button 
+              type="button"
+              className="btn btn-secondary" 
+              onClick={onClose} 
+              style={{
+                width: '36px',
+                height: '36px',
+                padding: 0,
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                color: '#e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title="Voltar para Lista"
+            >
+              <i className="fa-solid fa-arrow-left"></i>
+            </button>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2 style={{ margin: 0, color: '#ffffff', fontSize: '0.98rem', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayName}
+              </h2>
+              <div style={{ fontSize: '0.64rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase' }}>
+                Ficha de Treino
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={handleOpenHistory}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#38bdf8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title="Histórico de Ciclos"
+            >
+              <i className="fa-solid fa-clock-rotate-left"></i>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={isSaving}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                background: justSaved 
+                  ? 'linear-gradient(135deg, #10b981, #059669)' 
+                  : 'linear-gradient(135deg, #10b981, #047857)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: 'none',
+                cursor: isSaving ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <i className={isSaving ? "fa-solid fa-spinner fa-spin" : justSaved ? "fa-solid fa-check" : "fa-solid fa-floppy-disk"}></i>
+              <span>{justSaved ? 'Salvo' : 'Salvar'}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div 
+          className="workout-builder-header"
+          style={{
+          padding: '14px 28px',
+          paddingTop: 'max(14px, var(--safe-top, 0px))',
+          background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button 
+              type="button"
+              className="btn btn-secondary" 
+              onClick={onClose} 
+              style={{
+                padding: '8px 16px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                color: '#e2e8f0',
+                fontWeight: 600,
+                fontSize: '0.86rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-arrow-left"></i> Voltar para Lista
+            </button>
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -1935,6 +2041,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </button>
         </div>
       </div>
+      )} {/* Fim condicional Desktop Header */}
 
       {/* 🌟 Banner Wellness Respondido */}
       {todayWellness && (
@@ -2052,6 +2159,41 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
       {/* ⚠️ Banner Alerta de Wellness Pendente (Apenas se o aluno tem agendamento ativo no horário) */}
       {!todayWellness && activeAppointment && (
+        isMobile ? (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.15)',
+            borderBottom: '1px solid rgba(245, 158, 11, 0.4)',
+            padding: '7px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+              <i className="fa-solid fa-heart-pulse" style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
+              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#fef3c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Wellness Pendente ({activeAppointment.horario})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowWellnessModal(true)}
+              style={{
+                background: '#f59e0b',
+                color: '#000',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontWeight: 800,
+                fontSize: '0.70rem',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              Responder
+            </button>
+          </div>
+        ) : (
         <div style={{
           background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.18) 0%, rgba(180, 83, 9, 0.28) 100%)',
           borderBottom: '2px solid #f59e0b',
@@ -2122,6 +2264,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             <span>Responder Teste Wellness</span>
           </button>
         </div>
+        )
       )}
 
       {/* 🌟 Chaveador Móvel de Abas: Ficha vs Banco de Exercícios */}
@@ -2320,11 +2463,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </div>
         </div>
 
-        <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
+        <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: isMobile ? '12px 12px 120px 12px' : '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
           <div style={{ maxWidth: '1050px', margin: '0 auto' }}>
             
-            {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno */}
-            {lastWorkoutInfo && (
+            {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno (Apenas Desktop) */}
+            {lastWorkoutInfo && !isMobile && (
               <div style={{
                 background: lastWorkoutInfo.isLivre ? 'linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(13, 19, 34, 0.6) 100%)' : 'linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(13, 19, 34, 0.6) 100%)',
                 border: lastWorkoutInfo.isLivre ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(16, 185, 129, 0.25)',
@@ -2383,18 +2526,89 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '20px',
-                flexWrap: 'wrap',
-                gap: '14px',
+                alignItems: isMobile ? 'stretch' : 'center',
+                flexDirection: isMobile ? 'column' : 'row',
+                marginBottom: isMobile ? '10px' : '20px',
+                gap: isMobile ? '8px' : '14px',
                 background: '#0d1322',
-                padding: '12px 18px',
-                borderRadius: '14px',
+                padding: isMobile ? '8px 10px' : '12px 18px',
+                borderRadius: '12px',
                 border: '1px solid rgba(255, 255, 255, 0.06)'
               }}
             >
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>
+              {/* Segmented Control de Categoria: Monitorado vs Livre */}
+              <div style={{
+                display: 'flex',
+                background: 'rgba(0, 0, 0, 0.4)',
+                padding: '3px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                width: isMobile ? '100%' : 'auto',
+                order: isMobile ? 1 : 2
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory('fichasMonitorado');
+                    const sheets = rawWorkoutDoc?.['fichasMonitorado'] || [];
+                    const firstWithEx = sheets.find((s: any) => s.exercicios?.length > 0) || sheets[0] || { id: 'A' };
+                    handleChangeSheet(firstWithEx.id || 'A', 'fichasMonitorado');
+                  }}
+                  style={{
+                    flex: isMobile ? 1 : 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: activeCategory === 'fichasMonitorado' ? '#10b981' : 'transparent',
+                    color: activeCategory === 'fichasMonitorado' ? '#ffffff' : '#94a3b8',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textAlign: 'center'
+                  }}
+                >
+                  <i className="fa-solid fa-user-shield" style={{ marginRight: '6px' }}></i>
+                  Monitorado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory('fichasLivre');
+                    const sheets = rawWorkoutDoc?.['fichasLivre'] || [];
+                    const firstWithEx = sheets.find((s: any) => s.exercicios?.length > 0) || sheets[0] || { id: 'A' };
+                    handleChangeSheet(firstWithEx.id || 'A', 'fichasLivre');
+                  }}
+                  style={{
+                    flex: isMobile ? 1 : 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: activeCategory === 'fichasLivre' ? '#38bdf8' : 'transparent',
+                    color: activeCategory === 'fichasLivre' ? '#ffffff' : '#94a3b8',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textAlign: 'center'
+                  }}
+                >
+                  <i className="fa-solid fa-person-running" style={{ marginRight: '6px' }}></i>
+                  Treino Livre
+                </button>
+              </div>
+
+              {/* Seletor de Fichas (A, B, C, +) */}
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                alignItems: 'center',
+                overflowX: 'auto',
+                flexWrap: isMobile ? 'nowrap' : 'wrap',
+                paddingBottom: isMobile ? '2px' : 0,
+                order: isMobile ? 2 : 1
+              }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#94a3b8', marginRight: '2px', flexShrink: 0 }}>
                   FICHAS:
                 </span>
                 {visibleSheets.map((sheet: any) => {
@@ -2406,16 +2620,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                       type="button"
                       onClick={() => handleChangeSheet(letter)}
                       style={{
-                        padding: '7px 18px',
-                        borderRadius: '8px',
+                        padding: isMobile ? '5px 12px' : '7px 18px',
+                        borderRadius: '7px',
                         border: isSelected ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
                         background: isSelected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
                         color: isSelected ? '#10b981' : '#94a3b8',
                         fontWeight: 800,
-                        fontSize: '0.88rem',
+                        fontSize: isMobile ? '0.78rem' : '0.88rem',
                         cursor: 'pointer',
                         boxShadow: isSelected ? '0 0 15px rgba(16, 185, 129, 0.25)' : 'none',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        flexShrink: 0
                       }}
                     >
                       {sheet.nome || `Ficha ${letter}`}
@@ -2432,18 +2647,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     setAddFichaError('');
                   }}
                   style={{
-                    padding: '7px 12px',
-                    borderRadius: '8px',
+                    padding: isMobile ? '5px 10px' : '7px 12px',
+                    borderRadius: '7px',
                     border: '1px dashed rgba(16, 185, 129, 0.5)',
                     background: 'rgba(16, 185, 129, 0.08)',
                     color: '#34d399',
                     fontWeight: 800,
-                    fontSize: '0.84rem',
+                    fontSize: isMobile ? '0.76rem' : '0.84rem',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '5px',
-                    transition: 'all 0.2s'
+                    gap: '4px',
+                    flexShrink: 0
                   }}
                   title="Criar nova ficha com letra personalizada"
                 >
@@ -2451,65 +2666,48 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   <span>Ficha</span>
                 </button>
               </div>
-
-              <div style={{
-                display: 'flex',
-                background: 'rgba(0, 0, 0, 0.4)',
-                padding: '4px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory('fichasMonitorado');
-                    const sheets = rawWorkoutDoc?.['fichasMonitorado'] || [];
-                    const firstWithEx = sheets.find((s: any) => s.exercicios?.length > 0) || sheets[0] || { id: 'A' };
-                    handleChangeSheet(firstWithEx.id || 'A', 'fichasMonitorado');
-                  }}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    background: activeCategory === 'fichasMonitorado' ? '#10b981' : 'transparent',
-                    color: activeCategory === 'fichasMonitorado' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <i className="fa-solid fa-user-shield" style={{ marginRight: '6px' }}></i>
-                  Treino Monitorado
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory('fichasLivre');
-                    const sheets = rawWorkoutDoc?.['fichasLivre'] || [];
-                    const firstWithEx = sheets.find((s: any) => s.exercicios?.length > 0) || sheets[0] || { id: 'A' };
-                    handleChangeSheet(firstWithEx.id || 'A', 'fichasLivre');
-                  }}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    background: activeCategory === 'fichasLivre' ? '#38bdf8' : 'transparent',
-                    color: activeCategory === 'fichasLivre' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <i className="fa-solid fa-person-running" style={{ marginRight: '6px' }}></i>
-                  Treino Livre
-                </button>
-              </div>
             </div>
 
             {/* ⚠️ Banner para Ficha sem Validade Informada (Legada) */}
             {!workoutValidade && (
+              isMobile ? (
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '6px'
+                }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 750, color: '#fbbf24' }}>
+                    ⚠️ Validade:
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[15, 30, 60].map(days => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => handleSetValidade(days)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #f59e0b',
+                          background: 'rgba(245, 158, 11, 0.25)',
+                          color: '#fff',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {days}d
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
               <div style={{
                 background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.24) 100%)',
                 border: '1.5px solid rgba(245, 158, 11, 0.5)',
@@ -2579,6 +2777,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   ))}
                 </div>
               </div>
+              )
             )}
 
             <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -2793,8 +2992,321 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           transition: 'all 0.2s'
                         }}
                       >
-                        <div
-                          className="workout-exercise-row-desktop"
+                        {isMobile ? (
+                          /* 📱 Card Mobile Redesenhado Premium (Estilo Hevy / Apple Fitness) */
+                          <div className="workout-exercise-card-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                            {/* Top: #Index + Nome + Grupo + Badges + Ações Táteis */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0 }}>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  fontWeight: 900,
+                                  color: '#10b981',
+                                  background: 'rgba(16, 185, 129, 0.15)',
+                                  padding: '2px 7px',
+                                  borderRadius: '6px',
+                                  flexShrink: 0
+                                }}>
+                                  #{index + 1}
+                                </span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc', lineHeight: 1.25 }}>
+                                    {item.nome}
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
+                                    <span style={{ fontSize: '0.66rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+                                      {item.grupo}
+                                    </span>
+                                    {item.combinaGrupo && (
+                                      <span style={{ background: groupColor, color: item.combinaGrupo === 'G5' ? '#000' : '#fff', fontSize: '0.62rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>
+                                        {item.combinaGrupo}
+                                      </span>
+                                    )}
+                                    {hasDrop && (
+                                      <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.60rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                                        ⚡ Drop
+                                      </span>
+                                    )}
+                                    {loadProg && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedProgressionItem(item)}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          padding: '1px 6px',
+                                          borderRadius: '4px',
+                                          background: loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                          border: `1px solid ${loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                                          color: loadProg.diff >= 0 ? '#10b981' : '#f87171',
+                                          fontSize: '0.62rem',
+                                          fontWeight: 800,
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <i className={`fa-solid ${loadProg.diff >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`}></i>
+                                        <span>{loadProg.diff >= 0 ? `+${loadProg.diff}` : loadProg.diff} {loadProg.unit} em {loadProg.dias}d</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Ações Táteis Rápidas: ▲ ▼ Substituir Excluir */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={() => moveItem(index, 'up')}
+                                  style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    background: 'rgba(255,255,255,0.04)',
+                                    color: index === 0 ? '#475569' : '#cbd5e1',
+                                    cursor: index === 0 ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.70rem'
+                                  }}
+                                  title="Mover para cima"
+                                >
+                                  <i className="fa-solid fa-chevron-up"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={index === workoutItems.length - 1}
+                                  onClick={() => moveItem(index, 'down')}
+                                  style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    background: 'rgba(255,255,255,0.04)',
+                                    color: index === workoutItems.length - 1 ? '#475569' : '#cbd5e1',
+                                    cursor: index === workoutItems.length - 1 ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.70rem'
+                                  }}
+                                  title="Mover para baixo"
+                                >
+                                  <i className="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSubstitutingItem({
+                                      id: item.id,
+                                      index,
+                                      nome: item.nome,
+                                      combinaGrupo: item.combinaGrupo || '',
+                                      grupo: item.grupo || 'Geral'
+                                    });
+                                    setSubstituteSearch('');
+                                    setSubstituteMuscle(item.grupo && muscles.includes(item.grupo) ? item.grupo : 'Todos');
+                                  }}
+                                  style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                    background: 'rgba(56, 189, 248, 0.1)',
+                                    color: '#38bdf8',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.70rem'
+                                  }}
+                                  title="Substituir Exercício"
+                                >
+                                  <i className="fa-solid fa-arrows-rotate"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(item.id)}
+                                  style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.70rem'
+                                  }}
+                                  title="Excluir Exercício"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Grade de 4 Parâmetros Táteis */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                              <div style={{ background: '#080d1a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '4px 4px', textAlign: 'center' }}>
+                                <label style={{ fontSize: '0.58rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>Séries</label>
+                                <input
+                                  type="number"
+                                  value={item.series}
+                                  onChange={e => updateItem(item.id, 'series', parseInt(e.target.value) || 0)}
+                                  style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                                />
+                              </div>
+
+                              <div style={{ background: '#080d1a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '4px 4px', textAlign: 'center' }}>
+                                <label style={{ fontSize: '0.58rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>Reps</label>
+                                <input
+                                  type="text"
+                                  value={item.repeticoes}
+                                  onChange={e => updateItem(item.id, 'repeticoes', e.target.value)}
+                                  style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                                />
+                              </div>
+
+                              <div style={{ background: '#080d1a', border: hasDrop ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '4px 4px', textAlign: 'center' }}>
+                                <label style={{ fontSize: '0.58rem', color: hasDrop ? '#fbbf24' : '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>Carga ({item.unidadeCarga || 'kg'})</label>
+                                <input
+                                  type="number"
+                                  value={item.carga !== undefined && item.carga !== null ? item.carga : ''}
+                                  onChange={e => {
+                                    const valStr = e.target.value;
+                                    const newCarga = valStr === '' ? '' : Number(valStr);
+                                    updateItem(item.id, 'carga', newCarga);
+                                    if (item.dropSet && item.dropSet.tipo !== 'none') {
+                                      const drops = calculateDropSuggestions(typeof newCarga === 'number' ? newCarga : 0, item.dropSet.tipo);
+                                      setWorkoutItems(prev => prev.map(it => it.id === item.id ? { ...it, carga: newCarga, dropSet: { ...it.dropSet!, drops } } : it));
+                                    }
+                                  }}
+                                  style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: hasDrop ? '#fbbf24' : '#10b981', fontWeight: 800, fontSize: '0.88rem' }}
+                                />
+                              </div>
+
+                              <div style={{ background: '#080d1a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '4px 4px', textAlign: 'center' }}>
+                                <label style={{ fontSize: '0.58rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>Desc. (s)</label>
+                                <input
+                                  type="number"
+                                  step="5"
+                                  value={item.descanso}
+                                  onChange={e => updateItem(item.id, 'descanso', parseInt(e.target.value) || 0)}
+                                  style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Linha Extra: Drop-set pill + Obs pill + Combinar Grupo */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropMenuId(activeDropMenuId === item.id ? null : item.id);
+                                }}
+                                style={{
+                                  flex: 1,
+                                  height: '28px',
+                                  padding: '0 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  background: hasDrop ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                                  border: hasDrop ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                  color: hasDrop ? '#fbbf24' : '#94a3b8',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <i className="fa-solid fa-bolt" style={{ fontSize: '0.65rem' }}></i>
+                                <span>{hasDrop ? (item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops') : '+ Drop-set'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveObsModalItem(item);
+                                  setTempObsText(item.observacao || '');
+                                }}
+                                style={{
+                                  height: '28px',
+                                  padding: '0 10px',
+                                  borderRadius: '6px',
+                                  border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                                  background: item.observacao ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                  color: item.observacao ? '#38bdf8' : '#94a3b8',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 750,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <i className="fa-solid fa-comment-dots"></i>
+                                <span>{item.observacao ? 'Obs ✓' : 'Obs'}</span>
+                              </button>
+
+                              <div style={{ width: '70px', height: '28px' }}>
+                                {(() => {
+                                  const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
+                                  let maxGroupNum = 0;
+                                  usedGroups.forEach((g: string) => {
+                                    const match = g.match(/^G(\d+)$/i);
+                                    if (match) {
+                                      const num = parseInt(match[1], 10);
+                                      if (num > maxGroupNum) maxGroupNum = num;
+                                    }
+                                  });
+                                  const dynamicOptions = [
+                                    { id: '', label: 'Indiv.' },
+                                    ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
+                                      const id = `G${i + 1}`;
+                                      return { id, label: id };
+                                    })
+                                  ];
+
+                                  return (
+                                    <select
+                                      value={item.combinaGrupo || ''}
+                                      onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                                      style={{
+                                        width: '100%',
+                                        height: '28px',
+                                        padding: '0 4px',
+                                        borderRadius: '6px',
+                                        border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.08)',
+                                        background: item.combinaGrupo ? `${groupColor}22` : '#080d1a',
+                                        color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
+                                        fontSize: '0.68rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {dynamicOptions.map(g => (
+                                        <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
+                                          {g.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* 💻 Linha da Tabela Clássica do Desktop 100% Original e Intocada */
+                          <div
+                            className="workout-exercise-row-desktop"
                           style={{
                             display: 'grid',
                             gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
@@ -3349,263 +3861,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             </button>
                           </div>
                         </div>
-
-                        {/* 📱 Card Mobile Otimizado (<= 768px) */}
-                        <div className="workout-exercise-card-mobile">
-                          {/* Linha 1: Topo com Número, Nome, Grupo e Ações Rápidas */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0 }}>
-                              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 7px', borderRadius: '6px' }}>
-                                #{index + 1}
-                              </span>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 800, fontSize: '0.94rem', color: '#f8fafc', lineHeight: 1.3 }}>
-                                  {item.nome}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
-                                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
-                                    {item.grupo}
-                                  </span>
-                                  {item.combinaGrupo && (
-                                    <span style={{ background: groupColor, color: item.combinaGrupo === 'G5' ? '#000' : '#fff', fontSize: '0.62rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>
-                                      {item.combinaGrupo}
-                                    </span>
-                                  )}
-                                  {hasDrop && (
-                                    <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.60rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                                      {item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? 'Double' : 'Triple'}
-                                    </span>
-                                  )}
-                                  {loadProg && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedProgressionItem(item)}
-                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 6px', borderRadius: '4px', background: loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`, color: loadProg.diff >= 0 ? '#34d399' : '#f87171', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
-                                    >
-                                      <i className="fa-solid fa-arrow-trend-up"></i>
-                                      <span>{loadProg.diff >= 0 ? `+${loadProg.diff}` : loadProg.diff} {loadProg.unit}</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Ações: Subir, Descer, Trocar, Excluir */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                              <button
-                                type="button"
-                                onClick={() => moveItem(index, 'up')}
-                                disabled={index === 0}
-                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: index === 0 ? '#334155' : '#cbd5e1', cursor: index === 0 ? 'default' : 'pointer', fontSize: '0.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                title="Mover para cima"
-                              >
-                                <i className="fa-solid fa-chevron-up"></i>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => moveItem(index, 'down')}
-                                disabled={index === workoutItems.length - 1}
-                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: index === workoutItems.length - 1 ? '#334155' : '#cbd5e1', cursor: index === workoutItems.length - 1 ? 'default' : 'pointer', fontSize: '0.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                title="Mover para baixo"
-                              >
-                                <i className="fa-solid fa-chevron-down"></i>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSubstitutingItem({ id: item.id, index, nome: item.nome, combinaGrupo: item.combinaGrupo || '', grupo: item.grupo || 'Geral' });
-                                  setSubstituteSearch('');
-                                  setSubstituteMuscle(item.grupo && muscles.includes(item.grupo) ? item.grupo : 'Todos');
-                                }}
-                                title="Substituir Exercício"
-                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              >
-                                <i className="fa-solid fa-arrows-rotate"></i>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeItem(item.id)}
-                                title="Excluir Exercício"
-                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              >
-                                <i className="fa-solid fa-trash-can"></i>
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Linha 2: Séries, Reps, Ritmo, Descanso */}
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 6px' }}>
-                              <label style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Séries</label>
-                              <input
-                                type="number"
-                                value={item.series}
-                                onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
-                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
-                              />
-                            </div>
-                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 6px' }}>
-                              <label style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Reps</label>
-                              <input
-                                type="text"
-                                value={item.reps}
-                                onChange={e => updateItem(item.id, 'reps', e.target.value)}
-                                placeholder="12"
-                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
-                              />
-                            </div>
-                            <div style={{ background: '#070b14', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '4px 6px' }}>
-                              <label style={{ fontSize: '0.62rem', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Ritmo</label>
-                              <input
-                                type="text"
-                                value={item.ritmo || ''}
-                                onChange={e => updateItem(item.id, 'ritmo', e.target.value)}
-                                placeholder="2-0-2"
-                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#38bdf8', fontWeight: 800, fontSize: '0.78rem' }}
-                              />
-                            </div>
-                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 6px' }}>
-                              <label style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Desc (s)</label>
-                              <input
-                                type="number"
-                                value={item.descanso}
-                                onChange={e => updateItem(item.id, 'descanso', Number(e.target.value))}
-                                placeholder="60"
-                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Linha 3: Carga, Unidade, Drop-set, Obs, Combinação */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr auto 1fr', gap: '6px', alignItems: 'center' }}>
-                            <div style={{ background: '#070b14', border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '4px 6px' }}>
-                              <label style={{ fontSize: '0.60rem', color: hasDrop ? '#f59e0b' : '#34d399', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Carga</label>
-                              <input
-                                type="number"
-                                value={item.carga !== undefined && item.carga !== null ? item.carga : ''}
-                                onChange={e => {
-                                  const valStr = e.target.value;
-                                  const newCarga = valStr === '' ? '' : Number(valStr);
-                                  updateItem(item.id, 'carga', newCarga);
-                                  if (item.dropSet && item.dropSet.tipo !== 'none') {
-                                    const drops = calculateDropSuggestions(typeof newCarga === 'number' ? newCarga : 0, item.dropSet.tipo);
-                                    setWorkoutItems(prev => prev.map(it => it.id === item.id ? { ...it, carga: newCarga, dropSet: { ...it.dropSet!, drops } } : it));
-                                  }
-                                }}
-                                placeholder="0"
-                                style={{ width: '100%', height: '26px', textAlign: 'center', background: 'transparent', border: 'none', color: hasDrop ? '#f59e0b' : '#10b981', fontWeight: 800, fontSize: '0.88rem' }}
-                              />
-                            </div>
-
-                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 4px' }}>
-                              <label style={{ fontSize: '0.60rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Unid</label>
-                              <input
-                                type="text"
-                                list="unidades-carga-list"
-                                value={item.unidadeCarga || ''}
-                                onChange={e => updateItem(item.id, 'unidadeCarga', e.target.value)}
-                                placeholder="kg"
-                                style={{ width: '100%', height: '26px', textAlign: 'center', background: 'transparent', border: 'none', color: '#cbd5e1', fontWeight: 700, fontSize: '0.76rem' }}
-                              />
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveDropMenuId(activeDropMenuId === item.id ? null : item.id);
-                              }}
-                              style={{
-                                height: '42px',
-                                padding: '0 6px',
-                                borderRadius: '8px',
-                                fontSize: '0.70rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                background: hasDrop ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                                border: hasDrop ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)',
-                                color: hasDrop ? '#fbbf24' : '#94a3b8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <i className="fa-solid fa-bolt" style={{ fontSize: '0.7rem' }}></i>
-                              <span>{hasDrop ? (item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops') : '+ Drop'}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveObsModalItem(item);
-                                setTempObsText(item.observacao || '');
-                              }}
-                              title={item.observacao ? `Obs: ${item.observacao}` : 'Adicionar observação'}
-                              style={{
-                                width: '42px',
-                                height: '42px',
-                                borderRadius: '8px',
-                                border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                                background: item.observacao ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                                color: item.observacao ? '#38bdf8' : '#94a3b8',
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <i className="fa-solid fa-comment-dots"></i>
-                            </button>
-
-                            <div style={{ height: '42px' }}>
-                              {(() => {
-                                const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
-                                let maxGroupNum = 0;
-                                usedGroups.forEach((g: string) => {
-                                  const match = g.match(/^G(\d+)$/i);
-                                  if (match) {
-                                    const num = parseInt(match[1], 10);
-                                    if (num > maxGroupNum) maxGroupNum = num;
-                                  }
-                                });
-                                const dynamicOptions = [
-                                  { id: '', label: 'Indiv.' },
-                                  ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
-                                    const id = `G${i + 1}`;
-                                    return { id, label: id };
-                                  })
-                                ];
-
-                                return (
-                                  <select
-                                    value={item.combinaGrupo || ''}
-                                    onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
-                                    style={{
-                                      width: '100%',
-                                      height: '42px',
-                                      padding: '0 4px',
-                                      borderRadius: '8px',
-                                      border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
-                                      background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
-                                      color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
-                                      fontSize: '0.72rem',
-                                      fontWeight: 800,
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {dynamicOptions.map(g => (
-                                      <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
-                                        {g.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
+                        )} {/* Fim condicional Mobile vs Desktop */}
 
                         {/* Drop-set Sub-Row if active */}
                         {hasDrop && item.dropSet && (
