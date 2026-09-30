@@ -1307,20 +1307,23 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      backgroundColor: '#070b14',
-      color: '#f8fafc',
-      zIndex: 999999,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
-    }}>
+    <div 
+      className="workout-builder-root"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: '#070b14',
+        color: '#f8fafc',
+        zIndex: 999999,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+      }}
+    >
       
       {saveToast && (
         <div style={{
@@ -1356,18 +1359,21 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       )}
 
       {/* 🌟 Barra Superior de Navegação Rápida entre Alunos Presentes/Agendados (Desktop PWA) */}
-      <div style={{
-        background: '#090e1a',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-        padding: '8px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px',
-        zIndex: 100,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        flexShrink: 0
-      }}>
+      <div 
+        className="workout-top-carousel-bar"
+        style={{
+          background: '#090e1a',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '8px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          zIndex: 100,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+          flexShrink: 0
+        }}
+      >
         {/* Lado Esquerdo: Identificador de Horário & Alternador */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <div style={{
@@ -1685,7 +1691,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
       </div>
 
-      <div style={{
+      <div 
+        className="workout-builder-header"
+        style={{
         padding: '14px 28px',
         paddingTop: 'max(14px, var(--safe-top, 0px))',
         background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
@@ -1765,15 +1773,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            padding: '6px 14px',
-            borderRadius: '10px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
+          <div 
+            className="workout-builder-stats"
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              padding: '6px 14px',
+              borderRadius: '10px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
             <i className="fa-solid fa-weight-hanging" style={{ color: '#10b981', fontSize: '0.9rem' }}></i>
             <div>
               <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>Volume Previsto</div>
@@ -1781,15 +1792,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             </div>
           </div>
 
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            padding: '6px 14px',
-            borderRadius: '10px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
+          <div 
+            className="workout-builder-stats"
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              padding: '6px 14px',
+              borderRadius: '10px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
             <i className="fa-solid fa-layer-group" style={{ color: '#38bdf8', fontSize: '0.9rem' }}></i>
             <div>
               <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>Exercícios / Séries</div>
@@ -2364,18 +2378,21 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px',
-              flexWrap: 'wrap',
-              gap: '14px',
-              background: '#0d1322',
-              padding: '12px 18px',
-              borderRadius: '14px',
-              border: '1px solid rgba(255, 255, 255, 0.06)'
-            }}>
+            <div 
+              className="workout-sheet-selector-bar"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+                flexWrap: 'wrap',
+                gap: '14px',
+                background: '#0d1322',
+                padding: '12px 18px',
+                borderRadius: '14px',
+                border: '1px solid rgba(255, 255, 255, 0.06)'
+              }}
+            >
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>
                   FICHAS:
@@ -2713,19 +2730,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </datalist>
 
               {workoutItems.length > 0 && !isLoading && (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  color: '#64748b',
-                  letterSpacing: '0.5px'
-                }}>
+                <div 
+                  className="workout-table-header"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
+                    gap: '8px',
+                    padding: '10px 20px',
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    color: '#64748b',
+                    letterSpacing: '0.5px'
+                  }}
+                >
                   <div>EXERCÍCIO</div>
                   <div style={{ textAlign: 'center' }}>SÉRIES</div>
                   <div style={{ textAlign: 'center' }}>REPS</div>
@@ -2774,6 +2794,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                         }}
                       >
                         <div
+                          className="workout-exercise-row-desktop"
                           style={{
                             display: 'grid',
                             gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
@@ -3326,6 +3347,263 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             >
                               <i className="fa-solid fa-trash-can"></i>
                             </button>
+                          </div>
+                        </div>
+
+                        {/* 📱 Card Mobile Otimizado (<= 768px) */}
+                        <div className="workout-exercise-card-mobile">
+                          {/* Linha 1: Topo com Número, Nome, Grupo e Ações Rápidas */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0 }}>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 7px', borderRadius: '6px' }}>
+                                #{index + 1}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 800, fontSize: '0.94rem', color: '#f8fafc', lineHeight: 1.3 }}>
+                                  {item.nome}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
+                                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                                    {item.grupo}
+                                  </span>
+                                  {item.combinaGrupo && (
+                                    <span style={{ background: groupColor, color: item.combinaGrupo === 'G5' ? '#000' : '#fff', fontSize: '0.62rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>
+                                      {item.combinaGrupo}
+                                    </span>
+                                  )}
+                                  {hasDrop && (
+                                    <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.60rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                                      {item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? 'Double' : 'Triple'}
+                                    </span>
+                                  )}
+                                  {loadProg && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedProgressionItem(item)}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 6px', borderRadius: '4px', background: loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`, color: loadProg.diff >= 0 ? '#34d399' : '#f87171', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
+                                    >
+                                      <i className="fa-solid fa-arrow-trend-up"></i>
+                                      <span>{loadProg.diff >= 0 ? `+${loadProg.diff}` : loadProg.diff} {loadProg.unit}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ações: Subir, Descer, Trocar, Excluir */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                onClick={() => moveItem(index, 'up')}
+                                disabled={index === 0}
+                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: index === 0 ? '#334155' : '#cbd5e1', cursor: index === 0 ? 'default' : 'pointer', fontSize: '0.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="Mover para cima"
+                              >
+                                <i className="fa-solid fa-chevron-up"></i>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveItem(index, 'down')}
+                                disabled={index === workoutItems.length - 1}
+                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: index === workoutItems.length - 1 ? '#334155' : '#cbd5e1', cursor: index === workoutItems.length - 1 ? 'default' : 'pointer', fontSize: '0.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="Mover para baixo"
+                              >
+                                <i className="fa-solid fa-chevron-down"></i>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSubstitutingItem({ id: item.id, index, nome: item.nome, combinaGrupo: item.combinaGrupo || '', grupo: item.grupo || 'Geral' });
+                                  setSubstituteSearch('');
+                                  setSubstituteMuscle(item.grupo && muscles.includes(item.grupo) ? item.grupo : 'Todos');
+                                }}
+                                title="Substituir Exercício"
+                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <i className="fa-solid fa-arrows-rotate"></i>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.id)}
+                                title="Excluir Exercício"
+                                style={{ width: '30px', height: '30px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <i className="fa-solid fa-trash-can"></i>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Linha 2: Séries, Reps, Ritmo, Descanso */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 6px' }}>
+                              <label style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Séries</label>
+                              <input
+                                type="number"
+                                value={item.series}
+                                onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
+                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                              />
+                            </div>
+                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 6px' }}>
+                              <label style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Reps</label>
+                              <input
+                                type="text"
+                                value={item.reps}
+                                onChange={e => updateItem(item.id, 'reps', e.target.value)}
+                                placeholder="12"
+                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                              />
+                            </div>
+                            <div style={{ background: '#070b14', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '4px 6px' }}>
+                              <label style={{ fontSize: '0.62rem', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Ritmo</label>
+                              <input
+                                type="text"
+                                value={item.ritmo || ''}
+                                onChange={e => updateItem(item.id, 'ritmo', e.target.value)}
+                                placeholder="2-0-2"
+                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#38bdf8', fontWeight: 800, fontSize: '0.78rem' }}
+                              />
+                            </div>
+                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 6px' }}>
+                              <label style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Desc (s)</label>
+                              <input
+                                type="number"
+                                value={item.descanso}
+                                onChange={e => updateItem(item.id, 'descanso', Number(e.target.value))}
+                                placeholder="60"
+                                style={{ width: '100%', height: '28px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Linha 3: Carga, Unidade, Drop-set, Obs, Combinação */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr auto 1fr', gap: '6px', alignItems: 'center' }}>
+                            <div style={{ background: '#070b14', border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '4px 6px' }}>
+                              <label style={{ fontSize: '0.60rem', color: hasDrop ? '#f59e0b' : '#34d399', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Carga</label>
+                              <input
+                                type="number"
+                                value={item.carga !== undefined && item.carga !== null ? item.carga : ''}
+                                onChange={e => {
+                                  const valStr = e.target.value;
+                                  const newCarga = valStr === '' ? '' : Number(valStr);
+                                  updateItem(item.id, 'carga', newCarga);
+                                  if (item.dropSet && item.dropSet.tipo !== 'none') {
+                                    const drops = calculateDropSuggestions(typeof newCarga === 'number' ? newCarga : 0, item.dropSet.tipo);
+                                    setWorkoutItems(prev => prev.map(it => it.id === item.id ? { ...it, carga: newCarga, dropSet: { ...it.dropSet!, drops } } : it));
+                                  }
+                                }}
+                                placeholder="0"
+                                style={{ width: '100%', height: '26px', textAlign: 'center', background: 'transparent', border: 'none', color: hasDrop ? '#f59e0b' : '#10b981', fontWeight: 800, fontSize: '0.88rem' }}
+                              />
+                            </div>
+
+                            <div style={{ background: '#070b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 4px' }}>
+                              <label style={{ fontSize: '0.60rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block', textAlign: 'center' }}>Unid</label>
+                              <input
+                                type="text"
+                                list="unidades-carga-list"
+                                value={item.unidadeCarga || ''}
+                                onChange={e => updateItem(item.id, 'unidadeCarga', e.target.value)}
+                                placeholder="kg"
+                                style={{ width: '100%', height: '26px', textAlign: 'center', background: 'transparent', border: 'none', color: '#cbd5e1', fontWeight: 700, fontSize: '0.76rem' }}
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropMenuId(activeDropMenuId === item.id ? null : item.id);
+                              }}
+                              style={{
+                                height: '42px',
+                                padding: '0 6px',
+                                borderRadius: '8px',
+                                fontSize: '0.70rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                background: hasDrop ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                                border: hasDrop ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                color: hasDrop ? '#fbbf24' : '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <i className="fa-solid fa-bolt" style={{ fontSize: '0.7rem' }}></i>
+                              <span>{hasDrop ? (item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops') : '+ Drop'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveObsModalItem(item);
+                                setTempObsText(item.observacao || '');
+                              }}
+                              title={item.observacao ? `Obs: ${item.observacao}` : 'Adicionar observação'}
+                              style={{
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '8px',
+                                border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: item.observacao ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                                color: item.observacao ? '#38bdf8' : '#94a3b8',
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <i className="fa-solid fa-comment-dots"></i>
+                            </button>
+
+                            <div style={{ height: '42px' }}>
+                              {(() => {
+                                const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
+                                let maxGroupNum = 0;
+                                usedGroups.forEach((g: string) => {
+                                  const match = g.match(/^G(\d+)$/i);
+                                  if (match) {
+                                    const num = parseInt(match[1], 10);
+                                    if (num > maxGroupNum) maxGroupNum = num;
+                                  }
+                                });
+                                const dynamicOptions = [
+                                  { id: '', label: 'Indiv.' },
+                                  ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
+                                    const id = `G${i + 1}`;
+                                    return { id, label: id };
+                                  })
+                                ];
+
+                                return (
+                                  <select
+                                    value={item.combinaGrupo || ''}
+                                    onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      height: '42px',
+                                      padding: '0 4px',
+                                      borderRadius: '8px',
+                                      border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
+                                      background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
+                                      color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 800,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {dynamicOptions.map(g => (
+                                      <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
+                                        {g.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
 

@@ -4218,31 +4218,136 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     padding-bottom: max(20px, var(--safe-bottom)) !important;
   }
 
-  /* WorkoutBuilder Mobile */
+  /* WorkoutBuilder Mobile - Fluidez e Rolagem Total */
+  .workout-builder-root {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 999999 !important;
+  }
+
+  .workout-top-carousel-bar {
+    padding: 6px 10px !important;
+    gap: 6px !important;
+  }
+
+  .workout-builder-header {
+    padding: 8px 12px !important;
+    gap: 10px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .workout-builder-stats {
+    display: none !important;
+  }
+
+  .workout-sheet-selector-bar {
+    padding: 8px 10px !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    touch-action: pan-x !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
   .workout-mobile-tab-bar {
     display: flex !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    padding: 6px 10px !important;
+    flex-shrink: 0 !important;
   }
+
   .workout-split-container {
-    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
     height: auto !important;
-    overflow: visible !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
+
   .workout-split-container.mobile-tab-ficha .workout-sidebar-panel {
     display: none !important;
   }
+
   .workout-split-container.mobile-tab-ficha .workout-main-content {
     display: block !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
     width: 100% !important;
-    padding: 12px 10px var(--mobile-bottom-clearance) 10px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    padding: 10px 10px calc(80px + var(--safe-bottom)) 10px !important;
+    box-sizing: border-box !important;
   }
+
   .workout-split-container.mobile-tab-exercicios .workout-sidebar-panel {
     display: flex !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
     width: 100% !important;
     border-right: none !important;
-    padding-bottom: var(--mobile-bottom-clearance) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    padding-bottom: calc(80px + var(--safe-bottom)) !important;
+    box-sizing: border-box !important;
   }
+
   .workout-split-container.mobile-tab-exercicios .workout-main-content {
     display: none !important;
+  }
+
+  /* Exibição condicional da tabela vs card do exercício no WorkoutBuilder */
+  .workout-table-header {
+    display: none !important;
+  }
+
+  .workout-exercise-row-desktop {
+    display: none !important;
+  }
+
+  .workout-exercise-card-mobile {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  /* Dashboard Profissional - Grids Fluidos de 1 Coluna */
+  .prof-responsive-grid,
+  div[style*="minmax(360px, 1fr)"],
+  div[style*="minmax(340px, 1fr)"],
+  div[style*="minmax(320px, 1fr)"],
+  div[style*="minmax(300px, 1fr)"],
+  div[style*="minmax(280px, 1fr)"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .prof-subtabs-scroll {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    touch-action: pan-x !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 6px !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+  .prof-subtabs-scroll > * {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
   }
 
   /* GestaoContratosPanel Mobile */
@@ -4277,9 +4382,17 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   .overflow-x-auto,
   .badge-filter-scroll {
     touch-action: pan-x pan-y !important;
-  }
 }
 
-
-
-
+/* WorkoutBuilder Defaults para Desktop (> 768px) */
+@media (min-width: 769px) {
+  .workout-exercise-card-mobile {
+    display: none !important;
+  }
+  .workout-table-header {
+    display: grid !important;
+  }
+  .workout-exercise-row-desktop {
+    display: grid !important;
+  }
+}

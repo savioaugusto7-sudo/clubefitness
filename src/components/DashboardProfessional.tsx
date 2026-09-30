@@ -7909,7 +7909,7 @@ goniometria: {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+              <div className="prof-subtabs-scroll" style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <button className={`btn ${workoutSubTab === 'clients' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setWorkoutSubTab('clients')}>
                   Fichas dos Alunos
                 </button>
@@ -8062,7 +8062,7 @@ goniometria: {
                         </div>
                       ) : (
                         <>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                          <div className="prof-responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                             {paginated.map(c => {
                               const userWorkout = workouts.find(w => w.clienteId === c._id);
                               const hasWorkout = userWorkout && (
