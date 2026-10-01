@@ -137,13 +137,6 @@ interface SlotDetails {
   appointments: any[];
 }
 
-interface GoogleEvent {
-  id: string;
-  summary: string;
-  start: string;
-  end: string;
-  description: string;
-}
 
 interface AgendaCompletaPanelProps {
   clients: ClientInfo[];
@@ -178,15 +171,6 @@ export default function AgendaCompletaPanel({
   const [configs, setConfigs] = useState<AgendaConfigRule[]>([]);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'danger' } | null>(null);
 
-  // States do Google Calendar
-  const [googleEvents, setGoogleEvents] = useState<GoogleEvent[]>([]);
-  const [googleNotConnected, setGoogleNotConnected] = useState<boolean>(false);
-  const [googleConnecting, setGoogleConnecting] = useState<boolean>(false);
-  const [showAddGoogleEventModal, setShowAddGoogleEventModal] = useState<boolean>(false);
-  const [googleEventTitle, setGoogleEventTitle] = useState<string>('');
-  const [googleEventStart, setGoogleEventStart] = useState<string>('09:00');
-  const [googleEventEnd, setGoogleEventEnd] = useState<string>('10:00');
-  const [googleEventDesc, setGoogleEventDesc] = useState<string>('');
 
   // States para Ajuste de Vagas (Local)
   const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -298,12 +282,7 @@ export default function AgendaCompletaPanel({
 
   useEffect(() => {
     if (selectedDate) {
-      const isLocalAgenda = activeTab === 'academia' || activeTab === 'dr_albert' || activeTab === 'dr_guilherme';
-      if (isLocalAgenda) {
-        fetchSlotsAndConfigs();
-      } else {
-        fetchGoogleEvents();
-      }
+      fetchSlotsAndConfigs();
     }
   }, [selectedDate, activeTab]);
 
@@ -328,102 +307,6 @@ export default function AgendaCompletaPanel({
     }
   };
 
-  const fetchGoogleEvents = async () => {
-    setLoading(true);
-    setGoogleNotConnected(false);
-    try {
-      const res = await fetch(`/api/admin/google-calendar?professionalId=${activeTab}&date=${selectedDate}`);
-      const data = await res.json();
-      if (data.success) {
-        if (data.notConnected) {
-          setGoogleNotConnected(true);
-          setGoogleEvents([]);
-        } else {
-          setGoogleEvents(data.data || []);
-        }
-      } else {
-        showFeedback(data.error || 'Erro ao obter compromissos do Google', 'danger');
-      }
-    } catch (err) {
-      showFeedback('Erro de conexão com o Google Agenda.', 'danger');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Redireciona o usuário para o OAuth2 do Google
-  const handleConnectGoogle = async () => {
-    setGoogleConnecting(true);
-    try {
-      const res = await fetch(`/api/auth/google?professionalId=${activeTab}`);
-      const data = await res.json();
-      if (data.success && data.url) {
-        window.location.href = data.url;
-      } else {
-        showFeedback(data.error || 'Erro ao gerar link de conexão do Google.', 'danger');
-        setGoogleConnecting(false);
-      }
-    } catch (err) {
-      showFeedback('Erro de conexão ao iniciar autenticação Google.', 'danger');
-      setGoogleConnecting(false);
-    }
-  };
-
-  // Criar compromisso na Google Agenda
-  const handleAddGoogleEvent = async () => {
-    if (!googleEventTitle) {
-      alert('Digite o título do compromisso.');
-      return;
-    }
-
-    const payload = {
-      professionalId: activeTab,
-      summary: googleEventTitle,
-      start: `${selectedDate}T${googleEventStart}:00`,
-      end: `${selectedDate}T${googleEventEnd}:00`,
-      description: googleEventDesc
-    };
-
-    try {
-      const res = await fetch('/api/admin/google-calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        showFeedback('Compromisso adicionado na Google Agenda com sucesso!', 'success');
-        setShowAddGoogleEventModal(false);
-        setGoogleEventTitle('');
-        setGoogleEventDesc('');
-        fetchGoogleEvents();
-      } else {
-        showFeedback(data.error || 'Erro ao criar compromisso no Google.', 'danger');
-      }
-    } catch (err) {
-      showFeedback('Erro de conexão ao criar compromisso.', 'danger');
-    }
-  };
-
-  // Remover compromisso da Google Agenda
-  const handleDeleteGoogleEvent = async (eventId: string) => {
-    if (!confirm('Deseja realmente remover este compromisso do Google Agenda?')) return;
-
-    try {
-      const res = await fetch(`/api/admin/google-calendar?professionalId=${activeTab}&eventId=${eventId}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (data.success) {
-        showFeedback('Compromisso excluído da Google Agenda com sucesso!', 'success');
-        fetchGoogleEvents();
-      } else {
-        showFeedback(data.error || 'Erro ao deletar compromisso do Google.', 'danger');
-      }
-    } catch (err) {
-      showFeedback('Erro de conexão ao remover compromisso.', 'danger');
-    }
-  };
 
   // Alterar mês no calendário
   const handlePrevMonth = () => {
@@ -746,28 +629,6 @@ export default function AgendaCompletaPanel({
     }
   };
 
-  // Cálculo das posições dos eventos da Google Agenda
-  const getGoogleEventStyle = (startStr: string, endStr: string) => {
-    try {
-      const sDate = new Date(startStr);
-      const eDate = new Date(endStr);
-
-      const startMin = sDate.getHours() * 60 + sDate.getMinutes();
-      const endMin = eDate.getHours() * 60 + eDate.getMinutes();
-
-      const timelineStartMin = 6 * 60; // Inicia às 06:00
-      
-      const top = Math.max(0, startMin - timelineStartMin);
-      const height = Math.max(35, endMin - startMin); // Altura mínima de 35px
-
-      return {
-        top: `${top}px`,
-        height: `${height}px`
-      };
-    } catch (e) {
-      return { top: '0px', height: '50px' };
-    }
-  };
 
   const filteredClients = clients.filter(c => 
     normalizeText(c.dadosPessoais?.nome).includes(normalizeText(clientSearchText))
@@ -777,21 +638,12 @@ export default function AgendaCompletaPanel({
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
   };
 
-  // Nome do profissional selecionado atualmente
-  const currentProfessional = professionals.find(p => p._id === activeTab);
-
   // Visibilidade por perfil
   const isDocAlbert = (userName || '').toLowerCase().includes('albert') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('albert');
   const isDocGuilherme = (userName || '').toLowerCase().includes('guilherme') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('guilherme');
 
   const canSeeDrAlbert = !userRole || userRole === 'admin' || userRole === 'receptionist' || isDocAlbert;
   const canSeeDrGuilherme = !userRole || userRole === 'admin' || userRole === 'receptionist' || isDocGuilherme;
-
-  const visibleProfessionals = (!userRole || userRole === 'admin' || userRole === 'receptionist')
-    ? professionals
-    : professionals.filter(p => p._id === professionalId || (userName && p.nome.toLowerCase().includes(userName.toLowerCase().split(' ')[0])));
-
-  const isLocalAgenda = activeTab === 'academia' || activeTab === 'dr_albert' || activeTab === 'dr_guilherme' || activeTab === 'consultorio';
 
   return (
     <div className="content-panel" style={{ padding: '24px' }}>
@@ -825,22 +677,6 @@ export default function AgendaCompletaPanel({
             <i className="fa-solid fa-user-doctor" style={{ color: activeTab === 'dr_guilherme' ? '#fff' : '#a855f7' }}></i> Dr. Guilherme
           </button>
         )}
-
-        {/* Divisor */}
-        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 4px' }}></div>
-
-        {/* Abas dos Profissionais (Google Calendar) */}
-        {visibleProfessionals.map(p => (
-          <button
-            key={p._id}
-            className={`btn ${activeTab === p._id ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab(p._id)}
-            style={{ fontSize: '0.76rem', padding: '5px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
-          >
-            <i className="fa-brands fa-google" style={{ color: p.googleTokens?.refreshToken ? '#10b981' : '#ef4444', fontSize: '0.72rem' }}></i>
-            <span>Google: {p.nome}</span>
-          </button>
-        ))}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
@@ -851,32 +687,20 @@ export default function AgendaCompletaPanel({
               ? 'Agenda Academia / Salão' 
               : activeTab === 'dr_albert' 
               ? 'Agenda Dr. Albert' 
-              : activeTab === 'dr_guilherme' 
-              ? 'Agenda Dr. Guilherme' 
-              : `Google Agenda - ${currentProfessional?.nome}`}
+              : 'Agenda Dr. Guilherme'}
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {isLocalAgenda 
-              ? 'Visualize os atendimentos por horário, suspenda horários ou ajuste vagas e regras semanais.'
-              : `Visualize e gerencie os compromissos diretamente no Google Calendar de ${currentProfessional?.nome}.`}
+            Visualize os atendimentos por horário, suspenda horários ou ajuste vagas e regras semanais.
           </p>
         </div>
         <div>
-          {isLocalAgenda ? (
-            <button className="btn btn-primary" onClick={() => {
-              setAddTimeType(activeTab);
-              setAddCapacityInput(activeTab === 'academia' ? 6 : 1);
-              setShowAddHourModal(true);
-            }}>
-              <i className="fa-solid fa-plus" style={{ marginRight: '6px' }}></i> Horário Extra
-            </button>
-          ) : (
-            !googleNotConnected && (
-              <button className="btn btn-primary" onClick={() => setShowAddGoogleEventModal(true)}>
-                <i className="fa-solid fa-plus" style={{ marginRight: '6px' }}></i> Compromisso Google
-              </button>
-            )
-          )}
+          <button className="btn btn-primary" onClick={() => {
+            setAddTimeType(activeTab);
+            setAddCapacityInput(activeTab === 'academia' ? 6 : 1);
+            setShowAddHourModal(true);
+          }}>
+            <i className="fa-solid fa-plus" style={{ marginRight: '6px' }}></i> Horário Extra
+          </button>
         </div>
       </div>
 
@@ -924,7 +748,7 @@ export default function AgendaCompletaPanel({
               <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
               <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Carregando dados da agenda...</p>
             </div>
-          ) : isLocalAgenda ? (
+          ) : (
             // ================= VISUALIZAÇÃO LOCAL (ACADEMIA / DR. ALBERT / DR. GUILHERME) =================
             <>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1172,133 +996,6 @@ export default function AgendaCompletaPanel({
                   })}
                 </div>
               )}
-            </>
-          ) : googleNotConnected ? (
-            // ================= VISUALIZAÇÃO GOOGLE - NÃO CONECTADO =================
-            <div style={{ textAlign: 'center', padding: '80px 20px', border: '1.5px dashed var(--border-color)', borderRadius: '12px' }}>
-              <i className="fa-brands fa-google" style={{ fontSize: '3rem', color: 'var(--text-dim)', marginBottom: '16px', display: 'block' }}></i>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Google Agenda Não Vinculada</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '450px', margin: '0 auto 20px' }}>
-                O profissional <strong>{currentProfessional?.nome}</strong> ainda não realizou a integração de sua conta Google com o sistema.
-              </p>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleConnectGoogle}
-                disabled={googleConnecting}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-              >
-                {googleConnecting ? (
-                  <><i className="fa-solid fa-spinner fa-spin"></i> Conectando...</>
-                ) : (
-                  <><i className="fa-brands fa-google"></i> Conectar Google Agenda</>
-                )}
-              </button>
-            </div>
-          ) : (
-            // ================= VISUALIZAÇÃO GOOGLE - TIMELINE =================
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
-                  Compromissos Google Agenda ({selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''})
-                </h3>
-                <span style={{ fontSize: '0.72rem', background: '#10b98120', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
-                  CONECTADA
-                </span>
-              </div>
-
-              {/* Container da Timeline */}
-              <div 
-                style={{ 
-                  position: 'relative', 
-                  height: '960px', // 16 horas (06:00 às 22:00) * 60px por hora
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '8px', 
-                  background: 'var(--bg-darker)',
-                  overflowY: 'auto',
-                  padding: '0 12px'
-                }}
-              >
-                {/* Linhas Horárias de Fundo */}
-                {Array.from({ length: 17 }).map((_, index) => {
-                  const hour = 6 + index;
-                  const formattedHour = String(hour).padStart(2, '0') + ':00';
-                  return (
-                    <div 
-                      key={hour} 
-                      style={{ 
-                        position: 'absolute', 
-                        top: `${index * 60}px`, 
-                        left: 0, 
-                        width: '100%', 
-                        height: '1px', 
-                        borderTop: '1px dashed var(--border-color)',
-                        display: 'flex',
-                        alignItems: 'flex-start'
-                      }}
-                    >
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', background: 'var(--bg-darker)', padding: '2px 6px', position: 'relative', top: '-10px', left: '4px', zIndex: 2 }}>
-                        {formattedHour}
-                      </span>
-                    </div>
-                  );
-                })}
-
-                {/* Renderização dos Eventos do Google */}
-                {googleEvents.length === 0 ? (
-                  <div style={{ position: 'absolute', width: '100%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-                    Nenhum compromisso agendado para este dia no Google Agenda.
-                  </div>
-                ) : (
-                  googleEvents.map(event => {
-                    const eventStyle = getGoogleEventStyle(event.start, event.end);
-                    
-                    return (
-                      <div
-                        key={event.id}
-                        style={{
-                          position: 'absolute',
-                          left: '60px',
-                          right: '16px',
-                          ...eventStyle,
-                          background: 'rgba(59, 130, 246, 0.18)',
-                          borderLeft: '4px solid var(--color-primary)',
-                          borderRadius: '4px',
-                          padding: '6px 12px',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          zIndex: 5,
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <strong style={{ fontSize: '0.82rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {event.summary}
-                            </strong>
-                            <button 
-                              onClick={() => handleDeleteGoogleEvent(event.id)}
-                              style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', fontSize: '0.75rem', padding: '2px' }}
-                              title="Remover compromisso no Google"
-                            >
-                              <i className="fa-solid fa-trash-can"></i>
-                            </button>
-                          </div>
-                          {event.description && (
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '2px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {event.description}
-                            </p>
-                          )}
-                        </div>
-                        <small style={{ fontSize: '0.68rem', color: 'var(--color-info)', fontWeight: 600 }}>
-                          {new Date(event.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - {new Date(event.end).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </small>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
             </>
           )}
 
@@ -1787,78 +1484,6 @@ export default function AgendaCompletaPanel({
         </ModalPortal>
       )}
 
-      {/* MODAL 4: Adicionar Compromisso na Google Agenda */}
-      {showAddGoogleEventModal && (
-        <ModalPortal>
-          <div className="modal-overlay" onClick={() => setShowAddGoogleEventModal(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
-              <div className="modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                    <i className="fa-brands fa-google"></i>
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Novo Compromisso Google Agenda</h3>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Sincronização direta com o calendário</div>
-                  </div>
-                </div>
-                <button className="modal-close" onClick={() => setShowAddGoogleEventModal(false)}>&times;</button>
-              </div>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Título do Compromisso</label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Ex: Reunião clínica, Consulta particular..." 
-                    value={googleEventTitle}
-                    onChange={e => setGoogleEventTitle(e.target.value)} 
-                    style={{ width: '100%', padding: '10px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Início</label>
-                    <input 
-                      type="time" 
-                      className="form-control" 
-                      value={googleEventStart}
-                      onChange={e => setGoogleEventStart(e.target.value)} 
-                      style={{ width: '100%', padding: '10px' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Término</label>
-                    <input 
-                      type="time" 
-                      className="form-control" 
-                      value={googleEventEnd}
-                      onChange={e => setGoogleEventEnd(e.target.value)} 
-                      style={{ width: '100%', padding: '10px' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Descrição (Opcional)</label>
-                  <textarea 
-                    className="form-control" 
-                    style={{ minHeight: '70px', resize: 'vertical', width: '100%', padding: '10px' }}
-                    placeholder="Detalhes adicionais do compromisso..." 
-                    value={googleEventDesc}
-                    onChange={e => setGoogleEventDesc(e.target.value)} 
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowAddGoogleEventModal(false)}>Cancelar</button>
-                <button className="btn btn-primary" onClick={handleAddGoogleEvent}>Salvar no Google</button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
 
       {/* MODAL 5: Modal Executivo de Inspeção Rápida de Agendamento & Observações (Desktop & Mobile) */}
       {inspectApt && (
