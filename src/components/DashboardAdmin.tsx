@@ -401,6 +401,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [exerciseRequests, setExerciseRequests] = useState<any[]>([]);
   const [trancamentosAdminList, setTrancamentosAdminList] = useState<any[]>([]);
   const [contractsAdminList, setContractsAdminList] = useState<any[]>([]);
+
+  // Trancamento Admin States
+  const [showAdminTrancModal, setShowAdminTrancModal] = useState(false);
+  const [adminTrancContractId, setAdminTrancContractId] = useState('');
+  const [adminTrancDataInicio, setAdminTrancDataInicio] = useState('');
+  const [adminTrancSemanas, setAdminTrancSemanas] = useState(1);
+  const [adminTrancRedist, setAdminTrancRedist] = useState<Record<string, number>>({});
+  const [adminTrancSubmitting, setAdminTrancSubmitting] = useState(false);
+  const [adminTrancError, setAdminTrancError] = useState('');
+  const [adminTrancSuccess, setAdminTrancSuccess] = useState('');
   const [exNome, setExNome] = useState('');
   const [exGrupo, setExGrupo] = useState('PEITO');
   const [exEquip, setExEquip] = useState('');
@@ -6181,11 +6191,26 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
         return (
           <>
-            <div className="view-header">
+            <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
               <div className="view-title-group">
                 <h1>Acompanhar Trancamentos</h1>
                 <p>Histórico de trancamentos solicitados e controle de saldo de semanas por aluno.</p>
               </div>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  setAdminTrancContractId(activeContracts.length > 0 ? activeContracts[0]._id : '');
+                  setAdminTrancDataInicio('');
+                  setAdminTrancSemanas(1);
+                  setAdminTrancRedist({});
+                  setAdminTrancError('');
+                  setAdminTrancSuccess('');
+                  setShowAdminTrancModal(true);
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', fontWeight: 700 }}
+              >
+                <i className="fa-solid fa-snowflake"></i> Lançar Novo Trancamento
+              </button>
             </div>
 
             {/* ---- Histórico de Trancamentos ---- */}
@@ -6265,6 +6290,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <th>Semanas Usadas</th>
                         <th>Semanas Restantes</th>
                         <th>Créditos Congelados</th>
+                        <th style={{ textAlign: 'center' }}>Ação</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -6273,8 +6299,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
                         const semanasRestantes = Math.max(0, 4 - semanasUsadas);
                         const creditosCongelados = contratoTrancs.reduce((s: number, t: any) => s + t.creditosTrancados, 0);
-                        const clientName = contract.clientId?.dadosPessoais?.nome || contract.clientId?.nome || contract.nomeCliente || '—';
+                        
+                        // Busca o aluno nos dados completos para garantir o nome correto
+                        const clientObj = clients.find((cl: any) => cl._id === (contract.clientId?._id || contract.clientId));
+                        const clientName = clientObj?.dadosPessoais?.nome || contract.clientId?.dadosPessoais?.nome || contract.nomeCliente || '—';
                         const alerta = semanasRestantes === 0;
+
                         return (
                           <tr key={contract._id}>
                             <td style={{ fontWeight: 600 }}>{clientName}</td>
@@ -6294,6 +6324,28 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             <td style={{ color: creditosCongelados > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
                               {creditosCongelados > 0 ? `${creditosCongelados} crédito${creditosCongelados !== 1 ? 's' : ''}` : '—'}
                             </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {semanasRestantes > 0 ? (
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  onClick={() => {
+                                    setAdminTrancContractId(contract._id);
+                                    setAdminTrancDataInicio('');
+                                    setAdminTrancSemanas(1);
+                                    setAdminTrancRedist({});
+                                    setAdminTrancError('');
+                                    setAdminTrancSuccess('');
+                                    setShowAdminTrancModal(true);
+                                  }}
+                                  style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: '6px', fontWeight: 600 }}
+                                  title="Lançar trancamento para este aluno"
+                                >
+                                  <i className="fa-solid fa-snowflake" style={{ marginRight: '5px' }}></i> Trancar
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Limite Atingido</span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -6302,6 +6354,426 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </div>
               )}
             </div>
+
+            {/* Modal de Lançamento de Trancamento pelo Administrador */}
+            {showAdminTrancModal && (() => {
+              const selectedContract = activeContracts.find((c: any) => c._id === adminTrancContractId);
+              const selectedClient = clients.find((cl: any) => cl._id === (selectedContract?.clientId?._id || selectedContract?.clientId));
+              const selectedClientName = selectedClient?.dadosPessoais?.nome || selectedContract?.clientId?.dadosPessoais?.nome || selectedContract?.nomeCliente || '';
+              
+              const contratoTrancs = adminTrancContractId ? (trancByContract[adminTrancContractId] || []) : [];
+              const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
+              const semanasDisponiveis = Math.max(0, 4 - semanasUsadas);
+              
+              const frequencia = selectedContract?.frequencia || selectedClient?.dadosComerciais?.frequencia || 3;
+              const creditosCongelados = adminTrancSemanas * frequencia;
+
+              // Helper de Normalização de Data para ISO (YYYY-MM-DD)
+              const toISO = (dateStr: string | undefined): string => {
+                if (!dateStr) return '';
+                if (dateStr.includes('/')) {
+                  const parts = dateStr.split('/');
+                  if (parts.length === 3) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                }
+                if (dateStr.includes('T')) return dateStr.split('T')[0];
+                return dateStr;
+              };
+
+              // Meses restantes de vigência
+              const getRemainingMonths = () => {
+                if (!selectedContract || !adminTrancDataInicio) return [];
+                const contractEnd = toISO(selectedContract.dataFim || selectedContract.dataTermino || selectedClient?.dadosComerciais?.vencimento);
+                if (!contractEnd) return [];
+                const startISO = toISO(adminTrancDataInicio);
+                const startDate = new Date(startISO + 'T00:00:00');
+                const endDate = new Date(contractEnd + 'T00:00:00');
+                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return [];
+
+                const months = [];
+                let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+                const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+                while (current <= last) {
+                  const label = current.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                  const value = current.toISOString().slice(0, 7); // YYYY-MM
+                  months.push({ label, value });
+                  current.setMonth(current.getMonth() + 1);
+                }
+                return months;
+              };
+
+              const remainingMonths = getRemainingMonths();
+              const sumRedist = remainingMonths.reduce((sum, m) => sum + (Number(adminTrancRedist[m.value]) || 0), 0);
+              const isDistributionPerfect = creditosCongelados > 0 && sumRedist === creditosCongelados;
+
+              const handleSubmit = async (e: React.FormEvent) => {
+                e.preventDefault();
+                setAdminTrancError('');
+                setAdminTrancSuccess('');
+
+                if (!selectedContract || !selectedClient) {
+                  setAdminTrancError('Selecione um aluno com contrato ativo válido.');
+                  return;
+                }
+                if (!adminTrancDataInicio) {
+                  setAdminTrancError('Informe a data de início do trancamento.');
+                  return;
+                }
+                if (adminTrancSemanas < 1 || adminTrancSemanas > semanasDisponiveis) {
+                  setAdminTrancError(`Quantidade de semanas inválida. Disponível para este contrato: ${semanasDisponiveis} semanas.`);
+                  return;
+                }
+                if (!isDistributionPerfect) {
+                  setAdminTrancError(`A soma redistribuída (${sumRedist}) deve ser exatamente igual ao total de ${creditosCongelados} créditos congelados.`);
+                  return;
+                }
+
+                setAdminTrancSubmitting(true);
+                try {
+                  const redistList = remainingMonths.map(m => ({
+                    mesAno: m.value,
+                    creditos: Number(adminTrancRedist[m.value] || 0)
+                  }));
+
+                  const res = await fetch('/api/trancamentos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      clientId: selectedClient._id,
+                      contractId: selectedContract._id,
+                      dataInicio: adminTrancDataInicio,
+                      semanas: adminTrancSemanas,
+                      redistribuicao: redistList
+                    })
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setAdminTrancSuccess('Trancamento lançado e créditos redistribuídos com sucesso!');
+                    const resList = await fetch('/api/trancamentos');
+                    const dataList = await resList.json();
+                    if (dataList?.success && Array.isArray(dataList.data)) {
+                      setTrancamentosAdminList(dataList.data);
+                    }
+                    fetchData();
+                    setTimeout(() => {
+                      setShowAdminTrancModal(false);
+                      setAdminTrancSuccess('');
+                    }, 1200);
+                  } else {
+                    setAdminTrancError(data.error || 'Erro ao registrar trancamento.');
+                  }
+                } catch (err: any) {
+                  setAdminTrancError('Erro de conexão ao salvar trancamento.');
+                } finally {
+                  setAdminTrancSubmitting(false);
+                }
+              };
+
+              return (
+                <div 
+                  className="modal-overlay" 
+                  style={{ display: 'flex', zIndex: 100000, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)', padding: '20px', overflowY: 'auto' }} 
+                  onClick={() => setShowAdminTrancModal(false)}
+                >
+                  <div 
+                    className="modal-content" 
+                    onClick={e => e.stopPropagation()} 
+                    style={{ maxWidth: '580px', width: '96%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+                  >
+                    <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                          <i className="fa-solid fa-snowflake"></i>
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>Lançar Trancamento (Admin)</h3>
+                          <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Congelamento oficial e redistribuição de créditos</div>
+                        </div>
+                      </div>
+                      <button 
+                        className="modal-close" 
+                        onClick={() => setShowAdminTrancModal(false)}
+                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}
+                      >&times;</button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+                      {/* Seleção do Aluno / Contrato */}
+                      <div className="form-group" style={{ marginBottom: '18px' }}>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                          Aluno com Contrato Ativo *
+                        </label>
+                        <select
+                          className="select-custom"
+                          value={adminTrancContractId}
+                          onChange={e => {
+                            setAdminTrancContractId(e.target.value);
+                            setAdminTrancSemanas(1);
+                            setAdminTrancRedist({});
+                            setAdminTrancError('');
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            background: '#1e293b',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            color: '#f8fafc',
+                            borderRadius: '8px',
+                            fontSize: '0.85rem'
+                          }}
+                          required
+                        >
+                          <option value="">Selecione o aluno / contrato...</option>
+                          {activeContracts.map((c: any) => {
+                            const cl = clients.find((client: any) => client._id === (c.clientId?._id || c.clientId));
+                            const name = cl?.dadosPessoais?.nome || c.clientId?.dadosPessoais?.nome || c.nomeCliente || 'Sem Nome';
+                            const cTrancs = trancByContract[c._id] || [];
+                            const used = cTrancs.reduce((sum: number, t: any) => sum + t.semanas, 0);
+                            const rem = Math.max(0, 4 - used);
+                            const plano = c.planoNome || c.planoId?.nome || 'Plano';
+                            return (
+                              <option key={c._id} value={c._id} style={{ background: '#0f172a' }}>
+                                {name} — {plano} (Restam {rem} sem.)
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Card Resumo do Contrato */}
+                      {selectedContract && (
+                        <div style={{ background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px', marginBottom: '20px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
+                              {selectedClientName}
+                            </span>
+                            <span style={{ fontSize: '0.74rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                              {selectedContract.planoNome || selectedContract.planoId?.nome || 'Contrato Ativo'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', fontSize: '0.76rem', color: '#94a3b8' }}>
+                            <div>
+                              <span style={{ color: '#64748b', display: 'block' }}>Vigência:</span>
+                              <strong style={{ color: '#cbd5e1' }}>{selectedContract.dataInicio || '—'} → {selectedContract.dataFim || selectedContract.dataTermino || '—'}</strong>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', display: 'block' }}>Frequência:</span>
+                              <strong style={{ color: '#cbd5e1' }}>{frequencia}x por semana</strong>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', display: 'block' }}>Semanas Usadas:</span>
+                              <strong style={{ color: semanasUsadas > 0 ? '#f59e0b' : '#10b981' }}>{semanasUsadas} / 4 semanas</strong>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', display: 'block' }}>Disponível:</span>
+                              <strong style={{ color: semanasDisponiveis > 0 ? '#10b981' : '#ef4444' }}>{semanasDisponiveis} semanas</strong>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedContract && semanasDisponiveis === 0 ? (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#fca5a5', padding: '16px', borderRadius: '10px', textAlign: 'center', fontSize: '0.85rem' }}>
+                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
+                          Este contrato já atingiu o limite regulamentar de <strong>4 semanas de trancamento</strong>. Não é permitido efetuar novos congelamentos.
+                        </div>
+                      ) : selectedContract ? (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                            <div className="form-group">
+                              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                Início do Trancamento *
+                              </label>
+                              <input
+                                type="date"
+                                className="form-control"
+                                value={adminTrancDataInicio}
+                                onChange={e => {
+                                  setAdminTrancDataInicio(e.target.value);
+                                  setAdminTrancRedist({});
+                                }}
+                                style={{ width: '100%', padding: '9px 12px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', color: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem' }}
+                                required
+                              />
+                            </div>
+
+                            <div className="form-group">
+                              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                Semanas a Trancar *
+                              </label>
+                              <select
+                                className="select-custom"
+                                value={adminTrancSemanas}
+                                onChange={e => {
+                                  setAdminTrancSemanas(Number(e.target.value));
+                                  setAdminTrancRedist({});
+                                }}
+                                style={{ width: '100%', padding: '9px 12px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', color: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem' }}
+                              >
+                                {Array.from({ length: semanasDisponiveis }, (_, i) => i + 1).map(n => (
+                                  <option key={n} value={n} style={{ background: '#0f172a' }}>
+                                    {n} {n === 1 ? 'semana' : 'semanas'}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                            <span style={{ fontSize: '0.82rem', color: '#fbbf24', fontWeight: 600 }}>
+                              <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i>
+                              Créditos Congelados a Redistribuir:
+                            </span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fbbf24' }}>
+                              {creditosCongelados} créditos
+                            </span>
+                          </div>
+
+                          {/* Seção de Redistribuição */}
+                          {adminTrancDataInicio && (
+                            <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '16px', marginBottom: '18px' }}>
+                              <div style={{ marginBottom: '12px' }}>
+                                <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  Redistribuição Mensal de Créditos
+                                </h4>
+                                <p style={{ margin: '4px 0 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
+                                  Distribua exatamente os <strong>{creditosCongelados} créditos</strong> entre os meses restantes de vigência:
+                                </p>
+                              </div>
+
+                              {remainingMonths.length === 0 ? (
+                                <p style={{ fontSize: '0.8rem', color: '#fca5a5' }}>
+                                  Não foram encontrados meses restantes entre a data de início e o fim da vigência do contrato. Verifique a data inicial.
+                                </p>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  {remainingMonths.map(m => {
+                                    const currentVal = Number(adminTrancRedist[m.value] || 0);
+                                    return (
+                                      <div key={m.value} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', textTransform: 'capitalize' }}>
+                                          {m.label}
+                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ padding: '2px 8px', minWidth: '28px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                            onClick={() => {
+                                              if (currentVal > 0) {
+                                                setAdminTrancRedist({
+                                                  ...adminTrancRedist,
+                                                  [m.value]: currentVal - 1
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            -
+                                          </button>
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            max={creditosCongelados}
+                                            value={currentVal}
+                                            onChange={e => {
+                                              const v = Math.max(0, Math.min(creditosCongelados, Number(e.target.value) || 0));
+                                              setAdminTrancRedist({
+                                                ...adminTrancRedist,
+                                                [m.value]: v
+                                              });
+                                            }}
+                                            style={{ width: '48px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem', background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '4px', padding: '3px 0' }}
+                                          />
+                                          <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ padding: '2px 8px', minWidth: '28px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                            onClick={() => {
+                                              if (sumRedist < creditosCongelados) {
+                                                setAdminTrancRedist({
+                                                  ...adminTrancRedist,
+                                                  [m.value]: currentVal + 1
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                  {/* Indicador de Validação */}
+                                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>Total Distribuído:</span>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: isDistributionPerfect ? '#10b981' : '#f59e0b' }}>
+                                      {sumRedist} de {creditosCongelados} créditos
+                                    </span>
+                                  </div>
+                                  {isDistributionPerfect ? (
+                                    <div style={{ color: '#10b981', fontSize: '0.76rem', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <i className="fa-solid fa-circle-check"></i> Distribuição perfeita! Pronto para confirmar.
+                                    </div>
+                                  ) : (
+                                    <div style={{ color: '#f59e0b', fontSize: '0.76rem', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <i className="fa-solid fa-circle-exclamation"></i> 
+                                      {sumRedist < creditosCongelados 
+                                        ? `Faltam ${creditosCongelados - sumRedist} crédito(s) para distribuir.` 
+                                        : `Distribuição excede em ${sumRedist - creditosCongelados} crédito(s).`}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : null}
+
+                      {adminTrancError && (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '10px 14px', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '16px' }}>
+                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i>
+                          {adminTrancError}
+                        </div>
+                      )}
+
+                      {adminTrancSuccess && (
+                        <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#6ee7b7', padding: '10px 14px', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '16px' }}>
+                          <i className="fa-solid fa-circle-check" style={{ marginRight: '6px' }}></i>
+                          {adminTrancSuccess}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ flex: 1, padding: '10px' }}
+                          onClick={() => setShowAdminTrancModal(false)}
+                          disabled={adminTrancSubmitting}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          style={{ flex: 2, padding: '10px', fontWeight: 700 }}
+                          disabled={!isDistributionPerfect || !adminTrancDataInicio || adminTrancSubmitting || semanasDisponiveis === 0}
+                        >
+                          {adminTrancSubmitting ? (
+                            <><i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Processando...</>
+                          ) : (
+                            <><i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Confirmar Trancamento</>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         );
       })()}
