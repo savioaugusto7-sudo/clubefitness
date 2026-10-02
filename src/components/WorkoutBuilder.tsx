@@ -206,6 +206,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [workoutValidade, setWorkoutValidade] = useState<number | undefined>(undefined);
   const [workoutDataInicio, setWorkoutDataInicio] = useState<string>('');
   const [workoutDataExpiracao, setWorkoutDataExpiracao] = useState<string>('');
+  const [isEditingValidade, setIsEditingValidade] = useState(false);
 
   // 🌟 Auto-Save em Tempo Real
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -2221,28 +2222,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   Ficha de Treino
                 </span>
               </div>
-              <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fa-solid fa-dumbbell" style={{ color: '#10b981' }}></i> Prescrição e Acompanhamento Clínico
-                </span>
-                {lastWorkoutInfo && (
-                  <span style={{
-                    background: lastWorkoutInfo.isLivre ? 'rgba(56, 189, 248, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                    border: lastWorkoutInfo.isLivre ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
-                    color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981',
-                    borderRadius: '6px',
-                    padding: '2px 8px',
-                    fontSize: '0.74rem',
-                    fontWeight: 800,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}>
-                    <i className={lastWorkoutInfo.isLivre ? 'fa-solid fa-person-walking' : 'fa-solid fa-dumbbell'}></i>
-                    <span>Último Treino: {lastWorkoutInfo.label} — {lastWorkoutInfo.detail}</span>
-                  </span>
-                )}
-              </div>
             </div>
           </div>
 
@@ -2875,26 +2854,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 flexWrap: 'wrap',
                 gap: '10px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: lastWorkoutInfo.isLivre ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981'
-                  }}>
-                    <i className={lastWorkoutInfo.isLivre ? 'fa-solid fa-person-walking' : 'fa-solid fa-dumbbell'}></i>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981', letterSpacing: '0.5px' }}>
+                    Último Treino Realizado pelo Aluno
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981', letterSpacing: '0.5px' }}>
-                      Último Treino Realizado pelo Aluno
-                    </div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
-                      {lastWorkoutInfo.label}
-                    </div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                    {lastWorkoutInfo.label}
                   </div>
                 </div>
 
@@ -3370,9 +3335,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                   OBSERVAÇÕES GERAIS / FOCO DO TREINO
                 </label>
-                <input 
-                  type="text" 
+                <textarea 
                   className="form-control" 
+                  rows={2}
                   placeholder="Ex: Foco em Hipertrofia Peitoral e Deltoide Anterior • Intervalos estritos" 
                   value={workoutGoal} 
                   onChange={e => {
@@ -3382,65 +3347,126 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   }}
                   style={{
                     width: '100%',
+                    minHeight: '44px',
                     padding: '8px 14px',
                     background: '#0d1322',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '8px',
                     color: '#ffffff',
-                    fontSize: '0.9rem'
+                    fontSize: '0.88rem',
+                    lineHeight: '1.45',
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
                   }} 
                 />
               </div>
 
               {/* 🌟 Campo de Validade da Ficha */}
-              <div style={{ width: '280px', flexShrink: 0 }}>
+              <div style={{ minWidth: '240px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
                     VALIDADE DA FICHA
                   </label>
-                  {workoutValidade && workoutDataExpiracao && (() => {
-                    const expD = new Date(workoutDataExpiracao + 'T12:00:00');
-                    const diff = Math.ceil((expD.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                    const isExp = diff <= 0;
-                    const isSoon = diff > 0 && diff <= 7;
-                    const formattedExp = workoutDataExpiracao.split('-').reverse().join('/');
-                    return (
-                      <span style={{
+                  {workoutValidade && !isEditingValidade && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingValidade(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#38bdf8',
                         fontSize: '0.72rem',
-                        fontWeight: 800,
-                        color: isExp ? '#ef4444' : isSoon ? '#fbbf24' : '#10b981'
-                      }} title={`Expira em ${formattedExp}`}>
-                        {isExp ? `Vencida há ${Math.abs(diff)}d` : isSoon ? `Vence em ${diff}d (${formattedExp})` : `Vigente (${diff}d • ${formattedExp})`}
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Alterar
+                    </button>
+                  )}
+                </div>
+
+                {workoutValidade && workoutDataExpiracao && !isEditingValidade ? (() => {
+                  const expD = new Date(workoutDataExpiracao + 'T12:00:00');
+                  const diff = Math.ceil((expD.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  const isExp = diff <= 0;
+                  const isSoon = diff > 0 && diff <= 7;
+                  const formattedExp = workoutDataExpiracao.split('-').reverse().join('/');
+                  const statusColor = isExp ? '#ef4444' : isSoon ? '#fbbf24' : '#10b981';
+                  const statusBg = isExp ? 'rgba(239, 68, 68, 0.08)' : isSoon ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)';
+                  const statusBorder = isExp ? 'rgba(239, 68, 68, 0.25)' : isSoon ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+                  const statusText = isExp 
+                    ? `Vencida há ${Math.abs(diff)}d (${formattedExp})`
+                    : isSoon 
+                      ? `Vence em ${diff}d (${formattedExp})`
+                      : `Vigente (${diff}d • ${formattedExp})`;
+
+                  return (
+                    <div style={{
+                      padding: '9px 14px',
+                      background: statusBg,
+                      border: `1px solid ${statusBorder}`,
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      height: '42px'
+                    }}>
+                      <i className="fa-regular fa-calendar-check" style={{ color: statusColor, fontSize: '0.9rem' }}></i>
+                      <span style={{ fontSize: '0.84rem', fontWeight: 800, color: statusColor }}>
+                        {statusText}
                       </span>
-                    );
-                  })()}
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {[15, 30, 60].map(days => {
-                    const isSel = workoutValidade === days;
-                    return (
+                    </div>
+                  );
+                })() : (
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[15, 30, 60].map(days => {
+                      const isSel = workoutValidade === days;
+                      return (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => {
+                            handleSetValidade(days);
+                            setIsEditingValidade(false);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 6px',
+                            borderRadius: '8px',
+                            border: isSel ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
+                            background: isSel ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                            color: isSel ? '#34d399' : '#94a3b8',
+                            fontWeight: isSel ? 800 : 600,
+                            fontSize: '0.78rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {days} dias
+                        </button>
+                      );
+                    })}
+                    {isEditingValidade && (
                       <button
-                        key={days}
                         type="button"
-                        onClick={() => handleSetValidade(days)}
+                        onClick={() => setIsEditingValidade(false)}
                         style={{
-                          flex: 1,
-                          padding: '8px 6px',
+                          padding: '0 8px',
+                          background: 'transparent',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          color: '#94a3b8',
                           borderRadius: '8px',
-                          border: isSel ? '1.5px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
-                          background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                          color: isSel ? '#34d399' : '#94a3b8',
-                          fontWeight: isSel ? 850 : 600,
-                          fontSize: '0.80rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
+                          cursor: 'pointer'
                         }}
+                        title="Cancelar"
                       >
-                        ⏱️ {days} dias
+                        &times;
                       </button>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
