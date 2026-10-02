@@ -64,7 +64,7 @@ export const calculateDropSuggestions = (baseCarga: number, tipo: 'none' | 'sing
 };
 
 export const parseExerciseCarga = (ex: any) => {
-  let rawCarga = ex.carga !== undefined && ex.carga !== null ? ex.carga : (ex.carga_sugerida !== undefined && ex.carga_sugerida !== null ? ex.carga_sugerida : '');
+  let rawCarga = ex.carga !== undefined && ex.carga !== null ? ex.carga : '';
   let unidade = ex.unidadeCarga || '';
   let val: any = '';
 
@@ -601,7 +601,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               unidadeCarga,
               descanso: ex.descanso !== undefined && ex.descanso !== null ? parseInt(String(ex.descanso).replace('s', '')) || 60 : 60,
               observacao: ex.observacao || ex.observacoes || '',
-              ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
+              ritmo: ex.ritmo || '',
               combinaGrupo: ex.combinaGrupo || '',
               historicoCargas: Array.isArray(ex.historicoCargas) ? ex.historicoCargas : [],
               dropSet: ex.dropSet ? {
@@ -802,7 +802,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           unidadeCarga,
           descanso: ex.descanso !== undefined && ex.descanso !== null ? parseInt(String(ex.descanso).replace('s', '')) || 60 : 60,
           observacao: ex.observacao || ex.observacoes || '',
-          ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
+          ritmo: ex.ritmo || '',
           combinaGrupo: ex.combinaGrupo || '',
           historicoCargas: Array.isArray(ex.historicoCargas) ? ex.historicoCargas : [],
           dropSet: ex.dropSet ? {
@@ -1173,7 +1173,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       grupo: typeof ex.exercicioId === 'object' ? (ex.exercicioId?.grupo || 'Geral') : (ex.grupo || 'Geral'),
       series: ex.series || 3,
       reps: ex.repeticoes || ex.reps || '12',
-      carga: ex.carga || 10,
+      carga: (ex.carga !== undefined && ex.carga !== null) ? ex.carga : '',
       unidadeCarga: ex.unidadeCarga || 'kg',
       descanso: ex.descanso || 60,
       observacao: ex.observacao || '',
@@ -1226,7 +1226,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       grupo: ex.grupo || ex.grupo_muscular || 'Geral',
       series: 3,
       reps: '12',
-      carga: parseFloat(String(ex.carga_sugerida || '10').replace('kg', '')) || 10,
+      carga: (ex.carga !== undefined && ex.carga !== null && ex.carga !== '') ? ex.carga : '',
       unidadeCarga: 'kg',
       descanso: 60,
       observacao: '',
