@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/utils/dbConnect';
 import User from '@/models/User';
-import { hashPassword } from '@/utils/auth';
+import { hashPassword, verifyPassword } from '@/utils/auth';
 
 export const maxDuration = 30;
 
@@ -18,17 +18,25 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { password } = body;
+    const { password, currentPassword } = body;
 
     // 2. Validate password input
     if (!password || password.trim().length < 6) {
-      return NextResponse.json({ success: false, error: 'A senha deve possuir no mínimo 6 caracteres.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'A nova senha deve possuir no mínimo 6 caracteres.' }, { status: 400 });
     }
 
     // 3. Find and update user record
     const user = await User.findOne({ email: session.user.email.toLowerCase() });
     if (!user) {
       return NextResponse.json({ success: false, error: 'Usuário não encontrado.' }, { status: 404 });
+    }
+
+    // 3.1 Se fornecida senha atual e o usuário possui senha no banco, validar
+    if (currentPassword && user.password) {
+      const isCurrentValid = verifyPassword(currentPassword, user.password);
+      if (!isCurrentValid) {
+        return NextResponse.json({ success: false, error: 'A senha atual informada está incorreta.' }, { status: 400 });
+      }
     }
 
     // 4. Update password and flag

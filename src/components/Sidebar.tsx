@@ -117,6 +117,13 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
         { id: 'prontuarios', label: 'Prontuários', icon: 'fa-notes-medical' }
       ]
+    },
+    {
+      title: 'CONTA & SEGURANÇA',
+      icon: 'fa-shield-halved',
+      tabs: [
+        { id: 'alterar_senha', label: 'Segurança & Senha', icon: 'fa-user-lock' }
+      ]
     }
     /* Ocultado temporariamente (Gabi IA)
     ,{

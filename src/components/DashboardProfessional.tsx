@@ -24,6 +24,7 @@ import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
 import RegistroPontoPanel from './RegistroPontoPanel';
+import PerfilSegurancaProfissionalPanel from './PerfilSegurancaProfissionalPanel';
 import { FastTextarea, FastInput } from './FastFormField';
 import AssessmentCompareSelectorModal, { PreviousAssessmentOption } from './AssessmentCompareSelectorModal';
 import ComparisonPill, { ComparisonActiveBar } from './ComparisonPill';
@@ -5045,65 +5046,6 @@ goniometria: {
 
   return (
     <div>
-      {/* 🌟 Top Bar: Identificação do Terminal e Acesso Seguro a PIN */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '10px 16px',
-        marginBottom: '16px',
-        background: isColetivo ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-        border: `1px solid ${isColetivo ? 'rgba(59, 130, 246, 0.25)' : 'var(--border-color)'}`,
-        borderRadius: '10px',
-        flexWrap: 'wrap',
-        gap: '10px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <i className={`fa-solid ${isColetivo ? 'fa-desktop' : 'fa-user-check'}`} style={{ color: isColetivo ? '#38bdf8' : '#10b981', fontSize: '1.1rem' }}></i>
-          <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-              {isColetivo ? 'Terminal Coletivo (Computador Compartilhado)' : `Perfil Profissional: ${currentProf?.nome || sessionUserName || 'Profissional'}`}
-            </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              {isColetivo 
-                ? 'Operações clínicas, treinos e agendamentos exigem seleção de nome e PIN de 4 dígitos'
-                : 'Acesso individual direto autenticado'}
-            </div>
-          </div>
-        </div>
-
-        {!isColetivo && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => {
-              setShowChangePinModal(true);
-              setMyPinCurrent('');
-              setMyPinNew('');
-              setMyPinConfirm('');
-              setMyPinError('');
-              setMyPinSuccess('');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              borderRadius: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: 'var(--text-main)',
-              cursor: 'pointer'
-            }}
-          >
-            <i className="fa-solid fa-key" style={{ color: '#eab308' }}></i>
-            <span>Alterar Meu PIN Coletivo</span>
-          </button>
-        )}
-      </div>
-
       {/* View: Registro de Ponto */}
       {activeTab === 'registro_ponto' && (
         <RegistroPontoPanel professionalId={professionalId} />
@@ -11266,8 +11208,17 @@ goniometria: {
         );
       })()}
 
+      {/* SEGURANÇA & SENHA */}
+      {activeTab === 'alterar_senha' && (
+        <PerfilSegurancaProfissionalPanel
+          professionalId={professionalId}
+          professionalData={currentProf}
+          sessionUser={session?.user}
+        />
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino'].includes(activeTab) && (
+      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino', 'alterar_senha'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
