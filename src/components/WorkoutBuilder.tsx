@@ -194,7 +194,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
   // New Ficha modal states
   const [showAddFichaModal, setShowAddFichaModal] = useState(false);
-  const [newFichaLetter, setNewFichaLetter] = useState('');
+  const [newFichaName, setNewFichaName] = useState('');
   const [addFichaError, setAddFichaError] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
@@ -729,7 +729,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   // Lista dinâmica de fichas da categoria ativa (somente as que têm exercícios ou a ficha atualmente aberta/criada)
   const visibleSheets = useMemo(() => {
     const sheets = rawWorkoutDoc?.[activeCategory] || [];
-    const valid = sheets.filter((s: any) => (s.exercicios && s.exercicios.length > 0) || s.id?.toUpperCase() === activeTabLetter?.toUpperCase());
+    const valid = sheets.filter((s: any) => 
+      (s.exercicios && s.exercicios.length > 0) || 
+      s.id?.toUpperCase() === activeTabLetter?.toUpperCase() ||
+      (s.nome && !s.nome.match(/^Ficha [B-Z]$/i) && s.nome !== 'Ficha A')
+    );
     if (valid.length === 0) {
       return [{ id: 'A', nome: 'Ficha A', exercicios: [] }];
     }
@@ -791,24 +795,100 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   };
 
   const handleAddCustomFicha = () => {
-    const letter = newFichaLetter.trim().toUpperCase();
-    if (!letter || !/^[A-Z]$/.test(letter)) {
-      setAddFichaError('Digite exatamente 1 letra maiúscula (A-Z).');
+    const trimmedName = newFichaName.trim();
+    if (!trimmedName) {
+      setAddFichaError('Por favor, informe o nome ou identificação da ficha.');
       return;
     }
 
     const currentSheets = rawWorkoutDoc?.[activeCategory] || [];
-    const exists = currentSheets.some((s: any) => s.id?.toUpperCase() === letter);
-    if (exists) {
-      setAddFichaError(`A Ficha ${letter} já existe em ${activeCategory === 'fichasLivre' ? 'Treino Livre' : 'Treino Monitorado'}. Escolha outra letra.`);
-      return;
+
+    // 1. Identificar se é letra única (ex: "B", "C") ou "Ficha X"
+    let targetId = '';
+    let targetName = trimmedName;
+
+    const singleLetterMatch = trimmedName.match(/^[A-Za-z]$/);
+    const fichaLetterMatch = trimmedName.match(/^ficha\s+([A-Za-z])$/i);
+
+    if (singleLetterMatch) {
+      targetId = singleLetterMatch[0].toUpperCase();
+      targetName = activeCategory === 'fichasLivre' ? `TREINO LIVRE ${targetId}` : `Ficha ${targetId}`;
+    } else if (fichaLetterMatch) {
+      targetId = fichaLetterMatch[1].toUpperCase();
+      targetName = `Ficha ${targetId}`;
+    } else {
+      // Nome livre (ex: "Superior", "Costas e Bíceps", "Adaptação")
+      const existingByName = currentSheets.find((s: any) => s.nome?.toLowerCase() === trimmedName.toLowerCase());
+      if (existingByName) {
+        if (!existingByName.exercicios || existingByName.exercicios.length === 0) {
+          setShowAddFichaModal(false);
+          setNewFichaName('');
+          setAddFichaError('');
+          handleChangeSheet(existingByName.id, activeCategory);
+          return;
+        } else {
+          setAddFichaError(`A ficha "${trimmedName}" já existe e possui ${existingByName.exercicios.length} exercício(s).`);
+          return;
+        }
+      }
+
+      // Procurar slot vazio inicial não utilizado (ex: B ou C vazias)
+      const unusedEmptySlot = currentSheets.find((s: any) => 
+        (!s.exercicios || s.exercicios.length === 0) && 
+        s.id?.toUpperCase() !== activeTabLetter.toUpperCase() &&
+        (s.id === 'B' || s.id === 'C')
+      );
+
+      if (unusedEmptySlot) {
+        targetId = unusedEmptySlot.id.toUpperCase();
+      } else {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        const usedIds = new Set(currentSheets.map((s: any) => (s.id || '').toUpperCase()));
+        targetId = alphabet.find(l => !usedIds.has(l)) || trimmedName.slice(0, 3).toUpperCase();
+      }
     }
 
+    // 2. Verificar se já existe ficha com targetId
+    const existingIndex = currentSheets.findIndex((s: any) => s.id?.toUpperCase() === targetId.toUpperCase());
+
+    if (existingIndex !== -1) {
+      const existingSheet = currentSheets[existingIndex];
+      const hasExercises = Array.isArray(existingSheet.exercicios) && existingSheet.exercicios.length > 0;
+
+      if (!hasExercises) {
+        // Ficha vazia pré-existente (ex: B ou C do banco): REAPROVEITA E ATIVA sem erro!
+        const updatedSheets = [...currentSheets];
+        updatedSheets[existingIndex] = {
+          ...existingSheet,
+          id: targetId,
+          nome: targetName
+        };
+
+        setRawWorkoutDoc((prev: any) => ({
+          ...(prev || {}),
+          [activeCategory]: updatedSheets
+        }));
+
+        setShowAddFichaModal(false);
+        setNewFichaName('');
+        setAddFichaError('');
+
+        handleChangeSheet(targetId, activeCategory);
+        setWorkoutName(targetName);
+        return;
+      } else {
+        setAddFichaError(`A Ficha ${targetId} já existe e possui ${existingSheet.exercicios.length} exercício(s).`);
+        return;
+      }
+    }
+
+    // 3. Nova ficha adicionada
     const newSheet = {
-      id: letter,
-      nome: activeCategory === 'fichasLivre' ? `TREINO LIVRE ${letter}` : `Ficha ${letter}`,
+      id: targetId,
+      nome: targetName,
       exercicios: [],
-      observacoesGerais: ''
+      observacoesGerais: '',
+      dataInicio: new Date().toISOString().split('T')[0]
     };
 
     const updatedSheets = [...currentSheets, newSheet];
@@ -818,10 +898,56 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     }));
 
     setShowAddFichaModal(false);
-    setNewFichaLetter('');
+    setNewFichaName('');
     setAddFichaError('');
 
-    handleChangeSheet(letter, activeCategory);
+    handleChangeSheet(targetId, activeCategory);
+    setWorkoutName(targetName);
+  };
+
+  const handleDeleteCurrentSheet = async () => {
+    const currentSheets = rawWorkoutDoc?.[activeCategory] || [];
+    if (currentSheets.length <= 1) {
+      alert('Não é possível excluir a única ficha do aluno.');
+      return;
+    }
+    const currentSheet = currentSheets.find((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
+    const exCount = currentSheet?.exercicios?.length || workoutItems.length;
+    const sheetTitle = workoutName || (`Ficha ${activeTabLetter}`);
+    const msg = exCount > 0 
+      ? `Deseja realmente excluir a ficha "${sheetTitle}"? Esta ficha possui ${exCount} exercício(s) e será removida permanentemente.`
+      : `Deseja excluir a ficha "${sheetTitle}"?`;
+
+    if (!window.confirm(msg)) return;
+
+    const remaining = currentSheets.filter((s: any) => s.id?.toUpperCase() !== activeTabLetter.toUpperCase());
+    const nextSheet = remaining[0] || { id: 'A', nome: 'Ficha A', exercicios: [] };
+
+    setRawWorkoutDoc((prev: any) => ({
+      ...(prev || {}),
+      [activeCategory]: remaining
+    }));
+
+    handleChangeSheet(nextSheet.id, activeCategory);
+
+    try {
+      await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: currentClientId,
+          category: activeCategory,
+          workoutData: remaining,
+          [activeCategory]: remaining,
+          confirmEmpty: true,
+          motivo: `Exclusão de ficha de treino: ${sheetTitle}`
+        })
+      });
+      setSaveToast({ message: `Ficha "${sheetTitle}" excluída com sucesso!`, type: 'success' });
+      setTimeout(() => setSaveToast(null), 3000);
+    } catch (err) {
+      console.error('Erro ao excluir ficha:', err);
+    }
   };
 
   const muscles = ['Todos', 'Peito', 'Costas', 'Pernas', 'Ombros', 'Braços', 'Core', 'Cardio'];
@@ -2638,12 +2764,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   );
                 })}
 
-                {/* Botão + para Adicionar Nova Ficha com Letra */}
+                {/* Botão + para Adicionar Nova Ficha */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddFichaModal(true);
-                    setNewFichaLetter('');
+                    setNewFichaName('');
                     setAddFichaError('');
                   }}
                   style={{
@@ -2660,7 +2786,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     gap: '4px',
                     flexShrink: 0
                   }}
-                  title="Criar nova ficha com letra personalizada"
+                  title="Criar nova ficha de treino"
                 >
                   <i className="fa-solid fa-plus"></i>
                   <span>Ficha</span>
@@ -2781,17 +2907,52 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             )}
 
             <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '180px' }}>
-                <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
-                  NOME DA FICHA
-                </label>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
+                    NOME DA FICHA
+                  </label>
+                  {visibleSheets.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCurrentSheet}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f87171',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}
+                      title="Excluir esta ficha de treino do aluno"
+                    >
+                      <i className="fa-regular fa-trash-can"></i> Excluir Ficha
+                    </button>
+                  )}
+                </div>
                 <input 
                   type="text" 
                   className="form-control" 
                   value={workoutName} 
+                  placeholder="Ex: Ficha B, Superior, Pernas..."
                   onChange={e => {
                     const newName = e.target.value;
                     setWorkoutName(newName);
+                    setRawWorkoutDoc((prev: any) => {
+                      if (!prev || !prev[activeCategory]) return prev;
+                      const catSheets = [...(prev[activeCategory] || [])];
+                      const sIdx = catSheets.findIndex((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
+                      if (sIdx !== -1) {
+                        catSheets[sIdx] = { ...catSheets[sIdx], nome: newName };
+                        return { ...prev, [activeCategory]: catSheets };
+                      }
+                      return prev;
+                    });
                     triggerDebouncedAutoSave(workoutItems, newName);
                   }}
                   style={{
@@ -4415,7 +4576,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
       )}
 
-      {/* 🌟 Modal para Adicionar Nova Ficha com Letra Personalizada */}
+      {/* 🌟 Modal para Adicionar Nova Ficha com Nome Personalizado */}
       {showAddFichaModal && (
         <div style={{
           position: 'fixed',
@@ -4437,7 +4598,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             borderRadius: '16px',
             padding: '24px 28px',
             width: '100%',
-            maxWidth: '400px',
+            maxWidth: '440px',
             boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 25px rgba(16, 185, 129, 0.15)',
             display: 'flex',
             flexDirection: 'column',
@@ -4445,7 +4606,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-plus-circle" style={{ color: '#10b981' }}></i> Nova Ficha
+                <i className="fa-solid fa-plus-circle" style={{ color: '#10b981' }}></i> Nova Ficha de Treino
               </h3>
               <button
                 type="button"
@@ -4462,17 +4623,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
-                Letra da Ficha (Obrigatório, A-Z):
+                Nome da Ficha:
               </label>
               <input
                 type="text"
                 autoFocus
-                maxLength={1}
-                value={newFichaLetter}
-                placeholder="Ex: G, C, T..."
+                value={newFichaName}
+                placeholder="Ex: Ficha B, Superior, Pernas, Costas e Bíceps, Adaptação..."
                 onChange={(e) => {
-                  const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
-                  setNewFichaLetter(val);
+                  setNewFichaName(e.target.value);
                   setAddFichaError('');
                 }}
                 onKeyDown={(e) => {
@@ -4480,15 +4639,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 }}
                 style={{
                   width: '100%',
-                  textAlign: 'center',
-                  fontSize: '1.6rem',
-                  fontWeight: 900,
-                  letterSpacing: '2px',
-                  padding: '10px',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  padding: '12px 14px',
                   borderRadius: '10px',
                   border: addFichaError ? '1.5px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.2)',
                   background: '#070b14',
-                  color: '#10b981',
+                  color: '#ffffff',
                   outline: 'none'
                 }}
               />
@@ -4498,6 +4655,38 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   {addFichaError}
                 </span>
               )}
+
+              {/* Sugestões Rápidas */}
+              <div style={{ marginTop: '12px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                  Sugestões Rápidas:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {['Ficha B', 'Ficha C', 'Ficha D', 'Superior', 'Inferior', 'Costas / Bíceps', 'Peito / Tríceps', 'Pernas', 'Adaptação', 'Cardio'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        setNewFichaName(preset);
+                        setAddFichaError('');
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: newFichaName === preset ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        color: newFichaName === preset ? '#34d399' : '#cbd5e1',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
@@ -4520,18 +4709,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               <button
                 type="button"
                 onClick={handleAddCustomFicha}
-                disabled={!newFichaLetter}
+                disabled={!newFichaName.trim()}
                 style={{
                   flex: 1,
                   padding: '10px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: newFichaLetter ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.1)',
+                  background: newFichaName.trim() ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.1)',
                   color: '#ffffff',
                   fontWeight: 800,
-                  cursor: newFichaLetter ? 'pointer' : 'not-allowed',
-                  opacity: newFichaLetter ? 1 : 0.6,
-                  boxShadow: newFichaLetter ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none'
+                  cursor: newFichaName.trim() ? 'pointer' : 'not-allowed',
+                  opacity: newFichaName.trim() ? 1 : 0.6,
+                  boxShadow: newFichaName.trim() ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none'
                 }}
               >
                 Criar Ficha

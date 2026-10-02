@@ -6334,6 +6334,9 @@ goniometria: {
                                       }}>
                                         {monitoradoSheets.map((s: any) => {
                                           const isSelected = activeFichaId === s.id && activeCategoria === 'fichasMonitorado';
+                                          const labelText = s.nome && s.nome.length <= 8 && !s.nome.toLowerCase().startsWith('ficha ')
+                                            ? s.nome
+                                            : (s.id || s.nome || '?');
                                           return (
                                             <button
                                               key={s.id}
@@ -6341,7 +6344,7 @@ goniometria: {
                                               onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'ficha', 'fichasMonitorado')}
                                               style={{
                                                 flex: 1,
-                                                padding: '5px 0',
+                                                padding: '5px 4px',
                                                 borderRadius: '6px',
                                                 fontSize: '0.74rem',
                                                 fontWeight: isSelected ? 900 : 700,
@@ -6350,11 +6353,14 @@ goniometria: {
                                                 color: isSelected ? '#ffffff' : '#94a3b8',
                                                 cursor: 'pointer',
                                                 boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.4)' : 'none',
-                                                transition: 'all 0.15s ease'
+                                                transition: 'all 0.15s ease',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
                                               }}
                                               title={`Monitorado - ${s.nome || `Ficha ${s.id}`}`}
                                             >
-                                              {isSelected ? `⭐ ${s.id}` : s.id}
+                                              {isSelected ? `⭐ ${labelText}` : labelText}
                                             </button>
                                           );
                                         })}
@@ -6390,6 +6396,9 @@ goniometria: {
                                       }}>
                                         {livreSheets.map((s: any) => {
                                           const isSelected = activeFichaId === s.id && activeCategoria === 'fichasLivre';
+                                          const labelText = s.nome && s.nome.length <= 8 && !s.nome.toLowerCase().startsWith('ficha ')
+                                            ? s.nome
+                                            : (s.id || s.nome || '?');
                                           return (
                                             <button
                                               key={s.id}
@@ -6397,7 +6406,7 @@ goniometria: {
                                               onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'livre', 'fichasLivre')}
                                               style={{
                                                 flex: 1,
-                                                padding: '5px 0',
+                                                padding: '5px 4px',
                                                 borderRadius: '6px',
                                                 fontSize: '0.74rem',
                                                 fontWeight: isSelected ? 900 : 700,
@@ -6406,11 +6415,14 @@ goniometria: {
                                                 color: isSelected ? '#ffffff' : '#94a3b8',
                                                 cursor: 'pointer',
                                                 boxShadow: isSelected ? '0 2px 8px rgba(56, 189, 248, 0.4)' : 'none',
-                                                transition: 'all 0.15s ease'
+                                                transition: 'all 0.15s ease',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
                                               }}
                                               title={`Livre - ${s.nome || `Ficha ${s.id}`}`}
                                             >
-                                              {isSelected ? `⭐ ${s.id}` : s.id}
+                                              {isSelected ? `⭐ ${labelText}` : labelText}
                                             </button>
                                           );
                                         })}
