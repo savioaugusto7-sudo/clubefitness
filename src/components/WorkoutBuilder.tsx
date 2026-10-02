@@ -3181,29 +3181,48 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     NOME DA FICHA
                   </label>
                   
-                  {/* 🌟 Ações Inteligentes do Ciclo da Ficha */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {/* 🌟 Ações do Ciclo da Ficha (Barra Unificada, Neutra e Altamente Legível) */}
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '3px'
+                  }}>
                     {/* Botão Renovar Ciclo */}
                     <button
                       type="button"
                       onClick={handleOpenRenewModal}
                       style={{
-                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.3))',
-                        border: '1px solid #10b981',
-                        color: '#34d399',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
+                        height: '28px',
+                        padding: '0 10px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#f1f5f9',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 8px',
+                        gap: '6px',
                         borderRadius: '6px',
+                        whiteSpace: 'nowrap',
                         transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                       }}
                       title="Concluir ciclo atual, arquivar no histórico e iniciar nova periodização/evolução"
                     >
-                      <i className="fa-solid fa-arrows-rotate"></i> Renovar Ciclo
+                      <i className="fa-solid fa-arrows-rotate" style={{ color: '#94a3b8', fontSize: '0.74rem' }}></i>
+                      <span>Renovar Ciclo</span>
                     </button>
 
                     {/* Botão Duplicar Ficha */}
@@ -3211,22 +3230,33 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                       type="button"
                       onClick={handleDuplicateCurrentSheet}
                       style={{
-                        background: 'rgba(56, 189, 248, 0.12)',
-                        border: '1px solid rgba(56, 189, 248, 0.35)',
-                        color: '#38bdf8',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
+                        height: '28px',
+                        padding: '0 10px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#f1f5f9',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 8px',
+                        gap: '6px',
                         borderRadius: '6px',
+                        whiteSpace: 'nowrap',
                         transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                       }}
                       title="Clonar esta ficha para uma nova aba"
                     >
-                      <i className="fa-regular fa-copy"></i> Duplicar
+                      <i className="fa-regular fa-copy" style={{ color: '#94a3b8', fontSize: '0.74rem' }}></i>
+                      <span>Duplicar</span>
                     </button>
 
                     {/* Botão Arquivar Ficha */}
@@ -3235,22 +3265,33 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                         type="button"
                         onClick={handleArchiveCurrentSheet}
                         style={{
-                          background: 'rgba(245, 158, 11, 0.12)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          color: '#fbbf24',
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
+                          height: '28px',
+                          padding: '0 10px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#f1f5f9',
+                          fontSize: '0.76rem',
+                          fontWeight: 600,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px',
-                          padding: '3px 8px',
+                          gap: '6px',
                           borderRadius: '6px',
+                          whiteSpace: 'nowrap',
                           transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                         }}
                         title="Arquivar esta ficha no histórico (sai das abas ativas mas continua salva no histórico)"
                       >
-                        <i className="fa-solid fa-box-archive"></i> Arquivar
+                        <i className="fa-solid fa-box-archive" style={{ color: '#94a3b8', fontSize: '0.74rem' }}></i>
+                        <span>Arquivar</span>
                       </button>
                     )}
 
@@ -3260,22 +3301,34 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                         type="button"
                         onClick={handleDeleteCurrentSheet}
                         style={{
-                          background: 'rgba(239, 68, 68, 0.08)',
-                          border: '1px solid rgba(239, 68, 68, 0.25)',
-                          color: '#f87171',
-                          fontSize: '0.70rem',
-                          fontWeight: 700,
+                          height: '28px',
+                          padding: '0 8px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          color: '#94a3b8',
+                          fontSize: '0.76rem',
+                          fontWeight: 600,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '3px',
-                          padding: '3px 6px',
+                          justifyContent: 'center',
                           borderRadius: '6px',
+                          whiteSpace: 'nowrap',
                           transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+                          e.currentTarget.style.color = '#f87171';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                          e.currentTarget.style.color = '#94a3b8';
                         }}
                         title="Excluir rascunho de ficha"
                       >
-                        <i className="fa-regular fa-trash-can"></i>
+                        <i className="fa-regular fa-trash-can" style={{ fontSize: '0.74rem' }}></i>
                       </button>
                     )}
                   </div>
