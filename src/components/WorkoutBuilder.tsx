@@ -184,6 +184,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [substitutingItem, setSubstitutingItem] = useState<{ id: string; index: number; nome: string; combinaGrupo: string; grupo: string } | null>(null);
   const [substituteSearch, setSubstituteSearch] = useState('');
   const [substituteMuscle, setSubstituteMuscle] = useState('Todos');
+  const [justGroupedItemId, setJustGroupedItemId] = useState<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>(initialCategory || 'fichasMonitorado');
   const [activeTabLetter, setActiveTabLetter] = useState<string>(initialFichaId?.toUpperCase() || 'A');
@@ -1253,17 +1254,70 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
   const substituteFilteredExercises = useMemo(() => {
     const rawSearch = normalizeText(substituteSearch).trim();
-    return exercises
-      .filter(ex => {
-        const g = ex.grupo || ex.grupo_muscular || 'Geral';
-        const matchMuscle = substituteMuscle === 'Todos' || normalizeText(g) === normalizeText(substituteMuscle);
-        if (!matchMuscle) return false;
-        if (!rawSearch) return true;
-        const exNomeNorm = normalizeText(ex.nome);
-        const exGrupoNorm = normalizeText(g);
-        return exNomeNorm.includes(rawSearch) || exGrupoNorm.includes(rawSearch);
+    const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'with', 'com', 'e', 'a', 'o', 'as', 'os', 'para', 'pra']);
+    
+    const searchTokens = rawSearch
+      ? rawSearch.split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t))
+      : [];
+
+    // Se nenhuma busca digitada, filtra estritamente pelo músculo selecionado (se não for Todos)
+    if (searchTokens.length === 0) {
+      return exercises
+        .filter(ex => {
+          if (substituteMuscle === 'Todos') return true;
+          const g = ex.grupo || ex.grupo_muscular || 'Geral';
+          return normalizeText(g) === normalizeText(substituteMuscle);
+        })
+        .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+    }
+
+    // Se há termos de busca digitados:
+    // Avalia correspondência inteligente (multi-tokens, prefixos e tolerância fonética/semelhante)
+    const matches: { ex: any; score: number; inSelectedMuscle: boolean }[] = [];
+
+    exercises.forEach(ex => {
+      const g = ex.grupo || ex.grupo_muscular || 'Geral';
+      const exNomeNorm = normalizeText(ex.nome);
+      const exGrupoNorm = normalizeText(g);
+      const fullText = `${exNomeNorm} ${exGrupoNorm}`;
+
+      // 1. Verificações diretas
+      const fullExactMatch = exNomeNorm === rawSearch;
+      const startsWithSearch = exNomeNorm.startsWith(rawSearch);
+      const directIncludes = exNomeNorm.includes(rawSearch) || fullText.includes(rawSearch);
+
+      // 2. Verificação multi-token flexível com suporte a prefixo/stem
+      const matchesAllTokens = searchTokens.every(token => {
+        if (fullText.includes(token)) return true;
+        // Tolerância de prefixo para palavras com pelo menos 3 letras
+        if (token.length >= 3) {
+          const words = fullText.split(/\s+/);
+          return words.some(w => w.startsWith(token) || token.startsWith(w));
+        }
+        return false;
+      });
+
+      if (!directIncludes && !matchesAllTokens) return;
+
+      const inSelectedMuscle = substituteMuscle === 'Todos' || normalizeText(g) === normalizeText(substituteMuscle);
+
+      let score = 0;
+      if (fullExactMatch) score += 100;
+      else if (startsWithSearch) score += 50;
+      else if (directIncludes) score += 30;
+      else if (matchesAllTokens) score += 20;
+
+      if (inSelectedMuscle) score += 15;
+
+      matches.push({ ex, score, inSelectedMuscle });
+    });
+
+    return matches
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (a.ex.nome || '').localeCompare(b.ex.nome || '');
       })
-      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+      .map(m => m.ex);
   }, [exercises, substituteMuscle, substituteSearch]);
 
   const addToWorkout = addExercise;
@@ -1283,6 +1337,58 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         return item;
       });
       triggerDebouncedAutoSave(updated);
+      return updated;
+    });
+  };
+
+  // 🚀 Auto-Agrupamento Dinâmico de Super-Séries (G1, G2, G3...)
+  // Ao definir um grupo existente, reposiciona o exercício automaticamente logo abaixo do último exercício do grupo
+  const handleGroupChange = (itemId: string, newGroup: string) => {
+    setWorkoutItems(prev => {
+      const currentIndex = prev.findIndex(it => it.id === itemId);
+      if (currentIndex === -1) return prev;
+
+      const currentItem = { ...prev[currentIndex], combinaGrupo: newGroup };
+
+      // Se desmarcou o grupo (ficou individual), apenas atualiza sem mover de posição
+      if (!newGroup) {
+        const updated = [...prev];
+        updated[currentIndex] = currentItem;
+        persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
+        return updated;
+      }
+
+      // Se selecionou um grupo (G1, G2, etc.), verifica se já existem outros exercícios no mesmo grupo
+      const otherGroupIndices: number[] = [];
+      prev.forEach((it, idx) => {
+        if (it.id !== itemId && it.combinaGrupo === newGroup) {
+          otherGroupIndices.push(idx);
+        }
+      });
+
+      // Se for o primeiro exercício com este grupo, mantém na posição atual
+      if (otherGroupIndices.length === 0) {
+        const updated = [...prev];
+        updated[currentIndex] = currentItem;
+        persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
+        return updated;
+      }
+
+      // Se já existem exercícios desse grupo, reposiciona este exercício logo após o último do grupo!
+      const lastGroupIndex = otherGroupIndices[otherGroupIndices.length - 1];
+      const remaining = prev.filter(it => it.id !== itemId);
+      const targetInsertIndex = currentIndex < lastGroupIndex ? lastGroupIndex : lastGroupIndex + 1;
+
+      const updated = [
+        ...remaining.slice(0, targetInsertIndex),
+        currentItem,
+        ...remaining.slice(targetInsertIndex)
+      ];
+
+      setJustGroupedItemId(itemId);
+      setTimeout(() => setJustGroupedItemId(null), 2500);
+
+      persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
       return updated;
     });
   };
@@ -3696,7 +3802,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           borderRadius: '10px',
                           border: hasDrop ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
                           borderLeft: isGrouped ? `4px solid ${groupColor}` : hasDrop ? '4px solid #f59e0b' : '4px solid transparent',
-                          transition: 'all 0.2s'
+                          boxShadow: justGroupedItemId === item.id ? `0 0 0 2px ${groupColor || '#38bdf8'}, 0 0 25px ${groupColor || '#38bdf8'}88` : undefined,
+                          transition: 'all 0.3s ease'
                         }}
                       >
                         {isMobile ? (
@@ -3986,7 +4093,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   return (
                                     <select
                                       value={item.combinaGrupo || ''}
-                                      onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                                      onChange={e => handleGroupChange(item.id, e.target.value)}
                                       style={{
                                         width: '100%',
                                         height: '28px',
@@ -4444,7 +4551,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               return (
                                 <select
                                   value={item.combinaGrupo || ''}
-                                  onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                                  onChange={e => handleGroupChange(item.id, e.target.value)}
                                   style={{
                                     width: '100%',
                                     height: '36px',
@@ -4890,17 +4997,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
             {/* Busca & Filtros Musculares */}
             <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              <div style={{ position: 'relative', marginBottom: '10px' }}>
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
                 <input
                   type="text"
                   autoFocus
                   className="form-control"
-                  placeholder="Buscar exercício substituto..."
+                  placeholder="Buscar exercício substituto (ex: supino barra, puxada, extensora)..."
                   value={substituteSearch}
                   onChange={e => setSubstituteSearch(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '8px 12px 8px 34px',
+                    padding: '8px 34px 8px 34px',
                     background: 'rgba(255, 255, 255, 0.04)',
                     border: '1px solid rgba(56, 189, 248, 0.25)',
                     borderRadius: '8px',
@@ -4909,9 +5016,31 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   }}
                 />
                 <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '0.8rem' }}></i>
+                {substituteSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setSubstituteSearch('')}
+                    title="Limpar pesquisa"
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#94a3b8',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      lineHeight: 1,
+                      padding: '4px'
+                    }}
+                  >
+                    &times;
+                  </button>
+                )}
               </div>
 
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {muscles.map(m => (
                   <button
                     key={m}
@@ -4934,62 +5063,122 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   </button>
                 ))}
               </div>
+
+              {substituteSearch && (
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>
+                    <strong style={{ color: '#38bdf8' }}>{substituteFilteredExercises.length}</strong> exercício(s) encontrado(s)
+                    {substituteMuscle !== 'Todos' && <span style={{ color: '#64748b' }}> (filtro: {substituteMuscle})</span>}
+                  </span>
+                  {substituteMuscle !== 'Todos' && (
+                    <button
+                      type="button"
+                      onClick={() => setSubstituteMuscle('Todos')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#38bdf8',
+                        cursor: 'pointer',
+                        fontSize: '0.72rem',
+                        textDecoration: 'underline',
+                        padding: 0
+                      }}
+                    >
+                      Buscar em Todos os Grupos
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Lista de Exercícios Filtrados */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {substituteFilteredExercises.slice(0, 50).map(ex => (
-                <button
-                  key={ex._id}
-                  type="button"
-                  onClick={() => handleSubstituteExercise(substitutingItem.id, ex)}
-                  style={{
-                    width: '100%',
-                    padding: '9px 12px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
-                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: '10px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#f8fafc', whiteSpace: 'normal' }}>
-                      {ex.nome}
+              {substituteFilteredExercises.slice(0, 50).map(ex => {
+                const exGrupo = ex.grupo || ex.grupo_muscular || 'Geral';
+                const isSelectedMuscle = substituteMuscle === 'Todos' || normalizeText(exGrupo) === normalizeText(substituteMuscle);
+                return (
+                  <button
+                    key={ex._id}
+                    type="button"
+                    onClick={() => handleSubstituteExercise(substitutingItem.id, ex)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#f8fafc', whiteSpace: 'normal' }}>
+                        {ex.nome}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                        <span style={{
+                          fontSize: '0.66rem',
+                          color: isSelectedMuscle ? '#64748b' : '#38bdf8',
+                          textTransform: 'uppercase',
+                          background: isSelectedMuscle ? 'rgba(255, 255, 255, 0.04)' : 'rgba(56, 189, 248, 0.1)',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          border: `1px solid ${isSelectedMuscle ? 'rgba(255, 255, 255, 0.08)' : 'rgba(56, 189, 248, 0.25)'}`
+                        }}>
+                          {exGrupo}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', marginTop: '2px' }}>
-                      {ex.grupo || ex.grupo_muscular || 'Geral'}
-                    </div>
-                  </div>
-                  <span style={{
-                    fontSize: '0.72rem',
-                    color: '#38bdf8',
-                    fontWeight: 800,
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    background: 'rgba(56, 189, 248, 0.15)',
-                    flexShrink: 0
-                  }}>
-                    Substituir
-                  </span>
-                </button>
-              ))}
+                    <span style={{
+                      fontSize: '0.72rem',
+                      color: '#38bdf8',
+                      fontWeight: 800,
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      flexShrink: 0
+                    }}>
+                      Substituir
+                    </span>
+                  </button>
+                );
+              })}
 
               {substituteFilteredExercises.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '30px 10px', color: '#64748b' }}>
-                  Nenhum exercício encontrado com esses filtros.
+                  <p style={{ margin: '0 0 10px 0', fontSize: '0.86rem' }}>
+                    Nenhum exercício encontrado com esses termos.
+                  </p>
+                  {substituteMuscle !== 'Todos' && (
+                    <button
+                      type="button"
+                      onClick={() => setSubstituteMuscle('Todos')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        color: '#38bdf8',
+                        cursor: 'pointer',
+                        fontSize: '0.78rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      Buscar em Todos os Grupos Musculares
+                    </button>
+                  )}
                 </div>
               )}
             </div>
