@@ -622,6 +622,48 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
       if (data.success) {
+        // Registrar documento oficial em Contract para consistência relacional do banco de dados
+        try {
+          const planId = proposal?.planoId?._id || proposal?.planoId || client.dadosComerciais?.planoId?._id || client.dadosComerciais?.planoId || null;
+          const planObj = plans.find(p => p._id === planId);
+          const planNome = proposal?.planoNome || planObj?.nome || client.dadosComerciais?.planoNome || 'Plano Anual';
+          const duracao = client.dadosComerciais?.duracao || proposal?.duracao || 'anual';
+          const isAnual = duracao === 'anual' || planObj?.tipo === 'Anual';
+          const vigenciaMeses = isAnual ? 12 : (duracao === 'semestral' ? 6 : (Number(proposal?.vigenciaQtd || client.dadosComerciais?.vigenciaQtd) || 1));
+          const freq = Number(proposal?.frequencia || client.dadosComerciais?.frequencia || planObj?.frequenciaSemanal || 2);
+          const dInicio = client.dadosComerciais?.dataInicio || proposal?.dataInicio || todayIso;
+          const dFim = client.dadosComerciais?.vencimento || proposal?.dataFim || nextYearIso;
+          const valorLiq = Number(proposal?.valorFinalRecalculado || proposal?.valorAcordado || client.dadosComerciais?.valorTotal || client.dadosComerciais?.valorUnitario || 0);
+
+          await fetch('/api/contracts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              clientId: client._id,
+              alunoNome: client.dadosPessoais?.nome || client.nome || 'Aluno',
+              planoId: planId,
+              planoNome: planNome,
+              planoTipo: isAnual ? 'Anual' : (duracao === 'semestral' ? 'Semestral' : 'Mensal'),
+              valorBruto: valorLiq,
+              valorLiquido: valorLiq,
+              parcelas: Number(proposal?.parcelas || client.dadosComerciais?.parcelas || 1),
+              formaPagamento: proposal?.formaPagamento || client.dadosComerciais?.formaPagamento || 'pix',
+              dataInicio: dInicio,
+              dataFim: dFim,
+              vigenciaMeses,
+              status: 'assinado',
+              usuarioEmissor: userCargo || 'Administrador',
+              unidadeContratada: planObj?.unidadeAtendimento || 'Clube Fitness',
+              frequencia: freq,
+              creditosTotal: Number(proposal?.creditosTotal || client.dadosComerciais?.creditosTotal || (freq * 4)),
+              enviarClicksign: false,
+              enviarAsaas: false
+            })
+          });
+        } catch (contractErr) {
+          console.warn('Aviso: Falha ao registrar contrato na coleção Contract durante ativação manual:', contractErr);
+        }
+
         if (proposal?._id) {
           await fetch(`/api/propostas?id=${proposal._id}`, { method: 'DELETE' }).catch(() => {});
         }
@@ -4436,20 +4478,24 @@ export default function GestaoContratosPanel({
                                   </span>
                                 </div>
 
-                                {plan?.frequenciaSemanal && (
-                                  <span style={{
-                                    fontSize: '0.7rem',
-                                    fontWeight: 650,
-                                    color: 'var(--text-muted)',
-                                    background: 'rgba(255, 255, 255, 0.04)',
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                                    whiteSpace: 'nowrap'
-                                  }}>
-                                    {plan.frequenciaSemanal}x/sem
-                                  </span>
-                                )}
+                                {(() => {
+                                  const freqVal = com.frequencia || latestContract?.frequencia || plan?.frequenciaSemanal;
+                                  if (!freqVal) return null;
+                                  return (
+                                    <span style={{
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      color: '#38bdf8',
+                                      background: 'rgba(56, 189, 248, 0.12)',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      border: '1px solid rgba(56, 189, 248, 0.28)',
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      {freqVal}x/sem
+                                    </span>
+                                  );
+                                })()}
                               </div>
 
                               {/* 2. Vigência Suave */}
@@ -4524,19 +4570,24 @@ export default function GestaoContratosPanel({
                                 </div>
 
                                 {stage.stageKey !== 'dynamus' && (latestContract?.formaPagamento || com.formaPagamento) && (
-                                  <span style={{
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    color: 'rgba(255, 255, 255, 0.85)',
-                                    background: 'rgba(255, 255, 255, 0.06)',
-                                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                                    padding: '4px 9px',
-                                    borderRadius: '6px',
-                                    letterSpacing: '0.2px'
-                                  }}>
-                                    {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
-                                    {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)}x` : ''}
-                                  </span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                    <span style={{
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      color: 'rgba(255, 255, 255, 0.85)',
+                                      background: 'rgba(255, 255, 255, 0.06)',
+                                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px',
+                                      letterSpacing: '0.2px'
+                                    }}>
+                                      {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
+                                      {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)} parcelas` : ''}
+                                    </span>
+                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>
+                                      {latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses de acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1} meses de acesso`}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
 
@@ -5077,21 +5128,47 @@ export default function GestaoContratosPanel({
                         <td style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome || 'Sem Nome'}</td>
                         <td>{c.dadosPessoais?.cpf || '—'}</td>
                         <td>
-                           {plan?.nome || '—'}
-                           {Boolean(stage.isRecorrente) && (
-                             <div style={{ marginTop: '4px' }}>
-                               <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', padding: '3px 6px', background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}>
-                                 <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.6rem' }}></i> Recorrência Ativada
-                               </span>
-                             </div>
-                           )}
-                         </td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span>{latestContract?.planoNome || com.planoNome || plan?.nome || '—'}</span>
+                            {(() => {
+                              const freqVal = com.frequencia || latestContract?.frequencia || plan?.frequenciaSemanal;
+                              if (!freqVal) return null;
+                              return (
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  color: '#38bdf8',
+                                  background: 'rgba(56, 189, 248, 0.1)',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(56, 189, 248, 0.25)'
+                                }}>
+                                  {freqVal}x/sem
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          {Boolean(stage.isRecorrente) && (
+                            <div style={{ marginTop: '4px' }}>
+                              <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', padding: '3px 6px', background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}>
+                                <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.6rem' }}></i> Recorrência Ativada
+                              </span>
+                            </div>
+                          )}
+                        </td>
                         <td>
-                          <div>
+                          <div style={{ fontWeight: 600 }}>
                             {info.isLead || info.isUncontracted
                               ? (c.createdAt ? `Cadastrado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}` : 'Sem Contrato')
                               : `${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
                           </div>
+                          {stage.stageKey !== 'dynamus' && (latestContract?.formaPagamento || com.formaPagamento) && (
+                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                              {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
+                              {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)} parcelas` : ''}
+                              {' • '}{latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1}m acesso`}
+                            </div>
+                          )}
                           {Boolean(stage.isRecorrente) && (
                             <div style={{ fontSize: '0.7rem', color: '#93c5fd', marginTop: '2px' }}>
                               Fim Contrato: {info.dataFimRecorrenciaFormatted}

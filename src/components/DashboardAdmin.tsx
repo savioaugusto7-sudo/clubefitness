@@ -6207,10 +6207,26 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             (c.duracao || '').toLowerCase().includes('anual');
         };
 
-        // Active contracts list - ESTRITAMENTE PLANOS ANUAIS
+        // Helper: Aluno Dynamus NÃO permite trancamento
+        const isDynamusContract = (c: any) => {
+          const cl = clients.find((client: any) => client._id === (c.clientId?._id || c.clientId));
+          const com = cl?.dadosComerciais || {};
+          const dp = cl?.dadosPessoais || {};
+          return Boolean(
+            com.isConvenioDynamus ||
+            (c.planoNome || '').toLowerCase().includes('dynamus') ||
+            (c.planoId?.nome || '').toLowerCase().includes('dynamus') ||
+            (com.planoNome || '').toLowerCase().includes('dynamus') ||
+            (dp.email || '').toLowerCase().includes('dynamus') ||
+            (cl?.codigo || '').toUpperCase().includes('DYN') ||
+            (cl?.dadosClinicos?.observacoes || '').toLowerCase().includes('dynamus')
+          );
+        };
+
+        // Active contracts list - ESTRITAMENTE PLANOS ANUAIS (EXCETO DYNAMUS)
         const activeContracts = contractsAdminList.filter((c: any) => {
           const statusValido = c.status === 'assinado' || c.status === 'ativo' || c.status === 'congelado';
-          return statusValido && isContractAnual(c);
+          return statusValido && isContractAnual(c) && !isDynamusContract(c);
         });
 
         return (
