@@ -6,6 +6,7 @@ import WellnessModal from './WellnessModal';
 import WorkoutEvolutionModal from './WorkoutEvolutionModal';
 import WorkoutTempoPicker from './WorkoutTempoPicker';
 import WorkoutTempoModal from './WorkoutTempoModal';
+import WorkoutUnitPicker from './WorkoutUnitPicker';
 import { calculateWellness } from '@/utils/wellnessHelper';
 import { calculateSheetTotalTime, calculateExerciseTime, formatSecondsToTime } from '@/utils/workoutTimeEngine';
 
@@ -3793,14 +3794,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   {workoutItems.length} EXERCÍCIOS
                 </span>
               </div>
-              
-              <datalist id="unidades-carga-list">
-                <option value="kg" />
-                <option value="lbs" />
-                <option value="Livre" />
-                <option value="placas" />
-                <option value="barra" />
-              </datalist>
 
               {workoutItems.length > 0 && !isLoading && (
                 <div 
@@ -4372,26 +4365,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 fontSize: '0.84rem'
                               }}
                             />
-                            <input
-                              type="text"
-                              list="unidades-carga-list"
-                              className="form-control form-control-sm"
-                              value={item.unidadeCarga || ''}
-                              onChange={e => updateItem(item.id, 'unidadeCarga', e.target.value)}
-                              placeholder="Unid"
-                              title="Unidade de medida da carga (ex: kg, lbs, Livre, placas - campo livre)"
-                              style={{
-                                width: '44px',
-                                height: '36px',
-                                textAlign: 'center',
-                                padding: '0 2px',
-                                background: '#070b14',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                color: '#cbd5e1',
-                                borderRadius: '7px',
-                                fontWeight: 700,
-                                fontSize: '0.74rem'
-                              }}
+                            <WorkoutUnitPicker
+                              value={item.unidadeCarga || 'kg'}
+                              onChange={newUnit => updateItem(item.id, 'unidadeCarga', newUnit)}
                             />
                             <button
                               type="button"
