@@ -53,6 +53,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
   // Workout, Assessments, and Reports states for new views
   const [workout, setWorkout] = useState<any>(null);
+  const [workoutCyclesHistory, setWorkoutCyclesHistory] = useState<any[]>([]);
+  const [showCyclesHistory, setShowCyclesHistory] = useState(false);
+  const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [exercises, setExercises] = useState<any[]>([]);
@@ -417,7 +420,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     if (!profileId) return;
     try {
       setLoading(true);
-      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts, resTrancamentos] = await Promise.all([
+      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts, resTrancamentos, resWorkoutHist] = await Promise.all([
         clientId ? fetch(`/api/clients?id=${clientId}`) : fetch(`/api/clients?userId=${user.id}`),
         fetch(`/api/appointments?clientId=${profileId}`),
         fetch(`/api/workouts?clientId=${profileId}`),
@@ -426,7 +429,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         fetch('/api/exercises'),
         fetch('/api/strength-tests'),
         fetch(`/api/contracts?clientId=${profileId}`),
-        fetch(`/api/trancamentos?clientId=${profileId}`)
+        fetch(`/api/trancamentos?clientId=${profileId}`),
+        fetch(`/api/workouts?clientId=${profileId}&history=true`)
       ]);
       const jsonClient = await resClient.json();
       const jsonApts = await resApts.json();
@@ -437,6 +441,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       const jsonSt = await resSt.json();
       const jsonContracts = await resContracts.json();
       const jsonTrancamentos = await resTrancamentos.json();
+      const jsonWorkoutHist = await resWorkoutHist.json();
 
       if (jsonClient.success && jsonClient.data.length > 0) {
         setClient(jsonClient.data[0]);
@@ -454,6 +459,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       }
       if (jsonWorkout.success) {
         setWorkout(jsonWorkout.data);
+      }
+      if (jsonWorkoutHist.success && Array.isArray(jsonWorkoutHist.data)) {
+        setWorkoutCyclesHistory(jsonWorkoutHist.data);
       }
       if (jsonAs.success) {
         setAssessments(jsonAs.data.filter((a: any) => (a.clienteId?._id || a.clienteId) === profileId));
@@ -1372,6 +1380,139 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
             }}>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Sua ficha de treino está sendo montada pelos professores.</p>
+            </div>
+          )}
+
+          {/* 🌟 Histórico de Ciclos e Treinos Anteriores do Aluno */}
+          {workoutCyclesHistory.length > 0 && (
+            <div className="content-panel" style={{
+              marginTop: '24px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              padding: '24px'
+            }}>
+              <div 
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+                onClick={() => setShowCyclesHistory(!showCyclesHistory)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-clock-rotate-left" style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}></i>
+                  <div>
+                    <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
+                      Histórico de Ciclos e Treinos Anteriores
+                    </h2>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Consulte as rotinas e periodizações já concluídas da sua jornada ({workoutCyclesHistory.length} ciclo(s))
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className={showCyclesHistory ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'}></i>
+                  {showCyclesHistory ? 'Recolher' : 'Visualizar Histórico'}
+                </button>
+              </div>
+
+              {showCyclesHistory && (
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {workoutCyclesHistory.map((cycle: any, cIdx: number) => {
+                    const isExp = expandedCycleId === (cycle._id || String(cIdx));
+                    const monS = cycle.snapshot?.fichasMonitorado || [];
+                    const livS = cycle.snapshot?.fichasLivre || [];
+                    const allSheets = [...monS, ...livS];
+                    const exTotal = allSheets.reduce((acc: number, s: any) => acc + (s.exercicios?.length || 0), 0);
+                    const periodStr = cycle.dataInicio && cycle.dataFim
+                      ? `${cycle.dataInicio.split('-').reverse().join('/')} até ${cycle.dataFim.split('-').reverse().join('/')} (${cycle.diasCiclo || 0} dias)`
+                      : (cycle.createdAt ? new Date(cycle.createdAt).toLocaleDateString('pt-BR') : '-');
+
+                    return (
+                      <div
+                        key={cycle._id || cIdx}
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.25)',
+                          border: isExp ? '1px solid var(--color-primary)' : '1px solid rgba(255, 255, 255, 0.06)',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>
+                                {cycle.statusCiclo === 'arquivado' ? 'Arquivado' : 'Ciclo Concluído'}
+                              </span>
+                              <strong style={{ fontSize: '0.98rem', color: 'var(--text-main)' }}>
+                                {cycle.sheetNome || cycle.motivo || 'Ciclo de Treino'}
+                              </strong>
+                            </div>
+
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                              <i className="fa-regular fa-calendar" style={{ marginRight: '5px' }}></i>
+                              {periodStr}
+                              {cycle.profissionalNome && (
+                                <span style={{ marginLeft: '10px' }}>
+                                  • <i className="fa-solid fa-user-doctor" style={{ marginRight: '4px' }}></i> Prescrito por: {cycle.profissionalNome}
+                                </span>
+                              )}
+                            </div>
+
+                            {cycle.observacoes && (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--color-warning)', marginTop: '4px', fontStyle: 'italic' }}>
+                                Foco: {cycle.observacoes}
+                              </div>
+                            )}
+
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+                              {exTotal} exercício(s) prescritos no período
+                              {cycle.volumeKg ? ` • ${cycle.volumeKg.toLocaleString('pt-BR')} kg volume previsto` : ''}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setExpandedCycleId(isExp ? null : (cycle._id || String(cIdx)))}
+                            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <i className={isExp ? 'fa-solid fa-chevron-up' : 'fa-solid fa-eye'}></i>
+                            {isExp ? 'Ocultar Exercícios' : 'Ver Exercícios Deste Ciclo'}
+                          </button>
+                        </div>
+
+                        {isExp && (
+                          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                            {allSheets.map((sheet: any, sIdx: number) => {
+                              const sExs = sheet.exercicios || [];
+                              if (sExs.length === 0) return null;
+                              return (
+                                <div key={sheet.id || sIdx} style={{ marginBottom: sIdx < allSheets.length - 1 ? '20px' : 0 }}>
+                                  <h4 style={{ color: 'var(--color-primary)', fontSize: '0.90rem', marginBottom: '12px' }}>
+                                    {sheet.nome || `Ficha ${sheet.id}`} ({sExs.length} exercícios)
+                                  </h4>
+                                  {renderWorkoutCards(sExs)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </>

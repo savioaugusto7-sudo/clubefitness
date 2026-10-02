@@ -6,6 +6,15 @@ const WorkoutHistorySchema = new Schema({
   profissionalNome: { type: stringSchemaOrString(), default: '' },
   motivo: { type: String, default: 'Atualização de ficha' },
   categoriaAlterada: { type: String, default: '' }, // 'fichasMonitorado' | 'fichasLivre' | 'ambas'
+  sheetId: { type: String, default: '' },
+  sheetNome: { type: String, default: '' },
+  dataInicio: { type: String, default: '' },
+  dataFim: { type: String, default: '' },
+  diasCiclo: { type: Number, default: 0 },
+  statusCiclo: { type: String, default: 'concluido' }, // 'concluido' | 'arquivado' | 'backup' | 'renovado'
+  exerciciosCount: { type: Number, default: 0 },
+  volumeKg: { type: Number, default: 0 },
+  observacoes: { type: String, default: '' },
   snapshot: {
     fichasMonitorado: { type: Schema.Types.Mixed, default: [] },
     fichasLivre: { type: Schema.Types.Mixed, default: [] }

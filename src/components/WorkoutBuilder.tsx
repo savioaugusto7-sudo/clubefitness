@@ -216,6 +216,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
+  // 🌟 Modal de Renovação de Ciclo de Treino
+  const [showRenewCycleModal, setShowRenewCycleModal] = useState(false);
+  const [renewMode, setRenewMode] = useState<'evolucao' | 'branco'>('evolucao');
+  const [renewMotivo, setRenewMotivo] = useState('');
+  const [renewValidade, setRenewValidade] = useState<number>(30);
+  const [renewFoco, setRenewFoco] = useState('');
+  const [renewNovoNome, setRenewNovoNome] = useState('');
+  const [isRenewing, setIsRenewing] = useState(false);
 
   // 🌟 Popover / Modal de Evolução de Carga
   const [selectedProgressionItem, setSelectedProgressionItem] = useState<any | null>(null);
@@ -948,6 +958,179 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     } catch (err) {
       console.error('Erro ao excluir ficha:', err);
     }
+  };
+
+  // 🌟 Abrir modal de renovação de ciclo
+  const handleOpenRenewModal = () => {
+    setRenewNovoNome(workoutName || `Ficha ${activeTabLetter}`);
+    setRenewMotivo(`Renovação de Ciclo - ${workoutName || activeTabLetter}`);
+    setRenewFoco(workoutGoal || '');
+    setRenewValidade(workoutValidade || 30);
+    setRenewMode('evolucao');
+    setShowRenewCycleModal(true);
+  };
+
+  // 🌟 Confirmar início de novo ciclo de treino (arquivando ciclo anterior com métricas)
+  const handleConfirmRenewCycle = async () => {
+    try {
+      setIsRenewing(true);
+      const res = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: currentClientId,
+          action: 'new_cycle',
+          sheetId: activeTabLetter,
+          category: activeCategory,
+          motivo: renewMotivo,
+          mode: renewMode,
+          validadeDias: renewValidade,
+          foco: renewFoco,
+          novoNome: renewNovoNome,
+          profissionalNome: realClientName ? `Profissional` : ''
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowRenewCycleModal(false);
+        setSaveToast({ message: '✨ Novo ciclo de treino iniciado e ciclo anterior registrado no histórico!', type: 'success' });
+        setTimeout(() => setSaveToast(null), 4000);
+        await loadDataForClient(currentClientId, realClientName, false, activeSlotTime || undefined);
+      } else {
+        alert(data.error || 'Erro ao iniciar novo ciclo.');
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao renovar ciclo: ' + err.message);
+    } finally {
+      setIsRenewing(false);
+    }
+  };
+
+  // 🌟 Duplicar / Clonar ficha atual para uma nova aba
+  const handleDuplicateCurrentSheet = async () => {
+    const currentSheets = rawWorkoutDoc?.[activeCategory] || [];
+    const usedIds = new Set(currentSheets.map((s: any) => String(s.id).toUpperCase()));
+    
+    // Encontrar próxima letra disponível
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    let nextId = letters.find(l => !usedIds.has(l)) || `F${currentSheets.length + 1}`;
+    const newName = `${workoutName || `Ficha ${activeTabLetter}`} (Cópia)`;
+
+    const duplicatedSheet = {
+      id: nextId,
+      nome: newName,
+      dataCriacao: new Date().toISOString().split('T')[0],
+      ultimaAtualizacao: new Date().toISOString().split('T')[0],
+      validadeDias: workoutValidade || 30,
+      observacoesGerais: workoutGoal || '',
+      exercicios: JSON.parse(JSON.stringify(workoutItems)).map((it: any) => ({
+        ...it,
+        id: String(Date.now() + Math.random())
+      }))
+    };
+
+    const updatedSheets = [...currentSheets, duplicatedSheet];
+
+    setRawWorkoutDoc((prev: any) => ({
+      ...(prev || {}),
+      [activeCategory]: updatedSheets
+    }));
+
+    try {
+      await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: currentClientId,
+          category: activeCategory,
+          workoutData: updatedSheets,
+          [activeCategory]: updatedSheets,
+          motivo: `Duplicação da ficha ${workoutName}`
+        })
+      });
+      handleChangeSheet(nextId, activeCategory);
+      setWorkoutName(newName);
+      setSaveToast({ message: `Ficha duplicada como "${newName}"!`, type: 'success' });
+      setTimeout(() => setSaveToast(null), 3000);
+    } catch (err) {
+      console.error('Erro ao duplicar ficha:', err);
+    }
+  };
+
+  // 🌟 Arquivar ficha atual no Histórico de Ciclos (sem excluir dados)
+  const handleArchiveCurrentSheet = async () => {
+    const currentSheets = rawWorkoutDoc?.[activeCategory] || [];
+    if (currentSheets.length <= 1) {
+      alert('Não é possível arquivar a única ficha ativa do aluno. Crie outra ficha antes de arquivar esta.');
+      return;
+    }
+
+    const exCount = workoutItems.length;
+    const sheetTitle = workoutName || (`Ficha ${activeTabLetter}`);
+    const confirmMsg = `Deseja arquivar a ficha "${sheetTitle}" (${exCount} exercícios)?\n\nEla sairá das abas ativas, mas continuará 100% preservada no Histórico de Ciclos para consulta e restauração futura.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: currentClientId,
+          action: 'archive_sheet',
+          sheetId: activeTabLetter,
+          category: activeCategory,
+          motivo: `Ficha Arquivada pelo profissional: ${sheetTitle}`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaveToast({ message: `📦 Ficha "${sheetTitle}" arquivada com sucesso no histórico!`, type: 'success' });
+        setTimeout(() => setSaveToast(null), 4000);
+        await loadDataForClient(currentClientId, realClientName, false, activeSlotTime || undefined);
+      } else {
+        alert(data.error || 'Erro ao arquivar ficha.');
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao arquivar ficha: ' + err.message);
+    }
+  };
+
+  // 🌟 Importar exercícios de um ciclo histórico para a ficha atual
+  const handleImportHistoricalExercises = (snapshotSheet: any) => {
+    const exList = snapshotSheet?.exercicios || [];
+    if (exList.length === 0) {
+      alert('Este ciclo histórico não possui exercícios cadastrados.');
+      return;
+    }
+
+    const sheetNome = snapshotSheet.nome || `Ficha ${snapshotSheet.id || ''}`;
+    const confirmMsg = `Deseja importar os ${exList.length} exercícios de "${sheetNome}" para a ficha atual (${workoutName})?\n\nOs exercícios atuais da ficha serão substituídos pelos importados.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const formatted = exList.map((ex: any) => ({
+      _id: ex._id || ex.exercicioId?._id || ex.exercicioId,
+      id: String(Date.now() + Math.random()),
+      nome: typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : (ex.nome || 'Exercício'),
+      grupo: typeof ex.exercicioId === 'object' ? (ex.exercicioId?.grupo || 'Geral') : (ex.grupo || 'Geral'),
+      series: ex.series || 3,
+      reps: ex.repeticoes || ex.reps || '12',
+      carga: ex.carga || 10,
+      unidadeCarga: ex.unidadeCarga || 'kg',
+      descanso: ex.descanso || 60,
+      observacao: ex.observacao || '',
+      ritmo: ex.ritmo || '',
+      combinaGrupo: ex.combinaGrupo || '',
+      dropSet: ex.dropSet || { tipo: 'none', escopo: 'ultima_serie', drops: [] },
+      historicoCargas: ex.historicoCargas || []
+    }));
+
+    setWorkoutItems(formatted);
+    persistWorkoutData(formatted, workoutName, workoutGoal, workoutValidade, false);
+    setShowHistoryModal(false);
+    setSaveToast({ message: `✨ ${formatted.length} exercícios importados com sucesso!`, type: 'success' });
+    setTimeout(() => setSaveToast(null), 4000);
   };
 
   const muscles = ['Todos', 'Peito', 'Costas', 'Pernas', 'Ombros', 'Braços', 'Core', 'Cardio'];
@@ -2908,32 +3091,109 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
             <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '220px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
                   <label style={{ fontWeight: 700, fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
                     NOME DA FICHA
                   </label>
-                  {visibleSheets.length > 1 && (
+                  
+                  {/* 🌟 Ações Inteligentes do Ciclo da Ficha */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {/* Botão Renovar Ciclo */}
                     <button
                       type="button"
-                      onClick={handleDeleteCurrentSheet}
+                      onClick={handleOpenRenewModal}
                       style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#f87171',
-                        fontSize: '0.74rem',
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.3))',
+                        border: '1px solid #10b981',
+                        color: '#34d399',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Concluir ciclo atual, arquivar no histórico e iniciar nova periodização/evolução"
+                    >
+                      <i className="fa-solid fa-arrows-rotate"></i> Renovar Ciclo
+                    </button>
+
+                    {/* Botão Duplicar Ficha */}
+                    <button
+                      type="button"
+                      onClick={handleDuplicateCurrentSheet}
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        color: '#38bdf8',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        transition: 'all 0.15s ease'
                       }}
-                      title="Excluir esta ficha de treino do aluno"
+                      title="Clonar esta ficha para uma nova aba"
                     >
-                      <i className="fa-regular fa-trash-can"></i> Excluir Ficha
+                      <i className="fa-regular fa-copy"></i> Duplicar
                     </button>
-                  )}
+
+                    {/* Botão Arquivar Ficha */}
+                    {visibleSheets.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleArchiveCurrentSheet}
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: '#fbbf24',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title="Arquivar esta ficha no histórico (sai das abas ativas mas continua salva no histórico)"
+                      >
+                        <i className="fa-solid fa-box-archive"></i> Arquivar
+                      </button>
+                    )}
+
+                    {/* Botão Excluir (apenas secundário/rascunho) */}
+                    {visibleSheets.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteCurrentSheet}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          color: '#f87171',
+                          fontSize: '0.70rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '3px 6px',
+                          borderRadius: '6px',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title="Excluir rascunho de ficha"
+                      >
+                        <i className="fa-regular fa-trash-can"></i>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <input 
                   type="text" 
@@ -4730,6 +4990,282 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
       )}
 
+      {/* 🌟 Modal de Renovação / Conclusão de Ciclo de Treino */}
+      {showRenewCycleModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 10000000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(150deg, #131d31 0%, #0c1322 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            borderRadius: '18px',
+            padding: '24px 28px',
+            width: '100%',
+            maxWidth: '540px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(16, 185, 129, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid #10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#34d399',
+                  fontSize: '1.2rem'
+                }}>
+                  <i className="fa-solid fa-arrows-rotate"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>
+                    Renovar Ciclo de Treino
+                  </h3>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                    Concluindo ciclo de: <strong style={{ color: '#38bdf8' }}>{workoutName || `Ficha ${activeTabLetter}`}</strong>
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRenewCycleModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              fontSize: '0.78rem',
+              color: '#cbd5e1',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center'
+            }}>
+              <i className="fa-solid fa-shield-halved" style={{ color: '#10b981', fontSize: '1.1rem' }}></i>
+              <span>O ciclo atual será arquivado com segurança no <strong>Histórico de Ciclos</strong> (com métricas, volume e data), permitindo que você inicie o novo período com total clareza.</span>
+            </div>
+
+            {/* Escolha do Modo do Novo Ciclo */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>
+                Como deseja iniciar o novo ciclo?
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div
+                  onClick={() => setRenewMode('evolucao')}
+                  style={{
+                    background: renewMode === 'evolucao' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                    border: `1.5px solid ${renewMode === 'evolucao' ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
+                    borderRadius: '10px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: renewMode === 'evolucao' ? '#34d399' : '#f1f5f9', fontSize: '0.86rem' }}>
+                    <i className="fa-solid fa-arrow-trend-up"></i>
+                    Evoluir Treino
+                  </div>
+                  <small style={{ display: 'block', color: '#94a3b8', fontSize: '0.72rem', marginTop: '4px' }}>
+                    Mantém os exercícios atuais da ficha como base para ajustar cargas, séries e repetições.
+                  </small>
+                </div>
+
+                <div
+                  onClick={() => setRenewMode('branco')}
+                  style={{
+                    background: renewMode === 'branco' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                    border: `1.5px solid ${renewMode === 'branco' ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}`,
+                    borderRadius: '10px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: renewMode === 'branco' ? '#38bdf8' : '#f1f5f9', fontSize: '0.86rem' }}>
+                    <i className="fa-regular fa-file"></i>
+                    Nova Rotina (Do Zero)
+                  </div>
+                  <small style={{ display: 'block', color: '#94a3b8', fontSize: '0.72rem', marginTop: '4px' }}>
+                    Inicia a ficha em branco (sem exercícios) para prescrever uma nova divisão de treino.
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            {/* Nome da Nova Ficha / Ciclo */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
+                Nome da Ficha no Novo Ciclo:
+              </label>
+              <input
+                type="text"
+                value={renewNovoNome}
+                onChange={e => setRenewNovoNome(e.target.value)}
+                placeholder="Ex: Ficha B, Superior (Fase 2)..."
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: '#070b14',
+                  color: '#ffffff',
+                  fontSize: '0.88rem',
+                  fontWeight: 700
+                }}
+              />
+            </div>
+
+            {/* Motivo da Renovação */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
+                Motivo / Diagnóstico da Renovação:
+              </label>
+              <input
+                type="text"
+                value={renewMotivo}
+                onChange={e => setRenewMotivo(e.target.value)}
+                placeholder="Ex: Progressão de cargas, Fim do período de 30 dias..."
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: '#070b14',
+                  color: '#ffffff',
+                  fontSize: '0.84rem'
+                }}
+              />
+            </div>
+
+            {/* Foco / Observações Gerais */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
+                Foco do Novo Ciclo:
+              </label>
+              <input
+                type="text"
+                value={renewFoco}
+                onChange={e => setRenewFoco(e.target.value)}
+                placeholder="Ex: Foco em Hipertrofia Peitoral, ênfase em cadência e drop-set..."
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: '#070b14',
+                  color: '#ffffff',
+                  fontSize: '0.84rem'
+                }}
+              />
+            </div>
+
+            {/* Validade do Novo Ciclo */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                Validade do Novo Ciclo:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[15, 30, 60].map(days => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setRenewValidade(days)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: `1px solid ${renewValidade === days ? '#10b981' : 'rgba(255,255,255,0.1)'}`,
+                      background: renewValidade === days ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.03)',
+                      color: renewValidade === days ? '#34d399' : '#94a3b8',
+                      fontWeight: 800,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⏱️ {days} dias
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setShowRenewCycleModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  color: '#cbd5e1',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRenewCycle}
+                disabled={isRenewing || !renewNovoNome.trim()}
+                style={{
+                  flex: 2,
+                  padding: '11px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                  cursor: isRenewing ? 'not-allowed' : 'pointer',
+                  opacity: isRenewing ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)'
+                }}
+              >
+                {isRenewing ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i> Arquivando & Iniciando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-circle-check"></i> Concluir Anterior & Iniciar Ciclo
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 🌟 Modal de Histórico de Versões / Ciclos */}
       {showHistoryModal && (
         <div style={{
@@ -4751,8 +5287,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             border: '1px solid rgba(255, 255, 255, 0.15)',
             borderRadius: '18px',
             width: '100%',
-            maxWidth: '680px',
-            maxHeight: '85vh',
+            maxWidth: '820px',
+            maxHeight: '88vh',
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)'
@@ -4765,24 +5301,27 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               alignItems: 'center'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
+                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8', fontSize: '1.3rem' }}></i>
                 <div>
-                  <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.1rem', fontWeight: 800 }}>
-                    Histórico de Ciclos e Versões
+                  <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.15rem', fontWeight: 800 }}>
+                    Histórico de Ciclos e Prescrições
                   </h3>
                   <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
-                    {displayName} • Registro de alterações e snapshots passados
+                    {displayName} • Linha do tempo de periodizações, snapshots e fichas arquivadas
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowHistoryModal(false)}
+                onClick={() => {
+                  setShowHistoryModal(false);
+                  setExpandedHistoryId(null);
+                }}
                 style={{
                   background: 'transparent',
                   border: 'none',
                   color: '#94a3b8',
-                  fontSize: '1.3rem',
+                  fontSize: '1.4rem',
                   cursor: 'pointer'
                 }}
               >
@@ -4790,116 +5329,263 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </button>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {isLoadingHistory ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                   <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '1.8rem', color: '#38bdf8', marginBottom: '10px' }}></i>
-                  <p style={{ margin: 0, fontWeight: 700 }}>Carregando histórico de fichas...</p>
+                  <p style={{ margin: 0, fontWeight: 700 }}>Carregando histórico de ciclos...</p>
                 </div>
               ) : historyList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
                   <i className="fa-solid fa-folder-open" style={{ fontSize: '2rem', opacity: 0.4, marginBottom: '10px' }}></i>
                   <p style={{ margin: 0, fontWeight: 700, color: '#94a3b8' }}>Nenhum ciclo histórico anterior registrado para este aluno.</p>
-                  <small style={{ color: '#475569' }}>Novos snapshots são gerados automaticamente a cada atualização de ciclo.</small>
+                  <small style={{ color: '#475569' }}>Novos snapshots são gerados automaticamente a cada renovação de ciclo ou atualização.</small>
                 </div>
               ) : (
                 historyList.map((entry, idx) => {
                   const entryDate = entry.createdAt ? new Date(entry.createdAt).toLocaleString('pt-BR') : 'Data não registrada';
                   const monSheets = entry.snapshot?.fichasMonitorado || [];
                   const livSheets = entry.snapshot?.fichasLivre || [];
-                  const totalExercises = [...monSheets, ...livSheets].reduce((acc: number, s: any) => acc + (s.exercicios?.length || 0), 0);
+                  const allSnapshotSheets = [...monSheets, ...livSheets];
+                  const totalExercises = allSnapshotSheets.reduce((acc: number, s: any) => acc + (s.exercicios?.length || 0), 0);
+                  const isExpanded = expandedHistoryId === (entry._id || String(idx));
+                  const isArquivado = entry.statusCiclo === 'arquivado';
+                  const isConcluido = entry.statusCiclo === 'concluido';
 
                   return (
                     <div
                       key={entry._id || idx}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'rgba(255, 255, 255, 0.025)',
+                        border: isExpanded ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.07)',
                         borderRadius: '12px',
-                        padding: '14px 18px',
+                        padding: '16px',
                         display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '14px',
-                        flexWrap: 'wrap'
+                        flexDirection: 'column',
+                        gap: '12px',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{
-                            background: 'rgba(56, 189, 248, 0.15)',
-                            color: '#38bdf8',
-                            fontSize: '0.72rem',
-                            fontWeight: 800,
-                            padding: '2px 8px',
-                            borderRadius: '6px'
-                          }}>
-                            Versão #{historyList.length - idx}
-                          </span>
-                          <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f1f5f9' }}>
-                            {entry.motivo || 'Atualização de ficha'}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '4px' }}>
-                          <i className="fa-regular fa-clock" style={{ marginRight: '5px' }}></i>
-                          {entryDate}
-                          {entry.profissionalNome && (
-                            <span style={{ marginLeft: '8px', color: '#cbd5e1' }}>
-                              • <i className="fa-solid fa-user-doctor" style={{ marginRight: '4px' }}></i> {entry.profissionalNome}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        flexWrap: 'wrap'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              background: isArquivado 
+                                ? 'rgba(245, 158, 11, 0.15)' 
+                                : isConcluido 
+                                ? 'rgba(16, 185, 129, 0.15)' 
+                                : 'rgba(56, 189, 248, 0.15)',
+                              color: isArquivado ? '#fbbf24' : isConcluido ? '#34d399' : '#38bdf8',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <i className={isArquivado ? 'fa-solid fa-box-archive' : isConcluido ? 'fa-solid fa-circle-check' : 'fa-solid fa-history'}></i>
+                              {isArquivado ? 'Ficha Arquivada' : isConcluido ? 'Ciclo Concluído' : `Versão #${historyList.length - idx}`}
                             </span>
+
+                            <span style={{ fontSize: '0.90rem', fontWeight: 800, color: '#f8fafc' }}>
+                              {entry.sheetNome || entry.motivo || 'Atualização de Ficha'}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span>
+                              <i className="fa-regular fa-clock" style={{ marginRight: '4px' }}></i>
+                              {entry.dataInicio && entry.dataFim ? (
+                                <strong style={{ color: '#cbd5e1' }}>
+                                  {entry.dataInicio.split('-').reverse().join('/')} até {entry.dataFim.split('-').reverse().join('/')}
+                                  {entry.diasCiclo ? ` (${entry.diasCiclo} dias)` : ''}
+                                </strong>
+                              ) : entryDate}
+                            </span>
+                            {entry.profissionalNome && (
+                              <span style={{ color: '#cbd5e1' }}>
+                                • <i className="fa-solid fa-user-doctor" style={{ marginRight: '4px' }}></i> {entry.profissionalNome}
+                              </span>
+                            )}
+                          </div>
+
+                          {entry.observacoes && (
+                            <div style={{ fontSize: '0.76rem', color: '#fbbf24', marginTop: '4px', fontStyle: 'italic' }}>
+                              Foco do ciclo: {entry.observacoes}
+                            </div>
                           )}
+
+                          <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
+                            Conteúdo: {monSheets.length} monitorada(s), {livSheets.length} livre(s) • {entry.exerciciosCount || totalExercises} exercício(s)
+                            {entry.volumeKg ? ` • ${entry.volumeKg.toLocaleString('pt-BR')} kg volume previsto` : ''}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
-                          Conteúdo: {monSheets.length} ficha(s) monitoradas, {livSheets.length} ficha(s) livres • {totalExercises} exercícios no snapshot
+
+                        {/* Botões de Ação do Ciclo Histórico */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedHistoryId(isExpanded ? null : (entry._id || String(idx)))}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '7px',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
+                              background: isExpanded ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                              color: isExpanded ? '#38bdf8' : '#cbd5e1',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            <i className={isExpanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-eye'}></i>
+                            <span>{isExpanded ? 'Ocultar Exercícios' : 'Ver Exercícios'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirmRestore = window.confirm(`Deseja restaurar este ciclo histórico como a ficha ativa do aluno? A versão atual será arquivada.`);
+                              if (!confirmRestore) return;
+
+                              try {
+                                const res = await fetch('/api/workouts', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    clientId: currentClientId,
+                                    action: 'restore',
+                                    historyId: entry._id,
+                                    profissionalNome: realClientName ? `Restauração: ${displayName}` : ''
+                                  })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  alert('✨ Ficha restaurada com sucesso!');
+                                  setShowHistoryModal(false);
+                                  await loadDataForClient(currentClientId, realClientName, false, activeSlotTime || undefined);
+                                } else {
+                                  alert(data.error || 'Erro ao restaurar versão.');
+                                }
+                              } catch (err: any) {
+                                alert('Erro ao restaurar: ' + err.message);
+                              }
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '7px',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              color: '#38bdf8',
+                              fontSize: '0.75rem',
+                              fontWeight: 750,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                            title="Restaurar este snapshot como treino ativo"
+                          >
+                            <i className="fa-solid fa-arrow-rotate-left"></i>
+                            <span>Restaurar</span>
+                          </button>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const confirmRestore = window.confirm(`Deseja restaurar a Versão #${historyList.length - idx} (${entryDate}) como a ficha ativa do aluno? As alterações atuais serão arquivadas.`);
-                          if (!confirmRestore) return;
+                      {/* Tabela de Exercícios Expandida */}
+                      {isExpanded && (
+                        <div style={{
+                          background: 'rgba(0, 0, 0, 0.35)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          marginTop: '6px'
+                        }}>
+                          {allSnapshotSheets.map((sheet: any, sIdx: number) => {
+                            const sheetExs = sheet.exercicios || [];
+                            if (sheetExs.length === 0) return null;
 
-                          try {
-                            const res = await fetch('/api/workouts', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                clientId: currentClientId,
-                                action: 'restore',
-                                historyId: entry._id,
-                                profissionalNome: realClientName ? `Restauração: ${displayName}` : ''
-                              })
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                              alert('✨ Ficha de treino restaurada com sucesso!');
-                              setShowHistoryModal(false);
-                              await loadDataForClient(currentClientId, realClientName, false, activeSlotTime || undefined);
-                            } else {
-                              alert(data.error || 'Erro ao restaurar versão.');
-                            }
-                          } catch (err: any) {
-                            alert('Erro de conexão ao restaurar: ' + err.message);
-                          }
-                        }}
-                        style={{
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(56, 189, 248, 0.4)',
-                          background: 'rgba(56, 189, 248, 0.12)',
-                          color: '#38bdf8',
-                          fontSize: '0.78rem',
-                          fontWeight: 750,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <i className="fa-solid fa-arrow-rotate-left"></i>
-                        <span>Restaurar esta Versão</span>
-                      </button>
+                            return (
+                              <div key={sheet.id || sIdx} style={{ marginBottom: sIdx < allSnapshotSheets.length - 1 ? '16px' : 0 }}>
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginBottom: '8px',
+                                  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                                  paddingBottom: '4px'
+                                }}>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
+                                    📋 {sheet.nome || `Ficha ${sheet.id}`} ({sheetExs.length} exercícios)
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleImportHistoricalExercises(sheet)}
+                                    style={{
+                                      padding: '4px 10px',
+                                      borderRadius: '6px',
+                                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                                      background: 'rgba(16, 185, 129, 0.12)',
+                                      color: '#34d399',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                    title="Importar estes exercícios para a ficha ativa atual"
+                                  >
+                                    <i className="fa-solid fa-file-import"></i>
+                                    Importar para Ficha Atual
+                                  </button>
+                                </div>
+
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
+                                    <thead>
+                                      <tr style={{ color: '#94a3b8', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'left' }}>
+                                        <th style={{ padding: '6px 8px' }}>Exercício</th>
+                                        <th style={{ padding: '6px 8px' }}>Grupo</th>
+                                        <th style={{ padding: '6px 8px' }}>Séries</th>
+                                        <th style={{ padding: '6px 8px' }}>Reps</th>
+                                        <th style={{ padding: '6px 8px' }}>Carga</th>
+                                        <th style={{ padding: '6px 8px' }}>Descanso</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {sheetExs.map((ex: any, eIdx: number) => {
+                                        const nome = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : (ex.nome || 'Exercício');
+                                        const grupo = typeof ex.exercicioId === 'object' ? (ex.exercicioId?.grupo || 'Geral') : (ex.grupo || 'Geral');
+                                        return (
+                                          <tr key={ex._id || eIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', color: '#e2e8f0' }}>
+                                            <td style={{ padding: '6px 8px', fontWeight: 700 }}>{nome}</td>
+                                            <td style={{ padding: '6px 8px', color: '#94a3b8' }}>{grupo}</td>
+                                            <td style={{ padding: '6px 8px' }}>{ex.series || 3}</td>
+                                            <td style={{ padding: '6px 8px' }}>{ex.repeticoes || ex.reps || '12'}</td>
+                                            <td style={{ padding: '6px 8px', color: '#10b981', fontWeight: 700 }}>{ex.carga || '-'}{ex.unidadeCarga || 'kg'}</td>
+                                            <td style={{ padding: '6px 8px' }}>{ex.descanso ? `${ex.descanso}s` : '60s'}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })

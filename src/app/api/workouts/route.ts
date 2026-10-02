@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     if (includeHistory) {
       const history = await WorkoutHistory.find({ clienteId: clientId })
         .sort({ createdAt: -1 })
-        .limit(20)
+        .limit(50)
         .lean();
       return NextResponse.json({ success: true, data: history });
     }
@@ -106,6 +106,138 @@ export async function POST(request: Request) {
         message: 'Ficha de treino restaurada com sucesso!',
         data: restoredWorkout
       });
+    }
+
+    // Caso de RENOVAÇÃO / NOVO CICLO DE TREINO
+    if (action === 'new_cycle') {
+      const currentDoc = await ClientWorkout.findOne({ clienteId: clientId });
+      if (!currentDoc) {
+        return NextResponse.json({ success: false, error: 'Documento de treino não encontrado.' }, { status: 404 });
+      }
+
+      const catKey: 'fichasLivre' | 'fichasMonitorado' = category === 'fichasLivre' ? 'fichasLivre' : 'fichasMonitorado';
+      const catSheets = Array.isArray(currentDoc[catKey]) ? [...currentDoc[catKey]] : [];
+      const sIdx = catSheets.findIndex((s: any) => String(s.id).toUpperCase() === String(body.sheetId).toUpperCase());
+      
+      const targetSheet = sIdx !== -1 ? catSheets[sIdx] : null;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      if (targetSheet) {
+        // Calcular métricas do ciclo que está sendo concluído
+        let totalVolume = 0;
+        (targetSheet.exercicios || []).forEach((ex: any) => {
+          const c = parseFloat(String(ex.carga).replace(/[^\d.-]/g, '')) || 0;
+          const s = Number(ex.series) || 3;
+          const r = parseFloat(String(ex.repeticoes).replace(/[^\d.-]/g, '')) || 10;
+          totalVolume += (c * s * r);
+        });
+
+        let diasCiclo = 0;
+        if (targetSheet.dataInicio) {
+          const d1 = new Date(targetSheet.dataInicio + 'T12:00:00');
+          const d2 = new Date(todayStr + 'T12:00:00');
+          diasCiclo = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+        }
+
+        // Registrar no Histórico de Ciclos
+        await WorkoutHistory.create({
+          clienteId: clientId,
+          profissionalId,
+          profissionalNome: profissionalNome || '',
+          motivo: body.motivo || `Conclusão e Renovação de Ciclo (${targetSheet.nome || targetSheet.id})`,
+          categoriaAlterada: catKey,
+          sheetId: targetSheet.id,
+          sheetNome: targetSheet.nome || `Ficha ${targetSheet.id}`,
+          dataInicio: targetSheet.dataInicio || '',
+          dataFim: todayStr,
+          diasCiclo,
+          statusCiclo: 'concluido',
+          exerciciosCount: targetSheet.exercicios?.length || 0,
+          volumeKg: Math.round(totalVolume),
+          observacoes: targetSheet.observacoesGerais || '',
+          snapshot: {
+            fichasMonitorado: currentDoc.fichasMonitorado || [],
+            fichasLivre: currentDoc.fichasLivre || []
+          }
+        });
+
+        // Configurar nova vigência
+        const newValidity = Number(body.validadeDias) || targetSheet.validadeDias || 30;
+        const expDate = new Date(todayStr + 'T12:00:00');
+        expDate.setDate(expDate.getDate() + newValidity);
+        const dataExpiracao = expDate.toISOString().split('T')[0];
+
+        // Se modo for 'branco', zera os exercícios; se 'evolucao', mantém exercícios
+        const newExercicios = body.mode === 'branco' ? [] : (body.exercicios || targetSheet.exercicios || []);
+
+        catSheets[sIdx] = {
+          ...(targetSheet._doc ? targetSheet._doc : targetSheet),
+          nome: body.novoNome || targetSheet.nome || `Ficha ${targetSheet.id}`,
+          dataInicio: todayStr,
+          dataExpiracao,
+          validadeDias: newValidity,
+          ultimaAtualizacao: todayStr,
+          observacoesGerais: body.foco !== undefined ? body.foco : targetSheet.observacoesGerais,
+          exercicios: newExercicios
+        };
+
+        currentDoc[catKey] = catSheets;
+        await currentDoc.save();
+
+        return NextResponse.json({
+          success: true,
+          message: 'Novo ciclo iniciado e ciclo anterior registrado no histórico!',
+          data: currentDoc
+        });
+      }
+    }
+
+    // Caso de ARQUIVAMENTO de Ficha no Histórico
+    if (action === 'archive_sheet') {
+      const currentDoc = await ClientWorkout.findOne({ clienteId: clientId });
+      if (!currentDoc) {
+        return NextResponse.json({ success: false, error: 'Documento não encontrado.' }, { status: 404 });
+      }
+
+      const catKey: 'fichasLivre' | 'fichasMonitorado' = category === 'fichasLivre' ? 'fichasLivre' : 'fichasMonitorado';
+      const catSheets = Array.isArray(currentDoc[catKey]) ? [...currentDoc[catKey]] : [];
+      const sIdx = catSheets.findIndex((s: any) => String(s.id).toUpperCase() === String(body.sheetId).toUpperCase());
+
+      if (sIdx !== -1) {
+        const targetSheet = catSheets[sIdx];
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // Grava no histórico como arquivado
+        await WorkoutHistory.create({
+          clienteId: clientId,
+          profissionalId,
+          profissionalNome: profissionalNome || '',
+          motivo: body.motivo || `Ficha Arquivada (${targetSheet.nome || targetSheet.id})`,
+          categoriaAlterada: catKey,
+          sheetId: targetSheet.id,
+          sheetNome: targetSheet.nome || `Ficha ${targetSheet.id}`,
+          dataInicio: targetSheet.dataInicio || '',
+          dataFim: todayStr,
+          statusCiclo: 'arquivado',
+          exerciciosCount: targetSheet.exercicios?.length || 0,
+          observacoes: targetSheet.observacoesGerais || '',
+          snapshot: {
+            fichasMonitorado: currentDoc.fichasMonitorado || [],
+            fichasLivre: currentDoc.fichasLivre || []
+          }
+        });
+
+        // Remove das abas ativas
+        catSheets.splice(sIdx, 1);
+        currentDoc[catKey] = catSheets;
+        await currentDoc.save();
+
+        return NextResponse.json({
+          success: true,
+          message: 'Ficha arquivada no histórico com sucesso!',
+          data: currentDoc
+        });
+      }
     }
 
     let updateQuery: any = {};

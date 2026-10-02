@@ -601,6 +601,27 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [loadingWorkoutHistory, setLoadingWorkoutHistory] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<any | null>(null);
 
+  // Ciclos históricos no prontuário do aluno
+  const [detailClientCycles, setDetailClientCycles] = useState<any[]>([]);
+  const [loadingDetailClientCycles, setLoadingDetailClientCycles] = useState(false);
+
+  useEffect(() => {
+    if (showClientDetailModal && detailClient?._id) {
+      setLoadingDetailClientCycles(true);
+      fetch(`/api/workouts?clientId=${detailClient._id}&history=true`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.success && Array.isArray(data.data)) {
+            setDetailClientCycles(data.data);
+          } else {
+            setDetailClientCycles([]);
+          }
+        })
+        .catch(() => setDetailClientCycles([]))
+        .finally(() => setLoadingDetailClientCycles(false));
+    }
+  }, [showClientDetailModal, detailClient?._id]);
+
   // Fila dinâmica de alunos pendentes de prescrição de treino
   const filaPendentes = useMemo(() => {
     return clients.filter(c => {
@@ -17502,6 +17523,64 @@ goniometria: {
                     })()}
                   </tbody>
                 </table>
+              </div>
+
+              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-clock-rotate-left"></i> Ciclos & Histórico de Treinos do Aluno
+              </h4>
+              <div className="table-responsive" style={{ marginBottom: '24px' }}>
+                {loadingDetailClientCycles ? (
+                  <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Carregando histórico de ciclos...
+                  </div>
+                ) : detailClientCycles.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-dim)', fontSize: '0.84rem' }}>
+                    Nenhum ciclo histórico anterior registrado para este aluno.
+                  </div>
+                ) : (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Status / Ciclo</th>
+                        <th>Ficha</th>
+                        <th>Período</th>
+                        <th>Profissional</th>
+                        <th>Conteúdo</th>
+                        <th>Foco / Observações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailClientCycles.map((cy: any, cIdx: number) => {
+                        const isArq = cy.statusCiclo === 'arquivado';
+                        const isConc = cy.statusCiclo === 'concluido';
+                        const periodStr = cy.dataInicio && cy.dataFim
+                          ? `${cy.dataInicio.split('-').reverse().join('/')} a ${cy.dataFim.split('-').reverse().join('/')} (${cy.diasCiclo || 0}d)`
+                          : (cy.createdAt ? new Date(cy.createdAt).toLocaleDateString('pt-BR') : '-');
+
+                        return (
+                          <tr key={cy._id || cIdx}>
+                            <td data-label="Status">
+                              <span className={`badge ${isArq ? 'badge-warning' : isConc ? 'badge-success' : 'badge-info'}`}>
+                                {isArq ? 'Arquivada' : isConc ? 'Ciclo Concluído' : 'Snapshot'}
+                              </span>
+                            </td>
+                            <td data-label="Ficha" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                              {cy.sheetNome || cy.motivo || 'Ficha de Treino'}
+                            </td>
+                            <td data-label="Período">{periodStr}</td>
+                            <td data-label="Profissional">{cy.profissionalNome || '-'}</td>
+                            <td data-label="Conteúdo">
+                              {cy.exerciciosCount || 0} exercícios {cy.volumeKg ? `• ${cy.volumeKg.toLocaleString('pt-BR')}kg` : ''}
+                            </td>
+                            <td data-label="Foco" style={{ fontStyle: 'italic', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                              {cy.observacoes || cy.motivo || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
             <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
