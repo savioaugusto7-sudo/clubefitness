@@ -2191,7 +2191,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       {isMobile ? (
         <>
           <div 
-            className="workout-builder-header"
+            className="workout-builder-header-mobile"
             style={{
               background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
               padding: '8px 12px',
@@ -3180,12 +3180,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   }}
                   style={{
                     flex: isMobile ? 1 : 'none',
-                    padding: '6px 12px',
+                    padding: isMobile ? '6px 8px' : '6px 12px',
                     borderRadius: '6px',
                     border: 'none',
                     background: activeCategory === 'fichasMonitorado' ? '#10b981' : 'transparent',
                     color: activeCategory === 'fichasMonitorado' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.78rem',
+                    fontSize: isMobile ? '0.74rem' : '0.78rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -3205,12 +3205,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   }}
                   style={{
                     flex: isMobile ? 1 : 'none',
-                    padding: '6px 12px',
+                    padding: isMobile ? '6px 8px' : '6px 12px',
                     borderRadius: '6px',
                     border: 'none',
                     background: activeCategory === 'fichasLivre' ? '#38bdf8' : 'transparent',
                     color: activeCategory === 'fichasLivre' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.78rem',
+                    fontSize: isMobile ? '0.74rem' : '0.78rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -4183,9 +4183,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </div>
 
               {/* Container de Rolagem Horizontal Seguro da Tabela Desktop */}
-              <div style={{ width: '100%', overflowX: 'auto' }}>
-                <div style={{ minWidth: '790px' }}>
-                  {workoutItems.length > 0 && !isLoading && (
+              <div style={{ width: '100%', overflowX: isMobile ? 'visible' : 'auto' }}>
+                <div style={{ minWidth: isMobile ? '100%' : '790px', width: '100%', boxSizing: 'border-box' }}>
+                  {workoutItems.length > 0 && !isLoading && !isMobile && (
                     <div 
                       className="workout-table-header"
                       style={{
@@ -4215,7 +4215,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     </div>
                   )}
 
-                  <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ padding: isMobile ? '8px 2px' : '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {isLoading ? (
                       <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                         <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '16px', display: 'block' }}></i>
