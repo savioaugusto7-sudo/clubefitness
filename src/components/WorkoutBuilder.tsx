@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FastTextarea } from './FastFormField';
 import WellnessModal from './WellnessModal';
+import WorkoutEvolutionModal from './WorkoutEvolutionModal';
 import { calculateWellness } from '@/utils/wellnessHelper';
 
 const normalizeText = (str: string) => {
@@ -229,6 +230,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
   // 🌟 Popover / Modal de Evolução de Carga
   const [selectedProgressionItem, setSelectedProgressionItem] = useState<any | null>(null);
+  const [showEvolutionModal, setShowEvolutionModal] = useState(false);
 
   // 🌟 Modo Mobile (Ficha de Treino vs Banco de Exercícios)
   const [mobileTab, setMobileTab] = useState<'ficha' | 'exercicios'>('ficha');
@@ -2097,6 +2099,28 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
             <button
               type="button"
+              onClick={() => setShowEvolutionModal(true)}
+              style={{
+                height: '36px',
+                padding: '0 10px',
+                borderRadius: '8px',
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#34d399',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              title="Painel de Evolução de Cargas & Sobrecarga Progressiva"
+            >
+              <i className="fa-solid fa-chart-line"></i>
+              <span>Evolução</span>
+            </button>
+            <button
+              type="button"
               onClick={handleOpenHistory}
               style={{
                 width: '36px',
@@ -2261,6 +2285,31 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>{metrics.totalExercicios} ex • {metrics.totalSeries} séries</div>
             </div>
           </div>
+
+          {/* 🌟 Botão Evolução de Cargas */}
+          <button
+            type="button"
+            onClick={() => setShowEvolutionModal(true)}
+            style={{
+              padding: '9px 16px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.25) 100%)',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              color: '#34d399',
+              fontWeight: 800,
+              fontSize: '0.84rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+            }}
+            title="Abrir Painel de Sobrecarga Progressiva e Evolução de Cargas"
+          >
+            <i className="fa-solid fa-chart-line" style={{ color: '#10b981' }}></i>
+            <span>Evolução de Cargas</span>
+          </button>
 
           {/* 🌟 Botão Histórico de Ciclos */}
           <button
@@ -5347,22 +5396,47 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowHistoryModal(false);
-                  setExpandedHistoryId(null);
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '1.4rem',
-                  cursor: 'pointer'
-                }}
-              >
-                &times;
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEvolutionModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                    transition: 'all 0.2s'
+                  }}
+                  title="Abrir Painel de Sobrecarga Progressiva e Evolução de Cargas"
+                >
+                  <i className="fa-solid fa-chart-line"></i>
+                  <span>Painel de Evolução de Cargas</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowHistoryModal(false);
+                    setExpandedHistoryId(null);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '1.4rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -5810,6 +5884,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           appointment={activeAppointment}
           clientWorkout={rawWorkoutDoc}
           onConfirm={handleConfirmWellness}
+        />
+      )}
+
+      {/* 🌟 Modal Premium de Evolução de Cargas & Sobrecarga Progressiva */}
+      {showEvolutionModal && (
+        <WorkoutEvolutionModal
+          clientId={currentClientId}
+          clientName={displayName || realClientName || 'Aluno'}
+          onClose={() => setShowEvolutionModal(false)}
         />
       )}
 

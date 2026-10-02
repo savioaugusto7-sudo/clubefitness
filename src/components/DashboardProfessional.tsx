@@ -25,6 +25,7 @@ import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
 import RegistroPontoPanel from './RegistroPontoPanel';
 import PerfilSegurancaProfissionalPanel from './PerfilSegurancaProfissionalPanel';
+import WorkoutEvolutionModal from './WorkoutEvolutionModal';
 import { FastTextarea, FastInput } from './FastFormField';
 import AssessmentCompareSelectorModal, { PreviousAssessmentOption } from './AssessmentCompareSelectorModal';
 import ComparisonPill, { ComparisonActiveBar } from './ComparisonPill';
@@ -662,6 +663,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Workout Builder
   const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
   const [builderClient, setBuilderClient] = useState<any>(null);
+  const [evolutionModalClient, setEvolutionModalClient] = useState<any | null>(null);
 
   // Abertura da Ficha de Treino em Nova Aba com Título Personalizado na rota dedicada
   const handleOpenWorkoutInNewTab = (clientOrId: any, fichaId?: string, categoria?: string, horario?: string) => {
@@ -8231,6 +8233,36 @@ goniometria: {
                                     >
                                       <i className="fa-solid fa-book-open"></i> {hasWorkout ? 'Abrir Ficha de Treino' : 'Criar Ficha de Treino'}
                                     </button>
+
+                                    {hasWorkout && (
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEvolutionModalClient(c);
+                                        }}
+                                        style={{ 
+                                          width: '100%',
+                                          marginTop: '8px',
+                                          display: 'flex', 
+                                          alignItems: 'center', 
+                                          justifyContent: 'center', 
+                                          gap: '8px', 
+                                          padding: '9px 14px', 
+                                          fontWeight: 750, 
+                                          borderRadius: '8px', 
+                                          fontSize: '0.84rem', 
+                                          cursor: 'pointer',
+                                          background: 'rgba(16, 185, 129, 0.1)',
+                                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                                          color: '#34d399',
+                                          transition: 'all 0.2s ease'
+                                        }}
+                                        title="Ver análise inteligente de evolução de cargas e força"
+                                      >
+                                        <i className="fa-solid fa-chart-line"></i> Evolução de Cargas
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -17732,6 +17764,15 @@ goniometria: {
           }}
           clientId={builderClient._id}
           clientName={builderClient.dadosPessoais?.nome || 'Aluno'}
+        />
+      )}
+
+      {/* 10.1 Modal de Evolução de Cargas & Força */}
+      {evolutionModalClient && (
+        <WorkoutEvolutionModal
+          clientId={evolutionModalClient._id}
+          clientName={evolutionModalClient.dadosPessoais?.nome || evolutionModalClient.nome || 'Aluno'}
+          onClose={() => setEvolutionModalClient(null)}
         />
       )}
 
