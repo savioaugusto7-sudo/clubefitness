@@ -3797,13 +3797,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
               {/* Container de Rolagem Horizontal Seguro da Tabela Desktop */}
               <div style={{ width: '100%', overflowX: 'auto' }}>
-                <div style={{ minWidth: '780px' }}>
+                <div style={{ minWidth: '790px' }}>
                   {workoutItems.length > 0 && !isLoading && (
                     <div 
                       className="workout-table-header"
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'minmax(140px, 1.6fr) 42px 48px 80px 116px 44px 58px 36px 70px 80px',
+                        gridTemplateColumns: 'minmax(140px, 1.6fr) 40px 44px 80px 130px 44px 58px 36px 70px 80px',
                         gap: '4px',
                         padding: '10px 24px',
                         background: 'rgba(0, 0, 0, 0.25)',
@@ -4211,7 +4211,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             className="workout-exercise-row-desktop"
                             style={{
                               display: 'grid',
-                              gridTemplateColumns: 'minmax(140px, 1.6fr) 42px 48px 80px 116px 44px 58px 36px 70px 80px',
+                              gridTemplateColumns: 'minmax(140px, 1.6fr) 40px 44px 80px 130px 44px 58px 36px 70px 80px',
                               gap: '4px',
                               alignItems: 'center'
                             }}
@@ -4357,16 +4357,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               placeholder="—"
                               style={{
-                                width: '38px',
+                                width: '50px',
                                 height: '34px',
                                 textAlign: 'center',
-                                padding: '0 1px',
+                                padding: '0 4px',
                                 background: '#070b14',
                                 border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
                                 color: hasDrop ? '#f59e0b' : '#10b981',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.80rem'
+                                fontSize: '0.84rem'
                               }}
                             />
                             <WorkoutUnitPicker
