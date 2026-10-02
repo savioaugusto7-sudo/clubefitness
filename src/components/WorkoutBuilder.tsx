@@ -3142,6 +3142,162 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   <i className="fa-solid fa-plus"></i>
                   <span>Ficha</span>
                 </button>
+
+                {/* Separador vertical sutil */}
+                <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.12)', margin: '0 4px', flexShrink: 0 }} />
+
+                {/* 🌟 Ações da Ficha Ativa (Barra Unificada, Neutra e Altamente Legível) */}
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  padding: '2px',
+                  flexShrink: 0
+                }}>
+                  {/* Botão Renovar Ciclo */}
+                  <button
+                    type="button"
+                    onClick={handleOpenRenewModal}
+                    style={{
+                      height: '26px',
+                      padding: '0 8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#f1f5f9',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      borderRadius: '6px',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    }}
+                    title="Concluir ciclo atual, arquivar no histórico e iniciar nova periodização/evolução"
+                  >
+                    <i className="fa-solid fa-arrows-rotate" style={{ color: '#38bdf8', fontSize: '0.70rem' }}></i>
+                    <span>Renovar Ciclo</span>
+                  </button>
+
+                  {/* Botão Duplicar Ficha */}
+                  <button
+                    type="button"
+                    onClick={handleDuplicateCurrentSheet}
+                    style={{
+                      height: '26px',
+                      padding: '0 8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#f1f5f9',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      borderRadius: '6px',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    }}
+                    title="Clonar esta ficha para uma nova aba"
+                  >
+                    <i className="fa-regular fa-copy" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
+                    <span>Duplicar</span>
+                  </button>
+
+                  {/* Botão Arquivar Ficha */}
+                  {visibleSheets.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleArchiveCurrentSheet}
+                      style={{
+                        height: '26px',
+                        padding: '0 8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#f1f5f9',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        borderRadius: '6px',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                      }}
+                      title="Arquivar esta ficha no histórico (sai das abas ativas mas continua salva no histórico)"
+                    >
+                      <i className="fa-solid fa-box-archive" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
+                      <span>Arquivar</span>
+                    </button>
+                  )}
+
+                  {/* Botão Excluir (apenas secundário/rascunho) */}
+                  {visibleSheets.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCurrentSheet}
+                      style={{
+                        height: '26px',
+                        padding: '0 7px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        color: '#94a3b8',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '6px',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+                        e.currentTarget.style.color = '#f87171';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.color = '#94a3b8';
+                      }}
+                      title="Excluir rascunho de ficha"
+                    >
+                      <i className="fa-regular fa-trash-can" style={{ fontSize: '0.70rem' }}></i>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -3264,164 +3420,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               marginBottom: '20px',
               alignItems: 'start'
             }}>
-              {/* Coluna 1: Nome da Ficha e Ações */}
+              {/* Coluna 1: Nome da Ficha */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
                   <label style={{ fontWeight: 800, fontSize: '0.78rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     NOME DA FICHA
                   </label>
-                  
-                  {/* 🌟 Ações do Ciclo da Ficha (Barra Unificada, Neutra e Altamente Legível) */}
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
-                    padding: '2px'
-                  }}>
-                    {/* Botão Renovar Ciclo */}
-                    <button
-                      type="button"
-                      onClick={handleOpenRenewModal}
-                      style={{
-                        height: '26px',
-                        padding: '0 8px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#f1f5f9',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        borderRadius: '6px',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                      }}
-                      title="Concluir ciclo atual, arquivar no histórico e iniciar nova periodização/evolução"
-                    >
-                      <i className="fa-solid fa-arrows-rotate" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
-                      <span>Renovar Ciclo</span>
-                    </button>
-
-                    {/* Botão Duplicar Ficha */}
-                    <button
-                      type="button"
-                      onClick={handleDuplicateCurrentSheet}
-                      style={{
-                        height: '26px',
-                        padding: '0 8px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#f1f5f9',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        borderRadius: '6px',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                      }}
-                      title="Clonar esta ficha para uma nova aba"
-                    >
-                      <i className="fa-regular fa-copy" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
-                      <span>Duplicar</span>
-                    </button>
-
-                    {/* Botão Arquivar Ficha */}
-                    {visibleSheets.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={handleArchiveCurrentSheet}
-                        style={{
-                          height: '26px',
-                          padding: '0 8px',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          color: '#f1f5f9',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          borderRadius: '6px',
-                          whiteSpace: 'nowrap',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                        }}
-                        title="Arquivar esta ficha no histórico (sai das abas ativas mas continua salva no histórico)"
-                      >
-                        <i className="fa-solid fa-box-archive" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
-                        <span>Arquivar</span>
-                      </button>
-                    )}
-
-                    {/* Botão Excluir (apenas secundário/rascunho) */}
-                    {visibleSheets.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={handleDeleteCurrentSheet}
-                        style={{
-                          height: '26px',
-                          padding: '0 7px',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          color: '#94a3b8',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: '6px',
-                          whiteSpace: 'nowrap',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
-                          e.currentTarget.style.color = '#f87171';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                          e.currentTarget.style.color = '#94a3b8';
-                        }}
-                        title="Excluir rascunho de ficha"
-                      >
-                        <i className="fa-regular fa-trash-can" style={{ fontSize: '0.70rem' }}></i>
-                      </button>
-                    )}
-                  </div>
+                  <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Identificação da ficha</span>
                 </div>
 
                 <input 
