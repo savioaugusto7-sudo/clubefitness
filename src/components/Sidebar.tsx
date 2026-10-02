@@ -23,6 +23,7 @@ interface SidebarProps {
   userCargo?: string;
   activeRoles?: string[];
   onChangeRole?: (newRole: 'admin' | 'receptionist' | 'professional' | 'client') => void;
+  hasAnnualContract?: boolean;
 }
 
 const categoryConfigs: Record<string, SidebarCategory[]> = {
@@ -212,14 +213,23 @@ const bottomNavConfigs: Record<string, TabConfig[]> = {
   ]
 };
 
-export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo, activeRoles, onChangeRole }: SidebarProps) {
+export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo, activeRoles, onChangeRole, hasAnnualContract }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [pendingExercisesCount, setPendingExercisesCount] = useState<number>(0);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  const categories = categoryConfigs[role] || [];
+  const categories = React.useMemo(() => {
+    let base = categoryConfigs[role] || [];
+    if (role === 'client' && hasAnnualContract === false) {
+      base = base.map(cat => ({
+        ...cat,
+        tabs: cat.tabs.filter(t => t.id !== 'trancamento')
+      }));
+    }
+    return base;
+  }, [role, hasAnnualContract]);
   const allTabs = categories.flatMap(c => c.tabs);
 
   // Consultar contagem de exercícios pendentes para alerta visual na sidebar

@@ -1221,7 +1221,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         );
       }
 
-      if (forceAll || activeTab === 'gestao_contratos' || activeTab === 'contratos') {
+      if (forceAll || activeTab === 'gestao_contratos' || activeTab === 'contratos' || activeTab === 'trancamentos_admin' || activeTab === 'trancamentos') {
         promises.push(
           safeFetchJson('/api/contracts').then(res => { if (res?.success && Array.isArray(res.data)) setContractsAdminList(res.data); })
         );
@@ -6186,8 +6186,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           }
         });
 
-        // Active contracts list
-        const activeContracts = contractsAdminList.filter((c: any) => c.status === 'assinado');
+        // Helper: Somente Plano Anual permite trancamento
+        const isContractAnual = (c: any) => {
+          return Number(c.vigenciaMeses) === 12 || 
+            (c.planoTipo || '').toLowerCase().includes('anual') || 
+            (c.planoNome || '').toLowerCase().includes('anual') ||
+            (c.duracao || '').toLowerCase().includes('anual');
+        };
+
+        // Active contracts list - ESTRITAMENTE PLANOS ANUAIS
+        const activeContracts = contractsAdminList.filter((c: any) => {
+          const statusValido = c.status === 'assinado' || c.status === 'ativo' || c.status === 'congelado';
+          return statusValido && isContractAnual(c);
+        });
 
         return (
           <>
@@ -6365,8 +6376,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
               const semanasDisponiveis = Math.max(0, 4 - semanasUsadas);
               
-              const frequencia = selectedContract?.frequencia || selectedClient?.dadosComerciais?.frequencia || 3;
-              const creditosCongelados = adminTrancSemanas * frequencia;
+              const frequencia = Number(selectedContract?.frequencia);
+              const frequenciaValida = !isNaN(frequencia) && frequencia > 0;
+              const creditosCongelados = frequenciaValida ? adminTrancSemanas * frequencia : 0;
 
               // Helper de Normalização de Data para ISO (YYYY-MM-DD)
               const toISO = (dateStr: string | undefined): string => {
@@ -6406,7 +6418,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
               const remainingMonths = getRemainingMonths();
               const sumRedist = remainingMonths.reduce((sum, m) => sum + (Number(adminTrancRedist[m.value]) || 0), 0);
-              const isDistributionPerfect = creditosCongelados > 0 && sumRedist === creditosCongelados;
+              const isDistributionPerfect = frequenciaValida && creditosCongelados > 0 && sumRedist === creditosCongelados;
 
               const handleSubmit = async (e: React.FormEvent) => {
                 e.preventDefault();
@@ -6415,6 +6427,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
                 if (!selectedContract || !selectedClient) {
                   setAdminTrancError('Selecione um aluno com contrato ativo válido.');
+                  return;
+                }
+                if (!frequenciaValida) {
+                  setAdminTrancError('O contrato selecionado não possui uma frequência semanal válida cadastrada (1x a 5x). Não é permitido aplicar fallback arbitrário.');
                   return;
                 }
                 if (!adminTrancDataInicio) {
@@ -6560,7 +6576,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             </div>
                             <div>
                               <span style={{ color: '#64748b', display: 'block' }}>Frequência:</span>
-                              <strong style={{ color: '#cbd5e1' }}>{frequencia}x por semana</strong>
+                              <strong style={{ color: frequenciaValida ? '#cbd5e1' : '#ef4444' }}>
+                                {frequenciaValida ? `${frequencia}x por semana` : 'Inconsistente (Sem Frequência)'}
+                              </strong>
                             </div>
                             <div>
                               <span style={{ color: '#64748b', display: 'block' }}>Semanas Usadas:</span>
@@ -6574,7 +6592,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         </div>
                       )}
 
-                      {selectedContract && semanasDisponiveis === 0 ? (
+                      {selectedContract && !frequenciaValida ? (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#fca5a5', padding: '16px', borderRadius: '10px', textAlign: 'center', fontSize: '0.85rem' }}>
+                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
+                          Este contrato não possui uma frequência semanal válida cadastrada (1x a 5x). Conforme a regra de negócio, não é permitido aplicar frequência arbitrária. Favor ajustar o contrato antes de lançar o trancamento.
+                        </div>
+                      ) : selectedContract && semanasDisponiveis === 0 ? (
                         <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#fca5a5', padding: '16px', borderRadius: '10px', textAlign: 'center', fontSize: '0.85rem' }}>
                           <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
                           Este contrato já atingiu o limite regulamentar de <strong>4 semanas de trancamento</strong>. Não é permitido efetuar novos congelamentos.
@@ -6760,7 +6783,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           type="submit"
                           className="btn btn-primary"
                           style={{ flex: 2, padding: '10px', fontWeight: 700 }}
-                          disabled={!isDistributionPerfect || !adminTrancDataInicio || adminTrancSubmitting || semanasDisponiveis === 0}
+                          disabled={!isDistributionPerfect || !adminTrancDataInicio || adminTrancSubmitting || semanasDisponiveis === 0 || !frequenciaValida}
                         >
                           {adminTrancSubmitting ? (
                             <><i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Processando...</>

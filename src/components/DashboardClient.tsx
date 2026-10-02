@@ -537,7 +537,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     return dateStr;
   };
 
-  const rawActiveContract = contracts.find(c => c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo');
+  const isContractAnual = (c: any) => {
+    if (!c) return false;
+    const vigencia = Number(c.vigenciaMeses);
+    if (vigencia === 12) return true;
+    const tipo = (c.planoTipo || '').toLowerCase();
+    const duracao = (c.duracao || '').toLowerCase();
+    const nome = (c.planoNome || '').toLowerCase();
+    return tipo.includes('anual') || duracao.includes('anual') || nome.includes('anual');
+  };
+
+  const rawActiveContract = contracts.find((c: any) => (c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo') && isContractAnual(c)) || contracts.find((c: any) => c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo');
 
   const contractEndISO = normalizeToISO(client?.dadosComerciais?.vencimento) || normalizeToISO(rawActiveContract?.dataFim);
   const contractStartISO = normalizeToISO(rawActiveContract?.dataInicio || client?.dadosComerciais?.dataInicio) || client?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0];
@@ -546,13 +556,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     ...rawActiveContract,
     planoNome: rawActiveContract.planoNome || (rawActiveContract.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : rawActiveContract.planoId?.nome) || (client?.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : client?.dadosComerciais?.planoId?.nome) || 'Clube Fitness - Monitorado',
     dataInicio: contractStartISO,
-    dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+    dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+    frequencia: Number(rawActiveContract.frequencia || client?.dadosComerciais?.frequencia || client?.frequencia || 0)
   } : (client?.dadosComerciais?.planoId || client?.dadosComerciais?.status === 'ativo' ? {
     _id: client._id,
     planoNome: (client.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : client.dadosComerciais?.planoId?.nome) || client.dadosComerciais?.planoNome || 'Clube Fitness - Monitorado',
     dataInicio: contractStartISO,
     dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-    frequencia: client.dadosComerciais?.frequencia || client.frequencia || 3
+    frequencia: Number(client.dadosComerciais?.frequencia || client.frequencia || 0),
+    vigenciaMeses: client.dadosComerciais?.vigenciaMeses || (client.dadosComerciais?.planoNome?.toLowerCase().includes('anual') ? 12 : 0)
   } : null);
 
   const getRemainingMonthsList = () => {
@@ -584,12 +596,23 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       setTrancamentoErrorMsg('Você não possui nenhum contrato ativo.');
       return;
     }
+
+    if (!isContractAnual(activeContract)) {
+      setTrancamentoErrorMsg('O trancamento de plano é exclusivo para contratos da modalidade Anual.');
+      return;
+    }
+
+    const frequencia = Number(activeContract.frequencia);
+    if (!frequencia || frequencia <= 0) {
+      setTrancamentoErrorMsg('Seu contrato não possui uma frequência semanal válida cadastrada. Entre em contato com a administração.');
+      return;
+    }
+
     if (!trancamentoDataInicio) {
       setTrancamentoErrorMsg('Selecione a data de início do trancamento.');
       return;
     }
 
-    const frequencia = activeContract.frequencia || 3;
     const totalCreditos = trancamentoSemanas * frequencia;
     
     const redistList = getRemainingMonthsList().map(m => ({
@@ -2615,11 +2638,50 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Nenhum Contrato Ativo</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Você não possui nenhum contrato assinado ou ativo no momento para realizar trancamentos.</p>
             </div>
+          ) : !isContractAnual(activeContract) ? (
+            <div className="content-panel" style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              borderRadius: '14px'
+            }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <i className="fa-solid fa-lock" style={{ fontSize: '24px', color: '#f59e0b' }}></i>
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Benefício Exclusivo para Planos Anuais</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 auto 12px', maxWidth: '500px' }}>
+                O trancamento temporário de plano (até 4 semanas) e redistribuição de créditos é um benefício exclusivo de contratos da <strong>modalidade Anual</strong>.
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>
+                Plano atual contratado: <strong>{activeContract.planoNome}</strong>.
+              </p>
+            </div>
+          ) : !activeContract.frequencia || Number(activeContract.frequencia) <= 0 ? (
+            <div className="content-panel" style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              borderRadius: '14px'
+            }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '24px', color: 'var(--color-danger)' }}></i>
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Frequência Semanal Não Definida</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                O seu contrato anual não possui uma frequência semanal válida cadastrada. Por favor, entre em contato com a equipe de atendimento ou administração para regularizar o cadastro.
+              </p>
+            </div>
           ) : (
             (() => {
               const totalSemanasTrancadas = trancamentosList.reduce((sum, t) => sum + t.semanas, 0);
               const semanasDisponiveis = Math.max(0, 4 - totalSemanasTrancadas);
-              const frequencia = activeContract.frequencia || 3;
+              const frequencia = Number(activeContract.frequencia);
               const creditosCongelados = trancamentoSemanas * frequencia;
 
               const remainingMonths = getRemainingMonthsList();

@@ -48,7 +48,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Contrato não encontrado.' }, { status: 404 });
     }
 
-    // 2. Check total weeks frozen so far for this contract
+    // Regra Estrita: Somente plano anual permite trancamento
+    const isAnual = Number(contract.vigenciaMeses) === 12 || 
+      (contract.planoTipo || '').toLowerCase().includes('anual') || 
+      (contract.duracao || '').toLowerCase().includes('anual') ||
+      (contract.planoNome || '').toLowerCase().includes('anual');
+
+    if (!isAnual) {
+      return NextResponse.json({
+        success: false,
+        error: 'Somente planos anuais permitem trancamento de plano.'
+      }, { status: 400 });
+    }
+
+    // 2. Consult weekly frequency (estrita sem fallback)
+    const frequencia = Number(contract.frequencia);
+    if (!frequencia || frequencia <= 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'O contrato não possui uma frequência semanal válida cadastrada.'
+      }, { status: 400 });
+    }
+
+    // 3. Check total weeks frozen so far for this contract
     const existing = await Trancamento.find({ contractId });
     const totalSemanasAnteriores = existing.reduce((sum: number, item: any) => sum + item.semanas, 0);
 
@@ -59,8 +81,6 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 3. Consult weekly frequency
-    const frequencia = contract.frequencia || 3;
     const creditosTrancados = Number(semanas) * frequencia;
 
     // 4. Validate redistribution credits sum

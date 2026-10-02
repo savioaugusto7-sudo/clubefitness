@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'receptionist' | 'professional' | 'client'>('admin');
 
   const hasInitializedMode = useRef(false);
+  const [hasAnnualContract, setHasAnnualContract] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (session?.user && !hasInitializedMode.current) {
@@ -31,6 +32,31 @@ export default function DashboardPage() {
       }
     }
   }, [session]);
+
+  useEffect(() => {
+    const u = session?.user as any;
+    const clientProfileId = u?.clientProfileId || u?.profileId;
+    if (adminViewMode === 'client' && clientProfileId) {
+      fetch(`/api/contracts?clientId=${clientProfileId}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success && Array.isArray(json.data)) {
+            const hasAnual = json.data.some((c: any) => {
+              const vigencia = Number(c.vigenciaMeses);
+              const tipo = (c.planoTipo || '').toLowerCase();
+              const duracao = (c.duracao || '').toLowerCase();
+              const nome = (c.planoNome || '').toLowerCase();
+              const isAnual = vigencia === 12 || tipo.includes('anual') || duracao.includes('anual') || nome.includes('anual');
+              return isAnual && (c.status === 'assinado' || c.status === 'ativo' || c.status === 'congelado');
+            });
+            setHasAnnualContract(hasAnual);
+          } else {
+            setHasAnnualContract(false);
+          }
+        })
+        .catch(() => setHasAnnualContract(false));
+    }
+  }, [adminViewMode, session]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -133,6 +159,7 @@ export default function DashboardPage() {
         userName={user.name || 'Usuário'}
         userCargo={user.cargo}
         activeRoles={activeRoles}
+        hasAnnualContract={hasAnnualContract ?? undefined}
         onChangeRole={(newRole) => {
           setAdminViewMode(newRole);
           setActiveTab('dashboard');
