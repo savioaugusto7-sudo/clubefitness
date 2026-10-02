@@ -276,17 +276,31 @@ export async function POST(request: Request) {
 
         // Exercícios e histórico de carga
         const exercicios = (sheet.exercicios || []).map((ex: any) => {
-          const exNome = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
+          const rawExName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : (ex.exercicioId || ex.nome || 'Exercício');
           const existingEx = (existingSheet?.exercicios || []).find((e: any) => {
-            const eNome = typeof e.exercicioId === 'object' ? e.exercicioId?.nome : e.exercicioId;
-            return eNome === exNome || (e._id && String(e._id) === String(ex._id));
+            const eNome = typeof e.exercicioId === 'object' ? e.exercicioId?.nome : (e.exercicioId || e.nome);
+            return eNome === rawExName || (e._id && String(e._id) === String(ex._id));
           });
+
+          // Normalização de campos essenciais (suporte a reps/repeticoes, nome/exercicioId)
+          const finalExercicioId = String(rawExName || 'Exercício').trim();
+          const finalRepeticoes = String(
+            ex.repeticoes !== undefined && ex.repeticoes !== null && String(ex.repeticoes).trim() !== ''
+              ? ex.repeticoes
+              : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '10-12')
+          ).trim();
+          const finalSeries = ex.series !== undefined && ex.series !== null && String(ex.series).trim() !== '' ? Number(ex.series) || 3 : 3;
+          const finalCarga = ex.carga !== undefined && ex.carga !== null && String(ex.carga).trim() !== '' ? ex.carga : '0';
+          let finalDescanso = ex.descanso !== undefined && ex.descanso !== null && String(ex.descanso).trim() !== '' ? String(ex.descanso).trim() : '60s';
+          if (!isNaN(Number(finalDescanso))) {
+            finalDescanso = `${finalDescanso}s`;
+          }
 
           let historicoCargas: any[] = Array.isArray(ex.historicoCargas) && ex.historicoCargas.length > 0 
             ? [...ex.historicoCargas] 
             : (Array.isArray(existingEx?.historicoCargas) ? [...existingEx.historicoCargas] : []);
 
-          const currentCarga = ex.carga !== undefined && ex.carga !== null && String(ex.carga).trim() !== '' ? String(ex.carga).trim() : null;
+          const currentCarga = finalCarga !== '0' && String(finalCarga).trim() !== '' ? String(finalCarga).trim() : null;
 
           if (currentCarga) {
             const lastEntry = historicoCargas[historicoCargas.length - 1];
@@ -297,7 +311,7 @@ export async function POST(request: Request) {
                 data: todayStr,
                 carga: currentCarga,
                 unidadeCarga: ex.unidadeCarga || lastEntry?.unidadeCarga || 'kg',
-                reps: String(ex.repeticoes || ''),
+                reps: finalRepeticoes,
                 origem: 'prescricao'
               });
             }
@@ -305,6 +319,15 @@ export async function POST(request: Request) {
 
           return {
             ...ex,
+            exercicioId: finalExercicioId,
+            series: finalSeries,
+            repeticoes: finalRepeticoes,
+            carga: finalCarga,
+            descanso: finalDescanso,
+            observacao: ex.observacao || ex.observacoes || '',
+            ritmo: ex.ritmo || '',
+            combinaGrupo: ex.combinaGrupo || '',
+            unidadeCarga: ex.unidadeCarga || '',
             historicoCargas
           };
         });

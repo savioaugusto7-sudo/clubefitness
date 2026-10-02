@@ -1,11 +1,11 @@
 import mongoose, { Schema, model, models } from 'mongoose';
 
 const WorkoutExerciseSchema = new Schema({
-  exercicioId: { type: String, required: true },
-  series: { type: Number, required: true },
-  repeticoes: { type: String, required: true },
-  carga: { type: Schema.Types.Mixed, required: true },
-  descanso: { type: String, required: true },
+  exercicioId: { type: String, required: true, default: 'Exercício' },
+  series: { type: Number, required: true, default: 3 },
+  repeticoes: { type: String, required: true, default: '10-12' },
+  carga: { type: Schema.Types.Mixed, required: true, default: '0' },
+  descanso: { type: String, required: true, default: '60s' },
   observacao: { type: String, default: '' },
   ritmo: { type: String, default: '' },
   combinaGrupo: { type: String, default: '' },

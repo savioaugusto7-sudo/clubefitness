@@ -1016,6 +1016,39 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     let nextId = letters.find(l => !usedIds.has(l)) || `F${currentSheets.length + 1}`;
     const newName = `${workoutName || `Ficha ${activeTabLetter}`} (Cópia)`;
 
+    // Formatar exercícios garantindo conformidade com o schema do banco (exercicioId, repeticoes, etc.)
+    const duplicatedExercicios = (workoutItems || []).map((item: any) => {
+      let cargaFinal: any = '';
+      if (item.unidadeCarga) {
+        cargaFinal = (item.carga !== '' && item.carga !== undefined && item.carga !== null) ? `${item.carga}${item.unidadeCarga}` : item.unidadeCarga;
+      } else if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
+        cargaFinal = `${item.carga}`;
+      } else {
+        cargaFinal = '10kg';
+      }
+
+      return {
+        _id: item._id || undefined,
+        exercicioId: item.nome || 'Exercício',
+        series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : 3,
+        repeticoes: String(item.reps !== undefined && item.reps !== null && String(item.reps).trim() !== '' ? item.reps : '10-12'),
+        carga: cargaFinal,
+        unidadeCarga: item.unidadeCarga || 'kg',
+        descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null 
+          ? (String(item.descanso).includes('s') ? String(item.descanso) : `${item.descanso}s`) 
+          : '60s',
+        observacao: item.observacao || '',
+        ritmo: item.ritmo || '',
+        combinaGrupo: item.combinaGrupo || '',
+        historicoCargas: Array.isArray(item.historicoCargas) ? [...item.historicoCargas] : [],
+        dropSet: (item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none') ? {
+          tipo: item.dropSet.tipo,
+          escopo: item.dropSet.escopo || 'ultima_serie',
+          drops: item.dropSet.drops || []
+        } : undefined
+      };
+    });
+
     const duplicatedSheet = {
       id: nextId,
       nome: newName,
@@ -1023,10 +1056,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       ultimaAtualizacao: new Date().toISOString().split('T')[0],
       validadeDias: workoutValidade || 30,
       observacoesGerais: workoutGoal || '',
-      exercicios: JSON.parse(JSON.stringify(workoutItems)).map((it: any) => ({
-        ...it,
-        id: String(Date.now() + Math.random())
-      }))
+      exercicios: duplicatedExercicios
     };
 
     const updatedSheets = [...currentSheets, duplicatedSheet];
@@ -1037,7 +1067,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     }));
 
     try {
-      await fetch('/api/workouts', {
+      const res = await fetch('/api/workouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1048,12 +1078,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           motivo: `Duplicação da ficha ${workoutName}`
         })
       });
-      handleChangeSheet(nextId, activeCategory);
-      setWorkoutName(newName);
-      setSaveToast({ message: `Ficha duplicada como "${newName}"!`, type: 'success' });
-      setTimeout(() => setSaveToast(null), 3000);
-    } catch (err) {
+      const data = await res.json();
+      if (res.ok && data.success) {
+        handleChangeSheet(nextId, activeCategory);
+        setWorkoutName(newName);
+        setSaveToast({ message: `Ficha duplicada como "${newName}"!`, type: 'success' });
+        setTimeout(() => setSaveToast(null), 3000);
+      } else {
+        alert(data.error || 'Erro ao duplicar ficha.');
+      }
+    } catch (err: any) {
       console.error('Erro ao duplicar ficha:', err);
+      alert('Erro de conexão ao duplicar ficha: ' + err.message);
     }
   };
 
@@ -1112,7 +1148,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     const formatted = exList.map((ex: any) => ({
       _id: ex._id || ex.exercicioId?._id || ex.exercicioId,
       id: String(Date.now() + Math.random()),
-      nome: typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : (ex.nome || 'Exercício'),
+      nome: typeof ex.exercicioId === 'object' ? (ex.exercicioId?.nome || 'Exercício') : (ex.exercicioId || ex.nome || 'Exercício'),
       grupo: typeof ex.exercicioId === 'object' ? (ex.exercicioId?.grupo || 'Geral') : (ex.grupo || 'Geral'),
       series: ex.series || 3,
       reps: ex.repeticoes || ex.reps || '12',
