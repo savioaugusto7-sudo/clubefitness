@@ -3012,7 +3012,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
 
         <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: isMobile ? '12px 12px 120px 12px' : '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
-          <div style={{ maxWidth: '1050px', margin: '0 auto' }}>
+          <div style={{ maxWidth: 'min(100%, 1280px)', margin: '0 auto' }}>
             
             {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno (Apenas Desktop) */}
             {lastWorkoutInfo && !isMobile && (
@@ -3764,7 +3764,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               background: '#0d1322',
               borderRadius: '16px',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              overflow: 'visible',
+              overflow: 'hidden',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)'
             }}>
               
@@ -3800,9 +3800,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   className="workout-table-header"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(190px, 2fr) 55px 65px 110px 170px 60px 75px 45px 105px 95px',
-                    gap: '8px',
-                    padding: '10px 20px',
+                    gridTemplateColumns: 'minmax(150px, 1.8fr) 46px 52px 88px 132px 48px 62px 38px 82px 80px',
+                    gap: '5px',
+                    padding: '10px 14px',
                     background: 'rgba(0, 0, 0, 0.25)',
                     borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
                     fontSize: '0.72rem',
@@ -4208,8 +4208,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             className="workout-exercise-row-desktop"
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: 'minmax(190px, 2fr) 55px 65px 110px 170px 60px 75px 45px 105px 95px',
-                            gap: '8px',
+                            gridTemplateColumns: 'minmax(150px, 1.8fr) 46px 52px 88px 132px 48px 62px 38px 82px 80px',
+                            gap: '5px',
                             alignItems: 'center'
                           }}
                         >
@@ -4337,7 +4337,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             />
                           </div>
 
-                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '3px', width: '100%', height: '36px' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '2px', width: '100%', height: '36px' }}>
                             <input
                               type="number"
                               className="form-control form-control-sm"
@@ -4353,16 +4353,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               placeholder="—"
                               style={{
-                                width: '48px',
+                                width: '42px',
                                 height: '36px',
                                 textAlign: 'center',
-                                padding: '0 2px',
+                                padding: '0 1px',
                                 background: '#070b14',
                                 border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
                                 color: hasDrop ? '#f59e0b' : '#10b981',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.84rem'
+                                fontSize: '0.82rem'
                               }}
                             />
                             <WorkoutUnitPicker
@@ -4378,14 +4378,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               title={hasDrop ? "Alterar ou remover Drop-set" : "Configurar Drop-set"}
                               style={{
                                 flex: 1,
+                                minWidth: 0,
                                 height: '36px',
-                                padding: '0 4px',
+                                padding: '0 2px',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '3px',
+                                gap: '2px',
                                 borderRadius: '7px',
-                                fontSize: '0.68rem',
+                                fontSize: '0.64rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
@@ -4397,12 +4398,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             >
                               {hasDrop ? (
                                 <>
-                                  <i className="fa-solid fa-bolt" style={{ fontSize: '0.65rem' }}></i>
+                                  <i className="fa-solid fa-bolt" style={{ fontSize: '0.6rem' }}></i>
                                   <span>{item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops'}</span>
                                 </>
                               ) : (
                                 <>
-                                  <i className="fa-solid fa-plus" style={{ fontSize: '0.6rem', opacity: 0.7 }}></i>
+                                  <i className="fa-solid fa-plus" style={{ fontSize: '0.55rem', opacity: 0.7 }}></i>
                                   <span>Drop</span>
                                 </>
                               )}
@@ -4667,21 +4668,21 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             })()}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center', height: '36px' }}>
+                          <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', alignItems: 'center', height: '36px', width: '100%' }}>
                             <button
                               type="button"
                               onClick={() => moveItem(index, 'up')}
                               disabled={index === 0}
                               title="Subir"
                               style={{
-                                width: '22px',
+                                width: '19px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: index === 0 ? '#334155' : '#94a3b8',
                                 cursor: index === 0 ? 'default' : 'pointer',
-                                fontSize: '0.75rem',
+                                fontSize: '0.72rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
@@ -4696,14 +4697,14 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               disabled={index === workoutItems.length - 1}
                               title="Descer"
                               style={{
-                                width: '22px',
+                                width: '19px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: index === workoutItems.length - 1 ? '#334155' : '#94a3b8',
                                 cursor: index === workoutItems.length - 1 ? 'default' : 'pointer',
-                                fontSize: '0.75rem',
+                                fontSize: '0.72rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
@@ -4727,14 +4728,14 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               title="Substituir Exercício (mantém a posição e a combinação G1 ativada)"
                               style={{
-                                width: '22px',
+                                width: '19px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: '#38bdf8',
                                 cursor: 'pointer',
-                                fontSize: '0.78rem',
+                                fontSize: '0.74rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -4751,20 +4752,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               onClick={() => removeItem(item.id)}
                               title="Excluir Exercício"
                               style={{
-                                width: '22px',
+                                width: '19px',
                                 height: '36px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: '#ef4444',
                                 cursor: 'pointer',
-                                fontSize: '0.8rem',
+                                fontSize: '0.75rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
                               }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#ef4444')}
                             >
-                              <i className="fa-solid fa-trash-can"></i>
+                              <i className="fa-regular fa-trash-can"></i>
                             </button>
                           </div>
                         </div>
