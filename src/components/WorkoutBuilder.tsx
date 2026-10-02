@@ -2189,122 +2189,212 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
       {/* 🌟 Top Navigation Bar */}
       {isMobile ? (
-        <div 
-          className="workout-builder-header"
-          style={{
-            background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
-            padding: '8px 12px',
-            paddingTop: 'max(8px, var(--safe-top, 0px))',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
-            gap: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-            <button 
-              type="button"
-              className="btn btn-secondary" 
-              onClick={onClose} 
-              style={{
-                width: '36px',
-                height: '36px',
-                padding: 0,
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                background: 'rgba(255, 255, 255, 0.04)',
-                color: '#e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0
-              }}
-              title="Voltar para Lista"
-            >
-              <i className="fa-solid fa-arrow-left"></i>
-            </button>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <h2 style={{ margin: 0, color: '#ffffff', fontSize: '0.98rem', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {displayName}
-              </h2>
-              <div style={{ fontSize: '0.64rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase' }}>
-                Ficha de Treino
+        <>
+          <div 
+            className="workout-builder-header"
+            style={{
+              background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)',
+              padding: '8px 12px',
+              paddingTop: 'max(8px, var(--safe-top, 0px))',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+              gap: '8px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                onClick={onClose} 
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  padding: 0,
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  color: '#e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+                title="Voltar para Lista"
+              >
+                <i className="fa-solid fa-arrow-left"></i>
+              </button>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h2 style={{ margin: 0, color: '#ffffff', fontSize: '0.98rem', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {displayName}
+                </h2>
+                <div style={{ fontSize: '0.64rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase' }}>
+                  Ficha de Treino
+                </div>
               </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setShowEvolutionModal(true)}
+                style={{
+                  height: '36px',
+                  padding: '0 10px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#34d399',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                title="Painel de Evolução de Cargas & Sobrecarga Progressiva"
+              >
+                <i className="fa-solid fa-chart-line"></i>
+                <span>Evolução</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenHistory}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: '#38bdf8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+                title="Histórico de Ciclos"
+              >
+                <i className="fa-solid fa-clock-rotate-left"></i>
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={isSaving}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  borderRadius: '8px',
+                  background: justSaved 
+                    ? 'linear-gradient(135deg, #10b981, #059669)' 
+                    : 'linear-gradient(135deg, #10b981, #047857)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.78rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: 'none',
+                  cursor: isSaving ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <i className={isSaving ? "fa-solid fa-spinner fa-spin" : justSaved ? "fa-solid fa-check" : "fa-solid fa-floppy-disk"}></i>
+                <span>{justSaved ? 'Salvo' : 'Salvar'}</span>
+              </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {/* 🌟 Barra de Métricas Rápidas no Mobile (Tempo Previsto, Volume e Séries) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 12px',
+              background: '#090e1a',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+              gap: '6px'
+            }}
+          >
+            {/* ⏱️ Tempo Previsto */}
             <button
               type="button"
-              onClick={() => setShowEvolutionModal(true)}
+              onClick={() => setShowTempoModal(true)}
               style={{
-                height: '36px',
-                padding: '0 10px',
-                borderRadius: '8px',
-                background: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: '#34d399',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-              title="Painel de Evolução de Cargas & Sobrecarga Progressiva"
-            >
-              <i className="fa-solid fa-chart-line"></i>
-              <span>Evolução</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenHistory}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#38bdf8',
+                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer'
-              }}
-              title="Histórico de Ciclos"
-            >
-              <i className="fa-solid fa-clock-rotate-left"></i>
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={isSaving}
-              style={{
-                height: '36px',
-                padding: '0 12px',
-                borderRadius: '8px',
-                background: justSaved 
-                  ? 'linear-gradient(135deg, #10b981, #059669)' 
-                  : 'linear-gradient(135deg, #10b981, #047857)',
-                color: '#ffffff',
+                gap: '5px',
+                background: !metrics.timeAnalysis.isComplete ? 'rgba(245, 158, 11, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+                border: !metrics.timeAnalysis.isComplete ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
+                padding: '4px 6px',
+                borderRadius: '7px',
+                color: !metrics.timeAnalysis.isComplete ? '#fbbf24' : '#38bdf8',
+                fontSize: '0.72rem',
                 fontWeight: 800,
-                fontSize: '0.78rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+              title="Clique para ver detalhamento do tempo de treino"
+            >
+              <i className="fa-regular fa-clock" style={{ fontSize: '0.70rem' }}></i>
+              <span>{metrics.timeAnalysis.formattedTotal}</span>
+              {!metrics.timeAnalysis.isComplete && (
+                <span style={{ fontSize: '0.60rem', background: '#f59e0b', color: '#000', padding: '0 3px', borderRadius: '3px', fontWeight: 900 }}>!</span>
+              )}
+            </button>
+
+            {/* 🏋️‍♂️ Volume Previsto */}
+            <div
+              style={{
+                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                border: 'none',
-                cursor: isSaving ? 'not-allowed' : 'pointer'
+                justifyContent: 'center',
+                gap: '5px',
+                background: 'rgba(16, 185, 129, 0.10)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '4px 6px',
+                borderRadius: '7px',
+                color: '#34d399',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                whiteSpace: 'nowrap'
               }}
+              title="Volume de carga previsto"
             >
-              <i className={isSaving ? "fa-solid fa-spinner fa-spin" : justSaved ? "fa-solid fa-check" : "fa-solid fa-floppy-disk"}></i>
-              <span>{justSaved ? 'Salvo' : 'Salvar'}</span>
-            </button>
+              <i className="fa-solid fa-weight-hanging" style={{ fontSize: '0.68rem' }}></i>
+              <span>{metrics.volumeTotal >= 1000 ? `${(metrics.volumeTotal / 1000).toFixed(1)}t` : `${metrics.volumeTotal}kg`}</span>
+            </div>
+
+            {/* 📋 Séries e Exercícios */}
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '4px 6px',
+                borderRadius: '7px',
+                color: '#e2e8f0',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                whiteSpace: 'nowrap'
+              }}
+              title="Total de séries e exercícios da ficha"
+            >
+              <i className="fa-solid fa-layer-group" style={{ fontSize: '0.68rem', color: '#94a3b8' }}></i>
+              <span>{metrics.totalSeries}s <span style={{ color: '#94a3b8', fontWeight: 600 }}>({metrics.totalExercicios}ex)</span></span>
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         <div 
           className="workout-builder-header"
@@ -3014,26 +3104,26 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: isMobile ? '12px 12px 120px 12px' : '20px 20px 140px 20px', overflowY: 'auto', background: '#070b14' }}>
           <div style={{ maxWidth: 'min(100%, 1280px)', margin: '0 auto' }}>
             
-            {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno (Apenas Desktop) */}
-            {lastWorkoutInfo && !isMobile && (
+            {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno (Desktop & Mobile) */}
+            {lastWorkoutInfo && (
               <div style={{
                 background: lastWorkoutInfo.isLivre ? 'linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(13, 19, 34, 0.6) 100%)' : 'linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(13, 19, 34, 0.6) 100%)',
                 border: lastWorkoutInfo.isLivre ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(16, 185, 129, 0.25)',
                 borderLeft: lastWorkoutInfo.isLivre ? '4px solid #38bdf8' : '4px solid #10b981',
                 borderRadius: '12px',
-                padding: '10px 16px',
-                marginBottom: '16px',
+                padding: isMobile ? '8px 12px' : '10px 16px',
+                marginBottom: isMobile ? '10px' : '16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '10px'
+                gap: isMobile ? '6px' : '10px'
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981', letterSpacing: '0.5px' }}>
+                  <div style={{ fontSize: isMobile ? '0.62rem' : '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: lastWorkoutInfo.isLivre ? '#38bdf8' : '#10b981', letterSpacing: '0.5px' }}>
                     Último Treino Realizado pelo Aluno
                   </div>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                  <div style={{ fontSize: isMobile ? '0.84rem' : '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
                     {lastWorkoutInfo.label}
                   </div>
                 </div>
@@ -3043,8 +3133,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     background: 'rgba(0, 0, 0, 0.3)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '8px',
-                    padding: '4px 12px',
-                    fontSize: '0.78rem',
+                    padding: isMobile ? '3px 8px' : '4px 12px',
+                    fontSize: isMobile ? '0.72rem' : '0.78rem',
                     color: '#cbd5e1',
                     fontWeight: 700
                   }}>
@@ -3200,52 +3290,203 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   <span>Ficha</span>
                 </button>
 
-                {/* Separador vertical sutil */}
-                <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.12)', margin: '0 4px', flexShrink: 0 }} />
+                {/* Separador vertical sutil (Apenas Desktop) */}
+                {!isMobile && (
+                  <>
+                    <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.12)', margin: '0 4px', flexShrink: 0 }} />
 
-                {/* 🌟 Ações da Ficha Ativa (Barra Unificada, Neutra e Altamente Legível) */}
+                    {/* 🌟 Ações da Ficha Ativa (Desktop) */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '8px',
+                      padding: '2px',
+                      flexShrink: 0
+                    }}>
+                      {/* Botão Renovar Ciclo */}
+                      <button
+                        type="button"
+                        onClick={handleOpenRenewModal}
+                        style={{
+                          height: '26px',
+                          padding: '0 8px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#f1f5f9',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          borderRadius: '6px',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                        }}
+                        title="Concluir ciclo atual, arquivar no histórico e iniciar nova periodização/evolução"
+                      >
+                        <i className="fa-solid fa-arrows-rotate" style={{ color: '#38bdf8', fontSize: '0.70rem' }}></i>
+                        <span>Renovar Ciclo</span>
+                      </button>
+
+                      {/* Botão Duplicar Ficha */}
+                      <button
+                        type="button"
+                        onClick={handleDuplicateCurrentSheet}
+                        style={{
+                          height: '26px',
+                          padding: '0 8px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#f1f5f9',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          borderRadius: '6px',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                        }}
+                        title="Clonar esta ficha para uma nova aba"
+                      >
+                        <i className="fa-regular fa-copy" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
+                        <span>Duplicar</span>
+                      </button>
+
+                      {/* Botão Arquivar Ficha */}
+                      {visibleSheets.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={handleArchiveCurrentSheet}
+                          style={{
+                            height: '26px',
+                            padding: '0 8px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: '#f1f5f9',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            borderRadius: '6px',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                          }}
+                          title="Arquivar esta ficha no histórico (sai das abas ativas mas continua salva no histórico)"
+                        >
+                          <i className="fa-solid fa-box-archive" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
+                          <span>Arquivar</span>
+                        </button>
+                      )}
+
+                      {/* Botão Excluir (apenas secundário/rascunho) */}
+                      {visibleSheets.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteCurrentSheet}
+                          style={{
+                            height: '26px',
+                            padding: '0 7px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            color: '#94a3b8',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '6px',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+                            e.currentTarget.style.color = '#f87171';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                            e.currentTarget.style.color = '#94a3b8';
+                          }}
+                          title="Excluir rascunho de ficha"
+                        >
+                          <i className="fa-regular fa-trash-can" style={{ fontSize: '0.70rem' }}></i>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 📱 Barra de Ações da Ficha Ativa no Mobile */}
+              {isMobile && (
                 <div style={{
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '8px',
-                  padding: '2px',
-                  flexShrink: 0
+                  gap: '6px',
+                  order: 3,
+                  width: '100%',
+                  paddingTop: '6px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.06)'
                 }}>
                   {/* Botão Renovar Ciclo */}
                   <button
                     type="button"
                     onClick={handleOpenRenewModal}
                     style={{
-                      height: '26px',
-                      padding: '0 8px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: '#f1f5f9',
+                      flex: 1,
+                      height: '32px',
+                      padding: '0 6px',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      color: '#38bdf8',
                       fontSize: '0.74rem',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '5px',
-                      borderRadius: '6px',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                      borderRadius: '7px',
+                      whiteSpace: 'nowrap'
                     }}
                     title="Concluir ciclo atual, arquivar no histórico e iniciar nova periodização/evolução"
                   >
-                    <i className="fa-solid fa-arrows-rotate" style={{ color: '#38bdf8', fontSize: '0.70rem' }}></i>
-                    <span>Renovar Ciclo</span>
+                    <i className="fa-solid fa-arrows-rotate" style={{ fontSize: '0.70rem' }}></i>
+                    <span>Renovar</span>
                   </button>
 
                   {/* Botão Duplicar Ficha */}
@@ -3253,32 +3494,25 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     type="button"
                     onClick={handleDuplicateCurrentSheet}
                     style={{
-                      height: '26px',
-                      padding: '0 8px',
+                      flex: 1,
+                      height: '32px',
+                      padding: '0 6px',
                       background: 'rgba(255, 255, 255, 0.05)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       color: '#f1f5f9',
                       fontSize: '0.74rem',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '5px',
-                      borderRadius: '6px',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                      borderRadius: '7px',
+                      whiteSpace: 'nowrap'
                     }}
                     title="Clonar esta ficha para uma nova aba"
                   >
-                    <i className="fa-regular fa-copy" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
+                    <i className="fa-regular fa-copy" style={{ fontSize: '0.70rem', color: '#94a3b8' }}></i>
                     <span>Duplicar</span>
                   </button>
 
@@ -3288,74 +3522,55 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                       type="button"
                       onClick={handleArchiveCurrentSheet}
                       style={{
-                        height: '26px',
-                        padding: '0 8px',
+                        height: '32px',
+                        padding: '0 10px',
                         background: 'rgba(255, 255, 255, 0.05)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
                         color: '#f1f5f9',
                         fontSize: '0.74rem',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: '5px',
-                        borderRadius: '6px',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease'
+                        borderRadius: '7px',
+                        whiteSpace: 'nowrap'
                       }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                      }}
-                      title="Arquivar esta ficha no histórico (sai das abas ativas mas continua salva no histórico)"
+                      title="Arquivar ficha"
                     >
-                      <i className="fa-solid fa-box-archive" style={{ color: '#94a3b8', fontSize: '0.70rem' }}></i>
+                      <i className="fa-solid fa-box-archive" style={{ fontSize: '0.70rem', color: '#94a3b8' }}></i>
                       <span>Arquivar</span>
                     </button>
                   )}
 
-                  {/* Botão Excluir (apenas secundário/rascunho) */}
+                  {/* Botão Excluir */}
                   {visibleSheets.length > 1 && (
                     <button
                       type="button"
                       onClick={handleDeleteCurrentSheet}
                       style={{
-                        height: '26px',
-                        padding: '0 7px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: '#94a3b8',
+                        width: '32px',
+                        height: '32px',
+                        padding: 0,
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        color: '#f87171',
                         fontSize: '0.74rem',
-                        fontWeight: 600,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        borderRadius: '6px',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
-                        e.currentTarget.style.color = '#f87171';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                        e.currentTarget.style.color = '#94a3b8';
+                        borderRadius: '7px',
+                        flexShrink: 0
                       }}
                       title="Excluir rascunho de ficha"
                     >
-                      <i className="fa-regular fa-trash-can" style={{ fontSize: '0.70rem' }}></i>
+                      <i className="fa-regular fa-trash-can" style={{ fontSize: '0.72rem' }}></i>
                     </button>
                   )}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* ⚠️ Banner para Ficha sem Validade Informada (Legada) */}
@@ -3470,127 +3685,139 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               )
             )}
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px, 1.2fr) minmax(340px, 2fr) minmax(260px, 1fr)',
-              gap: '16px',
-              marginBottom: '20px',
-              alignItems: 'start'
-            }}>
-              {/* Coluna 1: Nome da Ficha */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
-                  <label style={{ fontWeight: 800, fontSize: '0.78rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    NOME DA FICHA
-                  </label>
-                  <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Identificação da ficha</span>
-                </div>
-
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={workoutName} 
-                  placeholder="Ex: Ficha B, Superior, Pernas..."
-                  onChange={e => {
-                    const newName = e.target.value;
-                    setWorkoutName(newName);
-                    setRawWorkoutDoc((prev: any) => {
-                      if (!prev || !prev[activeCategory]) return prev;
-                      const catSheets = [...(prev[activeCategory] || [])];
-                      const sIdx = catSheets.findIndex((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
-                      if (sIdx !== -1) {
-                        catSheets[sIdx] = { ...catSheets[sIdx], nome: newName };
-                        return { ...prev, [activeCategory]: catSheets };
-                      }
-                      return prev;
-                    });
-                    triggerDebouncedAutoSave(workoutItems, newName);
-                  }}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 14px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '10px',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    fontSize: '0.90rem',
-                    outline: 'none',
-                    transition: 'all 0.2s ease'
-                  }} 
-                  onFocus={e => {
-                    e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  }}
-                  onBlur={e => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                  }}
-                />
-              </div>
-
-              {/* Coluna 2: Foco do Treino & Observações */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
-                  <label style={{
-                    fontWeight: 800,
-                    fontSize: '0.78rem',
-                    color: '#94a3b8',
-                    margin: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    <i className="fa-solid fa-bullseye" style={{ color: '#38bdf8', fontSize: '0.80rem' }}></i>
-                    <span>Foco do Treino & Observações</span>
-                  </label>
-                  {workoutGoal ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowGoalModal(true)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#38bdf8',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '2px 6px'
+            {isMobile ? (
+              /* 📱 Card Compacto de Metadados no Mobile (Economia de ~160px verticais) */
+              <div style={{
+                background: '#0d1322',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '8px 10px',
+                marginBottom: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                {/* Linha 1: Nome da Ficha + Seletor de Validade */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={workoutName} 
+                      placeholder="Nome da ficha (ex: Ficha A)"
+                      onChange={e => {
+                        const newName = e.target.value;
+                        setWorkoutName(newName);
+                        setRawWorkoutDoc((prev: any) => {
+                          if (!prev || !prev[activeCategory]) return prev;
+                          const catSheets = [...(prev[activeCategory] || [])];
+                          const sIdx = catSheets.findIndex((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
+                          if (sIdx !== -1) {
+                            catSheets[sIdx] = { ...catSheets[sIdx], nome: newName };
+                            return { ...prev, [activeCategory]: catSheets };
+                          }
+                          return prev;
+                        });
+                        triggerDebouncedAutoSave(workoutItems, newName);
                       }}
-                      title="Abrir editor completo de observações clínicas"
-                    >
-                      <i className="fa-solid fa-up-right-and-down-left-from-center" style={{ fontSize: '0.68rem' }}></i>
-                      <span>Expandir</span>
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Objetivos e laudo clínico</span>
-                  )}
+                      style={{
+                        width: '100%',
+                        height: '36px',
+                        padding: '0 10px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        outline: 'none'
+                      }} 
+                    />
+                  </div>
+
+                  {/* Seletor/Badge de Validade */}
+                  <div style={{ flexShrink: 0 }}>
+                    {workoutValidade && workoutDataExpiracao && !isEditingValidade ? (() => {
+                      const expD = new Date(workoutDataExpiracao + 'T12:00:00');
+                      const diff = Math.ceil((expD.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      const isExp = diff <= 0;
+                      const isSoon = diff > 0 && diff <= 7;
+                      const statusColor = isExp ? '#ef4444' : isSoon ? '#fbbf24' : '#10b981';
+                      const statusBg = isExp ? 'rgba(239, 68, 68, 0.12)' : isSoon ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)';
+                      const statusBorder = isExp ? 'rgba(239, 68, 68, 0.3)' : isSoon ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+                      const statusText = isExp ? `${Math.abs(diff)}d venc.` : `${diff}d vig.`;
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingValidade(true)}
+                          style={{
+                            height: '36px',
+                            padding: '0 8px',
+                            background: statusBg,
+                            border: `1px solid ${statusBorder}`,
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            color: statusColor,
+                            fontSize: '0.72rem',
+                            fontWeight: 800
+                          }}
+                          title={`Validade: ${workoutValidade} dias (expira em ${workoutDataExpiracao}). Clique para alterar.`}
+                        >
+                          <i className="fa-regular fa-calendar-check" style={{ fontSize: '0.75rem' }}></i>
+                          <span>{statusText}</span>
+                        </button>
+                      );
+                    })() : (
+                      <div style={{ display: 'flex', gap: '3px' }}>
+                        {[15, 30, 60].map(days => {
+                          const isSel = workoutValidade === days;
+                          return (
+                            <button
+                              key={days}
+                              type="button"
+                              onClick={() => {
+                                handleSetValidade(days);
+                                setIsEditingValidade(false);
+                              }}
+                              style={{
+                                height: '36px',
+                                padding: '0 6px',
+                                borderRadius: '7px',
+                                border: isSel ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                                color: isSel ? '#34d399' : '#94a3b8',
+                                fontWeight: isSel ? 800 : 600,
+                                fontSize: '0.70rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {days}d
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div 
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    height: '42px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '10px',
-                    padding: '0 12px 0 14px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <i className="fa-solid fa-notes-medical" style={{ color: '#64748b', fontSize: '0.85rem', marginRight: '10px', flexShrink: 0 }}></i>
+                {/* Linha 2: Foco do Treino & Obs com Botão Expandir */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  padding: '0 8px 0 10px',
+                  height: '36px'
+                }}>
+                  <i className="fa-solid fa-bullseye" style={{ color: '#38bdf8', fontSize: '0.74rem', marginRight: '8px', flexShrink: 0 }}></i>
                   <input
                     type="text"
-                    placeholder="Defina o objetivo principal ou observações clínicas deste treino..."
+                    placeholder="Foco do treino ou observações clínicas..."
                     value={workoutGoal}
                     onChange={e => {
                       const newGoal = e.target.value;
@@ -3604,161 +3831,321 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                       border: 'none',
                       outline: 'none',
                       color: '#f8fafc',
-                      fontSize: '0.88rem',
+                      fontSize: '0.78rem',
                       fontWeight: 500
                     }}
-                    onFocus={e => {
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        parent.style.borderColor = 'rgba(56, 189, 248, 0.5)';
-                        parent.style.background = 'rgba(255, 255, 255, 0.05)';
-                        parent.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.12)';
-                      }
-                    }}
-                    onBlur={e => {
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        parent.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                        parent.style.background = 'rgba(255, 255, 255, 0.03)';
-                        parent.style.boxShadow = 'none';
-                      }
-                    }}
                   />
-                  {workoutGoal && (
-                    <button
-                      type="button"
-                      onClick={() => setShowGoalModal(true)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#64748b',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        fontSize: '0.80rem',
-                        flexShrink: 0,
-                        marginLeft: '4px',
-                        transition: 'color 0.15s ease'
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#38bdf8'; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; }}
-                      title="Ver observação completa"
-                    >
-                      <i className="fa-solid fa-up-right-and-down-left-from-center"></i>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowGoalModal(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: workoutGoal ? '#38bdf8' : '#64748b',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      fontSize: '0.75rem',
+                      flexShrink: 0,
+                      marginLeft: '4px'
+                    }}
+                    title="Abrir editor completo de observações"
+                  >
+                    <i className="fa-solid fa-up-right-and-down-left-from-center"></i>
+                  </button>
                 </div>
               </div>
+            ) : (
+              /* 💻 Grid de 3 Colunas Original do Desktop (100% Preservado) */
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(280px, 1.2fr) minmax(340px, 2fr) minmax(260px, 1fr)',
+                gap: '16px',
+                marginBottom: '20px',
+                alignItems: 'start'
+              }}>
+                {/* Coluna 1: Nome da Ficha */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
+                    <label style={{ fontWeight: 800, fontSize: '0.78rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      NOME DA FICHA
+                    </label>
+                    <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Identificação da ficha</span>
+                  </div>
 
-              {/* Coluna 3: Campo de Validade da Ficha */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
-                  <label style={{ fontWeight: 800, fontSize: '0.78rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    VALIDADE DA FICHA
-                  </label>
-                  {workoutValidade && !isEditingValidade && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingValidade(true)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#38bdf8',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        padding: '2px 8px',
-                        borderRadius: '6px'
-                      }}
-                    >
-                      Alterar
-                    </button>
-                  )}
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    value={workoutName} 
+                    placeholder="Ex: Ficha B, Superior, Pernas..."
+                    onChange={e => {
+                      const newName = e.target.value;
+                      setWorkoutName(newName);
+                      setRawWorkoutDoc((prev: any) => {
+                        if (!prev || !prev[activeCategory]) return prev;
+                        const catSheets = [...(prev[activeCategory] || [])];
+                        const sIdx = catSheets.findIndex((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
+                        if (sIdx !== -1) {
+                          catSheets[sIdx] = { ...catSheets[sIdx], nome: newName };
+                          return { ...prev, [activeCategory]: catSheets };
+                        }
+                        return prev;
+                      });
+                      triggerDebouncedAutoSave(workoutItems, newName);
+                    }}
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      padding: '0 14px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      fontSize: '0.90rem',
+                      outline: 'none',
+                      transition: 'all 0.2s ease'
+                    }} 
+                    onFocus={e => {
+                      e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                    }}
+                  />
                 </div>
 
-                {workoutValidade && workoutDataExpiracao && !isEditingValidade ? (() => {
-                  const expD = new Date(workoutDataExpiracao + 'T12:00:00');
-                  const diff = Math.ceil((expD.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                  const isExp = diff <= 0;
-                  const isSoon = diff > 0 && diff <= 7;
-                  const formattedExp = workoutDataExpiracao.split('-').reverse().join('/');
-                  const statusColor = isExp ? '#ef4444' : isSoon ? '#fbbf24' : '#10b981';
-                  const statusBg = isExp ? 'rgba(239, 68, 68, 0.08)' : isSoon ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)';
-                  const statusBorder = isExp ? 'rgba(239, 68, 68, 0.25)' : isSoon ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)';
-                  const statusText = isExp 
-                    ? `Vencida há ${Math.abs(diff)}d (${formattedExp})`
-                    : isSoon 
-                      ? `Vence em ${diff}d (${formattedExp})`
-                      : `Vigente (${diff}d • ${formattedExp})`;
-
-                  return (
-                    <div style={{
-                      padding: '0 14px',
-                      background: statusBg,
-                      border: `1px solid ${statusBorder}`,
-                      borderRadius: '10px',
+                {/* Coluna 2: Foco do Treino & Observações */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
+                    <label style={{
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      color: '#94a3b8',
+                      margin: 0,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      height: '42px'
+                      gap: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
                     }}>
-                      <i className="fa-regular fa-calendar-check" style={{ color: statusColor, fontSize: '0.9rem' }}></i>
-                      <span style={{ fontSize: '0.84rem', fontWeight: 800, color: statusColor }}>
-                        {statusText}
-                      </span>
-                    </div>
-                  );
-                })() : (
-                  <div style={{ display: 'flex', gap: '6px', height: '42px', alignItems: 'center' }}>
-                    {[15, 30, 60].map(days => {
-                      const isSel = workoutValidade === days;
-                      return (
-                        <button
-                          key={days}
-                          type="button"
-                          onClick={() => {
-                            handleSetValidade(days);
-                            setIsEditingValidade(false);
-                          }}
-                          style={{
-                            flex: 1,
-                            height: '42px',
-                            padding: '0 6px',
-                            borderRadius: '10px',
-                            border: isSel ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
-                            background: isSel ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                            color: isSel ? '#34d399' : '#94a3b8',
-                            fontWeight: isSel ? 800 : 600,
-                            fontSize: '0.78rem',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          {days} dias
-                        </button>
-                      );
-                    })}
-                    {isEditingValidade && (
+                      <i className="fa-solid fa-bullseye" style={{ color: '#38bdf8', fontSize: '0.80rem' }}></i>
+                      <span>Foco do Treino & Observações</span>
+                    </label>
+                    {workoutGoal ? (
                       <button
                         type="button"
-                        onClick={() => setIsEditingValidade(false)}
+                        onClick={() => setShowGoalModal(true)}
                         style={{
-                          height: '42px',
-                          padding: '0 10px',
                           background: 'transparent',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          color: '#94a3b8',
-                          borderRadius: '10px',
-                          cursor: 'pointer'
+                          border: 'none',
+                          color: '#38bdf8',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 6px'
                         }}
-                        title="Cancelar"
+                        title="Abrir editor completo de observações clínicas"
                       >
-                        &times;
+                        <i className="fa-solid fa-up-right-and-down-left-from-center" style={{ fontSize: '0.68rem' }}></i>
+                        <span>Expandir</span>
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Objetivos e laudo clínico</span>
+                    )}
+                  </div>
+
+                  <div 
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '42px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      padding: '0 12px 0 14px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <i className="fa-solid fa-notes-medical" style={{ color: '#64748b', fontSize: '0.85rem', marginRight: '10px', flexShrink: 0 }}></i>
+                    <input
+                      type="text"
+                      placeholder="Defina o objetivo principal ou observações clínicas deste treino..."
+                      value={workoutGoal}
+                      onChange={e => {
+                        const newGoal = e.target.value;
+                        setWorkoutGoal(newGoal);
+                        triggerDebouncedAutoSave(workoutItems, workoutName, newGoal);
+                      }}
+                      title={workoutGoal || 'Foco do treino'}
+                      style={{
+                        width: '100%',
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: '#f8fafc',
+                        fontSize: '0.88rem',
+                        fontWeight: 500
+                      }}
+                      onFocus={e => {
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          parent.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+                          parent.style.background = 'rgba(255, 255, 255, 0.05)';
+                          parent.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.12)';
+                        }
+                      }}
+                      onBlur={e => {
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          parent.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                          parent.style.background = 'rgba(255, 255, 255, 0.03)';
+                          parent.style.boxShadow = 'none';
+                        }
+                      }}
+                    />
+                    {workoutGoal && (
+                      <button
+                        type="button"
+                        onClick={() => setShowGoalModal(true)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          fontSize: '0.80rem',
+                          flexShrink: 0,
+                          marginLeft: '4px',
+                          transition: 'color 0.15s ease'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#38bdf8'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; }}
+                        title="Ver observação completa"
+                      >
+                        <i className="fa-solid fa-up-right-and-down-left-from-center"></i>
                       </button>
                     )}
                   </div>
-                )}
+                </div>
+
+                {/* Coluna 3: Campo de Validade da Ficha */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '32px', marginBottom: '8px' }}>
+                    <label style={{ fontWeight: 800, fontSize: '0.78rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      VALIDADE DA FICHA
+                    </label>
+                    {workoutValidade && !isEditingValidade && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingValidade(true)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#38bdf8',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: '2px 8px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        Alterar
+                      </button>
+                    )}
+                  </div>
+
+                  {workoutValidade && workoutDataExpiracao && !isEditingValidade ? (() => {
+                    const expD = new Date(workoutDataExpiracao + 'T12:00:00');
+                    const diff = Math.ceil((expD.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    const isExp = diff <= 0;
+                    const isSoon = diff > 0 && diff <= 7;
+                    const formattedExp = workoutDataExpiracao.split('-').reverse().join('/');
+                    const statusColor = isExp ? '#ef4444' : isSoon ? '#fbbf24' : '#10b981';
+                    const statusBg = isExp ? 'rgba(239, 68, 68, 0.08)' : isSoon ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)';
+                    const statusBorder = isExp ? 'rgba(239, 68, 68, 0.25)' : isSoon ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+                    const statusText = isExp 
+                      ? `Vencida há ${Math.abs(diff)}d (${formattedExp})`
+                      : isSoon 
+                        ? `Vence em ${diff}d (${formattedExp})`
+                        : `Vigente (${diff}d • ${formattedExp})`;
+
+                    return (
+                      <div style={{
+                        padding: '0 14px',
+                        background: statusBg,
+                        border: `1px solid ${statusBorder}`,
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        height: '42px'
+                      }}>
+                        <i className="fa-regular fa-calendar-check" style={{ color: statusColor, fontSize: '0.9rem' }}></i>
+                        <span style={{ fontSize: '0.84rem', fontWeight: 800, color: statusColor }}>
+                          {statusText}
+                        </span>
+                      </div>
+                    );
+                  })() : (
+                    <div style={{ display: 'flex', gap: '6px', height: '42px', alignItems: 'center' }}>
+                      {[15, 30, 60].map(days => {
+                        const isSel = workoutValidade === days;
+                        return (
+                          <button
+                            key={days}
+                            type="button"
+                            onClick={() => {
+                              handleSetValidade(days);
+                              setIsEditingValidade(false);
+                            }}
+                            style={{
+                              flex: 1,
+                              height: '42px',
+                              padding: '0 6px',
+                              borderRadius: '10px',
+                              border: isSel ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
+                              background: isSel ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                              color: isSel ? '#34d399' : '#94a3b8',
+                              fontWeight: isSel ? 800 : 600,
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {days} dias
+                          </button>
+                        );
+                      })}
+                      {isEditingValidade && (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingValidade(false)}
+                          style={{
+                            height: '42px',
+                            padding: '0 10px',
+                            background: 'transparent',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            color: '#94a3b8',
+                            borderRadius: '10px',
+                            cursor: 'pointer'
+                          }}
+                          title="Cancelar"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div style={{
               background: '#0d1322',
@@ -3861,32 +4248,34 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               border: hasDrop ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
                               borderLeft: isGrouped ? `4px solid ${groupColor}` : hasDrop ? '4px solid #f59e0b' : '4px solid transparent',
                               boxShadow: justGroupedItemId === item.id ? `0 0 0 2px ${groupColor || '#38bdf8'}, 0 0 25px ${groupColor || '#38bdf8'}88` : undefined,
-                              transition: 'all 0.3s ease'
+                              transition: 'all 0.3s ease',
+                              boxSizing: 'border-box',
+                              overflow: 'hidden'
                             }}
                           >
                         {isMobile ? (
                           /* 📱 Card Mobile Redesenhado Premium (Estilo Hevy / Apple Fitness) */
-                          <div className="workout-exercise-card-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                          <div className="workout-exercise-card-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
                             {/* Top: #Index + Nome + Grupo + Badges + Ações Táteis */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', flex: 1, minWidth: 0 }}>
                                 <span style={{
-                                  fontSize: '0.75rem',
+                                  fontSize: '0.74rem',
                                   fontWeight: 900,
                                   color: '#10b981',
                                   background: 'rgba(16, 185, 129, 0.15)',
-                                  padding: '2px 7px',
+                                  padding: '2px 6px',
                                   borderRadius: '6px',
                                   flexShrink: 0
                                 }}>
                                   #{index + 1}
                                 </span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc', lineHeight: 1.25 }}>
+                                  <div style={{ fontWeight: 800, fontSize: '0.90rem', color: '#f8fafc', lineHeight: 1.25, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                     {item.nome}
                                   </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
-                                    <span style={{ fontSize: '0.66rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap', marginTop: '3px' }}>
+                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
                                       {item.grupo}
                                     </span>
                                     {item.combinaGrupo && (
@@ -3925,16 +4314,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 </div>
                               </div>
 
-                              {/* Ações Táteis Rápidas: ▲ ▼ Substituir Excluir */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                              {/* Ações Táteis Rápidas: ▲ ▼ Substituir Excluir (Compactos e contidos) */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
                                 <button
                                   type="button"
                                   disabled={index === 0}
                                   onClick={() => moveItem(index, 'up')}
                                   style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
+                                    width: '25px',
+                                    height: '25px',
+                                    padding: 0,
+                                    borderRadius: '5px',
                                     border: '1px solid rgba(255,255,255,0.08)',
                                     background: 'rgba(255,255,255,0.04)',
                                     color: index === 0 ? '#475569' : '#cbd5e1',
@@ -3942,7 +4332,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '0.70rem'
+                                    fontSize: '0.66rem'
                                   }}
                                   title="Mover para cima"
                                 >
@@ -3953,9 +4343,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   disabled={index === workoutItems.length - 1}
                                   onClick={() => moveItem(index, 'down')}
                                   style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
+                                    width: '25px',
+                                    height: '25px',
+                                    padding: 0,
+                                    borderRadius: '5px',
                                     border: '1px solid rgba(255,255,255,0.08)',
                                     background: 'rgba(255,255,255,0.04)',
                                     color: index === workoutItems.length - 1 ? '#475569' : '#cbd5e1',
@@ -3963,7 +4354,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '0.70rem'
+                                    fontSize: '0.66rem'
                                   }}
                                   title="Mover para baixo"
                                 >
@@ -3983,9 +4374,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     setSubstituteMuscle(item.grupo && muscles.includes(item.grupo) ? item.grupo : 'Todos');
                                   }}
                                   style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
+                                    width: '25px',
+                                    height: '25px',
+                                    padding: 0,
+                                    borderRadius: '5px',
                                     border: '1px solid rgba(56, 189, 248, 0.3)',
                                     background: 'rgba(56, 189, 248, 0.1)',
                                     color: '#38bdf8',
@@ -3993,7 +4385,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '0.70rem'
+                                    fontSize: '0.66rem'
                                   }}
                                   title="Substituir Exercício"
                                 >
@@ -4003,9 +4395,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   type="button"
                                   onClick={() => removeItem(item.id)}
                                   style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
+                                    width: '25px',
+                                    height: '25px',
+                                    padding: 0,
+                                    borderRadius: '5px',
                                     border: '1px solid rgba(239, 68, 68, 0.3)',
                                     background: 'rgba(239, 68, 68, 0.1)',
                                     color: '#ef4444',
@@ -4013,7 +4406,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '0.70rem'
+                                    fontSize: '0.66rem'
                                   }}
                                   title="Excluir Exercício"
                                 >
@@ -4076,8 +4469,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             </div>
 
                             {/* Linha de Ritmo e Tempo Previsto no Mobile */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                              <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', boxSizing: 'border-box' }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <WorkoutTempoPicker
                                   value={item.ritmo || ''}
                                   onChange={val => updateItem(item.id, 'ritmo', val)}
@@ -4090,13 +4483,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   const exTime = calculateExerciseTime(item.series, item.repeticoes || item.reps, item.ritmo, item.descanso);
                                   if (!exTime.isPendingTempo) {
                                     return (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3px 6px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: 800, color: '#38bdf8' }}>
                                         <span>⏱️ {formatSecondsToTime(exTime.totalSeconds)}</span>
                                       </div>
                                     );
                                   }
                                   return (
-                                    <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 800, color: '#fbbf24' }}>
+                                    <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '3px 6px', borderRadius: '6px', fontSize: '0.66rem', fontWeight: 800, color: '#fbbf24' }}>
                                       ⚠️ Ritmo
                                     </div>
                                   );
@@ -4105,7 +4498,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             </div>
 
                             {/* Linha Extra: Drop-set pill + Obs pill + Combinar Grupo */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', boxSizing: 'border-box' }}>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -4114,10 +4507,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 }}
                                 style={{
                                   flex: 1,
-                                  height: '28px',
-                                  padding: '0 8px',
+                                  height: '26px',
+                                  padding: '0 4px',
                                   borderRadius: '6px',
-                                  fontSize: '0.68rem',
+                                  fontSize: '0.66rem',
                                   fontWeight: 800,
                                   cursor: 'pointer',
                                   background: hasDrop ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
@@ -4129,8 +4522,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   gap: '4px'
                                 }}
                               >
-                                <i className="fa-solid fa-bolt" style={{ fontSize: '0.65rem' }}></i>
-                                <span>{hasDrop ? (item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops') : '+ Drop-set'}</span>
+                                <i className="fa-solid fa-bolt" style={{ fontSize: '0.62rem' }}></i>
+                                <span>{hasDrop ? (item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops') : '+ Drop'}</span>
                               </button>
 
                               <button
@@ -4140,25 +4533,26 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   setTempObsText(item.observacao || '');
                                 }}
                                 style={{
-                                  height: '28px',
-                                  padding: '0 10px',
+                                  height: '26px',
+                                  padding: '0 6px',
                                   borderRadius: '6px',
                                   border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
                                   background: item.observacao ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.04)',
                                   color: item.observacao ? '#38bdf8' : '#94a3b8',
-                                  fontSize: '0.68rem',
+                                  fontSize: '0.66rem',
                                   fontWeight: 750,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '4px'
+                                  gap: '4px',
+                                  flexShrink: 0
                                 }}
                               >
-                                <i className="fa-solid fa-comment-dots"></i>
+                                <i className="fa-solid fa-comment-dots" style={{ fontSize: '0.62rem' }}></i>
                                 <span>{item.observacao ? 'Obs ✓' : 'Obs'}</span>
                               </button>
 
-                              <div style={{ width: '70px', height: '28px' }}>
+                              <div style={{ width: '62px', height: '26px', flexShrink: 0 }}>
                                 {(() => {
                                   const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
                                   let maxGroupNum = 0;
@@ -4183,13 +4577,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                       onChange={e => handleGroupChange(item.id, e.target.value)}
                                       style={{
                                         width: '100%',
-                                        height: '28px',
-                                        padding: '0 4px',
+                                        height: '26px',
+                                        padding: '0 2px',
                                         borderRadius: '6px',
                                         border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.08)',
                                         background: item.combinaGrupo ? `${groupColor}22` : '#080d1a',
                                         color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
-                                        fontSize: '0.68rem',
+                                        fontSize: '0.66rem',
                                         fontWeight: 800,
                                         cursor: 'pointer'
                                       }}
