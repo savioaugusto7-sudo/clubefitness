@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadReportPDF, downloadAssessmentPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import { RITMO_OPTIONS } from '@/utils/workoutTimeEngine';
 
 interface DashboardClientProps {
   activeTab: string;
@@ -276,10 +277,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Descanso</span>
                     <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
                   </div>
-                  {(ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') && (
+                  {(ex.ritmo && String(ex.ritmo).trim() !== '') && (
                     <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Ritmo de Execução</span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.ritmo}</span>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#38bdf8' }}>
+                        {(() => {
+                          const opt = RITMO_OPTIONS.find(o => o.valor === ex.ritmo);
+                          return opt ? opt.label : ex.ritmo;
+                        })()}
+                      </span>
                     </div>
                   )}
                   {ex.dropSet && ex.dropSet.tipo && ex.dropSet.tipo !== 'none' && Array.isArray(ex.dropSet.drops) && ex.dropSet.drops.length > 0 && (

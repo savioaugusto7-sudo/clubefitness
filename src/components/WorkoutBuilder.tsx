@@ -4,7 +4,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FastTextarea } from './FastFormField';
 import WellnessModal from './WellnessModal';
 import WorkoutEvolutionModal from './WorkoutEvolutionModal';
+import WorkoutTempoPicker from './WorkoutTempoPicker';
+import WorkoutTempoModal from './WorkoutTempoModal';
 import { calculateWellness } from '@/utils/wellnessHelper';
+import { calculateSheetTotalTime, calculateExerciseTime, formatSecondsToTime } from '@/utils/workoutTimeEngine';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -260,6 +263,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [activeObsModalItem, setActiveObsModalItem] = useState<any | null>(null);
   const [tempObsText, setTempObsText] = useState('');
   const [activeDropMenuId, setActiveDropMenuId] = useState<string | null>(null);
+  const [showTempoModal, setShowTempoModal] = useState(false);
+
+  const handleApplyBatchRitmo = (batchRitmo: string) => {
+    setWorkoutItems(prev => {
+      const updated = prev.map(it => {
+        if (!it.ritmo || !String(it.ritmo).trim()) {
+          return { ...it, ritmo: batchRitmo };
+        }
+        return it;
+      });
+      persistWorkoutData(updated, workoutName, workoutGoal, workoutValidade, true);
+      return updated;
+    });
+  };
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const displayName = realClientName || (clientName && clientName !== 'Aluno' ? clientName : 'Aluno');
@@ -1492,10 +1509,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         }
       }
     });
+    const timeAnalysis = calculateSheetTotalTime(workoutItems);
+
     return {
       volumeTotal: Math.round(volume),
       totalSeries: series,
-      totalExercicios: workoutItems.length
+      totalExercicios: workoutItems.length,
+      timeAnalysis
     };
   }, [workoutItems]);
 
@@ -2380,6 +2400,42 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             <div>
               <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>Exercícios / Séries</div>
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>{metrics.totalExercicios} ex • {metrics.totalSeries} séries</div>
+            </div>
+          </div>
+
+          {/* ⏱️ Card de Tempo Previsto da Sessão */}
+          <div 
+            className="workout-builder-stats"
+            onClick={() => setShowTempoModal(true)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              padding: '6px 14px',
+              borderRadius: '10px',
+              border: metrics.timeAnalysis.isComplete ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(245, 158, 11, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Clique para abrir a análise de tempo previsto, densidade e viabilidade em tempo hábil"
+          >
+            <i className="fa-solid fa-stopwatch" style={{ color: metrics.timeAnalysis.isComplete ? '#38bdf8' : '#fbbf24', fontSize: '0.95rem' }}></i>
+            <div>
+              <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>Tempo Previsto</span>
+                {!metrics.timeAnalysis.isComplete && (
+                  <span style={{ color: '#fbbf24', fontSize: '0.60rem' }}>⚠️ pendências</span>
+                )}
+              </div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: metrics.timeAnalysis.isComplete ? '#38bdf8' : '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>~{metrics.timeAnalysis.formattedTotal}</span>
+                {!metrics.timeAnalysis.isComplete && (
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '1px 5px', borderRadius: '4px' }}>
+                    {metrics.timeAnalysis.pendingCount} pendente{metrics.timeAnalysis.pendingCount > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -3751,7 +3807,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   className="workout-table-header"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
+                    gridTemplateColumns: 'minmax(190px, 2fr) 55px 65px 110px 170px 60px 75px 45px 105px 95px',
                     gap: '8px',
                     padding: '10px 20px',
                     background: 'rgba(0, 0, 0, 0.25)',
@@ -3769,6 +3825,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   <div style={{ textAlign: 'center' }}>RITMO</div>
                   <div style={{ textAlign: 'center' }}>CARGA</div>
                   <div style={{ textAlign: 'center' }}>DESC.</div>
+                  <div style={{ textAlign: 'center' }}>TEMPO</div>
                   <div style={{ textAlign: 'center' }}>OBS</div>
                   <div style={{ textAlign: 'center' }}>COMBINAR</div>
                   <div style={{ textAlign: 'center' }}>AÇÕES</div>
@@ -4022,6 +4079,35 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               </div>
                             </div>
 
+                            {/* Linha de Ritmo e Tempo Previsto no Mobile */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                              <div style={{ flex: 1 }}>
+                                <WorkoutTempoPicker
+                                  value={item.ritmo || ''}
+                                  onChange={val => updateItem(item.id, 'ritmo', val)}
+                                  reps={item.repeticoes || item.reps}
+                                  series={item.series}
+                                />
+                              </div>
+                              <div style={{ flexShrink: 0 }}>
+                                {(() => {
+                                  const exTime = calculateExerciseTime(item.series, item.repeticoes || item.reps, item.ritmo, item.descanso);
+                                  if (!exTime.isPendingTempo) {
+                                    return (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8' }}>
+                                        <span>⏱️ {formatSecondsToTime(exTime.totalSeconds)}</span>
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 800, color: '#fbbf24' }}>
+                                      ⚠️ Ritmo
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+
                             {/* Linha Extra: Drop-set pill + Obs pill + Combinar Grupo */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <button
@@ -4129,7 +4215,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             className="workout-exercise-row-desktop"
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 175px 65px 50px 110px 95px',
+                            gridTemplateColumns: 'minmax(190px, 2fr) 55px 65px 110px 170px 60px 75px 45px 105px 95px',
                             gap: '8px',
                             alignItems: 'center'
                           }}
@@ -4250,25 +4336,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           </div>
 
                           <div>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
+                            <WorkoutTempoPicker
                               value={item.ritmo || ''}
-                              onChange={e => updateItem(item.id, 'ritmo', e.target.value)}
-                              placeholder="Ritmo..."
-                              title="Ritmo / Cadência: livre escrita (Ex: 2-0-2-0, Controlado, Isometria...)"
-                              style={{
-                                width: '100%',
-                                height: '36px',
-                                textAlign: 'center',
-                                padding: '0 6px',
-                                background: '#070b14',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                color: '#38bdf8',
-                                borderRadius: '7px',
-                                fontWeight: 700,
-                                fontSize: '0.78rem'
-                              }}
+                              onChange={val => updateItem(item.id, 'ritmo', val)}
+                              reps={item.reps}
+                              series={item.series}
                             />
                           </div>
 
@@ -4504,6 +4576,45 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 fontSize: '0.85rem'
                               }}
                             />
+                          </div>
+
+                          {/* Coluna TEMPO do Exercício */}
+                          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '36px' }}>
+                            {(() => {
+                              const exTime = calculateExerciseTime(item.series, item.reps, item.ritmo, item.descanso);
+                              if (!exTime.isPendingTempo) {
+                                return (
+                                  <div
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'help' }}
+                                    title={`Tempo total estimado: ${formatSecondsToTime(exTime.totalSeconds)} (${formatSecondsToTime(exTime.executionSeconds)} sob tensão + ${formatSecondsToTime(exTime.restSeconds)} descansos)`}
+                                  >
+                                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
+                                      ⏱️ {formatSecondsToTime(exTime.totalSeconds)}
+                                    </span>
+                                    <span style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                                      {formatSecondsToTime(exTime.executionSeconds)} ativo
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span
+                                  style={{
+                                    fontSize: '0.62rem',
+                                    fontWeight: 800,
+                                    color: '#fbbf24',
+                                    background: 'rgba(245, 158, 11, 0.12)',
+                                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                                    borderRadius: '5px',
+                                    padding: '2px 4px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  title="Informe o ritmo para calcular a duração deste exercício"
+                                >
+                                  ⚠️ Ritmo
+                                </span>
+                              );
+                            })()}
                           </div>
 
                           <div style={{ textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '36px' }}>
@@ -6390,6 +6501,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </div>
         </div>
       )}
+
+      {/* ⏱️ Modal de Tempo Hábil, Densidade e Viabilidade de Treino */}
+      <WorkoutTempoModal
+        isOpen={showTempoModal}
+        onClose={() => setShowTempoModal(false)}
+        items={workoutItems}
+        sheetName={workoutName}
+        onUpdateItemRitmo={(itemId, val) => updateItem(itemId, 'ritmo', val)}
+        onApplyBatchRitmo={handleApplyBatchRitmo}
+      />
 
     </div>
   );
