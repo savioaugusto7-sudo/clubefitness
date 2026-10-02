@@ -56,14 +56,14 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
         }}
         title="Alterar unidade de medida da carga (kg, lbs, placas, Livre, etc.)"
         style={{
-          width: '42px',
+          width: '38px',
           height: '34px',
           background: '#070b14',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           color: '#cbd5e1',
           borderRadius: '7px',
           fontWeight: 700,
-          fontSize: '0.72rem',
+          fontSize: '0.70rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

@@ -2872,7 +2872,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       <div className={`workout-split-container mobile-tab-${mobileTab}`} style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
         <div className="workout-sidebar-panel" style={{
-          width: '380px',
+          width: '320px',
           background: '#0d1322',
           borderRight: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
@@ -3011,7 +3011,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </div>
         </div>
 
-        <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: isMobile ? '12px 12px 120px 12px' : '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
+        <div className="workout-main-content workout-builder-scroll" style={{ flex: 1, padding: isMobile ? '12px 12px 120px 12px' : '20px 20px 140px 20px', overflowY: 'auto', background: '#070b14' }}>
           <div style={{ maxWidth: 'min(100%, 1280px)', margin: '0 auto' }}>
             
             {/* 🌟 Informação Clara do Último Treino Executado pelo Aluno (Apenas Desktop) */}
@@ -3795,72 +3795,75 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 </span>
               </div>
 
-              {workoutItems.length > 0 && !isLoading && (
-                <div 
-                  className="workout-table-header"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(150px, 1.8fr) 46px 52px 88px 132px 48px 62px 38px 82px 80px',
-                    gap: '5px',
-                    padding: '10px 14px',
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    color: '#64748b',
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  <div>EXERCÍCIO</div>
-                  <div style={{ textAlign: 'center' }}>SÉRIES</div>
-                  <div style={{ textAlign: 'center' }}>REPS</div>
-                  <div style={{ textAlign: 'center' }}>RITMO</div>
-                  <div style={{ textAlign: 'center' }}>CARGA</div>
-                  <div style={{ textAlign: 'center' }}>DESC.</div>
-                  <div style={{ textAlign: 'center' }}>TEMPO</div>
-                  <div style={{ textAlign: 'center' }}>OBS</div>
-                  <div style={{ textAlign: 'center' }}>COMBINAR</div>
-                  <div style={{ textAlign: 'center' }}>AÇÕES</div>
-                </div>
-              )}
+              {/* Container de Rolagem Horizontal Seguro da Tabela Desktop */}
+              <div style={{ width: '100%', overflowX: 'auto' }}>
+                <div style={{ minWidth: '780px' }}>
+                  {workoutItems.length > 0 && !isLoading && (
+                    <div 
+                      className="workout-table-header"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(140px, 1.6fr) 42px 48px 80px 116px 44px 58px 36px 70px 80px',
+                        gap: '4px',
+                        padding: '10px 24px',
+                        background: 'rgba(0, 0, 0, 0.25)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                        fontSize: '0.70rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        color: '#64748b',
+                        letterSpacing: '0.5px'
+                      }}
+                    >
+                      <div>EXERCÍCIO</div>
+                      <div style={{ textAlign: 'center' }}>SÉRIES</div>
+                      <div style={{ textAlign: 'center' }}>REPS</div>
+                      <div style={{ textAlign: 'center' }}>RITMO</div>
+                      <div style={{ textAlign: 'center' }}>CARGA</div>
+                      <div style={{ textAlign: 'center' }}>DESC.</div>
+                      <div style={{ textAlign: 'center' }}>TEMPO</div>
+                      <div style={{ textAlign: 'center' }}>OBS</div>
+                      <div style={{ textAlign: 'center' }}>COMBINAR</div>
+                      <div style={{ textAlign: 'center' }}>AÇÕES</div>
+                    </div>
+                  )}
 
-              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {isLoading ? (
-                  <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '16px', display: 'block' }}></i>
-                    <p style={{ margin: 0, fontWeight: 800, color: '#ffffff', fontSize: '1rem' }}>Carregando ficha de treino do aluno...</p>
-                    <small style={{ color: '#64748b' }}>Sincronizando exercícios, cargas e Wellness</small>
-                  </div>
-                ) : workoutItems.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
-                    <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '12px', display: 'block' }}></i>
-                    <p style={{ margin: 0, fontWeight: 700, color: '#94a3b8', fontSize: '0.95rem' }}>Esta ficha ainda não possui exercícios cadastrados.</p>
-                    <small style={{ color: '#475569' }}>Selecione exercícios na barra lateral à esquerda para adicionar.</small>
-                  </div>
-                ) : (
-                  workoutItems.map((item, index) => {
-                    const groupColor = getGroupColor(item.combinaGrupo);
-                    const isGrouped = Boolean(item.combinaGrupo);
-                    const hasDrop = item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none' && Array.isArray(item.dropSet.drops) && item.dropSet.drops.length > 0;
-                    const loadProg = getExerciseLoadProgression(item.historicoCargas);
+                  <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {isLoading ? (
+                      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '16px', display: 'block' }}></i>
+                        <p style={{ margin: 0, fontWeight: 800, color: '#ffffff', fontSize: '1rem' }}>Carregando ficha de treino do aluno...</p>
+                        <small style={{ color: '#64748b' }}>Sincronizando exercícios, cargas e Wellness</small>
+                      </div>
+                    ) : workoutItems.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
+                        <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '12px', display: 'block' }}></i>
+                        <p style={{ margin: 0, fontWeight: 700, color: '#94a3b8', fontSize: '0.95rem' }}>Esta ficha ainda não possui exercícios cadastrados.</p>
+                        <small style={{ color: '#475569' }}>Selecione exercícios na barra lateral à esquerda para adicionar.</small>
+                      </div>
+                    ) : (
+                      workoutItems.map((item, index) => {
+                        const groupColor = getGroupColor(item.combinaGrupo);
+                        const isGrouped = Boolean(item.combinaGrupo);
+                        const hasDrop = item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none' && Array.isArray(item.dropSet.drops) && item.dropSet.drops.length > 0;
+                        const loadProg = getExerciseLoadProgression(item.historicoCargas);
 
-                    return (
-                      <div
-                        key={item.id}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          padding: '10px 14px',
-                          background: isGrouped ? 'rgba(255, 255, 255, 0.03)' : hasDrop ? 'rgba(245, 158, 11, 0.02)' : 'rgba(255, 255, 255, 0.015)',
-                          borderRadius: '10px',
-                          border: hasDrop ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
-                          borderLeft: isGrouped ? `4px solid ${groupColor}` : hasDrop ? '4px solid #f59e0b' : '4px solid transparent',
-                          boxShadow: justGroupedItemId === item.id ? `0 0 0 2px ${groupColor || '#38bdf8'}, 0 0 25px ${groupColor || '#38bdf8'}88` : undefined,
-                          transition: 'all 0.3s ease'
-                        }}
-                      >
+                        return (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '6px',
+                              padding: '8px 10px',
+                              background: isGrouped ? 'rgba(255, 255, 255, 0.03)' : hasDrop ? 'rgba(245, 158, 11, 0.02)' : 'rgba(255, 255, 255, 0.015)',
+                              borderRadius: '10px',
+                              border: hasDrop ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
+                              borderLeft: isGrouped ? `4px solid ${groupColor}` : hasDrop ? '4px solid #f59e0b' : '4px solid transparent',
+                              boxShadow: justGroupedItemId === item.id ? `0 0 0 2px ${groupColor || '#38bdf8'}, 0 0 25px ${groupColor || '#38bdf8'}88` : undefined,
+                              transition: 'all 0.3s ease'
+                            }}
+                          >
                         {isMobile ? (
                           /* 📱 Card Mobile Redesenhado Premium (Estilo Hevy / Apple Fitness) */
                           <div className="workout-exercise-card-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
@@ -4206,34 +4209,35 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           /* 💻 Linha da Tabela Clássica do Desktop 100% Original e Intocada */
                           <div
                             className="workout-exercise-row-desktop"
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'minmax(150px, 1.8fr) 46px 52px 88px 132px 48px 62px 38px 82px 80px',
-                            gap: '5px',
-                            alignItems: 'center'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'minmax(140px, 1.6fr) 42px 48px 80px 116px 44px 58px 36px 70px 80px',
+                              gap: '4px',
+                              alignItems: 'center'
+                            }}
+                          >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', minWidth: 0 }}>
                             <span style={{ 
-                              fontSize: '0.8rem', 
+                              fontSize: '0.78rem', 
                               fontWeight: 800, 
                               color: '#64748b', 
-                              width: '18px' 
+                              width: '18px',
+                              flexShrink: 0
                             }}>
                               {index + 1}
                             </span>
-                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                            <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#f8fafc' }}>
                                   {item.nome}
                                 </span>
                                 {item.combinaGrupo && (
                                   <span style={{
                                     background: groupColor,
                                     color: item.combinaGrupo === 'G5' ? '#000' : '#fff',
-                                    fontSize: '0.65rem',
+                                    fontSize: '0.62rem',
                                     fontWeight: 900,
-                                    padding: '1px 6px',
+                                    padding: '1px 5px',
                                     borderRadius: '4px'
                                   }}>
                                     {item.combinaGrupo}
@@ -4243,18 +4247,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   <span style={{
                                     background: '#f59e0b',
                                     color: '#000',
-                                    fontSize: '0.62rem',
+                                    fontSize: '0.60rem',
                                     fontWeight: 900,
                                     padding: '1px 5px',
                                     borderRadius: '4px',
                                     textTransform: 'uppercase'
                                   }}>
-                                    {item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}
+                                    {item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? 'Double' : 'Triple'}
                                   </span>
                                 )}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
-                                <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                                   {item.grupo}
                                 </div>
                                 {loadProg && (
@@ -4264,13 +4268,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '4px',
-                                      padding: '1px 7px',
-                                      borderRadius: '6px',
+                                      gap: '3px',
+                                      padding: '1px 5px',
+                                      borderRadius: '5px',
                                       background: loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
                                       border: `1px solid ${loadProg.diff >= 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
                                       color: loadProg.diff >= 0 ? '#34d399' : '#f87171',
-                                      fontSize: '0.68rem',
+                                      fontSize: '0.65rem',
                                       fontWeight: 800,
                                       cursor: 'pointer',
                                       transition: 'all 0.15s ease'
@@ -4293,15 +4297,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
                               style={{
                                 width: '100%',
-                                height: '36px',
+                                height: '34px',
                                 textAlign: 'center',
-                                padding: '0 4px',
+                                padding: '0 2px',
                                 background: '#070b14',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.85rem'
+                                fontSize: '0.82rem'
                               }}
                             />
                           </div>
@@ -4315,15 +4319,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               placeholder="12"
                               style={{
                                 width: '100%',
-                                height: '36px',
+                                height: '34px',
                                 textAlign: 'center',
-                                padding: '0 4px',
+                                padding: '0 2px',
                                 background: '#070b14',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.85rem'
+                                fontSize: '0.82rem'
                               }}
                             />
                           </div>
@@ -4337,7 +4341,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             />
                           </div>
 
-                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '2px', width: '100%', height: '36px' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '2px', width: '100%', height: '34px' }}>
                             <input
                               type="number"
                               className="form-control form-control-sm"
@@ -4353,8 +4357,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               placeholder="—"
                               style={{
-                                width: '42px',
-                                height: '36px',
+                                width: '38px',
+                                height: '34px',
                                 textAlign: 'center',
                                 padding: '0 1px',
                                 background: '#070b14',
@@ -4362,7 +4366,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 color: hasDrop ? '#f59e0b' : '#10b981',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.82rem'
+                                fontSize: '0.80rem'
                               }}
                             />
                             <WorkoutUnitPicker
@@ -4379,14 +4383,14 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               style={{
                                 flex: 1,
                                 minWidth: 0,
-                                height: '36px',
+                                height: '34px',
                                 padding: '0 2px',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '2px',
                                 borderRadius: '7px',
-                                fontSize: '0.64rem',
+                                fontSize: '0.62rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
@@ -4542,21 +4546,21 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               placeholder="60"
                               style={{
                                 width: '100%',
-                                height: '36px',
+                                height: '34px',
                                 textAlign: 'center',
-                                padding: '0 4px',
+                                padding: '0 2px',
                                 background: '#070b14',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
                                 borderRadius: '7px',
                                 fontWeight: 700,
-                                fontSize: '0.85rem'
+                                fontSize: '0.82rem'
                               }}
                             />
                           </div>
 
                           {/* Coluna TEMPO do Exercício */}
-                          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '36px' }}>
+                          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '34px' }}>
                             {(() => {
                               const exTime = calculateExerciseTime(item.series, item.reps, item.ritmo, item.descanso);
                               if (!exTime.isPendingTempo) {
@@ -4565,10 +4569,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'help' }}
                                     title={`Tempo total estimado: ${formatSecondsToTime(exTime.totalSeconds)} (${formatSecondsToTime(exTime.executionSeconds)} sob tensão + ${formatSecondsToTime(exTime.restSeconds)} descansos)`}
                                   >
-                                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
+                                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
                                       ⏱️ {formatSecondsToTime(exTime.totalSeconds)}
                                     </span>
-                                    <span style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                                    <span style={{ fontSize: '0.58rem', color: '#64748b' }}>
                                       {formatSecondsToTime(exTime.executionSeconds)} ativo
                                     </span>
                                   </div>
@@ -4577,13 +4581,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               return (
                                 <span
                                   style={{
-                                    fontSize: '0.62rem',
+                                    fontSize: '0.60rem',
                                     fontWeight: 800,
                                     color: '#fbbf24',
                                     background: 'rgba(245, 158, 11, 0.12)',
                                     border: '1px solid rgba(245, 158, 11, 0.3)',
                                     borderRadius: '5px',
-                                    padding: '2px 4px',
+                                    padding: '2px 3px',
                                     whiteSpace: 'nowrap'
                                   }}
                                   title="Informe o ritmo para calcular a duração deste exercício"
@@ -4594,7 +4598,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             })()}
                           </div>
 
-                          <div style={{ textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '36px' }}>
+                          <div style={{ textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '34px' }}>
                             <button
                               type="button"
                               onClick={() => {
@@ -4603,13 +4607,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               title={item.observacao ? `Obs: ${item.observacao}` : 'Adicionar observação técnica'}
                               style={{
-                                width: '36px',
-                                height: '36px',
+                                width: '34px',
+                                height: '34px',
                                 borderRadius: '7px',
                                 border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
                                 background: item.observacao ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
                                 color: item.observacao ? '#38bdf8' : '#94a3b8',
-                                fontSize: '0.82rem',
+                                fontSize: '0.80rem',
                                 fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
@@ -4621,7 +4625,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             </button>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', height: '36px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', height: '34px' }}>
                             {(() => {
                               const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
                               let maxGroupNum = 0;
@@ -4633,11 +4637,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 }
                               });
                               const dynamicOptions = [
-                                { id: '', label: 'Individual' },
+                                { id: '', label: 'Indiv.' },
                                 ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
                                   const id = `G${i + 1}`;
-                                  const p = GROUP_PALETTE[i % GROUP_PALETTE.length];
-                                  return { id, label: `${id} (${p.name})` };
+                                  return { id, label: id };
                                 })
                               ];
 
@@ -4645,15 +4648,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 <select
                                   value={item.combinaGrupo || ''}
                                   onChange={e => handleGroupChange(item.id, e.target.value)}
+                                  title={item.combinaGrupo ? `Combinado em bi-set/tri-set ${item.combinaGrupo}` : 'Exercício individual'}
                                   style={{
                                     width: '100%',
-                                    height: '36px',
-                                    padding: '0 6px',
+                                    height: '34px',
+                                    padding: '0 4px',
                                     borderRadius: '7px',
                                     border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
                                     background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
                                     color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
-                                    fontSize: '0.74rem',
+                                    fontSize: '0.72rem',
                                     fontWeight: 800,
                                     cursor: 'pointer'
                                   }}
@@ -4668,24 +4672,25 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             })()}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', alignItems: 'center', height: '36px', width: '100%' }}>
+                          <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', alignItems: 'center', height: '34px', width: '100%' }}>
                             <button
                               type="button"
                               onClick={() => moveItem(index, 'up')}
                               disabled={index === 0}
                               title="Subir"
                               style={{
-                                width: '19px',
-                                height: '36px',
+                                width: '18px',
+                                height: '34px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: index === 0 ? '#334155' : '#94a3b8',
                                 cursor: index === 0 ? 'default' : 'pointer',
-                                fontSize: '0.72rem',
+                                fontSize: '0.70rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                flexShrink: 0
                               }}
                             >
                               <i className="fa-solid fa-chevron-up"></i>
@@ -4697,17 +4702,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               disabled={index === workoutItems.length - 1}
                               title="Descer"
                               style={{
-                                width: '19px',
-                                height: '36px',
+                                width: '18px',
+                                height: '34px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: index === workoutItems.length - 1 ? '#334155' : '#94a3b8',
                                 cursor: index === workoutItems.length - 1 ? 'default' : 'pointer',
-                                fontSize: '0.72rem',
+                                fontSize: '0.70rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                flexShrink: 0
                               }}
                             >
                               <i className="fa-solid fa-chevron-down"></i>
@@ -4728,17 +4734,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               title="Substituir Exercício (mantém a posição e a combinação G1 ativada)"
                               style={{
-                                width: '19px',
-                                height: '36px',
+                                width: '18px',
+                                height: '34px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: '#38bdf8',
                                 cursor: 'pointer',
-                                fontSize: '0.74rem',
+                                fontSize: '0.72rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                flexShrink: 0,
                                 transition: 'color 0.15s'
                               }}
                               onMouseEnter={e => (e.currentTarget.style.color = '#7dd3fc')}
@@ -4752,17 +4759,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               onClick={() => removeItem(item.id)}
                               title="Excluir Exercício"
                               style={{
-                                width: '19px',
-                                height: '36px',
+                                width: '18px',
+                                height: '34px',
                                 padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: '#ef4444',
                                 cursor: 'pointer',
-                                fontSize: '0.75rem',
+                                fontSize: '0.74rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                flexShrink: 0
                               }}
                               onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
                               onMouseLeave={e => (e.currentTarget.style.color = '#ef4444')}
@@ -4879,6 +4887,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     );
                   })
                 )}
+                  </div>
+                </div>
               </div>
             </div>
 
