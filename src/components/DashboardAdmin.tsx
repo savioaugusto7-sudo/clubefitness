@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
@@ -405,12 +405,25 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   // Trancamento Admin States
   const [showAdminTrancModal, setShowAdminTrancModal] = useState(false);
   const [adminTrancContractId, setAdminTrancContractId] = useState('');
+  const [adminTrancSearch, setAdminTrancSearch] = useState('');
+  const [adminTrancDropdownOpen, setAdminTrancDropdownOpen] = useState(false);
+  const adminTrancDropdownRef = useRef<HTMLDivElement>(null);
   const [adminTrancDataInicio, setAdminTrancDataInicio] = useState('');
   const [adminTrancSemanas, setAdminTrancSemanas] = useState(1);
   const [adminTrancRedist, setAdminTrancRedist] = useState<Record<string, number>>({});
   const [adminTrancSubmitting, setAdminTrancSubmitting] = useState(false);
   const [adminTrancError, setAdminTrancError] = useState('');
   const [adminTrancSuccess, setAdminTrancSuccess] = useState('');
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (adminTrancDropdownRef.current && !adminTrancDropdownRef.current.contains(event.target as Node)) {
+        setAdminTrancDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const [exNome, setExNome] = useState('');
   const [exGrupo, setExGrupo] = useState('PEITO');
   const [exEquip, setExEquip] = useState('');
@@ -6210,7 +6223,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <button 
                 className="btn btn-primary"
                 onClick={() => {
-                  setAdminTrancContractId(activeContracts.length > 0 ? activeContracts[0]._id : '');
+                  setAdminTrancContractId('');
+                  setAdminTrancSearch('');
+                  setAdminTrancDropdownOpen(false);
                   setAdminTrancDataInicio('');
                   setAdminTrancSemanas(1);
                   setAdminTrancRedist({});
@@ -6340,7 +6355,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                 <button
                                   className="btn btn-sm btn-primary"
                                   onClick={() => {
+                                    const cl = clients.find((client: any) => client._id === (contract.clientId?._id || contract.clientId));
+                                    const name = cl?.dadosPessoais?.nome || contract.clientId?.dadosPessoais?.nome || contract.nomeCliente || 'Aluno';
+                                    const plano = contract.planoNome || contract.planoId?.nome || 'Plano';
                                     setAdminTrancContractId(contract._id);
+                                    setAdminTrancSearch(`${name} — ${plano} (Restam ${semanasRestantes} sem.)`);
+                                    setAdminTrancDropdownOpen(false);
                                     setAdminTrancDataInicio('');
                                     setAdminTrancSemanas(1);
                                     setAdminTrancRedist({});
@@ -6517,45 +6537,173 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
                     <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
                       {/* Seleção do Aluno / Contrato */}
+                      {/* Seleção do Aluno / Contrato com Busca e Digitação */}
                       <div className="form-group" style={{ marginBottom: '18px' }}>
                         <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
                           Aluno com Contrato Ativo *
                         </label>
-                        <select
-                          className="select-custom"
-                          value={adminTrancContractId}
-                          onChange={e => {
-                            setAdminTrancContractId(e.target.value);
-                            setAdminTrancSemanas(1);
-                            setAdminTrancRedist({});
-                            setAdminTrancError('');
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            background: '#1e293b',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            color: '#f8fafc',
-                            borderRadius: '8px',
-                            fontSize: '0.85rem'
-                          }}
-                          required
-                        >
-                          <option value="">Selecione o aluno / contrato...</option>
-                          {activeContracts.map((c: any) => {
-                            const cl = clients.find((client: any) => client._id === (c.clientId?._id || c.clientId));
-                            const name = cl?.dadosPessoais?.nome || c.clientId?.dadosPessoais?.nome || c.nomeCliente || 'Sem Nome';
-                            const cTrancs = trancByContract[c._id] || [];
-                            const used = cTrancs.reduce((sum: number, t: any) => sum + t.semanas, 0);
-                            const rem = Math.max(0, 4 - used);
-                            const plano = c.planoNome || c.planoId?.nome || 'Plano';
-                            return (
-                              <option key={c._id} value={c._id} style={{ background: '#0f172a' }}>
-                                {name} — {plano} (Restam {rem} sem.)
-                              </option>
-                            );
-                          })}
-                        </select>
+                        <div ref={adminTrancDropdownRef} style={{ position: 'relative', width: '100%' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '14px', color: '#94a3b8', fontSize: '0.85rem' }}></i>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Digite o nome do aluno ou clique para buscar..."
+                              value={adminTrancSearch}
+                              onFocus={() => setAdminTrancDropdownOpen(true)}
+                              onChange={e => {
+                                setAdminTrancSearch(e.target.value);
+                                setAdminTrancContractId('');
+                                setAdminTrancDropdownOpen(true);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '10px 38px 10px 38px',
+                                background: '#1e293b',
+                                border: adminTrancContractId ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.15)',
+                                color: '#f8fafc',
+                                borderRadius: '8px',
+                                fontSize: '0.85rem',
+                                outline: 'none'
+                              }}
+                            />
+                            <div style={{ position: 'absolute', right: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {(adminTrancSearch || adminTrancContractId) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAdminTrancSearch('');
+                                    setAdminTrancContractId('');
+                                    setAdminTrancDropdownOpen(true);
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', fontSize: '0.85rem' }}
+                                  title="Limpar seleção"
+                                >
+                                  <i className="fa-solid fa-xmark"></i>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setAdminTrancDropdownOpen(!adminTrancDropdownOpen)}
+                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', fontSize: '0.78rem' }}
+                                title="Mostrar lista"
+                              >
+                                <i className={`fa-solid fa-chevron-${adminTrancDropdownOpen ? 'up' : 'down'}`}></i>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Input oculto para validação HTML5 do formulário */}
+                          <input
+                            type="text"
+                            value={adminTrancContractId}
+                            required
+                            onChange={() => {}}
+                            style={{ opacity: 0, height: 0, width: 0, position: 'absolute', pointerEvents: 'none' }}
+                          />
+
+                          {/* Menu Dropdown Flutuante */}
+                          {adminTrancDropdownOpen && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 4px)',
+                                left: 0,
+                                right: 0,
+                                zIndex: 99999,
+                                background: '#0f172a',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                borderRadius: '8px',
+                                boxShadow: '0 16px 36px rgba(0,0,0,0.6)',
+                                maxHeight: '250px',
+                                overflowY: 'auto'
+                              }}
+                            >
+                              {(() => {
+                                const normalizeText = (text: string) =>
+                                  (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+                                const filteredContracts = activeContracts.filter((c: any) => {
+                                  if (!adminTrancSearch.trim() || c._id === adminTrancContractId) return true;
+                                  const cl = clients.find((client: any) => client._id === (c.clientId?._id || c.clientId));
+                                  const name = cl?.dadosPessoais?.nome || c.clientId?.dadosPessoais?.nome || c.nomeCliente || '';
+                                  const plano = c.planoNome || c.planoId?.nome || '';
+                                  const query = normalizeText(adminTrancSearch);
+                                  const target = normalizeText(`${name} ${plano}`);
+                                  return target.includes(query);
+                                });
+
+                                if (filteredContracts.length === 0) {
+                                  return (
+                                    <div style={{ padding: '16px', fontSize: '0.82rem', color: '#94a3b8', textAlign: 'center' }}>
+                                      Nenhum aluno ou plano anual encontrado para "{adminTrancSearch}"
+                                    </div>
+                                  );
+                                }
+
+                                return filteredContracts.map((c: any) => {
+                                  const cl = clients.find((client: any) => client._id === (c.clientId?._id || c.clientId));
+                                  const name = cl?.dadosPessoais?.nome || c.clientId?.dadosPessoais?.nome || c.nomeCliente || 'Sem Nome';
+                                  const cTrancs = trancByContract[c._id] || [];
+                                  const used = cTrancs.reduce((sum: number, t: any) => sum + t.semanas, 0);
+                                  const rem = Math.max(0, 4 - used);
+                                  const plano = c.planoNome || c.planoId?.nome || 'Plano';
+                                  const isSelected = c._id === adminTrancContractId;
+                                  const displayLabel = `${name} — ${plano} (Restam ${rem} sem.)`;
+
+                                  return (
+                                    <div
+                                      key={c._id}
+                                      onClick={() => {
+                                        setAdminTrancContractId(c._id);
+                                        setAdminTrancSearch(displayLabel);
+                                        setAdminTrancDropdownOpen(false);
+                                        setAdminTrancSemanas(1);
+                                        setAdminTrancRedist({});
+                                        setAdminTrancError('');
+                                      }}
+                                      style={{
+                                        padding: '10px 14px',
+                                        cursor: 'pointer',
+                                        background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        transition: 'background 0.15s'
+                                      }}
+                                      onMouseEnter={e => {
+                                        if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                                      }}
+                                      onMouseLeave={e => {
+                                        if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                      }}
+                                    >
+                                      <div>
+                                        <strong style={{ fontSize: '0.84rem', color: isSelected ? '#60a5fa' : '#f8fafc', display: 'block' }}>
+                                          {name}
+                                        </strong>
+                                        <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                                          {plano}
+                                        </span>
+                                      </div>
+                                      <span style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: rem > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                        color: rem > 0 ? '#34d399' : '#f87171'
+                                      }}>
+                                        Restam {rem} sem.
+                                      </span>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Card Resumo do Contrato */}
