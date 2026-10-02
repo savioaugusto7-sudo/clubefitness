@@ -876,7 +876,12 @@ export function calculateThomasAlerts(data: {
   const retoD = toNum(data.thomasRetofemoralD);
   const retoE = toNum(data.thomasRetofemoralE);
 
-  if (data.thomasIliopsoasDStatus === 'positivo' || ilioD > 5) {
+  const statusIlioD = String(data.thomasIliopsoasDStatus || '').toLowerCase();
+  const statusIlioE = String(data.thomasIliopsoasEStatus || '').toLowerCase();
+  const statusRetoD = String(data.thomasRetofemoralDStatus || '').toLowerCase();
+  const statusRetoE = String(data.thomasRetofemoralEStatus || '').toLowerCase();
+
+  if (statusIlioD === 'positivo' || ilioD > 5) {
     alerts.push({
       tipo: 'critico',
       titulo: 'Encurtamento de Iliopsoas Direito',
@@ -889,7 +894,7 @@ export function calculateThomasAlerts(data: {
     });
   }
 
-  if (data.thomasIliopsoasEStatus === 'positivo' || ilioE > 5) {
+  if (statusIlioE === 'positivo' || ilioE > 5) {
     alerts.push({
       tipo: 'critico',
       titulo: 'Encurtamento de Iliopsoas Esquerdo',
@@ -902,7 +907,7 @@ export function calculateThomasAlerts(data: {
     });
   }
 
-  if (data.thomasRetofemoralDStatus === 'positivo' || (retoD > 0 && retoD < 80)) {
+  if (statusRetoD === 'positivo' || (retoD > 0 && retoD < 80)) {
     alerts.push({
       tipo: 'atencao',
       titulo: 'Encurtamento de Retofemoral Direito',
@@ -915,7 +920,7 @@ export function calculateThomasAlerts(data: {
     });
   }
 
-  if (data.thomasRetofemoralEStatus === 'positivo' || (retoE > 0 && retoE < 80)) {
+  if (statusRetoE === 'positivo' || (retoE > 0 && retoE < 80)) {
     alerts.push({
       tipo: 'atencao',
       titulo: 'Encurtamento de Retofemoral Esquerdo',
@@ -936,7 +941,9 @@ export function calculateThomasAlerts(data: {
  */
 export function calculateOberAlerts(oberD: string, oberE: string): BiomechanicAlert[] {
   const alerts: BiomechanicAlert[] = [];
-  if (oberD === 'positivo') {
+  const oD = String(oberD || '').toLowerCase();
+  const oE = String(oberE || '').toLowerCase();
+  if (oD === 'positivo') {
     alerts.push({
       tipo: 'critico',
       titulo: 'Teste de Ober Positivo (Direito)',
@@ -947,7 +954,7 @@ export function calculateOberAlerts(oberD: string, oberE: string): BiomechanicAl
       riscoClinico: 'Fricção do trato iliotibial no côndilo lateral do fêmur (STIT) e dor lateral de joelho.'
     });
   }
-  if (oberE === 'positivo') {
+  if (oE === 'positivo') {
     alerts.push({
       tipo: 'critico',
       titulo: 'Teste de Ober Positivo (Esquerdo)',

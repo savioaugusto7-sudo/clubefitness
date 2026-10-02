@@ -375,7 +375,7 @@ export async function syncPhysioReportTests(reportDoc: any) {
         tipoTeste: 'THOMAS',
         dados: te,
         metricas: {
-          classificacao: te.thomasIliopsoasDStatus === 'Positivo' || te.thomasIliopsoasEStatus === 'Positivo' ? 'Encurtamento Positivo' : 'Normal',
+          classificacao: String(te.thomasIliopsoasDStatus || '').toLowerCase() === 'positivo' || String(te.thomasIliopsoasEStatus || '').toLowerCase() === 'positivo' ? 'Encurtamento Positivo' : 'Normal',
           alertasClinicos: thomasAlerts.map(a => ({
             tipo: a.tipo,
             titulo: a.titulo,
@@ -398,7 +398,7 @@ export async function syncPhysioReportTests(reportDoc: any) {
         tipoTeste: 'OBER',
         dados: { oberD: te.oberD, oberE: te.oberE },
         metricas: {
-          classificacao: te.oberD === 'Positivo' || te.oberE === 'Positivo' ? 'Retração Positiva' : 'Normal',
+          classificacao: String(te.oberD || '').toLowerCase() === 'positivo' || String(te.oberE || '').toLowerCase() === 'positivo' ? 'Retração Positiva' : 'Normal',
           alertasClinicos: oberAlerts.map((a: any) => ({
             tipo: a.tipo,
             titulo: a.titulo,
