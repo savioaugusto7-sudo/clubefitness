@@ -77,7 +77,8 @@ export const parseExerciseCarga = (ex: any) => {
     } else {
       const match = s.match(/^([0-9.,]+)\s*([a-zA-Z%]*)$/);
       if (match) {
-        val = parseFloat(match[1].replace(',', '.')) || '';
+        const parsed = parseFloat(match[1].replace(',', '.'));
+        val = isNaN(parsed) ? '' : parsed;
         if (!unidade && match[2]) unidade = match[2];
       } else {
         const numOnly = parseFloat(s.replace(/[^0-9.]/g, ''));
@@ -1023,12 +1024,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     // Formatar exercícios garantindo conformidade com o schema do banco (exercicioId, repeticoes, etc.)
     const duplicatedExercicios = (workoutItems || []).map((item: any) => {
       let cargaFinal: any = '';
-      if (item.unidadeCarga) {
-        cargaFinal = (item.carga !== '' && item.carga !== undefined && item.carga !== null) ? `${item.carga}${item.unidadeCarga}` : item.unidadeCarga;
-      } else if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
-        cargaFinal = `${item.carga}`;
+      if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
+        cargaFinal = item.unidadeCarga ? `${item.carga}${item.unidadeCarga}` : `${item.carga}`;
       } else {
-        cargaFinal = '10kg';
+        cargaFinal = '';
       }
 
       return {
@@ -1037,7 +1036,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : 3,
         repeticoes: String(item.reps !== undefined && item.reps !== null && String(item.reps).trim() !== '' ? item.reps : '10-12'),
         carga: cargaFinal,
-        unidadeCarga: item.unidadeCarga || 'kg',
+        unidadeCarga: item.unidadeCarga || '',
         descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null 
           ? (String(item.descanso).includes('s') ? String(item.descanso) : `${item.descanso}s`) 
           : '60s',
@@ -1413,10 +1412,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       dataExpiracao: dataExpiracao,
       exercicios: items.map(item => {
         let cargaFinal: any = '';
-        if (item.unidadeCarga) {
-          cargaFinal = (item.carga !== '' && item.carga !== undefined && item.carga !== null) ? `${item.carga}${item.unidadeCarga}` : item.unidadeCarga;
-        } else if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
-          cargaFinal = `${item.carga}`;
+        if (item.carga !== '' && item.carga !== undefined && item.carga !== null) {
+          cargaFinal = item.unidadeCarga ? `${item.carga}${item.unidadeCarga}` : `${item.carga}`;
+        } else {
+          cargaFinal = '';
         }
 
         return {
@@ -1614,8 +1613,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   // 🌟 Cálculo de Evolução de Carga (Overload Progressivo)
   const getExerciseLoadProgression = (historico: any[]) => {
     if (!Array.isArray(historico) || historico.length < 2) return null;
-    const first = historico[0];
-    const last = historico[historico.length - 1];
+
+    // Filtrar apenas pontos com valor numérico real de carga (ignorar strings vazias ou apenas unidade como "kg")
+    const validPoints = historico.filter(h => {
+      if (!h || h.carga === undefined || h.carga === null) return false;
+      const s = String(h.carga).trim();
+      if (s === '' || s.toLowerCase() === 'kg' || s.toLowerCase() === 'lbs') return false;
+      const match = s.match(/[0-9]/);
+      return Boolean(match);
+    });
+
+    if (validPoints.length < 2) return null;
+
+    const first = validPoints[0];
+    const last = validPoints[validPoints.length - 1];
     const cFirst = parseFloat(String(first.carga).replace(/[^\d.-]/g, '')) || 0;
     const cLast = parseFloat(String(last.carga).replace(/[^\d.-]/g, '')) || 0;
     const diff = Math.round((cLast - cFirst) * 10) / 10;
@@ -3872,6 +3883,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 <label style={{ fontSize: '0.58rem', color: hasDrop ? '#fbbf24' : '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>Carga ({item.unidadeCarga || 'kg'})</label>
                                 <input
                                   type="number"
+                                  placeholder="—"
                                   value={item.carga !== undefined && item.carga !== null ? item.carga : ''}
                                   onChange={e => {
                                     const valStr = e.target.value;
@@ -4162,7 +4174,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   setWorkoutItems(prev => prev.map(it => it.id === item.id ? { ...it, carga: newCarga, dropSet: { ...it.dropSet!, drops } } : it));
                                 }
                               }}
-                              placeholder="0"
+                              placeholder="—"
                               style={{
                                 width: '48px',
                                 height: '36px',

@@ -290,7 +290,18 @@ export async function POST(request: Request) {
               : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '10-12')
           ).trim();
           const finalSeries = ex.series !== undefined && ex.series !== null && String(ex.series).trim() !== '' ? Number(ex.series) || 3 : 3;
-          const finalCarga = ex.carga !== undefined && ex.carga !== null && String(ex.carga).trim() !== '' ? ex.carga : '0';
+          
+          let finalCarga = '';
+          if (ex.carga !== undefined && ex.carga !== null) {
+            const trimmed = String(ex.carga).trim();
+            // Se for apenas unidade literal (ex: "kg", "lbs") sem número ou vazio, fica em branco
+            if (trimmed === '' || /^([a-zA-Z%]+)$/.test(trimmed)) {
+              finalCarga = '';
+            } else {
+              finalCarga = trimmed;
+            }
+          }
+
           let finalDescanso = ex.descanso !== undefined && ex.descanso !== null && String(ex.descanso).trim() !== '' ? String(ex.descanso).trim() : '60s';
           if (!isNaN(Number(finalDescanso))) {
             finalDescanso = `${finalDescanso}s`;
@@ -300,7 +311,8 @@ export async function POST(request: Request) {
             ? [...ex.historicoCargas] 
             : (Array.isArray(existingEx?.historicoCargas) ? [...existingEx.historicoCargas] : []);
 
-          const currentCarga = finalCarga !== '0' && String(finalCarga).trim() !== '' ? String(finalCarga).trim() : null;
+          // Só registra no histórico se houver carga de fato informada (número legítimo inclusive 0)
+          const currentCarga = finalCarga !== '' ? finalCarga : null;
 
           if (currentCarga) {
             const lastEntry = historicoCargas[historicoCargas.length - 1];

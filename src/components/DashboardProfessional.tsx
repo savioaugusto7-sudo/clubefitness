@@ -4758,7 +4758,7 @@ goniometria: {
         exercicioId: exerciseName,
         series: 3,
         repeticoes: '12',
-        carga: '10kg',
+        carga: '',
         descanso: '60s',
         observacao: '',
         ritmo: '',
@@ -18351,7 +18351,7 @@ goniometria: {
                                   <ul style={{ margin: '6px 0 0', paddingLeft: '18px', fontSize: '0.8rem', color: '#cbd5e1' }}>
                                     {f.exercicios.map((ex: any, eIdx: number) => (
                                       <li key={eIdx}>
-                                        {ex.exercicioId} — {ex.series}x{ex.repeticoes} ({ex.carga || '10kg'}) {ex.observacao ? `[${ex.observacao}]` : ''}
+                                        {ex.exercicioId} — {ex.series}x{ex.repeticoes} {ex.carga ? `(${ex.carga})` : ''} {ex.observacao ? `[${ex.observacao}]` : ''}
                                       </li>
                                     ))}
                                   </ul>
