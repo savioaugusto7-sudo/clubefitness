@@ -2342,9 +2342,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               title="Clique para ver detalhamento do tempo de treino"
             >
               <i className="fa-regular fa-clock" style={{ fontSize: '0.70rem' }}></i>
-              <span>{metrics.timeAnalysis.formattedTotal}</span>
-              {!metrics.timeAnalysis.isComplete && (
-                <span style={{ fontSize: '0.60rem', background: '#f59e0b', color: '#000', padding: '0 3px', borderRadius: '3px', fontWeight: 900 }}>!</span>
+              {isLoading ? (
+                <span className="workout-skeleton" style={{ width: '36px', height: '12px' }}></span>
+              ) : (
+                <>
+                  <span>{metrics.timeAnalysis.formattedTotal}</span>
+                  {!metrics.timeAnalysis.isComplete && (
+                    <span style={{ fontSize: '0.60rem', background: '#f59e0b', color: '#000', padding: '0 3px', borderRadius: '3px', fontWeight: 900 }}>!</span>
+                  )}
+                </>
               )}
             </button>
 
@@ -2368,7 +2374,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               title="Volume de carga previsto"
             >
               <i className="fa-solid fa-weight-hanging" style={{ fontSize: '0.68rem' }}></i>
-              <span>{metrics.volumeTotal >= 1000 ? `${(metrics.volumeTotal / 1000).toFixed(1)}t` : `${metrics.volumeTotal}kg`}</span>
+              {isLoading ? (
+                <span className="workout-skeleton" style={{ width: '36px', height: '12px' }}></span>
+              ) : (
+                <span>{metrics.volumeTotal >= 1000 ? `${(metrics.volumeTotal / 1000).toFixed(1)}t` : `${metrics.volumeTotal}kg`}</span>
+              )}
             </div>
 
             {/* 📋 Séries e Exercícios */}
@@ -2391,7 +2401,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               title="Total de séries e exercícios da ficha"
             >
               <i className="fa-solid fa-layer-group" style={{ fontSize: '0.68rem', color: '#94a3b8' }}></i>
-              <span>{metrics.totalSeries}s <span style={{ color: '#94a3b8', fontWeight: 600 }}>({metrics.totalExercicios}ex)</span></span>
+              {isLoading ? (
+                <span className="workout-skeleton" style={{ width: '46px', height: '12px' }}></span>
+              ) : (
+                <span>{metrics.totalSeries}s <span style={{ color: '#94a3b8', fontWeight: 600 }}>({metrics.totalExercicios}ex)</span></span>
+              )}
             </div>
           </div>
         </>
@@ -2471,7 +2485,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             <i className="fa-solid fa-weight-hanging" style={{ color: '#10b981', fontSize: '0.9rem' }}></i>
             <div>
               <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>Volume Previsto</div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>{metrics.volumeTotal.toLocaleString('pt-BR')} kg</div>
+              {isLoading ? (
+                <span className="workout-skeleton" style={{ width: '65px', height: '18px', marginTop: '2px' }}></span>
+              ) : (
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>{metrics.volumeTotal.toLocaleString('pt-BR')} kg</div>
+              )}
             </div>
           </div>
 
@@ -2490,7 +2508,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             <i className="fa-solid fa-layer-group" style={{ color: '#38bdf8', fontSize: '0.9rem' }}></i>
             <div>
               <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>Exercícios / Séries</div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>{metrics.totalExercicios} ex • {metrics.totalSeries} séries</div>
+              {isLoading ? (
+                <span className="workout-skeleton" style={{ width: '95px', height: '18px', marginTop: '2px' }}></span>
+              ) : (
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>{metrics.totalExercicios} ex • {metrics.totalSeries} séries</div>
+              )}
             </div>
           </div>
 
@@ -2515,18 +2537,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             <div>
               <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span>Tempo Previsto</span>
-                {!metrics.timeAnalysis.isComplete && (
+                {!metrics.timeAnalysis.isComplete && !isLoading && (
                   <span style={{ color: '#fbbf24', fontSize: '0.60rem' }}>⚠️ pendências</span>
                 )}
               </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: metrics.timeAnalysis.isComplete ? '#38bdf8' : '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>~{metrics.timeAnalysis.formattedTotal}</span>
-                {!metrics.timeAnalysis.isComplete && (
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '1px 5px', borderRadius: '4px' }}>
-                    {metrics.timeAnalysis.pendingCount} pendente{metrics.timeAnalysis.pendingCount > 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
+              {isLoading ? (
+                <span className="workout-skeleton" style={{ width: '60px', height: '18px', marginTop: '2px' }}></span>
+              ) : (
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: metrics.timeAnalysis.isComplete ? '#38bdf8' : '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>~{metrics.timeAnalysis.formattedTotal}</span>
+                  {!metrics.timeAnalysis.isComplete && (
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '1px 5px', borderRadius: '4px' }}>
+                      {metrics.timeAnalysis.pendingCount} pendente{metrics.timeAnalysis.pendingCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -2933,7 +2959,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           }}
         >
           <i className="fa-solid fa-clipboard-list"></i>
-          <span>Ficha ({workoutItems.length})</span>
+          <span>Ficha {isLoading ? '' : `(${workoutItems.length})`}</span>
         </button>
         <button
           type="button"
@@ -2955,7 +2981,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           }}
         >
           <i className="fa-solid fa-plus-circle"></i>
-          <span>+ Exercícios ({filteredExercises.length})</span>
+          <span>+ Exercícios {isLoading ? '' : `(${filteredExercises.length})`}</span>
         </button>
       </div>
 
@@ -2973,8 +2999,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               <span style={{ fontSize: '0.86rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>
                 <i className="fa-solid fa-plus-circle" style={{ color: '#10b981', marginRight: '6px' }}></i> Adicionar Exercício
               </span>
-              <span style={{ fontSize: '0.74rem', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '100px', color: '#94a3b8' }}>
-                {filteredExercises.length} disponíveis
+              <span style={{ fontSize: '0.74rem', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '100px', color: '#94a3b8', display: 'inline-flex', alignItems: 'center' }}>
+                {isLoading ? (
+                  <span className="workout-skeleton" style={{ width: '50px', height: '10px' }}></span>
+                ) : (
+                  `${filteredExercises.length} disponíveis`
+                )}
               </span>
             </div>
 
@@ -3091,13 +3121,36 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </div>
             ))}
 
-            {filteredExercises.length === 0 && (
+            {isLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div
+                    key={i}
+                    className="workout-skeleton-card"
+                    style={{
+                      height: '52px',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderRadius: '10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                      <span className="workout-skeleton" style={{ width: `${55 + (i * 11) % 35}%`, height: '14px', borderRadius: '4px' }}></span>
+                      <span className="workout-skeleton" style={{ width: '35%', height: '10px', borderRadius: '3px' }}></span>
+                    </div>
+                    <span className="workout-skeleton" style={{ width: '28px', height: '28px', borderRadius: '8px' }}></span>
+                  </div>
+                ))}
+              </div>
+            ) : filteredExercises.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#64748b', marginTop: '50px', padding: '0 20px' }}>
                 <i className="fa-solid fa-dumbbell" style={{ fontSize: '2rem', opacity: 0.3, marginBottom: '10px', display: 'block' }}></i>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>Nenhum exercício encontrado</div>
                 <small style={{ color: '#475569' }}>Tente outro filtro muscular ou termo de busca</small>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -3573,8 +3626,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               )}
             </div>
 
-            {/* ⚠️ Banner para Ficha sem Validade Informada (Legada) */}
-            {!workoutValidade && (
+            {/* ⚠️ Banner para Ficha sem Validade Informada (Legada - apenas após carregamento) */}
+            {!isLoading && !workoutValidade && (
               isMobile ? (
                 <div style={{
                   background: 'rgba(245, 158, 11, 0.15)',
@@ -4176,9 +4229,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   padding: '4px 12px',
                   borderRadius: '100px',
                   fontSize: '0.78rem',
-                  fontWeight: 800
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: '26px'
                 }}>
-                  {workoutItems.length} EXERCÍCIOS
+                  {isLoading ? (
+                    <span className="workout-skeleton" style={{ width: '75px', height: '12px' }}></span>
+                  ) : (
+                    `${workoutItems.length} EXERCÍCIOS`
+                  )}
                 </span>
               </div>
 
@@ -4217,10 +4277,77 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
                   <div style={{ padding: isMobile ? '8px 2px' : '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {isLoading ? (
-                      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                        <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '16px', display: 'block' }}></i>
-                        <p style={{ margin: 0, fontWeight: 800, color: '#ffffff', fontSize: '1rem' }}>Carregando ficha de treino do aluno...</p>
-                        <small style={{ color: '#64748b' }}>Sincronizando exercícios, cargas e Wellness</small>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: isMobile ? '6px 2px' : '10px 4px' }}>
+                        {/* 🌟 Hero Card de Sincronização Elegante */}
+                        <div style={{
+                          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(13, 19, 34, 0.7) 100%)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          borderRadius: '12px',
+                          padding: isMobile ? '12px 14px' : '16px 20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: isMobile ? '12px' : '16px',
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)'
+                        }}>
+                          <div style={{
+                            width: isMobile ? '38px' : '44px',
+                            height: isMobile ? '38px' : '44px',
+                            borderRadius: '10px',
+                            background: 'rgba(16, 185, 129, 0.18)',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: isMobile ? '1.2rem' : '1.4rem', color: '#10b981' }}></i>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: isMobile ? '0.86rem' : '0.95rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span>Sincronizando Ficha de Treino</span>
+                              {realClientName && (
+                                <span style={{ color: '#10b981', fontSize: isMobile ? '0.78rem' : '0.86rem', fontWeight: 700 }}>
+                                  • {realClientName}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: isMobile ? '0.70rem' : '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                              Carregando exercícios cadastrados, progressão de cargas e Wellness...
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 🌟 Skeletons de Exercício (3 linhas pulsantes no formato exato da tela) */}
+                        {[1, 2, 3].map(i => (
+                          <div
+                            key={i}
+                            className="workout-skeleton-card"
+                            style={{
+                              padding: isMobile ? '12px 10px' : '14px 20px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '10px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                                <span className="workout-skeleton" style={{ width: '24px', height: '20px', borderRadius: '4px' }}></span>
+                                <span className="workout-skeleton" style={{ width: `${45 + (i * 15) % 30}%`, height: '16px', borderRadius: '4px' }}></span>
+                                <span className="workout-skeleton" style={{ width: '50px', height: '14px', borderRadius: '4px' }}></span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <span className="workout-skeleton" style={{ width: '26px', height: '26px', borderRadius: '6px' }}></span>
+                                <span className="workout-skeleton" style={{ width: '26px', height: '26px', borderRadius: '6px' }}></span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <span className="workout-skeleton" style={{ width: isMobile ? '22%' : '80px', height: '28px', borderRadius: '6px' }}></span>
+                              <span className="workout-skeleton" style={{ width: isMobile ? '22%' : '80px', height: '28px', borderRadius: '6px' }}></span>
+                              <span className="workout-skeleton" style={{ width: isMobile ? '22%' : '80px', height: '28px', borderRadius: '6px' }}></span>
+                              <span className="workout-skeleton" style={{ width: isMobile ? '22%' : '80px', height: '28px', borderRadius: '6px' }}></span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : workoutItems.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>

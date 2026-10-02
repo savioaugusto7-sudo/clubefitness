@@ -4414,3 +4414,33 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     display: grid !important;
   }
 }
+
+/* 🌟 Animação Shimmer e Skeleton Screen para WorkoutBuilder e Modais */
+@keyframes workout-shimmer {
+  0% {
+    opacity: 0.45;
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    opacity: 0.85;
+    background-color: rgba(255, 255, 255, 0.09);
+  }
+  100% {
+    opacity: 0.45;
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.workout-skeleton {
+  animation: workout-shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.workout-skeleton-card {
+  animation: workout-shimmer 1.5s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
