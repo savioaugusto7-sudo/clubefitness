@@ -54,6 +54,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
   // Workout, Assessments, and Reports states for new views
   const [workout, setWorkout] = useState<any>(null);
+  const [clientWorkoutCategory, setClientWorkoutCategory] = useState<'monitorado' | 'livre'>('monitorado');
+  const [selectedFichaFilter, setSelectedFichaFilter] = useState<string>('AUTO');
+  const [collapsedFichas, setCollapsedFichas] = useState<Record<string, boolean>>({});
   const [workoutCyclesHistory, setWorkoutCyclesHistory] = useState<any[]>([]);
   const [showCyclesHistory, setShowCyclesHistory] = useState(false);
   const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null);
@@ -169,9 +172,10 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     };
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px', marginTop: '16px' }}>
         {sheetExercises.map((ex: any, idx: number) => {
-          const details = exercises.find((e: any) => e.nome.toLowerCase() === ex.exercicioId.toLowerCase()) || { nome: ex.exercicioId, grupo: 'Geral' };
+          const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
+          const details = exercises.find((e: any) => e.nome?.toLowerCase() === (exName || '').toLowerCase() || e._id === exName) || { nome: exName || 'Exercício', grupo: 'Geral' };
           const groupColor = getGroupColor(ex.combinaGrupo);
           const groupStyle = ex.combinaGrupo ? { borderLeft: `4px solid ${groupColor}` } : {};
 
@@ -179,61 +183,114 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             <div 
               key={idx} 
               style={{
-                background: 'rgba(22, 29, 45, 0.45)',
+                background: 'linear-gradient(145deg, rgba(20, 27, 45, 0.65) 0%, rgba(10, 15, 26, 0.85) 100%)',
                 backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                borderRadius: '14px',
-                padding: '20px',
+                border: '1px solid rgba(255, 255, 255, 0.07)',
+                borderRadius: '16px',
+                padding: '18px 20px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 30px 0 rgba(0, 0, 0, 0.25)',
+                transition: 'all 0.25s ease',
                 ...groupStyle
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.borderColor = ex.combinaGrupo ? groupColor : 'var(--color-primary)';
-                e.currentTarget.style.boxShadow = `0 10px 30px 0 ${ex.combinaGrupo ? groupColor : 'var(--color-primary)'}12`;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.borderColor = ex.combinaGrupo ? groupColor : 'rgba(16, 185, 129, 0.4)';
+                e.currentTarget.style.boxShadow = `0 12px 32px 0 ${ex.combinaGrupo ? groupColor : '#10b981'}15`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.07)';
+                e.currentTarget.style.boxShadow = '0 8px 30px 0 rgba(0, 0, 0, 0.25)';
               }}
             >
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700, textTransform: 'uppercase' }}>
-                    {details.grupo}
-                  </span>
-                  {ex.combinaGrupo && (
-                    <span style={{ fontSize: '0.68rem', color: '#fff', background: groupColor, padding: '2px 8px', borderRadius: '8px', fontWeight: 700, textTransform: 'uppercase' }}>
-                      Conjugado {ex.combinaGrupo}
+                {/* 🏷️ Topo do Card: Grupo Muscular, Conjugado e Número */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: '0.66rem',
+                      color: '#10b981',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.3px'
+                    }}>
+                      {details.grupo}
                     </span>
-                  )}
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {ex.combinaGrupo && (
+                      <span style={{
+                        fontSize: '0.64rem',
+                        color: ex.combinaGrupo === 'G5' ? '#000' : '#fff',
+                        background: groupColor,
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        fontWeight: 900,
+                        textTransform: 'uppercase'
+                      }}>
+                        Conjugado {ex.combinaGrupo}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    color: '#94a3b8',
+                    fontWeight: 800,
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    padding: '2px 7px',
+                    borderRadius: '6px'
+                  }}>
                     #{idx + 1}
                   </span>
                 </div>
 
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.35 }}>
+                {/* 🏋️ Nome do Exercício em Alta Visibilidade */}
+                <h4 style={{
+                  margin: '0 0 10px 0',
+                  fontSize: '1.02rem',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  lineHeight: 1.3,
+                  letterSpacing: '-0.2px'
+                }}>
                   {details.nome}
                 </h4>
 
+                {/* 🔗 Alerta de Exercício Conjugado */}
                 {ex.combinaGrupo && (
-                  <div style={{ fontSize: '0.72rem', color: groupColor, background: `${groupColor}10`, padding: '6px 10px', borderRadius: '6px', marginBottom: '12px', fontWeight: 600, border: `1px dashed ${groupColor}`, textAlign: 'center' }}>
-                    <i className="fa-solid fa-circle-nodes"></i> Executar conjugado com {ex.combinaGrupo} (Sem descanso intermediário)
+                  <div style={{
+                    fontSize: '0.70rem',
+                    color: groupColor,
+                    background: `${groupColor}14`,
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    marginBottom: '12px',
+                    fontWeight: 700,
+                    border: `1px dashed ${groupColor}55`,
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}>
+                    <i className="fa-solid fa-circle-nodes"></i>
+                    <span>Executar conjugado com {ex.combinaGrupo} (Sem descanso intermediário)</span>
                   </div>
                 )}
 
+                {/* 🎬 Prévia de Mídia (GIF ou Vídeo) */}
                 {details.gifUrl && (
                   <div style={{
-                    marginTop: '10px',
+                    marginTop: '6px',
                     marginBottom: '12px',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     overflow: 'hidden',
-                    background: '#000',
+                    background: '#040711',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -260,93 +317,150 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px', background: 'rgba(0,0,0,0.18)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Séries</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.series || '3'}</span>
+                {/* 📊 Grid de Métricas Limpo e Moderno (4 Colunas) */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '6px',
+                  marginBottom: '10px'
+                }}>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '8px',
+                    padding: '6px 4px',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>SÉRIES</span>
+                    <span style={{ fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>{ex.series || '3'}</span>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Repetições</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.repeticoes || '10'}</span>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '8px',
+                    padding: '6px 4px',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>REPS</span>
+                    <span style={{ fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>{ex.repeticoes || '10'}</span>
                   </div>
-                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Carga</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)' }}>{ex.carga || '-'}</span>
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    borderRadius: '8px',
+                    padding: '6px 4px',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.58rem', color: '#34d399', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>CARGA</span>
+                    <span style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981' }}>{ex.carga || '-'}</span>
                   </div>
-                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Descanso</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '8px',
+                    padding: '6px 4px',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>DESC.</span>
+                    <span style={{ fontSize: '1rem', fontWeight: 800, color: '#cbd5e1' }}>{ex.descanso || '60s'}</span>
                   </div>
-                  {(ex.ritmo && String(ex.ritmo).trim() !== '') && (
-                    <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Ritmo de Execução</span>
-                      <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#38bdf8' }}>
-                        {(() => {
-                          const opt = RITMO_OPTIONS.find(o => o.valor === ex.ritmo);
-                          return opt ? opt.label : ex.ritmo;
-                        })()}
-                      </span>
-                    </div>
-                  )}
-                  {ex.dropSet && ex.dropSet.tipo && ex.dropSet.tipo !== 'none' && Array.isArray(ex.dropSet.drops) && ex.dropSet.drops.length > 0 && (
-                    <div style={{
-                      gridColumn: 'span 2',
-                      background: 'rgba(245, 158, 11, 0.08)',
-                      border: '1px solid rgba(245, 158, 11, 0.25)',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      textAlign: 'center',
-                      marginTop: '4px'
-                    }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b' }}>
-                        ⚡ {ex.dropSet.tipo === 'single' ? 'Single Drop' : ex.dropSet.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}
-                        <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600, marginLeft: '4px' }}>
-                          ({ex.dropSet.escopo === 'todas_series' ? 'Todas as séries' : 'Última série'})
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
-                        {ex.carga} → {ex.dropSet.drops.map((d: any) => `${d}kg`).join(' → ')}
-                      </div>
-                    </div>
-                  )}
-                  {(() => {
-                    if (!Array.isArray(ex.historicoCargas) || ex.historicoCargas.length < 2) return null;
-                    const first = ex.historicoCargas[0];
-                    const last = ex.historicoCargas[ex.historicoCargas.length - 1];
-                    const cFirst = parseFloat(String(first.carga).replace(/[^\d.-]/g, '')) || 0;
-                    const cLast = parseFloat(String(last.carga).replace(/[^\d.-]/g, '')) || 0;
-                    const diff = Math.round((cLast - cFirst) * 10) / 10;
-                    let dias = 0;
-                    if (first.data && last.data) {
-                      const d1 = new Date(first.data + 'T12:00:00');
-                      const d2 = new Date(last.data + 'T12:00:00');
-                      dias = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
-                    }
-                    return (
-                      <div style={{
-                        gridColumn: 'span 2',
-                        background: diff >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        border: `1px solid ${diff >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        textAlign: 'center',
-                        fontSize: '0.74rem',
-                        fontWeight: 800,
-                        color: diff >= 0 ? '#34d399' : '#f87171',
-                        marginTop: '4px'
-                      }}>
-                        📈 Sua evolução: {diff >= 0 ? `+${diff}` : diff} {last.unidadeCarga || 'kg'} em {dias} dias ({first.carga} → {last.carga})
-                      </div>
-                    );
-                  })()}
                 </div>
 
+                {/* ⏱️ Pílula de Ritmo de Execução Padronizado */}
+                {(ex.ritmo && String(ex.ritmo).trim() !== '') && (
+                  <div style={{
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <i className="fa-regular fa-clock" style={{ color: '#38bdf8' }}></i> Ritmo:
+                    </span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8' }}>
+                      {(() => {
+                        const opt = RITMO_OPTIONS.find(o => o.valor === ex.ritmo);
+                        return opt ? opt.label : ex.ritmo;
+                      })()}
+                    </span>
+                  </div>
+                )}
+
+                {/* ⚡ Drop-Set Badge */}
+                {ex.dropSet && ex.dropSet.tipo && ex.dropSet.tipo !== 'none' && Array.isArray(ex.dropSet.drops) && ex.dropSet.drops.length > 0 && (
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', fontWeight: 800, color: '#f59e0b' }}>
+                      <span>⚡ {ex.dropSet.tipo === 'single' ? 'Single Drop' : ex.dropSet.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}</span>
+                      <span style={{ color: '#94a3b8', fontWeight: 600 }}>({ex.dropSet.escopo === 'todas_series' ? 'Todas as séries' : 'Última série'})</span>
+                    </div>
+                    <div style={{ fontSize: '0.80rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                      {ex.carga} → {ex.dropSet.drops.map((d: any) => `${d}kg`).join(' → ')}
+                    </div>
+                  </div>
+                )}
+
+                {/* 📈 Evolução de Cargas */}
+                {(() => {
+                  if (!Array.isArray(ex.historicoCargas) || ex.historicoCargas.length < 2) return null;
+                  const first = ex.historicoCargas[0];
+                  const last = ex.historicoCargas[ex.historicoCargas.length - 1];
+                  const cFirst = parseFloat(String(first.carga).replace(/[^\d.-]/g, '')) || 0;
+                  const cLast = parseFloat(String(last.carga).replace(/[^\d.-]/g, '')) || 0;
+                  const diff = Math.round((cLast - cFirst) * 10) / 10;
+                  let dias = 0;
+                  if (first.data && last.data) {
+                    const d1 = new Date(first.data + 'T12:00:00');
+                    const d2 = new Date(last.data + 'T12:00:00');
+                    dias = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+                  }
+                  return (
+                    <div style={{
+                      background: diff >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                      border: `1px solid ${diff >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.70rem',
+                      fontWeight: 800,
+                      color: diff >= 0 ? '#34d399' : '#f87171',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      marginBottom: '8px'
+                    }}>
+                      <i className={`fa-solid ${diff >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`}></i>
+                      <span>Sua evolução: {diff >= 0 ? `+${diff}` : diff} {last.unidadeCarga || 'kg'} em {dias}d ({first.carga} → {last.carga})</span>
+                    </div>
+                  );
+                })()}
+
+                {/* 📝 Observação Clínica */}
                 {ex.observacao && (
-                  <div style={{ fontSize: '0.76rem', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(245,158,11,0.1)', marginBottom: '8px' }}>
+                  <div style={{
+                    fontSize: '0.74rem',
+                    color: '#fbbf24',
+                    background: 'rgba(245, 158, 11, 0.06)',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(245, 158, 11, 0.15)',
+                    marginBottom: '8px'
+                  }}>
                     <strong>Nota:</strong> {ex.observacao}
                   </div>
                 )}
 
+                {/* ℹ️ Botão de Instruções / Detalhes */}
                 {(details.instrucoes || details.gifUrl) && (
                   <button
                     type="button"
@@ -355,12 +469,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       width: '100%',
                       marginTop: '4px',
                       fontSize: '0.74rem',
-                      padding: '5px 8px',
-                      borderRadius: '6px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px'
+                      gap: '6px',
+                      fontWeight: 700
                     }}
                     onClick={() => setSelectedExerciseForInstruction(details)}
                   >
@@ -465,6 +580,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       }
       if (jsonWorkout.success) {
         setWorkout(jsonWorkout.data);
+        const monCount = (jsonWorkout.data?.fichasMonitorado || []).filter((f: any) => f.exercicios?.length > 0).length;
+        const livreCount = (jsonWorkout.data?.fichasLivre || []).filter((f: any) => f.exercicios?.length > 0).length;
+        if (monCount === 0 && livreCount > 0) {
+          setClientWorkoutCategory('livre');
+        } else {
+          setClientWorkoutCategory('monitorado');
+        }
       }
       if (jsonWorkoutHist.success && Array.isArray(jsonWorkoutHist.data)) {
         setWorkoutCyclesHistory(jsonWorkoutHist.data);
@@ -1308,75 +1430,346 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             </div>
           </div>
 
-          {workout ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-              {/* Monitorado Category */}
-              <div className="content-panel" style={{ 
-                background: 'rgba(22, 29, 45, 0.45)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                padding: '24px'
-              }}>
-                <div className="panel-header" style={{ marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Treino Monitorado (Academia)</h2>
-                </div>
-                {workout.fichasMonitorado?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <span>{f.nome}</span>
-                        {renderFichaValidadeBadge(f)}
-                      </div>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
-                    </h3>
-                    {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-primary)' }}>
-                        Obs: {f.observacoesGerais}
-                      </p>
-                    )}
-                    {renderWorkoutCards(f.exercicios)}
-                  </div>
-                ))}
-                {(!workout.fichasMonitorado || workout.fichasMonitorado.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: 0 }}>Nenhuma ficha de treino monitorado cadastrada.</p>
-                )}
-              </div>
+          {workout ? (() => {
+            const activeMonitorado = (workout.fichasMonitorado || []).filter((f: any) => f.exercicios?.length > 0);
+            const activeLivre = (workout.fichasLivre || []).filter((f: any) => f.exercicios?.length > 0);
+            const hasMonitorado = activeMonitorado.length > 0;
+            const hasLivre = activeLivre.length > 0;
 
-              {/* Livre Category */}
-              <div className="content-panel" style={{ 
-                background: 'rgba(22, 29, 45, 0.45)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                padding: '24px'
-              }}>
-                <div className="panel-header" style={{ marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-person-running" style={{ marginRight: '8px', color: 'var(--color-secondary)' }}></i>Treino Livre</h2>
-                </div>
-                {workout.fichasLivre?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <span>{f.nome && !f.nome.toLowerCase().startsWith('ficha') ? (f.nome.toUpperCase().startsWith('TREINO LIVRE') ? f.nome : `TREINO LIVRE ${f.id} - ${f.nome}`) : `TREINO LIVRE ${f.id}`}</span>
-                        {renderFichaValidadeBadge(f)}
-                      </div>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
-                    </h3>
-                    {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-secondary)' }}>
-                        Obs: {f.observacoesGerais}
-                      </p>
-                    )}
-                    {renderWorkoutCards(f.exercicios)}
+            const currentCategory = clientWorkoutCategory === 'livre' ? (hasLivre ? 'livre' : 'monitorado') : (hasMonitorado ? 'monitorado' : 'livre');
+            const currentSheets = currentCategory === 'livre' ? activeLivre : activeMonitorado;
+
+            const effectiveFichaId = selectedFichaFilter === 'AUTO' 
+              ? (currentSheets[0]?.id || 'ALL')
+              : selectedFichaFilter;
+
+            const displayedSheets = effectiveFichaId === 'ALL'
+              ? currentSheets
+              : currentSheets.filter((s: any) => s.id === effectiveFichaId);
+
+            const toggleCollapseFicha = (fichaId: string) => {
+              setCollapsedFichas(prev => ({
+                ...prev,
+                [fichaId]: !prev[fichaId]
+              }));
+            };
+
+            const expandAll = () => {
+              const updated: Record<string, boolean> = {};
+              currentSheets.forEach((s: any) => { updated[s.id] = false; });
+              setCollapsedFichas(prev => ({ ...prev, ...updated }));
+            };
+
+            const collapseAll = () => {
+              const updated: Record<string, boolean> = {};
+              currentSheets.forEach((s: any) => { updated[s.id] = true; });
+              setCollapsedFichas(prev => ({ ...prev, ...updated }));
+            };
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* 🌟 1. Seletor de Categoria (Monitorado vs Livre) quando ambas existem */}
+                {hasMonitorado && hasLivre && (
+                  <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    padding: '4px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    width: 'fit-content'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientWorkoutCategory('monitorado');
+                        setSelectedFichaFilter('AUTO');
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '9px',
+                        border: 'none',
+                        background: currentCategory === 'monitorado' ? '#10b981' : 'transparent',
+                        color: currentCategory === 'monitorado' ? '#ffffff' : '#94a3b8',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <i className="fa-solid fa-clock-rotate-left"></i>
+                      <span>Monitorado ({activeMonitorado.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientWorkoutCategory('livre');
+                        setSelectedFichaFilter('AUTO');
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '9px',
+                        border: 'none',
+                        background: currentCategory === 'livre' ? '#38bdf8' : 'transparent',
+                        color: currentCategory === 'livre' ? '#ffffff' : '#94a3b8',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <i className="fa-solid fa-person-running"></i>
+                      <span>Treino Livre ({activeLivre.length})</span>
+                    </button>
                   </div>
-                ))}
-                {(!workout.fichasLivre || workout.fichasLivre.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: 0 }}>Nenhuma ficha de treino livre cadastrada.</p>
+                )}
+
+                {/* 🌟 2. Barra de Seleção da Ficha Escolhida (Foco no Treino de Hoje) */}
+                {currentSheets.length > 0 && (
+                  <div style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '14px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <i className="fa-solid fa-crosshairs" style={{ color: currentCategory === 'livre' ? '#38bdf8' : '#10b981', marginRight: '6px' }}></i>
+                        Ficha Escolhida:
+                      </span>
+
+                      {currentSheets.map((sheet: any) => {
+                        const isChosen = effectiveFichaId === sheet.id;
+                        const themeColor = currentCategory === 'livre' ? '#38bdf8' : '#10b981';
+                        return (
+                          <button
+                            key={sheet.id}
+                            type="button"
+                            onClick={() => setSelectedFichaFilter(sheet.id)}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: isChosen ? `1.5px solid ${themeColor}` : '1px solid rgba(255, 255, 255, 0.08)',
+                              background: isChosen ? (currentCategory === 'livre' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(16, 185, 129, 0.18)') : 'rgba(255, 255, 255, 0.03)',
+                              color: isChosen ? themeColor : '#cbd5e1',
+                              fontWeight: 800,
+                              fontSize: '0.84rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease',
+                              boxShadow: isChosen ? `0 0 16px ${themeColor}33` : 'none'
+                            }}
+                          >
+                            <span>{sheet.nome || `Ficha ${sheet.id}`}</span>
+                            <span style={{ fontSize: '0.70rem', opacity: 0.8, fontWeight: 700 }}>
+                              ({sheet.exercicios?.length || 0})
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {currentSheets.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFichaFilter('ALL')}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: effectiveFichaId === 'ALL' ? '1.5px solid rgba(255, 255, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                            background: effectiveFichaId === 'ALL' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                            color: effectiveFichaId === 'ALL' ? '#ffffff' : '#94a3b8',
+                            fontWeight: 750,
+                            fontSize: '0.80rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          👁️ Ver Todas
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Ações de Colapsar / Expandir em lote */}
+                    {effectiveFichaId === 'ALL' && currentSheets.length > 1 && (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={expandAll}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            fontSize: '0.72rem',
+                            color: '#94a3b8',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ▾ Expandir Todas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={collapseAll}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            fontSize: '0.72rem',
+                            color: '#94a3b8',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ▴ Recolher Todas
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 🌟 3. Fichas de Treino com Acordeão Colapsável */}
+                {displayedSheets.length > 0 ? (
+                  displayedSheets.map((sheet: any) => {
+                    const isCollapsed = Boolean(collapsedFichas[sheet.id]);
+                    const themeColor = currentCategory === 'livre' ? '#38bdf8' : '#10b981';
+
+                    return (
+                      <div
+                        key={sheet.id}
+                        style={{
+                          background: 'rgba(22, 29, 45, 0.45)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.06)',
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                          borderRadius: '16px',
+                          overflow: 'hidden',
+                          transition: 'all 0.25s ease'
+                        }}
+                      >
+                        {/* 📌 Cabeçalho Interativo Clicável da Ficha */}
+                        <div
+                          onClick={() => toggleCollapseFicha(sheet.id)}
+                          style={{
+                            padding: '16px 20px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                            background: isCollapsed ? 'rgba(0, 0, 0, 0.2)' : 'linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.1) 100%)',
+                            borderBottom: isCollapsed ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
+                            userSelect: 'none',
+                            transition: 'background 0.2s'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              color: themeColor,
+                              fontSize: '1.15rem',
+                              fontWeight: 800,
+                              fontFamily: 'var(--font-title)',
+                              letterSpacing: '-0.2px'
+                            }}>
+                              {sheet.nome && !sheet.nome.toLowerCase().startsWith('ficha')
+                                ? (sheet.nome.toUpperCase().startsWith('TREINO LIVRE') ? sheet.nome : `${currentCategory === 'livre' ? 'TREINO LIVRE' : 'FICHA'} ${sheet.id} - ${sheet.nome}`)
+                                : `${currentCategory === 'livre' ? 'TREINO LIVRE' : 'FICHA'} ${sheet.id}`}
+                            </span>
+                            {renderFichaValidadeBadge(sheet)}
+                            <span style={{
+                              fontSize: '0.72rem',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              color: '#94a3b8',
+                              padding: '2px 8px',
+                              borderRadius: '100px',
+                              fontWeight: 700
+                            }}>
+                              {sheet.exercicios?.length || 0} exercícios
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ fontSize: '0.76rem', color: '#64748b' }}>
+                              Atualizado: {sheet.ultimaAtualizacao || '-'}
+                            </span>
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              color: themeColor,
+                              fontSize: '0.76rem',
+                              fontWeight: 800
+                            }}>
+                              <span>{isCollapsed ? 'Ver Treino' : 'Recolher'}</span>
+                              <i className={`fa-solid fa-chevron-${isCollapsed ? 'down' : 'up'}`} style={{ fontSize: '0.7rem' }}></i>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 📋 Conteúdo da Ficha (quando não colapsada) */}
+                        {!isCollapsed && (
+                          <div style={{ padding: '20px' }}>
+                            {sheet.observacoesGerais && (
+                              <p style={{
+                                margin: '0 0 16px 0',
+                                fontSize: '0.84rem',
+                                color: '#cbd5e1',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                borderLeft: `3px solid ${themeColor}`,
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                borderLeftColor: themeColor
+                              }}>
+                                <strong style={{ color: themeColor, marginRight: '4px' }}>Obs:</strong> {sheet.observacoesGerais}
+                              </p>
+                            )}
+                            {renderWorkoutCards(sheet.exercicios)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="content-panel" style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    background: 'rgba(22, 29, 45, 0.45)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <i className="fa-solid fa-dumbbell" style={{ fontSize: '2rem', opacity: 0.3, marginBottom: '12px', display: 'block' }}></i>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.90rem', margin: 0 }}>
+                      Nenhuma ficha cadastrada nesta categoria.
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="content-panel" style={{ 
               textAlign: 'center', 
               padding: '40px 20px',
