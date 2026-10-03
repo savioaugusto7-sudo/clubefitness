@@ -131,6 +131,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [linkMovementSort, setLinkMovementSort] = useState<string>('data_desc');
   const [selectedLinkMovementDetails, setSelectedLinkMovementDetails] = useState<any>(null);
 
+  // Vincular Alunos filter states
+  const [vinculoStatusFilter, setVinculoStatusFilter] = useState<'todos' | 'sem_vinculo' | 'com_vinculo'>('todos');
+  const [vinculoProfFilter, setVinculoProfFilter] = useState<string>('todos');
+  const [vinculoPlanFilter, setVinculoPlanFilter] = useState<string>('todos');
+
   const fetchLinkMovements = async (silent = false) => {
     if (!silent && linkMovements.length === 0) {
       setLoadingLinkMovements(true);
@@ -3219,54 +3224,587 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       {activeTab === 'vincular_alunos' && (() => {
         const listKey = 'vincular_alunos';
         const q = getSearchQuery(listKey);
-        const filtered = clients.filter(c => 
-          smartSearchMatch([c.dadosPessoais?.nome, c.dadosPessoais?.email, c.dadosPessoais?.cpf, c.dadosPessoais?.telefone], q)
-        );
+
+        // Estatísticas Globais
+        const totalAlunos = clients.length;
+        const semVinculoTotal = clients.filter(c => !(c.profissionalId?._id || c.profissionalId)).length;
+        const comVinculoTotal = clients.filter(c => Boolean(c.profissionalId?._id || c.profissionalId)).length;
+        const coveragePct = totalAlunos > 0 ? Math.round((comVinculoTotal / totalAlunos) * 100) : 0;
+
+        // Contagem de alunos por profissional
+        const profCounts: Record<string, number> = {};
+        clients.forEach(c => {
+          const pId = c.profissionalId?._id || c.profissionalId || '';
+          if (pId) {
+            profCounts[pId] = (profCounts[pId] || 0) + 1;
+          }
+        });
+        const profsWithStudentsCount = Object.keys(profCounts).length;
+
+        // Planos únicos existentes
+        const uniquePlans: string[] = Array.from(
+          new Set(
+            clients
+              .map(c => c.dadosComerciais?.planoId?.nome || 'Personalizado')
+              .filter(Boolean)
+          )
+        ).sort();
+
+        // Filtragem inteligente multi-critérios
+        const filtered = clients.filter(c => {
+          const currentProfId = c.profissionalId?._id || c.profissionalId || '';
+          const hasVinculo = Boolean(currentProfId);
+          const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+
+          // 1. Filtro de Status de Vínculo
+          if (vinculoStatusFilter === 'sem_vinculo' && hasVinculo) return false;
+          if (vinculoStatusFilter === 'com_vinculo' && !hasVinculo) return false;
+
+          // 2. Filtro de Profissional Responsável
+          if (vinculoProfFilter !== 'todos') {
+            if (vinculoProfFilter === 'nenhum') {
+              if (hasVinculo) return false;
+            } else if (currentProfId !== vinculoProfFilter) {
+              return false;
+            }
+          }
+
+          // 3. Filtro de Plano
+          if (vinculoPlanFilter !== 'todos') {
+            if (planName !== vinculoPlanFilter) return false;
+          }
+
+          // 4. Busca Inteligente Multi-Alvos
+          const assignedProf = professionals.find(p => p._id === currentProfId);
+          const profName = assignedProf?.nome || '';
+          const profEmail = assignedProf?.email || '';
+          const profEspecialidade = assignedProf?.especialidade || assignedProf?.cargo || '';
+          const statusKeywords = hasVinculo 
+            ? 'com vinculo com vínculo vinculado atribuido atribuído associado' 
+            : 'sem vinculo sem vínculo sem profissional nenhum pendente desvinculado desassistido';
+
+          return smartSearchMatch([
+            c.dadosPessoais?.nome,
+            c.dadosPessoais?.email,
+            c.dadosPessoais?.cpf,
+            c.dadosPessoais?.telefone,
+            c.dadosPessoais?.whatsapp,
+            planName,
+            profName,
+            profEmail,
+            profEspecialidade,
+            statusKeywords
+          ], q);
+        });
+
         const activeP = getPage(listKey);
         const size = getPageSize(listKey);
         const totalPages = Math.ceil(filtered.length / size);
         const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
         const paginated = filtered.slice((curP - 1) * size, curP * size);
 
+        const hasActiveFilters = Boolean(q || vinculoStatusFilter !== 'todos' || vinculoProfFilter !== 'todos' || vinculoPlanFilter !== 'todos');
+
+        const resetAllFilters = () => {
+          setSearchQueryForKey(listKey, '');
+          setVinculoStatusFilter('todos');
+          setVinculoProfFilter('todos');
+          setVinculoPlanFilter('todos');
+          setPage(listKey, 1);
+        };
+
         return (
           <>
-            <div className="view-header">
+            {/* Header da Tela */}
+            <div className="view-header" style={{ marginBottom: '20px' }}>
               <div className="view-title-group">
-                <h1>Vincular Alunos a Profissionais</h1>
-                <p>Associe cada aluno ao profissional de saúde responsável.</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <SmartSearchInput
-                  value={q}
-                  onChange={val => setSearchQueryForKey('vincular_alunos', val)}
-                  placeholder="Buscar aluno por nome, CPF ou email..."
-                  resultCount={filtered.length}
-                  totalCount={clients.length}
-                />
+                <h1 style={{ 
+                  fontFamily: 'var(--font-title)', 
+                  fontSize: '1.8rem', 
+                  fontWeight: 800, 
+                  background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                  WebkitBackgroundClip: 'text', 
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '4px'
+                }}>
+                  Vincular Alunos a Profissionais
+                </h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                  Associe cada aluno ao profissional de saúde responsável e gerencie a distribuição de atendimentos.
+                </p>
               </div>
             </div>
-            <div className="content-panel">
+
+            {/* 🌟 1. Cards de Resumo Rápido (KPIs Interativos) */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: '14px',
+              marginBottom: '20px'
+            }}>
+              {/* Card Total */}
+              <div 
+                onClick={() => {
+                  setVinculoStatusFilter('todos');
+                  setPage(listKey, 1);
+                }}
+                style={{
+                  background: vinculoStatusFilter === 'todos' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(22, 29, 45, 0.55)',
+                  border: vinculoStatusFilter === 'todos' ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.06)',
+                  borderRadius: '14px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: vinculoStatusFilter === 'todos' ? '0 0 20px rgba(56, 189, 248, 0.15)' : 'none'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Total de Alunos
+                  </span>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                    <i className="fa-solid fa-users" style={{ fontSize: '0.9rem' }}></i>
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#f8fafc', lineHeight: 1 }}>
+                  {totalAlunos}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '6px' }}>
+                  Base geral de alunos
+                </div>
+              </div>
+
+              {/* Card Sem Vínculo (Alerta Prioritário) */}
+              <div 
+                onClick={() => {
+                  setVinculoStatusFilter(vinculoStatusFilter === 'sem_vinculo' ? 'todos' : 'sem_vinculo');
+                  setPage(listKey, 1);
+                }}
+                style={{
+                  background: vinculoStatusFilter === 'sem_vinculo' ? 'rgba(245, 158, 11, 0.15)' : (semVinculoTotal > 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(22, 29, 45, 0.55)'),
+                  border: vinculoStatusFilter === 'sem_vinculo' ? '1.5px solid #f59e0b' : (semVinculoTotal > 0 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(255, 255, 255, 0.06)'),
+                  borderRadius: '14px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: vinculoStatusFilter === 'sem_vinculo' ? '0 0 20px rgba(245, 158, 11, 0.2)' : 'none'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Sem Vínculo
+                  </span>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                    <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '0.9rem' }}></i>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <span style={{ fontSize: '1.7rem', fontWeight: 800, color: semVinculoTotal > 0 ? '#f59e0b' : '#94a3b8', lineHeight: 1 }}>
+                    {semVinculoTotal}
+                  </span>
+                  {semVinculoTotal > 0 && (
+                    <span style={{ fontSize: '0.70rem', fontWeight: 700, background: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24', padding: '2px 6px', borderRadius: '6px' }}>
+                      Requer Ação
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '6px', opacity: 0.9 }}>
+                  {semVinculoTotal > 0 ? 'Clique para filtrar pendentes' : 'Nenhum aluno desvinculado'}
+                </div>
+              </div>
+
+              {/* Card Vinculados */}
+              <div 
+                onClick={() => {
+                  setVinculoStatusFilter(vinculoStatusFilter === 'com_vinculo' ? 'todos' : 'com_vinculo');
+                  setPage(listKey, 1);
+                }}
+                style={{
+                  background: vinculoStatusFilter === 'com_vinculo' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(22, 29, 45, 0.55)',
+                  border: vinculoStatusFilter === 'com_vinculo' ? '1.5px solid #10b981' : '1px solid rgba(255, 255, 255, 0.06)',
+                  borderRadius: '14px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: vinculoStatusFilter === 'com_vinculo' ? '0 0 20px rgba(16, 185, 129, 0.15)' : 'none'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Vinculados
+                  </span>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                    <i className="fa-solid fa-circle-check" style={{ fontSize: '0.9rem' }}></i>
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#10b981', lineHeight: 1 }}>
+                  {comVinculoTotal}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '6px' }}>
+                  {coveragePct}% da carteira atendida
+                </div>
+              </div>
+
+              {/* Card Profissionais na Escala */}
+              <div 
+                style={{
+                  background: 'rgba(22, 29, 45, 0.55)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  borderRadius: '14px',
+                  padding: '16px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Profissionais Ativos
+                  </span>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
+                    <i className="fa-solid fa-user-doctor" style={{ fontSize: '0.9rem' }}></i>
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#f8fafc', lineHeight: 1 }}>
+                  {profsWithStudentsCount} <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#64748b' }}>/ {professionals.length}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '6px' }}>
+                  Profissionais com alunos vinculados
+                </div>
+              </div>
+            </div>
+
+            {/* 🌟 2. Barra de Busca e Filtros de Alta Visibilidade */}
+            <div style={{
+              background: 'rgba(22, 29, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              padding: '18px 20px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Linha 1: Campo de Busca Principal em Destaque */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{
+                  position: 'relative',
+                  flex: 1,
+                  minWidth: '280px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  <i 
+                    className="fa-solid fa-magnifying-glass" 
+                    style={{
+                      position: 'absolute',
+                      left: '16px',
+                      color: q ? '#10b981' : '#94a3b8',
+                      fontSize: '1rem',
+                      pointerEvents: 'none',
+                      transition: 'color 0.2s ease'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={q}
+                    onChange={e => setSearchQueryForKey(listKey, e.target.value)}
+                    placeholder="Buscar por aluno, CPF, email, telefone, profissional responsável, plano ou status..."
+                    style={{
+                      width: '100%',
+                      height: '46px',
+                      background: 'rgba(11, 15, 25, 0.85)',
+                      border: q ? '1.5px solid #10b981' : '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: '12px',
+                      padding: '10px 42px 10px 46px',
+                      fontSize: '0.92rem',
+                      color: '#f8fafc',
+                      outline: 'none',
+                      boxShadow: q ? '0 0 16px rgba(16, 185, 129, 0.18)' : 'inset 0 2px 4px rgba(0,0,0,0.2)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  />
+                  {q && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQueryForKey(listKey, '')}
+                      title="Limpar busca"
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: 'none',
+                        color: '#94a3b8',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                  )}
+                </div>
+
+                {/* Badge de Contagem Dinâmica */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  fontSize: '0.84rem',
+                  color: '#94a3b8',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <strong style={{ color: '#f8fafc', fontSize: '0.95rem' }}>{filtered.length}</strong>
+                  <span>de {totalAlunos} {totalAlunos === 1 ? 'aluno' : 'alunos'}</span>
+                </div>
+              </div>
+
+              {/* Linha 2: Filtros Estratégicos Relevantes */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                paddingTop: '8px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* Pílulas de Status de Vínculo */}
+                  <div style={{
+                    display: 'flex',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    padding: '3px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255, 255, 255, 0.06)'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVinculoStatusFilter('todos');
+                        setPage(listKey, 1);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        background: vinculoStatusFilter === 'todos' ? '#38bdf8' : 'transparent',
+                        color: vinculoStatusFilter === 'todos' ? '#0f172a' : '#94a3b8',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      Todos ({totalAlunos})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVinculoStatusFilter('sem_vinculo');
+                        setPage(listKey, 1);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        background: vinculoStatusFilter === 'sem_vinculo' ? '#f59e0b' : 'transparent',
+                        color: vinculoStatusFilter === 'sem_vinculo' ? '#0f172a' : (semVinculoTotal > 0 ? '#f59e0b' : '#94a3b8'),
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>⚠️ Sem Vínculo</span>
+                      <span style={{ 
+                        background: vinculoStatusFilter === 'sem_vinculo' ? 'rgba(0,0,0,0.2)' : 'rgba(245,158,11,0.2)',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        fontSize: '0.72rem'
+                      }}>
+                        {semVinculoTotal}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVinculoStatusFilter('com_vinculo');
+                        setPage(listKey, 1);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        background: vinculoStatusFilter === 'com_vinculo' ? '#10b981' : 'transparent',
+                        color: vinculoStatusFilter === 'com_vinculo' ? '#ffffff' : '#94a3b8',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      ✓ Vinculados ({comVinculoTotal})
+                    </button>
+                  </div>
+
+                  {/* Dropdown Filtro por Profissional */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-user-doctor" style={{ color: '#c084fc' }}></i>
+                      <span>Profissional:</span>
+                    </label>
+                    <select
+                      value={vinculoProfFilter}
+                      onChange={e => {
+                        setVinculoProfFilter(e.target.value);
+                        setPage(listKey, 1);
+                      }}
+                      style={{
+                        background: 'rgba(11, 15, 25, 0.85)',
+                        border: vinculoProfFilter !== 'todos' ? '1.5px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        fontSize: '0.80rem',
+                        color: '#f8fafc',
+                        outline: 'none',
+                        maxWidth: '220px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="todos">Todos os Profissionais</option>
+                      <option value="nenhum">⚠️ Apenas Sem Vínculo ({semVinculoTotal})</option>
+                      {professionals.map(p => (
+                        <option key={p._id} value={p._id}>
+                          {p.nome} ({profCounts[p._id] || 0})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Dropdown Filtro por Plano */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-layer-group" style={{ color: '#38bdf8' }}></i>
+                      <span>Plano:</span>
+                    </label>
+                    <select
+                      value={vinculoPlanFilter}
+                      onChange={e => {
+                        setVinculoPlanFilter(e.target.value);
+                        setPage(listKey, 1);
+                      }}
+                      style={{
+                        background: 'rgba(11, 15, 25, 0.85)',
+                        border: vinculoPlanFilter !== 'todos' ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        fontSize: '0.80rem',
+                        color: '#f8fafc',
+                        outline: 'none',
+                        maxWidth: '220px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="todos">Todos os Planos</option>
+                      {uniquePlans.map(plan => (
+                        <option key={plan} value={plan}>
+                          {plan}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Botão de Limpar Filtros quando algum estiver ativo */}
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={resetAllFilters}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <i className="fa-solid fa-rotate-left"></i>
+                    <span>Limpar Filtros</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 🌟 3. Tabela de Alunos e Vínculos */}
+            <div className="content-panel" style={{
+              background: 'rgba(22, 29, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              padding: '20px',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)'
+            }}>
               <div className="table-responsive">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Aluno</th>
-                      <th>Plano Ativo</th>
-                      <th>Profissional Responsável</th>
-                      <th>Status de Salvamento</th>
+                      <th style={{ width: '35%' }}>Aluno</th>
+                      <th style={{ width: '25%' }}>Plano Ativo</th>
+                      <th style={{ width: '25%' }}>Profissional Responsável</th>
+                      <th style={{ width: '15%', textAlign: 'center' }}>Status de Salvamento</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginated.length === 0 ? (
                       <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
-                          Nenhum aluno encontrado.
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--text-dim)' }}>
+                          <i className="fa-solid fa-user-slash" style={{ fontSize: '2rem', opacity: 0.3, marginBottom: '12px', display: 'block' }}></i>
+                          <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Nenhum aluno encontrado com os filtros atuais.</p>
+                          {hasActiveFilters && (
+                            <button
+                              type="button"
+                              onClick={resetAllFilters}
+                              style={{
+                                marginTop: '12px',
+                                background: 'transparent',
+                                border: '1px solid #10b981',
+                                color: '#10b981',
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                fontSize: '0.80rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Redefinir filtros de busca
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ) : (
                       paginated.map(c => {
                         const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
                         const currentProfId = c.profissionalId?._id || c.profissionalId || '';
+                        const hasVinculo = Boolean(currentProfId);
                         const saveStatus = savingClientProf[c._id];
 
                         const handleProfChange = async (profId: string) => {
@@ -3299,41 +3837,118 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           }
                         };
 
+                        const initials = (c.dadosPessoais?.nome || '?')
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((n: string) => n[0].toUpperCase())
+                          .join('');
+
                         return (
                           <tr key={c._id}>
                             <td>
-                              <strong>{c.dadosPessoais?.nome}</strong>
-                              <br />
-                              <small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  borderRadius: '50%',
+                                  background: hasVinculo 
+                                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(13, 148, 136, 0.3))' 
+                                    : 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.3))',
+                                  border: hasVinculo ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.80rem',
+                                  fontWeight: 800,
+                                  color: hasVinculo ? '#10b981' : '#f59e0b',
+                                  flexShrink: 0
+                                }}>
+                                  {initials}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                  <strong style={{ fontSize: '0.90rem', color: '#f8fafc', display: 'block' }}>
+                                    {c.dadosPessoais?.nome}
+                                  </strong>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                                    {c.dadosPessoais?.email && (
+                                      <small style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>
+                                        {c.dadosPessoais?.email}
+                                      </small>
+                                    )}
+                                    {c.dadosPessoais?.telefone && (
+                                      <small style={{ color: '#64748b', fontSize: '0.74rem' }}>
+                                        • {c.dadosPessoais?.telefone}
+                                      </small>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             </td>
-                            <td>{planName}</td>
                             <td>
-                              <select
-                                value={currentProfId}
-                                onChange={e => handleProfChange(e.target.value)}
-                                className="form-control"
-                                style={{ maxWidth: '250px', background: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
-                              >
-                                <option value="">Nenhum/Sem Vínculo</option>
-                                {professionals.map(p => (
-                                  <option key={p._id} value={p._id}>{p.nome}</option>
-                                ))}
-                              </select>
+                              <span style={{
+                                display: 'inline-block',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                color: '#e2e8f0'
+                              }}>
+                                {planName}
+                              </span>
                             </td>
-                            <td style={{ verticalAlign: 'middle' }}>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <select
+                                  value={currentProfId}
+                                  onChange={e => handleProfChange(e.target.value)}
+                                  className="form-control"
+                                  style={{ 
+                                    maxWidth: '280px', 
+                                    background: hasVinculo ? 'var(--bg-secondary)' : 'rgba(245, 158, 11, 0.08)', 
+                                    color: 'var(--text-main)', 
+                                    borderColor: hasVinculo ? 'var(--border-color)' : 'rgba(245, 158, 11, 0.45)',
+                                    fontWeight: hasVinculo ? 500 : 700,
+                                    borderRadius: '8px',
+                                    padding: '7px 10px',
+                                    fontSize: '0.85rem'
+                                  }}
+                                >
+                                  <option value="">⚠️ Nenhum / Sem Vínculo</option>
+                                  {professionals.map(p => (
+                                    <option key={p._id} value={p._id}>
+                                      {p.nome}
+                                    </option>
+                                  ))}
+                                </select>
+                                {!hasVinculo && (
+                                  <span style={{ color: '#f59e0b', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <i className="fa-solid fa-clock"></i> Pendente de atribuição
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>
                               {saveStatus === 'salvando' && (
-                                <span style={{ color: 'var(--color-primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--color-primary)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   <i className="fa-solid fa-spinner fa-spin"></i> Salvando...
                                 </span>
                               )}
                               {saveStatus === 'salvo' && (
-                                <span style={{ color: '#10b981', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: '#10b981', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
                                   <i className="fa-solid fa-check"></i> Salvo!
                                 </span>
                               )}
                               {saveStatus === 'erro' && (
-                                <span style={{ color: 'var(--color-danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--color-danger)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   <i className="fa-solid fa-triangle-exclamation"></i> Erro ao salvar
+                                </span>
+                              )}
+                              {!saveStatus && hasVinculo && (
+                                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                                  <i className="fa-solid fa-link" style={{ marginRight: '4px', opacity: 0.7 }}></i> Vinculado
                                 </span>
                               )}
                             </td>
@@ -3345,7 +3960,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </table>
               </div>
               {filtered.length > 0 && (
-                <div style={{ marginTop: '16px' }}>
+                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+                    Mostrando <strong style={{ color: '#f8fafc' }}>{Math.min(filtered.length, (curP - 1) * size + 1)}</strong> até <strong style={{ color: '#f8fafc' }}>{Math.min(filtered.length, curP * size)}</strong> de <strong style={{ color: '#f8fafc' }}>{filtered.length}</strong> {filtered.length === 1 ? 'registro' : 'registros'}
+                  </div>
                   <Pagination
                     currentPage={curP}
                     totalItems={filtered.length}
