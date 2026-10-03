@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export const UNIDADE_OPTIONS = [
   { id: 'kg', label: 'kg', desc: 'Quilogramas' },
@@ -27,12 +28,52 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
   const [customText, setCustomText] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; openUpwards: boolean }>({ top: 0, left: 0, openUpwards: false });
 
   const currentUnit = value || 'kg';
 
+  const updatePosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const popoverWidth = 185;
+    const popoverHeight = 310;
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpwards = spaceBelow < popoverHeight && rect.top > popoverHeight;
+
+    // Alinha pela direita do botão, ou ajusta para caber na tela
+    let left = rect.right - popoverWidth;
+    left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, left));
+
+    const top = openUpwards ? Math.max(10, rect.top - popoverHeight - 6) : rect.bottom + 6;
+    setCoords({ top, left, openUpwards });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        (!popoverRef.current || !popoverRef.current.contains(target))
+      ) {
         setIsOpen(false);
         setShowCustomInput(false);
       }
@@ -52,7 +93,10 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
         disabled={disabled}
         onClick={(e) => {
           e.stopPropagation();
-          setIsOpen(!isOpen);
+          if (!disabled) {
+            if (!isOpen) updatePosition();
+            setIsOpen(!isOpen);
+          }
         }}
         title="Alterar unidade de medida da carga (kg, lbs, placas, Livre, etc.)"
         style={{
@@ -87,18 +131,22 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
         <i className="fa-solid fa-caret-down" style={{ fontSize: '0.62rem', opacity: 0.7 }}></i>
       </button>
 
-      {isOpen && (
+      {/* 🌟 Popover de Unidades renderizado via Portal para nunca ser cortado por overflow: hidden */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div
+          ref={popoverRef}
           onClick={e => e.stopPropagation()}
           style={{
-            position: 'absolute',
-            top: '40px',
-            right: 0,
-            zIndex: 999999,
+            position: 'fixed',
+            top: `${coords.top}px`,
+            left: `${coords.left}px`,
+            zIndex: 99999999,
             width: '185px',
+            maxHeight: 'min(330px, 85vh)',
+            overflowY: 'auto',
             background: '#0a0f1d',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.95), 0 0 15px rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.45)',
+            boxShadow: '0 20px 48px rgba(0, 0, 0, 0.95), 0 0 20px rgba(56, 189, 248, 0.15)',
             borderRadius: '9px',
             padding: '6px',
             display: 'flex',
@@ -144,22 +192,22 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: isSelected ? '#38bdf8' : '#f8fafc' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: isSelected ? '#38bdf8' : '#ffffff' }}>
                     {opt.label}
-                  </div>
-                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                  </span>
+                  <span style={{ fontSize: '0.62rem', color: '#94a3b8', marginLeft: '6px' }}>
                     {opt.desc}
-                  </div>
+                  </span>
                 </div>
                 {isSelected && (
-                  <i className="fa-solid fa-check" style={{ color: '#38bdf8', fontSize: '0.70rem' }}></i>
+                  <i className="fa-solid fa-check" style={{ fontSize: '0.62rem', color: '#38bdf8' }}></i>
                 )}
               </button>
             );
           })}
 
-          {/* Opção para digitar livremente se desejar */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px', marginTop: '2px' }}>
+          {/* Opção personalizada */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '3px', paddingTop: '4px' }}>
             {!showCustomInput ? (
               <button
                 type="button"
@@ -168,10 +216,10 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
                   width: '100%',
                   textAlign: 'left',
                   padding: '5px 8px',
-                  borderRadius: '5px',
+                  borderRadius: '6px',
                   background: 'transparent',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: '#64748b',
                   fontSize: '0.70rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -236,7 +284,8 @@ export const WorkoutUnitPicker: React.FC<WorkoutUnitPickerProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -4377,7 +4377,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               boxShadow: justGroupedItemId === item.id ? `0 0 0 2px ${groupColor || '#38bdf8'}, 0 0 25px ${groupColor || '#38bdf8'}88` : undefined,
                               transition: 'all 0.3s ease',
                               boxSizing: 'border-box',
-                              overflow: 'hidden'
+                              overflow: 'visible'
                             }}
                           >
                         {isMobile ? (

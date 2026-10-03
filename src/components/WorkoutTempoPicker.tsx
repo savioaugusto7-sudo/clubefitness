@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { RITMO_OPTIONS, parseTempoExecucaoSerie, formatSecondsToTime, TempoOption } from '@/utils/workoutTimeEngine';
 
 interface WorkoutTempoPickerProps {
@@ -20,11 +21,53 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; openUpwards: boolean }>({ top: 0, left: 0, openUpwards: false });
+
+  // Calcula a posição do popover flutuante com viewport clamping e detecção de borda
+  const updatePosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const popoverWidth = 290;
+    const popoverHeight = 360;
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpwards = spaceBelow < popoverHeight && rect.top > popoverHeight;
+
+    let left = rect.left + rect.width / 2 - popoverWidth / 2;
+    // Garante margem de segurança nas bordas da tela
+    left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, left));
+
+    const top = openUpwards ? Math.max(10, rect.top - popoverHeight - 6) : rect.bottom + 6;
+    setCoords({ top, left, openUpwards });
+  };
+
+  // Atualiza posição no scroll ou resize enquanto aberto
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen]);
 
   // Fecha o dropdown ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        (!popoverRef.current || !popoverRef.current.contains(target))
+      ) {
         setIsOpen(false);
       }
     }
@@ -78,12 +121,20 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
             textAlign: 'center',
             padding: 0
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            updatePosition();
+            setIsOpen(true);
+          }}
         />
 
         <button
           type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onClick={() => {
+            if (!disabled) {
+              if (!isOpen) updatePosition();
+              setIsOpen(!isOpen);
+            }
+          }}
           style={{
             background: 'transparent',
             border: 'none',
@@ -102,20 +153,22 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
         </button>
       </div>
 
-      {/* Popover de Seleção com Tradução em Tempo Explícita */}
-      {isOpen && (
+      {/* 🌟 Popover de Seleção renderizado via Portal no document.body para nunca ser cortado por overflow: hidden */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div
+          ref={popoverRef}
           onClick={e => e.stopPropagation()}
           style={{
-            position: 'absolute',
-            top: '40px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 99999,
+            position: 'fixed',
+            top: `${coords.top}px`,
+            left: `${coords.left}px`,
+            zIndex: 99999999,
             width: '290px',
+            maxHeight: 'min(380px, 85vh)',
+            overflowY: 'auto',
             background: '#090d16',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.95), 0 0 15px rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.45)',
+            boxShadow: '0 20px 48px rgba(0, 0, 0, 0.95), 0 0 20px rgba(56, 189, 248, 0.15)',
             borderRadius: '10px',
             padding: '8px',
             display: 'flex',
@@ -207,24 +260,24 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '0.74rem', fontWeight: 800, color: isSelected ? '#38bdf8' : '#f8fafc' }}>
-                        {opt.label}
-                      </div>
-                      <div style={{ fontSize: '0.64rem', color: '#94a3b8', marginTop: '1px' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 800, color: isSelected ? '#38bdf8' : '#ffffff' }}>
+                        {opt.valor}
+                      </span>
+                      <span style={{ fontSize: '0.64rem', color: '#94a3b8', marginLeft: '6px' }}>
                         {opt.descricao}
-                      </div>
+                      </span>
                     </div>
-                    {isSelected && (
-                      <i className="fa-solid fa-check" style={{ color: '#38bdf8', fontSize: '0.72rem' }}></i>
-                    )}
+                    <span style={{ fontSize: '0.62rem', color: isSelected ? '#38bdf8' : '#64748b', fontWeight: 700 }}>
+                      {opt.tempoSegundosPorRep ? `${opt.tempoSegundosPorRep}s/rep` : ''}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Seção 2: Tempo Fixo por Série (Isometria / Pranchas) */}
-          <div style={{ marginTop: '2px' }}>
+          {/* Seção 2: Isometria e Tempo Fixo por Série */}
+          <div>
             <div
               style={{
                 fontSize: '0.64rem',
@@ -233,12 +286,13 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 padding: '2px 6px',
-                marginBottom: '2px'
+                marginBottom: '2px',
+                marginTop: '4px'
               }}
             >
-              ⏱️ Tempo Fixo por Série (Isometria / Prancha)
+              ⏱️ Tempo Fixo / Isometria (por série)
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
               {RITMO_OPTIONS.filter(o => o.tipo === 'fixo').map(opt => {
                 const isSelected = value === opt.valor;
                 return (
@@ -250,21 +304,27 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
                       setIsOpen(false);
                     }}
                     style={{
-                      height: '28px',
-                      padding: '0',
-                      borderRadius: '5px',
+                      padding: '5px 4px',
+                      borderRadius: '6px',
                       background: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                      border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.06)',
-                      color: isSelected ? '#38bdf8' : '#f1f5f9',
+                      border: isSelected ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.05)',
+                      color: isSelected ? '#38bdf8' : '#ffffff',
                       fontSize: '0.72rem',
                       fontWeight: 800,
                       cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      textAlign: 'center',
                       transition: 'all 0.12s ease'
                     }}
-                    title={opt.descricao}
+                    onMouseEnter={e => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                      }
+                    }}
                   >
                     {opt.valor}
                   </button>
@@ -273,7 +333,7 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
             </div>
           </div>
 
-          {/* Rodapé informativo de feedback com tempo da série */}
+          {/* Rodapé com Cálculo de Tempo em Tempo Real */}
           {execInfo.isValid ? (
             <div
               style={{
@@ -281,7 +341,7 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
                 padding: '6px 8px',
                 borderRadius: '6px',
                 background: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.2)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -310,7 +370,8 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
               ⚠️ Selecione um ritmo ou digite para calcular o tempo
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
