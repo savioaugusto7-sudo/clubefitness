@@ -7,7 +7,6 @@ import WorkoutEvolutionModal from './WorkoutEvolutionModal';
 import WorkoutTempoPicker from './WorkoutTempoPicker';
 import WorkoutTempoModal from './WorkoutTempoModal';
 import WorkoutUnitPicker from './WorkoutUnitPicker';
-import WorkoutExecutionTimerModal from './WorkoutExecutionTimerModal';
 import { calculateWellness } from '@/utils/wellnessHelper';
 import { calculateSheetTotalTime, calculateExerciseTime, formatSecondsToTime } from '@/utils/workoutTimeEngine';
 
@@ -266,11 +265,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [tempObsText, setTempObsText] = useState('');
   const [activeDropMenuId, setActiveDropMenuId] = useState<string | null>(null);
   const [showTempoModal, setShowTempoModal] = useState(false);
-  const [executionTimerItem, setExecutionTimerItem] = useState<{
-    exerciseName: string;
-    targetSeconds: number;
-    seriesTotal: number;
-  } | null>(null);
 
   const handleApplyBatchRitmo = (batchRitmo: string) => {
     setWorkoutItems(prev => {
@@ -4616,37 +4610,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   const exTime = calculateExerciseTime(item.series, item.repeticoes || item.reps, item.ritmo, item.descanso);
                                   if (!exTime.isPendingTempo) {
                                     return (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3px 6px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: 800, color: '#38bdf8' }}>
-                                          <span>⏱️ {formatSecondsToTime(exTime.totalSeconds)}</span>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setExecutionTimerItem({
-                                              exerciseName: item.nome || 'Exercício',
-                                              targetSeconds: exTime.secondsPerSet,
-                                              seriesTotal: Math.max(1, parseInt(item.series, 10) || 1)
-                                            });
-                                          }}
-                                          title={`Executar com cronômetro (${formatSecondsToTime(exTime.secondsPerSet)} por série)`}
-                                          style={{
-                                            padding: '3px 7px',
-                                            borderRadius: '6px',
-                                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35))',
-                                            border: '1px solid #10b981',
-                                            color: '#34d399',
-                                            fontSize: '0.66rem',
-                                            fontWeight: 800,
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '3px'
-                                          }}
-                                        >
-                                          <i className="fa-solid fa-play" style={{ fontSize: '0.58rem' }}></i>
-                                          <span>Executar</span>
-                                        </button>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3px 6px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: 800, color: '#38bdf8' }}>
+                                        <span>⏱️ {formatSecondsToTime(exTime.totalSeconds)}</span>
                                       </div>
                                     );
                                   }
@@ -5121,46 +5086,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               const exTime = calculateExerciseTime(item.series, item.reps, item.ritmo, item.descanso);
                               if (!exTime.isPendingTempo) {
                                 return (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setExecutionTimerItem({
-                                        exerciseName: item.nome || 'Exercício',
-                                        targetSeconds: exTime.secondsPerSet,
-                                        seriesTotal: Math.max(1, parseInt(item.series, 10) || 1)
-                                      });
-                                    }}
-                                    style={{
-                                      background: 'transparent',
-                                      border: 'none',
-                                      padding: '2px 6px',
-                                      borderRadius: '6px',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    onMouseEnter={e => {
-                                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
-                                      e.currentTarget.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.2)';
-                                    }}
-                                    onMouseLeave={e => {
-                                      e.currentTarget.style.background = 'transparent';
-                                      e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                    title={`Clique para EXECUTAR com cronômetro!\nTempo total previsto: ${formatSecondsToTime(exTime.totalSeconds)} (${formatSecondsToTime(exTime.executionSeconds)} sob tensão + ${formatSecondsToTime(exTime.restSeconds)} descansos)`}
+                                  <div
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'help' }}
+                                    title={`Tempo total estimado: ${formatSecondsToTime(exTime.totalSeconds)} (${formatSecondsToTime(exTime.executionSeconds)} sob tensão + ${formatSecondsToTime(exTime.restSeconds)} descansos)`}
                                   >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                      <i className="fa-solid fa-play" style={{ color: '#10b981', fontSize: '0.62rem' }}></i>
-                                      <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
-                                        ⏱️ {formatSecondsToTime(exTime.totalSeconds)}
-                                      </span>
-                                    </div>
-                                    <span style={{ fontSize: '0.58rem', color: '#64748b' }}>
-                                      {formatSecondsToTime(exTime.executionSeconds)} ativo • ▶ Executar
+                                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
+                                      ⏱️ {formatSecondsToTime(exTime.totalSeconds)}
                                     </span>
-                                  </button>
+                                    <span style={{ fontSize: '0.58rem', color: '#64748b' }}>
+                                      {formatSecondsToTime(exTime.executionSeconds)} ativo
+                                    </span>
+                                  </div>
                                 );
                               }
                               return (
@@ -7086,16 +7022,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         onApplyBatchRitmo={handleApplyBatchRitmo}
       />
 
-      {/* 🏃‍♂️ Modal de Execução de Exercício com Cronômetro */}
-      {executionTimerItem && (
-        <WorkoutExecutionTimerModal
-          isOpen={!!executionTimerItem}
-          onClose={() => setExecutionTimerItem(null)}
-          exerciseName={executionTimerItem.exerciseName}
-          targetSeconds={executionTimerItem.targetSeconds}
-          seriesTotal={executionTimerItem.seriesTotal}
-        />
-      )}
+
 
     </div>
   );
