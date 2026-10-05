@@ -13,10 +13,11 @@ export interface TempoOption {
   tempoSegundosPorRep?: number;
   tempoSegundosPorSerie?: number;
   descricao: string;
-  tipo: 'cadencia' | 'fixo';
+  tipo: 'cadencia' | 'fixo' | 'cardio';
 }
 
 export const RITMO_OPTIONS: TempoOption[] = [
+  // Cadências tradicionais por repetição
   {
     id: '2-1',
     valor: '2-1',
@@ -57,7 +58,7 @@ export const RITMO_OPTIONS: TempoOption[] = [
     descricao: '1s descida / 1s subida • Potência e Explosão',
     tipo: 'cadencia'
   },
-  // Isometrias e tempos fixos por série
+  // Isometrias e tempos fixos curtos por série
   {
     id: '20s',
     valor: '20s',
@@ -97,6 +98,63 @@ export const RITMO_OPTIONS: TempoOption[] = [
     tempoSegundosPorSerie: 60,
     descricao: 'Duração contínua de 1 minuto sob tensão',
     tipo: 'fixo'
+  },
+  // Cardio / Tempo Contínuo (Aeróbico / Esteira / Bike)
+  {
+    id: '2min',
+    valor: '2 min',
+    label: '2 min (120s)',
+    tempoSegundosPorSerie: 120,
+    descricao: 'Tiro curto / Aquecimento inicial',
+    tipo: 'cardio'
+  },
+  {
+    id: '5min',
+    valor: '5 min',
+    label: '5 min (300s)',
+    tempoSegundosPorSerie: 300,
+    descricao: 'Aquecimento geral na esteira/bike',
+    tipo: 'cardio'
+  },
+  {
+    id: '6min',
+    valor: '6 min',
+    label: '6 min (360s)',
+    tempoSegundosPorSerie: 360,
+    descricao: 'Cardio contínuo moderado',
+    tipo: 'cardio'
+  },
+  {
+    id: '10min',
+    valor: '10 min',
+    label: '10 min (600s)',
+    tempoSegundosPorSerie: 600,
+    descricao: 'Cardio contínuo intermediário',
+    tipo: 'cardio'
+  },
+  {
+    id: '15min',
+    valor: '15 min',
+    label: '15 min (900s)',
+    tempoSegundosPorSerie: 900,
+    descricao: 'Sessão aeróbica contínua',
+    tipo: 'cardio'
+  },
+  {
+    id: '20min',
+    valor: '20 min',
+    label: '20 min (1200s)',
+    tempoSegundosPorSerie: 1200,
+    descricao: 'Endurance / Condicionamento',
+    tipo: 'cardio'
+  },
+  {
+    id: '30min',
+    valor: '30 min',
+    label: '30 min (1800s)',
+    tempoSegundosPorSerie: 1800,
+    descricao: 'Treino aeróbico prolongado',
+    tipo: 'cardio'
   }
 ];
 
@@ -157,7 +215,7 @@ export function parseTempoExecucaoSerie(
   secondsPerSet: number;
   secondsPerRep?: number;
   isValid: boolean;
-  tipo: 'cadencia' | 'fixo' | 'invalido';
+  tipo: 'cadencia' | 'fixo' | 'cardio' | 'invalido';
   labelExplicativo: string;
 } {
   if (!ritmo || typeof ritmo !== 'string' || !ritmo.trim()) {
@@ -171,34 +229,78 @@ export function parseTempoExecucaoSerie(
 
   const clean = ritmo.trim().toLowerCase();
 
-  // 1. Verificar se é tempo fixo por série (ex: "30s", "45s", "60 seg", "isometria 30s")
-  const matchMin = clean.match(/^(\d+)\s*(min|m|minuto|minutos)$/i);
-  if (matchMin) {
-    const mins = parseInt(matchMin[1], 10);
-    const secs = mins * 60;
-    return {
-      secondsPerSet: secs,
-      isValid: true,
-      tipo: 'fixo',
-      labelExplicativo: `${secs}s por série`
-    };
-  }
-
-  // Se tem apenas número seguido de 's' ou 'seg' (ex: "30s", "45 seg", "isometria 40s")
-  if (clean.includes('s') && !clean.includes('-')) {
-    const numPart = clean.match(/\d+/);
-    if (numPart) {
-      const secs = parseInt(numPart[0], 10);
+  // 1. Formato Relógio mm:ss (ex: "06:00", "6:00", "15:30")
+  if (/^\d{1,3}:\d{2}$/.test(clean)) {
+    const parts = clean.split(':').map(p => parseInt(p, 10));
+    const secs = (parts[0] * 60) + parts[1];
+    if (secs > 0) {
+      const minPart = Math.floor(secs / 60);
+      const remSec = secs % 60;
+      const fmtStr = remSec > 0 ? `${minPart}m ${remSec}s` : `${minPart} min`;
       return {
         secondsPerSet: secs,
         isValid: true,
-        tipo: 'fixo',
-        labelExplicativo: `${secs}s contínuos por série`
+        tipo: 'cardio',
+        labelExplicativo: `${fmtStr} (${secs}s contínuos)`
       };
     }
   }
 
-  // 2. Verificar se é cadência clássica com hífen (ex: "2-1", "2-0-2-0", "3-0-1-0", "4-0-2-0")
+  // 2. Horas (ex: "1h", "1 h", "1.5h", "1 hora", "1 horas")
+  const matchH = clean.match(/^(\d+(?:[.,]\d+)?)\s*(h|hr|hrs|hora|horas)$/i);
+  if (matchH) {
+    const hours = parseFloat(matchH[1].replace(',', '.'));
+    const secs = Math.round(hours * 3600);
+    if (secs > 0) {
+      return {
+        secondsPerSet: secs,
+        isValid: true,
+        tipo: 'cardio',
+        labelExplicativo: `${hours}h (${secs}s contínuos)`
+      };
+    }
+  }
+
+  // 3. Minutos (ex: "6 min", "6min", "6m", "6 mins", "6 minuto", "6 minutos", "6.5 min")
+  const matchMin = clean.match(/^(\d+(?:[.,]\d+)?)\s*(min|mins|minuto|minutos|m)$/i);
+  if (matchMin) {
+    const mins = parseFloat(matchMin[1].replace(',', '.'));
+    const secs = Math.round(mins * 60);
+    if (secs > 0) {
+      const minPart = Math.floor(secs / 60);
+      const remSec = secs % 60;
+      const fmtStr = remSec > 0 ? `${minPart}m ${remSec}s` : `${mins} min`;
+      return {
+        secondsPerSet: secs,
+        isValid: true,
+        tipo: 'cardio',
+        labelExplicativo: `${fmtStr} (${secs}s contínuos)`
+      };
+    }
+  }
+
+  // 4. Segundos explícitos (ex: "360s", "360 seg", "360seg", "360 segundos", "45s", "isometria 30s")
+  // Não deve conflitar com cadência hífen (ex: "2-1")
+  if (!clean.includes('-') && (clean.includes('s') || clean.includes('"') || clean.includes('seg'))) {
+    const numPart = clean.match(/\d+/);
+    if (numPart) {
+      const secs = parseInt(numPart[0], 10);
+      if (secs > 0) {
+        const isLongCardio = secs >= 90;
+        const minPart = Math.floor(secs / 60);
+        const remSec = secs % 60;
+        const fmtStr = minPart > 0 ? (remSec > 0 ? `${minPart}m ${remSec}s` : `${minPart} min`) : `${secs}s`;
+        return {
+          secondsPerSet: secs,
+          isValid: true,
+          tipo: isLongCardio ? 'cardio' : 'fixo',
+          labelExplicativo: minPart > 0 ? `${fmtStr} (${secs}s contínuos)` : `${secs}s contínuos`
+        };
+      }
+    }
+  }
+
+  // 5. Cadência clássica com hífen (ex: "2-1", "2-0-2-0", "3-0-1-0", "4-0-2-0")
   if (clean.includes('-')) {
     const parts = clean.split('-').map(p => parseFloat(p.trim())).filter(p => !isNaN(p));
     if (parts.length >= 2) {
@@ -217,7 +319,7 @@ export function parseTempoExecucaoSerie(
     }
   }
 
-  // 3. Verificar se é número direto isolado (ex: "3" interpretado como 3s/rep ou "30" como segundos)
+  // 6. Número isolado digitado
   const onlyNum = parseFloat(clean);
   if (!isNaN(onlyNum) && onlyNum > 0) {
     if (onlyNum <= 10) {
@@ -232,12 +334,15 @@ export function parseTempoExecucaoSerie(
         labelExplicativo: `${onlyNum}s por repetição`
       };
     } else {
-      // Tempo fixo em segundos por série
+      // Tempo fixo em segundos por série (ex: 360 ou 60)
+      const minPart = Math.floor(onlyNum / 60);
+      const remSec = Math.round(onlyNum % 60);
+      const fmtStr = minPart > 0 ? (remSec > 0 ? `${minPart}m ${remSec}s` : `${minPart} min`) : `${onlyNum}s`;
       return {
         secondsPerSet: onlyNum,
         isValid: true,
-        tipo: 'fixo',
-        labelExplicativo: `${onlyNum}s contínuos por série`
+        tipo: onlyNum >= 90 ? 'cardio' : 'fixo',
+        labelExplicativo: minPart > 0 ? `${fmtStr} (${onlyNum}s contínuos)` : `${onlyNum}s contínuos`
       };
     }
   }
@@ -257,7 +362,7 @@ export interface ExerciseTimeResult {
   isPendingTempo: boolean;
   secondsPerSet: number;
   secondsPerRep?: number;
-  tipo: 'cadencia' | 'fixo' | 'invalido';
+  tipo: 'cadencia' | 'fixo' | 'cardio' | 'invalido';
   labelExplicativo: string;
 }
 
