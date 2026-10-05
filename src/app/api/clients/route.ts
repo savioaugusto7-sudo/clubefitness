@@ -46,6 +46,7 @@ export async function GET(request: Request) {
         .populate({ path: 'userId', select: 'email role activeRoles' })
         .populate({ path: 'dadosComerciais.planoId', select: 'nome valor preco status tipo' })
         .populate({ path: 'profissionalId', select: 'nome email' })
+        .populate({ path: 'rotinaSemanal.dias.profissionalId', select: 'nome email' })
         .lean()
         .maxTimeMS(8000);
     } catch (popErr: any) {
@@ -161,7 +162,7 @@ export async function PUT(request: Request) {
     const { user } = await checkSessionPermission(['admin', 'receptionist', 'professional', 'client']);
 
     const body = await request.json();
-    const { id, action, justificativa, dadosPessoais, dadosClinicos, dadosComerciais, profissionalId, cadastroConcluido, termoAceito, dataAceiteTermo } = body;
+    const { id, action, justificativa, dadosPessoais, dadosClinicos, dadosComerciais, profissionalId, cadastroConcluido, termoAceito, dataAceiteTermo, rotinaSemanal } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing client ID' }, { status: 400 });
@@ -295,6 +296,14 @@ export async function PUT(request: Request) {
     if (profissionalId !== undefined) {
       client.profissionalId = profissionalId || null;
     }
+    if (rotinaSemanal !== undefined) {
+      client.rotinaSemanal = {
+        ...rotinaSemanal,
+        atualizadoPor: user.nome || user.email || 'Admin',
+        atualizadoEm: new Date()
+      };
+      client.markModified('rotinaSemanal');
+    }
     if (cadastroConcluido !== undefined) {
       client.cadastroConcluido = cadastroConcluido;
     }
@@ -306,7 +315,10 @@ export async function PUT(request: Request) {
     }
 
     await client.save();
-    const updatedClient = await Client.findById(client._id).populate('dadosComerciais.planoId').populate('profissionalId');
+    const updatedClient = await Client.findById(client._id)
+      .populate('dadosComerciais.planoId')
+      .populate('profissionalId')
+      .populate('rotinaSemanal.dias.profissionalId');
     return NextResponse.json({ success: true, data: updatedClient || client });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

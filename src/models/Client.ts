@@ -29,6 +29,26 @@ const DadosClinicosSchema = new Schema({
   observacoes: { type: String, default: '' }
 }, { _id: false });
 
+const RotinaDiaSchema = new Schema({
+  diaNumero: { type: Number, required: true },
+  diaSemanaSugestao: { type: String, default: '' },
+  servico: { 
+    type: String, 
+    required: true, 
+    default: 'Treino Monitorado' 
+  },
+  servicoCustom: { type: String, default: '' },
+  profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null },
+  observacoes: { type: String, default: '' }
+}, { _id: true });
+
+const RotinaSemanalSchema = new Schema({
+  dias: { type: [RotinaDiaSchema], default: () => [] },
+  observacoesGerais: { type: String, default: '' },
+  atualizadoPor: { type: String, default: '' },
+  atualizadoEm: { type: Date, default: Date.now }
+}, { _id: false });
+
 const DadosComerciaisSchema = new Schema({
   asaasCustomerId: { type: String, default: '' },
   planoId: { type: Schema.Types.ObjectId, ref: 'Plan' },
@@ -165,7 +185,8 @@ const ClientSchema = new Schema({
   contratosAtivos: { type: [ContratoAtivoSchema], default: () => [] },
   historicoContratos: { type: [HistoricoContratoSchema], default: () => [] },
   bloqueioCadastral: { type: BloqueioCadastralSchema, default: () => ({}) },
-  profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null }
+  profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null },
+  rotinaSemanal: { type: RotinaSemanalSchema, default: () => ({ dias: [] }) }
 }, { timestamps: true });
 
 ClientSchema.index({ userId: 1 });

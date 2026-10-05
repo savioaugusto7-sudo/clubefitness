@@ -24,6 +24,7 @@ import MetasProfissionaisPanel from './MetasProfissionaisPanel';
 import GestaoPontoAdminPanel from './GestaoPontoAdminPanel';
 import AgendaConfigPanel from './AgendaConfigPanel';
 import AdvertenciasAdminPanel from './AdvertenciasAdminPanel';
+import RotinaSemanalModal from './RotinaSemanalModal';
 
 
 export const normalizeText = (str: string) => {
@@ -135,6 +136,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [vinculoStatusFilter, setVinculoStatusFilter] = useState<'todos' | 'sem_vinculo' | 'com_vinculo'>('todos');
   const [vinculoProfFilter, setVinculoProfFilter] = useState<string>('todos');
   const [vinculoPlanFilter, setVinculoPlanFilter] = useState<string>('todos');
+  const [rotinaModalClient, setRotinaModalClient] = useState<any>(null);
 
   const fetchLinkMovements = async (silent = false) => {
     if (!silent && linkMovements.length === 0) {
@@ -3282,6 +3284,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           const statusKeywords = hasVinculo 
             ? 'com vinculo com vínculo vinculado atribuido atribuído associado' 
             : 'sem vinculo sem vínculo sem profissional nenhum pendente desvinculado desassistido';
+          const rotinaKeywords = (c.rotinaSemanal?.dias || []).map((d: any) => `${d.servico} ${d.servicoCustom || ''} ${d.observacoes || ''}`).join(' ');
 
           return smartSearchMatch([
             c.dadosPessoais?.nome,
@@ -3293,7 +3296,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             profName,
             profEmail,
             profEspecialidade,
-            statusKeywords
+            statusKeywords,
+            rotinaKeywords
           ], q);
         });
 
@@ -3767,16 +3771,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '35%' }}>Aluno</th>
-                      <th style={{ width: '25%' }}>Plano Ativo</th>
-                      <th style={{ width: '25%' }}>Profissional Responsável</th>
-                      <th style={{ width: '15%', textAlign: 'center' }}>Status de Salvamento</th>
+                      <th style={{ width: '28%' }}>Aluno</th>
+                      <th style={{ width: '16%' }}>Plano Ativo</th>
+                      <th style={{ width: '22%' }}>Profissional Responsável</th>
+                      <th style={{ width: '22%' }}>Planejamento Semanal</th>
+                      <th style={{ width: '12%', textAlign: 'center' }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginated.length === 0 ? (
                       <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--text-dim)' }}>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--text-dim)' }}>
                           <i className="fa-solid fa-user-slash" style={{ fontSize: '2rem', opacity: 0.3, marginBottom: '12px', display: 'block' }}></i>
                           <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Nenhum aluno encontrado com os filtros atuais.</p>
                           {hasActiveFilters && (
@@ -3930,6 +3935,49 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                 )}
                               </div>
                             </td>
+                            <td>
+                              {(() => {
+                                const contractFreq = c.contratosAtivos?.[0]?.frequencia || c.dadosComerciais?.frequencia || 3;
+                                const rotinaDias: any[] = c.rotinaSemanal?.dias || [];
+                                const hasRotina = rotinaDias.length > 0;
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRotinaModalClient(c)}
+                                    style={{
+                                      background: hasRotina ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                                      border: hasRotina ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(245, 158, 11, 0.35)',
+                                      color: hasRotina ? '#34d399' : '#fbbf24',
+                                      borderRadius: '8px',
+                                      padding: '6px 10px',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      maxWidth: '100%',
+                                      textAlign: 'left',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Clique para configurar os serviços de cada dia da frequência semanal contratada"
+                                  >
+                                    <i className={`fa-solid ${hasRotina ? 'fa-calendar-check' : 'fa-calendar-plus'}`}></i>
+                                    <span>
+                                      {hasRotina ? (
+                                        <>
+                                          <strong>{contractFreq}x/sem:</strong> {rotinaDias.slice(0, 3).map((d: any) => d.servico === 'Treino Monitorado' ? 'Monitorado' : (d.servico === 'Terapia Manual' ? 'Manual' : (d.servico === 'Atendimento Individual' ? 'Individual' : d.servico))).join(' • ')}
+                                          {rotinaDias.length > 3 ? '...' : ''}
+                                        </>
+                                      ) : (
+                                        <>⚠️ Definir Serviços ({contractFreq}x/sem)</>
+                                      )}
+                                    </span>
+                                  </button>
+                                );
+                              })()}
+                            </td>
                             <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>
                               {saveStatus === 'salvando' && (
                                 <span style={{ color: 'var(--color-primary)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -3973,6 +4021,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </div>
               )}
             </div>
+
+            {/* Modal de Designação de Rotina Semanal */}
+            {rotinaModalClient && (
+              <RotinaSemanalModal
+                isOpen={Boolean(rotinaModalClient)}
+                client={rotinaModalClient}
+                professionals={professionals}
+                onClose={() => setRotinaModalClient(null)}
+                onSaveSuccess={updated => {
+                  setClients(prev => prev.map(item => item._id === updated._id ? { ...item, ...updated } : item));
+                  setRotinaModalClient(null);
+                }}
+              />
+            )}
           </>
         );
       })()}

@@ -23,6 +23,7 @@ import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
+import DossieAlunoModal from './DossieAlunoModal';
 import RegistroPontoPanel from './RegistroPontoPanel';
 import PerfilSegurancaProfissionalPanel from './PerfilSegurancaProfissionalPanel';
 import WorkoutEvolutionModal from './WorkoutEvolutionModal';
@@ -7817,6 +7818,64 @@ goniometria: {
                                       </div>
                                     </div>
 
+                                      {/* Pílula / Resumo da Grade Semanal */}
+                                      {(() => {
+                                        const contractFreq = c.contratosAtivos?.[0]?.frequencia || c.dadosComerciais?.frequencia || 3;
+                                        const rotinaDias: any[] = c.rotinaSemanal?.dias || [];
+                                        const hasRotina = rotinaDias.length > 0;
+
+                                        return (
+                                          <div style={{
+                                            marginTop: '10px',
+                                            background: hasRotina ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                                            border: hasRotina ? '1px solid rgba(16, 185, 129, 0.25)' : '1px dashed rgba(255, 255, 255, 0.1)',
+                                            borderRadius: '10px',
+                                            padding: '8px 10px',
+                                            fontSize: '0.76rem'
+                                          }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                               <span style={{ fontWeight: 800, color: hasRotina ? '#10b981' : '#94a3b8', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                                 <i className="fa-solid fa-calendar-week" style={{ marginRight: '4px' }}></i>
+                                                 Rotina Semanal ({contractFreq}x)
+                                               </span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                              {hasRotina ? (
+                                                rotinaDias.slice(0, contractFreq).map((d: any, dIdx: number) => {
+                                                  const isManual = d.servico === 'Terapia Manual';
+                                                  const isIndividual = d.servico === 'Atendimento Individual';
+                                                  const isMonitorado = d.servico === 'Treino Monitorado';
+                                                  const badgeColor = isManual ? '#38bdf8' : (isIndividual ? '#c084fc' : (isMonitorado ? '#10b981' : '#f59e0b'));
+                                                  const badgeBg = isManual ? 'rgba(56, 189, 248, 0.15)' : (isIndividual ? 'rgba(192, 132, 252, 0.15)' : (isMonitorado ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'));
+                                                  const shortLabel = isManual ? 'Manual' : (isIndividual ? 'Individual' : (isMonitorado ? 'Monitorado' : (d.servico === 'Treino Livre' ? 'Livre' : d.servico)));
+
+                                                  return (
+                                                    <span
+                                                      key={dIdx}
+                                                      style={{
+                                                        background: badgeBg,
+                                                        color: badgeColor,
+                                                        border: `1px solid ${badgeColor}40`,
+                                                        padding: '1px 6px',
+                                                        borderRadius: '5px',
+                                                        fontSize: '0.70rem',
+                                                        fontWeight: 750
+                                                      }}
+                                                    >
+                                                      D{dIdx + 1}: {shortLabel}
+                                                    </span>
+                                                  );
+                                                })
+                                              ) : (
+                                                <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.72rem' }}>
+                                                  Serviços ainda não detalhados
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+
                                     {/* Action button */}
                                     <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', gap: '8px' }}>
                                       <button
@@ -7827,10 +7886,10 @@ goniometria: {
                                           setDetailClient(c);
                                           setClientDetailTab('agendamentos');
                                           setShowClientDetailModal(true);
-                                          logReadActivity('Visualizou Histórico Clínico', c._id, c.dadosPessoais?.nome || '');
+                                          logReadActivity('Visualizou Dossiê do Aluno', c._id, c.dadosPessoais?.nome || '');
                                         }}
                                       >
-                                        <i className="fa-solid fa-address-card"></i> Prontuário / Histórico
+                                        <i className="fa-solid fa-address-card"></i> Dossiê do Aluno
                                       </button>
                                       <button
                                         type="button"
@@ -17312,302 +17371,18 @@ goniometria: {
         </div>
       )}
 
-      {/* Client Detail / History Modal */}
+      {/* Dossiê Completo do Aluno (Ficha 360° com Planejamento Semanal) */}
       {showClientDetailModal && detailClient && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowClientDetailModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
-            <div className="modal-header">
-              <h3>Histórico Clínico — {detailClient.dadosPessoais?.nome}</h3>
-              <button className="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>Avaliações Físicas</h4>
-              <div className="table-responsive" style={{ marginBottom: '24px' }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Gordura Corporal</th>
-                      <th>IMC</th>
-                      {isAdmin && <th>Avaliador</th>}
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const clientAssessments = assessments.filter(as => (as.clienteId?._id || as.clienteId) === detailClient._id);
-                      if (clientAssessments.length === 0) {
-                        return <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhuma avaliação cadastrada.</td></tr>;
-                      }
-                      return clientAssessments.map(as => {
-                        const fatText = as.resultadosCalculados?.percentualGordura ? `${Number(as.resultadosCalculados.percentualGordura).toFixed(1)}%` : '-';
-                        
-                        const pesoVal = Number(as.dadosMedidos?.peso) || 0;
-                        let altVal = Number(as.dadosMedidos?.altura) || 0;
-                        if (altVal > 3) altVal = parseFloat((altVal / 100).toFixed(2));
-                        let imcVal = Number(as.resultadosCalculados?.imc) || 0;
-                        if ((imcVal <= 1 || imcVal > 100) && pesoVal > 0 && altVal > 0) {
-                          imcVal = parseFloat((pesoVal / (altVal * altVal)).toFixed(1));
-                        }
-                        let imcClassText = as.resultadosCalculados?.imcClassificacao;
-                        if (!imcClassText || imcClassText === '-' || (imcClassText === 'Baixo peso' && imcVal >= 18.5)) {
-                          if (imcVal < 18.5) imcClassText = 'Baixo peso';
-                          else if (imcVal < 25) imcClassText = 'Normal';
-                          else if (imcVal < 30) imcClassText = 'Sobrepeso';
-                          else imcClassText = 'Obesidade';
-                        }
-                        const imcText = imcVal > 0 ? `${imcVal.toFixed(1)} (${imcClassText})` : '-';
-
-                        return (
-                          <tr key={as._id}>
-                            <td data-label="Data">{(() => {
-                              if (!as.data) return '';
-                              const parts = as.data.split('-');
-                              if (parts.length !== 3) return as.data;
-                              return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                            })()}</td>
-                            <td data-label="Gordura Corporal">{fatText}</td>
-                            <td data-label="IMC">{imcText}</td>
-                            {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
-                            <td data-label="Ações">
-                              <button type="button" className="btn btn-secondary btn-sm" onClick={async () => {
-                                try {
-                                  logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, detailClient.dadosPessoais?.nome || 'Aluno', as.data);
-                                  let fullAs = as;
-                                  try {
-                                    const res = await fetch(`/api/assessments?id=${as._id}`, { cache: 'no-store' });
-                                    const json = await res.json();
-                                    if (json?.success && json.data) fullAs = json.data;
-                                  } catch (e) {
-                                    console.warn(e);
-                                  }
-                                  fullAs.clienteId = detailClient;
-                                  await downloadAssessmentPDF(fullAs, assessments);
-                                } catch (err) {
-                                  console.error(err);
-                                }
-                              }}>
-                                <i className="fa-solid fa-file-pdf"></i> Laudo PDF
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-
-              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>Relatórios Fisioterápicos</h4>
-              <div className="table-responsive" style={{ marginBottom: '24px' }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Queixa Principal</th>
-                      <th>Escala de Dor</th>
-                      {isAdmin && <th>Profissional</th>}
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const clientReports = reports.filter(rep => (rep.clienteId?._id || rep.clienteId) === detailClient._id);
-                      if (clientReports.length === 0) {
-                        return <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhum relatório cadastrado.</td></tr>;
-                      }
-                      return clientReports.map(rep => (
-                        <tr key={rep._id}>
-                          <td data-label="Data">{(() => {
-                            if (!rep.data) return '';
-                            const parts = rep.data.split('-');
-                            if (parts.length !== 3) return rep.data;
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                          })()}</td>
-                          <td data-label="Queixa Principal" className="cell-block">{rep.conteudo?.queixaPrincipal || '-'}</td>
-                          <td data-label="Escala de Dor">
-                            <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
-                              Dor: {rep.conteudo?.dorEscala}/10
-                            </span>
-                          </td>
-                          {isAdmin && <td data-label="Profissional">{rep.profissionalId?.nome || 'Não Definido'}</td>}
-                          <td data-label="Ações">
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                              logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
-                              downloadReportPDF(rep);
-                            }}>
-                              <i className="fa-solid fa-file-pdf"></i> PDF
-                            </button>
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-
-              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
-                <span style={{ marginRight: '6px' }}>🧘</span> Histórico de Wellness & Prontidão Diária
-              </h4>
-              <div className="table-responsive" style={{ marginBottom: '24px' }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Sono</th>
-                      <th>Fadiga</th>
-                      <th>Dor Muscular</th>
-                      <th>Score</th>
-                      <th>Status / Conduta</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const clientWellnessApts = appointments
-                        .filter(a => ((a.clienteId?._id || a.clienteId) === detailClient._id) && a.wellness?.realizado)
-                        .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-
-                      if (clientWellnessApts.length === 0) {
-                        return <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhum questionário Wellness registrado para este aluno.</td></tr>;
-                      }
-
-                      return clientWellnessApts.map(a => {
-                        const w = a.wellness;
-                        const formattedDate = a.data ? a.data.split('-').reverse().join('/') : '-';
-                        return (
-                          <tr key={a._id}>
-                            <td data-label="Data"><strong>{formattedDate}</strong> <small style={{ color: 'var(--text-muted)' }}>{a.horario}</small></td>
-                            <td data-label="Sono">{w.sono}/10</td>
-                            <td data-label="Fadiga">{w.fadiga}/10</td>
-                            <td data-label="Dor">{w.dorMuscular}/10</td>
-                            <td data-label="Score">
-                              <strong style={{ color: w.statusColor || '#10b981' }}>{w.score}/30</strong>
-                            </td>
-                            <td data-label="Status / Conduta">
-                              <span style={{
-                                padding: '3px 8px',
-                                borderRadius: '12px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                background: w.status === 'otimo' ? 'rgba(16,185,129,0.15)' : w.status === 'moderado' ? 'rgba(234,179,8,0.15)' : w.status === 'ruim' ? 'rgba(249,115,22,0.15)' : 'rgba(239,68,68,0.15)',
-                                color: w.statusColor || '#10b981',
-                                display: 'inline-block',
-                                marginBottom: '2px'
-                              }}>
-                                {w.statusLabel}
-                              </span>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
-                                👉 {w.conduta}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-
-              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-clock-rotate-left"></i> Ciclos & Histórico de Treinos do Aluno
-              </h4>
-              <div className="table-responsive" style={{ marginBottom: '24px' }}>
-                {loadingDetailClientCycles ? (
-                  <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
-                    <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Carregando histórico de ciclos...
-                  </div>
-                ) : detailClientCycles.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-dim)', fontSize: '0.84rem' }}>
-                    Nenhum ciclo histórico anterior registrado para este aluno.
-                  </div>
-                ) : (
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Status / Ciclo</th>
-                        <th>Ficha</th>
-                        <th>Período</th>
-                        <th>Profissional</th>
-                        <th>Conteúdo</th>
-                        <th>Foco / Observações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailClientCycles.map((cy: any, cIdx: number) => {
-                        const isArq = cy.statusCiclo === 'arquivado';
-                        const isConc = cy.statusCiclo === 'concluido';
-                        const periodStr = cy.dataInicio && cy.dataFim
-                          ? `${cy.dataInicio.split('-').reverse().join('/')} a ${cy.dataFim.split('-').reverse().join('/')} (${cy.diasCiclo || 0}d)`
-                          : (cy.createdAt ? new Date(cy.createdAt).toLocaleDateString('pt-BR') : '-');
-
-                        return (
-                          <tr key={cy._id || cIdx}>
-                            <td data-label="Status">
-                              <span className={`badge ${isArq ? 'badge-warning' : isConc ? 'badge-success' : 'badge-info'}`}>
-                                {isArq ? 'Arquivada' : isConc ? 'Ciclo Concluído' : 'Snapshot'}
-                              </span>
-                            </td>
-                            <td data-label="Ficha" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                              {cy.sheetNome || cy.motivo || 'Ficha de Treino'}
-                            </td>
-                            <td data-label="Período">{periodStr}</td>
-                            <td data-label="Profissional">{cy.profissionalNome || '-'}</td>
-                            <td data-label="Conteúdo">
-                              {cy.exerciciosCount || 0} exercícios {cy.volumeKg ? `• ${cy.volumeKg.toLocaleString('pt-BR')}kg` : ''}
-                            </td>
-                            <td data-label="Foco" style={{ fontStyle: 'italic', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                              {cy.observacoes || cy.motivo || '-'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-              <button className="btn btn-primary" onClick={async () => {
-                try {
-                  const res = await fetch(`/api/clients/export?clientId=${detailClient._id}`);
-                  const data = await res.json();
-                  if (data.success) {
-                    const dossierString = JSON.stringify(data.data, null, 2);
-                    const blob = new Blob([dossierString], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `dossie-lgpd-${detailClient.dadosPessoais?.nome?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    // Log download activity
-                    await fetch('/api/admin/activity-logs', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        profissionalId: professionalId,
-                        clienteId: detailClient._id,
-                        acao: 'Exportou Dossiê LGPD',
-                        detalhes: `Exportou o dossiê completo de portabilidade do aluno ${detailClient.dadosPessoais?.nome || ''}`,
-                        origem: isColetivo ? 'Computador Coletivo' : 'Acesso Direto'
-                      })
-                    });
-                  } else {
-                    alert('Erro ao exportar dossiê: ' + data.error);
-                  }
-                } catch (e: any) {
-                  alert('Erro ao realizar exportação: ' + e.message);
-                }
-              }} style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--color-primary-dark)', borderColor: 'var(--color-primary-dark)' }}>
-                <i className="fa-solid fa-download"></i> Exportar Dossiê LGPD
-              </button>
-              <button className="btn btn-secondary" onClick={() => setShowClientDetailModal(false)}>Fechar</button>
-            </div>
-          </div>
-        </div>
+        <DossieAlunoModal
+          isOpen={showClientDetailModal}
+          onClose={() => setShowClientDetailModal(false)}
+          client={detailClient}
+          appointments={appointments}
+          assessments={assessments}
+          strengthTests={strengthTests}
+          onOpenWorkoutEditor={handleOpenWorkoutEditor}
+          isAdmin={isAdmin}
+        />
       )}
       {/* 🔐 PIN Verification Modal */}
       {showPinModal && (
