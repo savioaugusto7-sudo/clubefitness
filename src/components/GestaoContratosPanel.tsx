@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { downloadContractPDF, getContractPDFBase64, downloadContractSummaryPDF } from '@/utils/pdfGenerator';
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
@@ -6180,6 +6180,30 @@ export default function GestaoContratosPanel({
                                       <i className="fa-solid fa-file-pdf"></i> PDF
                                     </button>
 
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      style={{
+                                        padding: '4px 8px',
+                                        fontSize: '0.75rem',
+                                        borderRadius: '6px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        background: 'rgba(56, 189, 248, 0.12)',
+                                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                                        color: '#38bdf8',
+                                        fontWeight: 700
+                                      }}
+                                      title="Baixar Resumo Oficial do Plano / Boas-Vindas para o Cliente"
+                                      onClick={() => {
+                                        const plan = plans.find(p => p._id === (c.planoId?._id || c.planoId));
+                                        downloadContractSummaryPDF(selectedClient, c, plan);
+                                      }}
+                                    >
+                                      <i className="fa-solid fa-file-lines"></i> Resumo
+                                    </button>
+
                                     {isPendente && (
                                       <button
                                         type="button"
@@ -6339,6 +6363,42 @@ export default function GestaoContratosPanel({
                 <i className="fa-solid fa-file-pdf"></i> Baixar PDF
               </button>
             </div>
+
+            {/* Ação: Baixar Resumo Oficial do Plano (Boas-Vindas / Benefícios) */}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{
+                width: '100%',
+                minHeight: '44px',
+                padding: '10px 14px',
+                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(14, 165, 233, 0.15) 100%)',
+                borderColor: 'rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8',
+                fontWeight: 800,
+                fontSize: '0.86rem',
+                display: 'flex',
+                gap: '8px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(56, 189, 248, 0.15)',
+                transition: 'all 0.2s ease'
+              }}
+              title="Baixar PDF de Resumo do Plano com todos os benefícios inclusos (pronto para o cliente)"
+              onClick={() => {
+                if (!selectedClient) {
+                  alert('Selecione um cliente para gerar o resumo do plano.');
+                  return;
+                }
+                const plan = plans.find(p => p._id === dcPlano);
+                const activeContract = contracts.find(c => c.status === 'ativo' || c.status === 'vigente') || contracts[0];
+                downloadContractSummaryPDF(selectedClient, activeContract, plan);
+              }}
+            >
+              <i className="fa-solid fa-file-invoice"></i> Baixar Resumo do Plano (Boas-Vindas)
+            </button>
 
             {/* Lançamento Manual no Financeiro (Para pagamentos presenciais/balcão fora do Asaas) */}
             <button

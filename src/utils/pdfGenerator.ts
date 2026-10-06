@@ -5415,3 +5415,309 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     });
   });
 }
+
+// ==========================================================
+// PDF — RESUMO OFICIAL DO PLANO & BENEFÍCIOS (CONFIRMAÇÃO DE MATRÍCULA)
+// ==========================================================
+export function downloadContractSummaryPDF(client: any, contract?: any, plan?: any) {
+  if (!client && !contract) {
+    alert('Dados do cliente ou contrato não encontrados.');
+    return;
+  }
+
+  const html2pdf = (window as any).html2pdf;
+  if (!html2pdf) {
+    alert('html2pdf.js não está carregado no sistema.');
+    return;
+  }
+
+  const nomeAluno = client?.dadosPessoais?.nome || client?.nome || contract?.assinaturaNome || 'Aluno';
+  const planoNome = contract?.planoNome || plan?.nome || client?.dadosComerciais?.plano || 'Clube Fitness – Monitorado';
+  const planoTipo = contract?.planoTipo || plan?.tipo || client?.dadosComerciais?.duracao || 'Anual';
+
+  // Frequência semanal
+  const freq = Number(
+    contract?.frequencia ||
+    client?.dadosComerciais?.frequenciaSemanal ||
+    client?.dadosComerciais?.frequencia ||
+    client?.frequenciaSemanal ||
+    plan?.frequenciaSemanal ||
+    2
+  );
+
+  // Fórmula: Quantidade de Treino Livre = 5 - Frequência Semanal
+  const treinoLivreQtd = Math.max(0, 5 - freq);
+
+  // Créditos de Massagem
+  const credMassagem = Number(
+    contract?.creditosMassagemPorPlano ??
+    client?.creditosMassagemTotal ??
+    client?.dadosComerciais?.creditosMassagem ??
+    0
+  );
+  const temMassagem = credMassagem > 0;
+
+  // Créditos de Emergência
+  const credEmergencia = Number(
+    contract?.creditosEmergenciaPorPlano ??
+    client?.creditosEmergenciaTotal ??
+    client?.dadosComerciais?.creditosEmergencia ??
+    0
+  );
+  const temEmergencia = credEmergencia > 0;
+
+  // Vigência e Datas
+  const dataInicioRaw = contract?.dataInicio || client?.dadosComerciais?.dataInicio || new Date().toISOString().split('T')[0];
+  const vigMeses = Number(
+    contract?.vigenciaMeses ||
+    (planoTipo.toLowerCase().includes('anual') ? 12 : planoTipo.toLowerCase().includes('semestral') ? 6 : 1)
+  );
+
+  let dataFimRaw = contract?.dataFim || client?.dadosComerciais?.dataFim;
+  if (!dataFimRaw) {
+    const dt = new Date(dataInicioRaw + 'T00:00:00');
+    dt.setMonth(dt.getMonth() + vigMeses);
+    dataFimRaw = dt.toISOString().split('T')[0];
+  }
+
+  const dataInicioBR = formatDateSafeBR(dataInicioRaw);
+  const dataFimBR = formatDateSafeBR(dataFimRaw);
+
+  const anoInicio = dataInicioRaw ? dataInicioRaw.split('-')[0] : String(new Date().getFullYear());
+  const anoFim = dataFimRaw ? dataFimRaw.split('-')[0] : String(new Date().getFullYear() + 1);
+
+  // Duração & Formato formatada
+  let duracaoFormatada = 'Anual • 1 Ano';
+  if (vigMeses >= 12 || planoTipo.toLowerCase().includes('anual')) {
+    duracaoFormatada = 'Anual • 1 Ano';
+  } else if (vigMeses >= 6 || planoTipo.toLowerCase().includes('semestral')) {
+    duracaoFormatada = 'Semestral • 6 Meses';
+  } else if (vigMeses >= 3 || planoTipo.toLowerCase().includes('trimestral')) {
+    duracaoFormatada = 'Trimestral • 3 Meses';
+  } else {
+    duracaoFormatada = `${vigMeses} Mês${vigMeses > 1 ? 'es' : ''}`;
+  }
+
+  const PAGE_W = 794;
+  const pdfWrapper = document.createElement('div');
+  pdfWrapper.style.position = 'fixed';
+  pdfWrapper.style.left = '-9999px';
+  pdfWrapper.style.top = '0';
+  pdfWrapper.style.width = `${PAGE_W}px`;
+  pdfWrapper.style.backgroundColor = '#ffffff';
+  pdfWrapper.style.zIndex = '-9999';
+  document.body.appendChild(pdfWrapper);
+
+  const container = document.createElement('div');
+  container.style.width = '100%';
+  container.style.boxSizing = 'border-box';
+  container.style.padding = '32px 36px';
+  container.style.background = '#ffffff';
+  container.style.fontFamily = "'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  container.style.color = '#0f172a';
+
+  container.innerHTML = `
+    <!-- Top Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <div>
+        <h1 style="font-size: 20px; font-weight: 900; color: #000000; margin: 0; letter-spacing: -0.2px; text-transform: uppercase;">
+          CLUBE FITNESS FISIO
+        </h1>
+        <p style="font-size: 11px; font-weight: 500; color: #475569; margin: 3px 0 0 0;">
+          Treinamento Especializado, Saúde & Bem-Estar
+        </p>
+      </div>
+      <div style="background: #090d16; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;">
+        PLANO ATIVO
+      </div>
+    </div>
+
+    <!-- Beneficiário Banner -->
+    <div style="border: 1px solid #e2e8f0; border-left: 4px solid #000000; border-radius: 8px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; margin-bottom: 14px;">
+      <div>
+        <div style="font-size: 9.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+          BENEFICIÁRIO DO PLANO
+        </div>
+        <div style="font-size: 18px; font-weight: 900; color: #000000; margin-top: 3px;">
+          ${nomeAluno}
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 10px; font-weight: 600; color: #64748b;">
+          Modalidade Oficial
+        </div>
+        <div style="font-size: 14px; font-weight: 800; color: #000000; margin-top: 2px;">
+          ${planoNome}
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Metrics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px;">
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+        <div style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+          DURAÇÃO & FORMATO
+        </div>
+        <div style="font-size: 14px; font-weight: 900; color: #000000; margin: 4px 0 2px;">
+          ${duracaoFormatada}
+        </div>
+        <div style="font-size: 9.5px; font-weight: 500; color: #64748b;">
+          Contrato regular de ${vigMeses} meses
+        </div>
+      </div>
+
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+        <div style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+          TREINO MONITORADO
+        </div>
+        <div style="font-size: 14px; font-weight: 900; color: #000000; margin: 4px 0 2px;">
+          ${freq}× por semana
+        </div>
+        <div style="font-size: 9.5px; font-weight: 500; color: #64748b;">
+          Supervisão profissional direta
+        </div>
+      </div>
+
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+        <div style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+          PERÍODO DE ACESSO
+        </div>
+        <div style="font-size: 13.5px; font-weight: 900; color: #000000; margin: 4px 0 2px;">
+          ${dataInicioBR} a ${dataFimBR}
+        </div>
+        <div style="font-size: 9.5px; font-weight: 500; color: #64748b;">
+          Validade oficial homologada
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção de Benefícios -->
+    <div style="font-size: 12px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+      BENEFÍCIOS E ATIVIDADES INCLUSAS
+    </div>
+
+    <!-- Grid de Benefícios -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px;">
+      ${temMassagem ? `
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="font-size: 12px; font-weight: 800; color: #000000; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 8px; color: #000;">●</span> Espaço Afeto Massoterapia
+          </div>
+          <div style="font-size: 10px; color: #475569; line-height: 1.45;">
+            ${credMassagem > 1 ? `${credMassagem} sessões de massagem para relaxamento.` : '1 sessão de massagem mensal para relaxamento.'}
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
+      ${temEmergencia ? `
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="font-size: 12px; font-weight: 800; color: #000000; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 8px; color: #000;">●</span> Suporte de Emergência
+          </div>
+          <div style="font-size: 10px; color: #475569; line-height: 1.45;">
+            Atendimento de suporte para intercorrências ou necessidades pontuais de acolhimento físico.
+          </div>
+        </div>
+        <div style="margin-top: 10px;">
+          <span style="background: #f1f5f9; color: #475569; font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-block;">
+            1 atendimento / mês
+          </span>
+        </div>
+      </div>
+      ` : ''}
+
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="font-size: 12px; font-weight: 800; color: #000000; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 8px; color: #000;">●</span> Aulas Coletivas Dynamus
+          </div>
+          <div style="font-size: 10px; color: #475569; line-height: 1.45;">
+            Grade completa e diversificada com práticas de Yoga integrada, Artes Marciais / Lutas e Treinamento Funcional dinâmico.
+          </div>
+        </div>
+        <div style="margin-top: 10px; font-size: 9.5px; font-weight: 800; color: #000000;">
+          Yoga • Lutas • Funcional
+        </div>
+      </div>
+
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="font-size: 12px; font-weight: 800; color: #000000; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 8px; color: #000;">●</span> Frequência Total Flexível
+          </div>
+          <div style="font-size: 10px; color: #475569; line-height: 1.45;">
+            Possibilidade de praticar todos os dias da semana combinando suas sessões monitoradas ao treino livre prescrito.
+          </div>
+        </div>
+        <div style="margin-top: 10px; font-size: 9.5px; font-weight: 800; color: #000000;">
+          Acesso de segunda a sexta.
+        </div>
+      </div>
+    </div>
+
+    <!-- Card de Treino Livre -->
+    <div style="border: 1px solid #e2e8f0; border-left: 4px solid #000000; border-radius: 8px; padding: 14px 16px; background: #ffffff; margin-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="font-size: 13px; font-weight: 900; color: #000000;">
+          Treino Livre: Flexibilidade & Mobilidade
+        </div>
+        <div style="background: #090d16; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">
+          ATÉ ${treinoLivreQtd}× POR SEMANA
+        </div>
+      </div>
+      <div style="font-size: 10px; color: #334155; line-height: 1.5;">
+        Além do seu treino monitorado semanal, você conta com uma ficha individualizada de treino de flexibilidade e mobilidade. Com esse treino livre, você tem direito a até <strong>${treinoLivreQtd} sessões adicionais por semana</strong> — permitindo que você venha treinar todos os dias da semana e acelere seus resultados com autonomia e segurança biomecânica.
+      </div>
+    </div>
+
+    <!-- Caixa de Orientações com Visto -->
+    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #ffffff; margin-bottom: 24px; font-size: 10px; color: #334155; line-height: 1.55;">
+      ${(temMassagem || temEmergencia) ? `
+      <div style="margin-bottom: 5px;">
+        <strong>✓ Agendamento:</strong> A sessão de massagem e o suporte de emergência devem ser previamente solicitados.
+      </div>
+      ` : ''}
+      <div>
+        <strong>✓ Presença e Acompanhamento:</strong> Mantemos sua ficha e avaliações sempre atualizadas.
+      </div>
+    </div>
+
+    <!-- Rodapé Oficial -->
+    <div style="border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
+      <div>Clube Fitness Fisio • Confirmação Oficial de Matrícula</div>
+      <div>${nomeAluno} • Vigência ${anoInicio}/${anoFim}</div>
+    </div>
+  `;
+
+  pdfWrapper.appendChild(container);
+
+  const options = {
+    margin: 8,
+    filename: `Resumo_Plano_${nomeAluno.replace(/\s+/g, '_')}_${anoInicio}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: PAGE_W,
+      width: PAGE_W,
+      x: 0,
+      y: 0,
+      logging: false,
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(options).from(container).save().then(() => {
+    safeRemoveWrapper(pdfWrapper);
+  }).catch((err: any) => {
+    console.error('Erro ao gerar Resumo do Plano:', err);
+    safeRemoveWrapper(pdfWrapper);
+    alert('Ocorreu um erro ao gerar o PDF de resumo do plano.');
+  });
+}
+
