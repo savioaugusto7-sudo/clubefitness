@@ -1,10 +1,14 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Pagination from './Pagination';
 import { downloadReportPDF, downloadAssessmentPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 import { RITMO_OPTIONS } from '@/utils/workoutTimeEngine';
+import { processStudentEvolution } from '@/utils/studentEvolutionEngine';
+import EvolutionMetricCard from './evolution/EvolutionMetricCard';
+import EvolutionSplineChart from './evolution/EvolutionSplineChart';
+import EvolutionSymmetryGauge from './evolution/EvolutionSymmetryGauge';
 
 interface DashboardClientProps {
   activeTab: string;
@@ -75,8 +79,10 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const [trancamentoSuccessMsg, setTrancamentoSuccessMsg] = useState<string>('');
   const [trancamentoErrorMsg, setTrancamentoErrorMsg] = useState<string>('');
 
-  // Sub-tabs for evolution
-  const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
+  // Sub-tabs & viewMode for evolution
+  const [evoSubTab, setEvoSubTab] = useState<string>('composicao');
+  const [evoViewMode, setEvoViewMode] = useState<'recente' | 'historico'>('recente');
+  const [wellnessLogs, setWellnessLogs] = useState<any[]>([]);
 
   const getSchedulingLimitDate = () => {
     const now = new Date();
@@ -541,7 +547,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     if (!profileId) return;
     try {
       setLoading(true);
-      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts, resTrancamentos, resWorkoutHist] = await Promise.all([
+      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts, resTrancamentos, resWorkoutHist, resWellness] = await Promise.all([
         clientId ? fetch(`/api/clients?id=${clientId}`) : fetch(`/api/clients?userId=${user.id}`),
         fetch(`/api/appointments?clientId=${profileId}`),
         fetch(`/api/workouts?clientId=${profileId}`),
@@ -551,7 +557,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         fetch('/api/strength-tests'),
         fetch(`/api/contracts?clientId=${profileId}`),
         fetch(`/api/trancamentos?clientId=${profileId}`),
-        fetch(`/api/workouts?clientId=${profileId}&history=true`)
+        fetch(`/api/workouts?clientId=${profileId}&history=true`),
+        fetch(`/api/wellness?clientId=${profileId}`).catch(() => null)
       ]);
       const jsonClient = await resClient.json();
       const jsonApts = await resApts.json();
@@ -563,6 +570,10 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       const jsonContracts = await resContracts.json();
       const jsonTrancamentos = await resTrancamentos.json();
       const jsonWorkoutHist = await resWorkoutHist.json();
+      let jsonWellness: any = { success: false };
+      try {
+        if (resWellness) jsonWellness = await resWellness.json();
+      } catch (err) {}
 
       if (jsonClient.success && jsonClient.data.length > 0) {
         setClient(jsonClient.data[0]);
@@ -606,6 +617,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       if (jsonTrancamentos.success) {
         setTrancamentosList(jsonTrancamentos.data || []);
       }
+      if (jsonWellness.success && Array.isArray(jsonWellness.data)) {
+        setWellnessLogs(jsonWellness.data);
+      }
     } catch (e) {
       console.error('Error fetching client dashboard:', e);
     } finally {
@@ -639,6 +653,11 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       }
     }
   }, [bookDate, bookType, bookService]);
+
+  // Inteligência de Evolução Temporal do Aluno (Filtro estrito de >= 2 medições)
+  const evolutionData = useMemo(() => {
+    return processStudentEvolution(assessments, strengthTests, reports, wellnessLogs, workoutCyclesHistory);
+  }, [assessments, strengthTests, reports, wellnessLogs, workoutCyclesHistory]);
 
   // Reset bookTime when date or service changes
   useEffect(() => {
@@ -1919,1227 +1938,391 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
       {activeTab === 'evolucao' && (
         <>
-          <div className="view-header" style={{ marginBottom: '20px' }}>
-            <div className="view-title-group">
-              <h1 style={{ 
-                fontFamily: 'var(--font-title)', 
-                fontSize: '1.8rem', 
-                fontWeight: 800, 
-                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
-                WebkitBackgroundClip: 'text', 
-                WebkitTextFillColor: 'transparent',
-                marginBottom: '4px'
-              }}>
-                Minha Evolução Física
-              </h1>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acompanhe seu progresso de peso, percentual de gordura, força e medidas corporais.</p>
-            </div>
-
-          </div>
-
-          {assessments.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-              
-              {/* Evolution sub-tabs Segment Control */}
-              <div style={{ 
-                display: 'inline-flex', 
-                gap: '4px', 
-                background: 'rgba(255, 255, 255, 0.02)', 
-                border: '1px solid rgba(255, 255, 255, 0.05)', 
-                borderRadius: '25px', 
-                padding: '4px',
-                marginBottom: '8px', 
-                overflowX: 'auto', 
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                alignSelf: 'flex-start',
-                scrollbarWidth: 'none', 
-                WebkitOverflowScrolling: 'touch' 
-              }}>
-                {[
-                  { id: 'composicao', label: 'Composição Corporal', icon: 'fa-chart-pie' },
-                  { id: 'perimetros', label: 'Medidas & Perímetros', icon: 'fa-ruler' },
-                  { id: 'mobilidade', label: 'Mobilidade & Goniometria', icon: 'fa-arrows-up-down-left-right' },
-                  { id: 'forca', label: 'Força & Cargas', icon: 'fa-dumbbell' }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setEvoSubTab(tab.id as any)}
-                    style={{
-                      padding: '8px 18px',
-                      background: evoSubTab === tab.id ? 'var(--color-primary)' : 'transparent',
-                      border: 'none',
-                      color: evoSubTab === tab.id ? '#000' : 'var(--text-muted)',
-                      borderRadius: '20px',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      boxShadow: evoSubTab === tab.id ? '0 4px 12px rgba(16, 185, 129, 0.2)' : 'none'
-                    }}
-                  >
-                    <i className={`fa-solid ${tab.icon}`}></i> {tab.label}
-                  </button>
-                ))}
+          {/* ========================================================
+              HERO HEADER: MINHA EVOLUÇÃO & PERFORMANCE (PREMIUM)
+             ======================================================== */}
+          <div style={{ marginBottom: '22px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-bolt"></i> Sports Science & Biometria Avançada
+                </span>
+                <h1 style={{ 
+                  margin: '4px 0',
+                  fontFamily: 'var(--font-title)', 
+                  fontSize: '1.85rem', 
+                  fontWeight: 900, 
+                  background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)', 
+                  WebkitBackgroundClip: 'text', 
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.5px'
+                }}>
+                  Minha Evolução & Performance
+                </h1>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.86rem' }}>
+                  Acompanhamento de alto padrão com curvas comparativas reais e rigor técnico.
+                </p>
               </div>
 
-              {/* Data definitions for calculations */}
-              {(() => {
-                const sortedAssessments = [...assessments].sort((a, b) => a.data.localeCompare(b.data));
-                const latestAs = sortedAssessments[sortedAssessments.length - 1];
-                const prevAs = sortedAssessments.length > 1 ? sortedAssessments[sortedAssessments.length - 2] : null;
+              {/* Status Badge & Toggle de Modo de Leitura (Touch Friendly) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#34d399',
+                  fontWeight: 800,
+                  fontSize: '0.76rem'
+                }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}></span>
+                  <span>{evolutionData.totalMetricasAtivas} métricas em evolução ativa (≥ 2 medições)</span>
+                </div>
 
-                // 1. COMPOSIÇÃO CORPORAL
-                if (evoSubTab === 'composicao') {
-                  const getAsMetrics = (asObj: any) => {
-                    if (!asObj) return { peso: 0, gordura: 0, massaMagra: 0, massaGorda: 0 };
-                    const peso = Number(asObj.dadosMedidos?.peso) || 0;
-                    const gordura = Number(asObj.resultadosCalculados?.percentualGordura) || Number(asObj.dadosMedidos?.gordura) || 0;
-                    let massaMagra = Number(asObj.resultadosCalculados?.massaMagraKg) || Number(asObj.resultadosCalculados?.massaMagra) || Number(asObj.dadosMedidos?.massaMagra) || 0;
-                    let massaGorda = Number(asObj.resultadosCalculados?.massaGordaKg) || Number(asObj.resultadosCalculados?.massaGorda) || Number(asObj.dadosMedidos?.massaGorda) || 0;
-                    
-                    if (peso > 0 && gordura > 0) {
-                      if (massaGorda <= 0) massaGorda = (peso * gordura) / 100;
-                      if (massaMagra <= 0) massaMagra = peso - massaGorda;
-                    } else if (peso > 0 && massaMagra > 0 && massaGorda <= 0) {
-                      massaGorda = peso - massaMagra;
-                    } else if (peso > 0 && massaGorda > 0 && massaMagra <= 0) {
-                      massaMagra = peso - massaGorda;
-                    }
-                    return { peso, gordura, massaMagra, massaGorda };
-                  };
-
-                  const curM = getAsMetrics(latestAs);
-                  const prevM = getAsMetrics(prevAs);
-
-                  const wLatest = curM.peso;
-                  const wDelta = prevAs ? wLatest - prevM.peso : 0;
-
-                  const fLatest = curM.gordura;
-                  const fDelta = prevAs ? fLatest - prevM.gordura : 0;
-
-                  const mLatest = curM.massaMagra;
-                  const mDelta = prevAs ? mLatest - prevM.massaMagra : 0;
-
-                  const gLatest = curM.massaGorda;
-                  const gDelta = prevAs ? gLatest - prevM.massaGorda : 0;
-
-                  const renderDeltaBadge = (delta: number, type: 'decrease_good' | 'increase_good' | 'neutral', unit: string = 'kg') => {
-                    if (!prevAs) return null;
-                    const sign = delta > 0 ? '+' : '';
-                    const isGood = 
-                      (type === 'decrease_good' && delta < 0) ||
-                      (type === 'increase_good' && delta > 0);
-                    
-                    const color = isGood ? 'var(--color-success)' : delta === 0 ? 'var(--text-muted)' : 'var(--color-danger)';
-                    const bg = isGood ? 'rgba(16, 185, 129, 0.08)' : delta === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(239, 68, 68, 0.08)';
-                    const icon = delta > 0 ? 'fa-arrow-trend-up' : delta < 0 ? 'fa-arrow-trend-down' : 'fa-equals';
-
-                    return (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 600, background: bg, color: color, border: `1px solid ${color}` }}>
-                        <i className={`fa-solid ${icon}`}></i> {sign}{delta.toFixed(1)} {unit}
-                      </span>
-                    );
-                  };
-
-                  const renderCompositionChart = () => {
-                    if (sortedAssessments.length === 0) return null;
-                    const w = 600;
-                    const h = 220;
-                    const pad = 40;
-                    
-                    const weights = sortedAssessments.map(a => getAsMetrics(a).peso);
-                    const leanMasses = sortedAssessments.map(a => getAsMetrics(a).massaMagra);
-                    const fatMasses = sortedAssessments.map(a => getAsMetrics(a).massaGorda);
-                    const allVals = [...weights, ...leanMasses, ...fatMasses].filter(v => v > 0);
-                    
-                    const maxVal = Math.max(...allVals, 100) * 1.1;
-                    const minVal = Math.max(0, Math.min(...allVals, 10) * 0.9);
-                    
-                    const getX = (idx: number) => {
-                      if (sortedAssessments.length <= 1) return w / 2;
-                      return pad + (idx / (sortedAssessments.length - 1)) * (w - 2 * pad);
-                    };
-                    
-                    const getY = (val: number) => {
-                      return h - pad - ((val - minVal) / (maxVal - minVal)) * (h - 2 * pad);
-                    };
-
-                    const getPathData = (vals: number[]) => {
-                      return vals.map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(val)}`).join(' ');
-                    };
-
-                    return (
-                      <div style={{ 
-                        background: 'rgba(22, 29, 45, 0.45)', 
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)', 
-                        borderRadius: '14px', 
-                        padding: '20px', 
-                        marginTop: '10px',
-                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                        maxWidth: '100%',
-                        overflow: 'hidden'
-                      }}>
-                        <h4 style={{ fontSize: '0.9rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
-                          <i className="fa-solid fa-chart-line" style={{ color: 'var(--color-primary)' }}></i> Histórico de Composição Corporal (Gráfico de Linha)
-                        </h4>
-                        <div style={{ position: 'relative', overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                          <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="220px" style={{ background: 'transparent', minWidth: '460px', display: 'block' }}>
-                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, gridIdx) => {
-                              const gridY = pad + ratio * (h - 2 * pad);
-                              const gridVal = maxVal - ratio * (maxVal - minVal);
-                              return (
-                                <g key={gridIdx}>
-                                  <line x1={pad} y1={gridY} x2={w - pad} y2={gridY} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" strokeDasharray="3,3" />
-                                  <text x={pad - 8} y={gridY + 3} style={{ fill: 'var(--text-dim)', fontSize: '8px', textAnchor: 'end', fontWeight: 'bold' }}>{gridVal.toFixed(0)} kg</text>
-                                </g>
-                              );
-                            })}
-                            
-                            {sortedAssessments.map((a, idx) => (
-                              <text key={idx} x={getX(idx)} y={h - 10} style={{ fill: 'var(--text-muted)', fontSize: '8px', textAnchor: 'middle', fontWeight: '600' }}>
-                                {formatDateBR(a.data)}
-                              </text>
-                            ))}
-
-                            {/* Weight Line */}
-                            <path d={getPathData(weights)} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
-                            {weights.map((val, idx) => (
-                              <g key={idx}>
-                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#3b82f6" stroke="rgba(22, 29, 45, 0.9)" strokeWidth="1.5" />
-                                <text x={getX(idx)} y={getY(val) - 10} style={{ fill: '#3b82f6', fontSize: '9px', fontWeight: 'bold', textAnchor: 'middle' }}>{val.toFixed(1)}</text>
-                              </g>
-                            ))}
-
-                            {/* Lean Mass Line */}
-                            <path d={getPathData(leanMasses)} fill="none" stroke="#10b981" strokeWidth="2.5" />
-                            {leanMasses.map((val, idx) => (
-                              <g key={idx}>
-                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#10b981" stroke="rgba(22, 29, 45, 0.9)" strokeWidth="1.5" />
-                                <text x={getX(idx)} y={getY(val) - 10} style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold', textAnchor: 'middle' }}>{val.toFixed(1)}</text>
-                              </g>
-                            ))}
-
-                            {/* Fat Mass Line */}
-                            <path d={getPathData(fatMasses)} fill="none" stroke="#ef4444" strokeWidth="2.5" />
-                            {fatMasses.map((val, idx) => (
-                              <g key={idx}>
-                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ef4444" stroke="rgba(22, 29, 45, 0.9)" strokeWidth="1.5" />
-                                <text x={getX(idx)} y={getY(val) - 10} style={{ fill: '#ef4444', fontSize: '9px', fontWeight: 'bold', textAnchor: 'middle' }}>{val.toFixed(1)}</text>
-                              </g>
-                            ))}
-                          </svg>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '14px', fontSize: '0.78rem', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', background: '#3b82f6', borderRadius: '3px' }}></span> Peso</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', background: '#10b981', borderRadius: '3px' }}></span> Massa Magra</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', background: '#ef4444', borderRadius: '3px' }}></span> Massa Gorda</span>
-                        </div>
-                      </div>
-                    );
-                  };
-
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '100%' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px' }}>
-                        {/* Peso Atual */}
-                        <div style={{
-                          background: 'rgba(22, 29, 45, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
-                          borderRadius: '14px',
-                          padding: '16px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
-                        }}>
-                          <div>
-                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Peso Atual</h3>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{wLatest > 0 ? `${wLatest.toFixed(1)} kg` : '—'}</div>
-                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(wDelta, 'decrease_good')}</div>
-                          </div>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-weight-scale" style={{ fontSize: '16px', color: 'var(--color-primary)' }}></i>
-                          </div>
-                        </div>
-
-                        {/* Gordura Corporal */}
-                        <div style={{
-                          background: 'rgba(22, 29, 45, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
-                          borderRadius: '14px',
-                          padding: '16px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
-                        }}>
-                          <div>
-                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>% Gordura</h3>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{fLatest > 0 ? `${fLatest.toFixed(1)}%` : '—'}</div>
-                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(fDelta, 'decrease_good', '%')}</div>
-                          </div>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-percent" style={{ fontSize: '16px', color: '#3b82f6' }}></i>
-                          </div>
-                        </div>
-
-                        {/* Massa Magra */}
-                        <div style={{
-                          background: 'rgba(22, 29, 45, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
-                          borderRadius: '14px',
-                          padding: '16px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
-                        }}>
-                          <div>
-                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Massa Magra</h3>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{mLatest > 0 ? `${mLatest.toFixed(1)} kg` : '—'}</div>
-                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(mDelta, 'increase_good')}</div>
-                          </div>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-dumbbell" style={{ fontSize: '16px', color: '#f59e0b' }}></i>
-                          </div>
-                        </div>
-
-                        {/* Massa Gorda */}
-                        <div style={{
-                          background: 'rgba(22, 29, 45, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
-                          borderRadius: '14px',
-                          padding: '16px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
-                        }}>
-                          <div>
-                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Massa Gorda</h3>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{gLatest > 0 ? `${gLatest.toFixed(1)} kg` : '—'}</div>
-                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(gDelta, 'decrease_good')}</div>
-                          </div>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-fire" style={{ fontSize: '16px', color: '#ef4444' }}></i>
-                          </div>
-                        </div>
-                      </div>
-
-                      {renderCompositionChart()}
-
-                      {/* Assessment History Table */}
-                      <div className="content-panel" style={{ 
-                        marginTop: '8px',
-                        background: 'rgba(22, 29, 45, 0.45)',
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                        padding: '24px'
-                      }}>
-                        <div className="panel-header" style={{ marginBottom: '16px' }}>
-                          <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-receipt" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Histórico Detalhado</h2>
-                        </div>
-                        <div className="table-responsive">
-                          <table className="data-table">
-                            <thead>
-                              <tr>
-                                <th>Data</th>
-                                <th className="text-right">Peso</th>
-                                <th className="text-right">Gordura Corporal (%)</th>
-                                <th className="text-right">Massa Magra (kg)</th>
-                                <th className="text-right">Massa Gorda (kg)</th>
-                                <th>Avaliador</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(() => {
-                                const listKey = 'assessments';
-                                const size = getPageSize(listKey);
-                                const sorted = [...assessments].sort((a, b) => b.data.localeCompare(a.data));
-                                const totalPages = Math.ceil(sorted.length / size);
-                                const activeP = getPage(listKey);
-                                const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                                const paginated = sorted.slice((curP - 1) * size, curP * size);
-
-                                return paginated.map(a => {
-                                  const w = a.dadosMedidos?.peso || 0;
-                                  const f = a.resultadosCalculados?.percentualGordura || a.dadosMedidos?.gordura || 0;
-                                  const mm = a.resultadosCalculados?.massaMagra || a.dadosMedidos?.massaMagra || 0;
-                                  const mg = a.resultadosCalculados?.massaGorda || a.dadosMedidos?.massaGorda || 0;
-                                  return (
-                                    <tr key={a._id}>
-                                      <td><strong>{formatDateBR(a.data)}</strong></td>
-                                      <td className="text-right">{w} kg</td>
-                                      <td className="text-right">{f}%</td>
-                                      <td className="text-right">{mm} kg</td>
-                                      <td className="text-right">{mg} kg</td>
-                                      <td>{a.avaliadorId?.nome || 'Avaliador Técnico'}</td>
-                                    </tr>
-                                  );
-                                });
-                              })()}
-                            </tbody>
-                          </table>
-                        </div>
-                        {assessments.length > 0 && (
-                          <Pagination
-                            currentPage={getPage('assessments')}
-                            totalItems={assessments.length}
-                            itemsPerPage={getPageSize('assessments')}
-                            onPageChange={page => setPage('assessments', page)}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-
-                // 2. MEDIDAS E PERÍMETROS
-                if (evoSubTab === 'perimetros') {
-                  const latestCirc = latestAs?.dadosMedidos?.circunferencias || {};
-                  const prevCirc = prevAs?.dadosMedidos?.circunferencias || {};
-
-                  const girthKeys = [
-                    { key: 'ombros', label: 'Ombros', category: 'muscle' },
-                    { key: 'torax', label: 'Tórax', category: 'muscle' },
-                    { key: 'cintura', label: 'Cintura (Linha Fina)', category: 'waist' },
-                    { key: 'abdomen', label: 'Abdômen', category: 'waist' },
-                    { key: 'quadril', label: 'Quadril', category: 'waist' },
-                    { key: 'braçoD', label: 'Braço Direito', category: 'muscle' },
-                    { key: 'braçoE', label: 'Braço Esquerdo', category: 'muscle' },
-                    { key: 'coxaD', label: 'Coxa Direita', category: 'muscle' },
-                    { key: 'coxaE', label: 'Coxa Esquerda', category: 'muscle' },
-                    { key: 'panturrilhaD', label: 'Panturrilha Direita', category: 'muscle' },
-                    { key: 'panturrilhaE', label: 'Panturrilha Esquerda', category: 'muscle' }
-                  ];
-
-                  return (
-                    <div className="content-panel" style={{
-                      background: 'rgba(22, 29, 45, 0.45)',
-                      backdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                      boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                      padding: '24px'
-                    }}>
-                      <div className="panel-header" style={{ marginBottom: '20px' }}>
-                        <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-ruler-horizontal" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Comparativo de Circunferências Corporais</h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Comparação entre as duas últimas avaliações ({prevAs?.data ? formatDateBR(prevAs.data) : '-'} vs {formatDateBR(latestAs.data)})</p>
-                      </div>
-
-                      <div className="table-responsive">
-                        <table className="data-table">
-                          <thead>
-                            <tr>
-                              <th>Região Corporal</th>
-                              <th className="text-right">Avaliação Anterior ({prevAs?.data ? formatDateBR(prevAs.data) : '-'})</th>
-                              <th className="text-right">Última Avaliação ({formatDateBR(latestAs.data)})</th>
-                              <th className="text-center">Variação Absoluta (cm)</th>
-                              <th className="text-center">Variação Percentual (%)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {girthKeys.map(item => {
-                              const latVal = latestCirc[item.key] || 0;
-                              const prVal = prevCirc[item.key] || 0;
-                              const diff = latVal - prVal;
-                              const pct = prVal > 0 ? (diff / prVal) * 100 : 0;
-
-                              const isWaist = item.category === 'waist';
-                              const isGoodChange = 
-                                (!isWaist && diff > 0) || // muscle gain is good
-                                (isWaist && diff < 0);    // waist reduction is good
-                              
-                              const valColor = diff === 0 ? 'var(--text-muted)' : isGoodChange ? 'var(--color-success)' : 'var(--color-danger)';
-                              const icon = diff > 0 ? 'fa-arrow-trend-up' : diff < 0 ? 'fa-arrow-trend-down' : 'fa-equals';
-
-                              return (
-                                <tr key={item.key}>
-                                  <td><strong>{item.label}</strong></td>
-                                  <td className="text-right" style={{ color: 'var(--text-muted)' }}>{prVal > 0 ? `${prVal} cm` : '-'}</td>
-                                  <td className="text-right" style={{ fontWeight: 'bold' }}>{latVal > 0 ? `${latVal} cm` : '-'}</td>
-                                  <td className="text-center" style={{ color: valColor, fontWeight: '600' }}>
-                                    {prVal > 0 ? (
-                                      <span>
-                                        <i className={`fa-solid ${icon}`} style={{ marginRight: '6px' }}></i>
-                                        {diff > 0 ? '+' : ''}{diff.toFixed(1)} cm
-                                      </span>
-                                    ) : '-'}
-                                  </td>
-                                  <td className="text-center">
-                                    {prVal > 0 ? (
-                                      <span className={`badge ${isGoodChange ? 'badge-success' : diff === 0 ? 'badge-secondary' : 'badge-danger'}`}>
-                                        {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
-                                      </span>
-                                    ) : '-'}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // 3. MOBILIDADE E ADM (GONIOMETRIA E ESTRELA MAIGNE)
-                if (evoSubTab === 'mobilidade') {
-                  const latestGoniometry = latestAs?.dadosMedidos?.goniometria || {};
-
-                  const getValNum = (val: any) => {
-                    if (!val) return 0;
-                    if (typeof val === 'object') {
-                      return Number(val.semForca) || Number(val.comForca) || 0;
-                    }
-                    const n = parseFloat(val);
-                    return isNaN(n) ? 0 : n;
-                  };
-
-                  const formatGonioValue = (val: any) => {
-                    if (!val) return '-';
-                    if (typeof val === 'object') {
-                      const sem = val.semForca !== undefined && val.semForca !== null && val.semForca !== '' ? `${val.semForca}°` : '-';
-                      const com = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
-                      return `${sem} | ${com}`;
-                    }
-                    const n = parseFloat(val);
-                    return isNaN(n) ? '-' : `${n}°`;
-                  };
-
-                  const goniometryPairs = [
-                    { label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', dKey: 'quadrilFlexao1D', eKey: 'quadrilFlexao1E' },
-                    { label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', dKey: 'quadrilFlexao2D', eKey: 'quadrilFlexao2E' },
-                    { label: 'Quadril - Rotação Interna', dKey: 'quadrilRotIntD', eKey: 'quadrilRotIntE' },
-                    { label: 'Quadril - Rotação Externa', dKey: 'quadrilRotExtD', eKey: 'quadrilRotExtE' },
-                    { label: 'Joelho - Flexão', dKey: 'joelhoFlexaoD', eKey: 'joelhoFlexaoE' },
-                    { label: 'Joelho - Ângulo Poplíteo', dKey: 'joelhoPopliteoD', eKey: 'joelhoPopliteoE' },
-                    { label: 'Tornozelo - Dorsiflexão Joelho Estendido', dKey: 'tornozeloDorsi1D', eKey: 'tornozeloDorsi1E' },
-                    { label: 'Tornozelo - Dorsiflexão Joelho Fletido', dKey: 'tornozeloDorsi2D', eKey: 'tornozeloDorsi2E' },
-                    { label: 'Tornozelo - Flexão Plantar', dKey: 'tornozeloFlexaoPlantarD', eKey: 'tornozeloFlexaoPlantarE' },
-                    { label: 'Ombro - Rotação Interna', dKey: 'ombroRotIntD', eKey: 'ombroRotIntE' },
-                    { label: 'Ombro - Rotação Externa', dKey: 'ombroRotExtD', eKey: 'ombroRotExtE' },
-                    { label: 'Ombro - Abdução', dKey: 'ombroAbducaoD', eKey: 'ombroAbducaoE' }
-                  ];
-
-                  const flaggedAsymmetries = goniometryPairs.map(p => {
-                    const dVal = latestGoniometry[p.dKey];
-                    const eVal = latestGoniometry[p.eKey];
-                    const dValNum = getValNum(dVal);
-                    const eValNum = getValNum(eVal);
-                    const diff = Math.abs(dValNum - eValNum);
-                    return {
-                      label: p.label,
-                      dVal: dValNum,
-                      eVal: eValNum,
-                      diff,
-                      isAsymmetry: diff > 8
-                    };
-                  }).filter(item => item.isAsymmetry);
-
-                  let maigneData: any = null;
-                  if (latestAs?.dadosMedidos?.testesEspeciais?.maigne) {
-                    try {
-                      maigneData = JSON.parse(latestAs.dadosMedidos.testesEspeciais.maigne);
-                    } catch(e) {}
-                  }
-
-                  const renderMaigneStarClient = (maigne: any) => {
-                    if (!maigne) return null;
-                    const cx = 190, cy = 150, scale = 2.0;
-                    const angles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6];
-                    const refVals = [40, 40, 30, 30, 30, 40];
-                    const clientVals = [
-                      maigne.flexao || 25,
-                      maigne.rotacaoD || 25,
-                      maigne.inclinacaoD || 25,
-                      maigne.extensao || 25,
-                      maigne.inclinacaoE || 25,
-                      maigne.rotacaoE || 25
-                    ];
-                    
-                    const refPoints = angles.map((ang, idx) => `${cx + refVals[idx] * scale * Math.cos(ang)},${cy + refVals[idx] * scale * Math.sin(ang)}`).join(' ');
-                    const valPoints = angles.map((ang, idx) => `${cx + clientVals[idx] * scale * Math.cos(ang)},${cy + clientVals[idx] * scale * Math.sin(ang)}`).join(' ');
-                    
-                    const labels = [
-                      { text: `Flexão (EVA: ${maigne.flexaoEVA || 0})`, x: cx, y: cy - 100 - 10, anchor: 'middle' as const },
-                      { text: `Rot D (EVA: ${maigne.rotacaoDEVA || 0})`, x: cx + 100 * Math.cos(angles[1]) + 15, y: cy + 100 * Math.sin(angles[1]) - 5, anchor: 'start' as const },
-                      { text: `Inc D (EVA: ${maigne.inclinacaoDEVA || 0})`, x: cx + 100 * Math.cos(angles[2]) + 15, y: cy + 100 * Math.sin(angles[2]) + 10, anchor: 'start' as const },
-                      { text: `Extensão (EVA: ${maigne.extensaoEVA || 0})`, x: cx, y: cy + 100 + 18, anchor: 'middle' as const },
-                      { text: `Inc E (EVA: ${maigne.inclinacaoEEVA || 0})`, x: cx + 100 * Math.cos(angles[4]) - 15, y: cy + 100 * Math.sin(angles[4]) + 10, anchor: 'end' as const },
-                      { text: `Rot E (EVA: ${maigne.rotacaoEEVA || 0})`, x: cx + 100 * Math.cos(angles[5]) - 15, y: cy + 100 * Math.sin(angles[5]) - 5, anchor: 'end' as const }
-                    ];
-
-                    return (
-                      <div style={{ 
-                        background: 'rgba(22, 29, 45, 0.45)', 
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        borderRadius: '14px', 
-                        padding: '20px', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        maxWidth: '340px', 
-                        margin: '0 auto', 
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' 
-                      }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 'bold', marginBottom: '12px', fontFamily: 'var(--font-title)' }}>Estrela de Maigne (Rosa dos Ventos Clínica)</span>
-                        <svg width="250" height="250" viewBox="0 0 380 300" style={{ display: 'block', background: 'transparent' }}>
-                          {[10, 20, 30, 40, 50].map(val => (
-                            <g key={val}>
-                              <circle cx={cx} cy={cy} r={val * scale} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
-                              <text x={cx} y={cy - (val * scale) + 3} style={{ fontSize: '7px', fill: '#94a3b8', textAnchor: 'middle', fontWeight: 'bold' }}>{val}</text>
-                            </g>
-                          ))}
-                          {angles.map((ang, aIdx) => (
-                            <line key={aIdx} x1={cx} y1={cy} x2={cx + 100 * Math.cos(ang)} y2={cy + 100 * Math.sin(ang)} stroke="rgba(255,255,255,0.12)" strokeWidth="0.75" />
-                          ))}
-                          {labels.map((lbl, lIdx) => (
-                            <text key={lIdx} x={lbl.x} y={lbl.y} textAnchor={lbl.anchor} style={{ fontSize: '9px', fill: 'var(--text-main)', fontWeight: 'bold' }}>{lbl.text}</text>
-                          ))}
-                          <polygon points={refPoints} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="3,3" />
-                          <polygon points={valPoints} fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" strokeWidth="1.8" />
-                          {angles.map((ang, idx) => (
-                            <circle key={idx} cx={cx + clientVals[idx] * scale * Math.cos(ang)} cy={cy + clientVals[idx] * scale * Math.sin(ang)} r="4.5" fill="#0d9488" stroke="var(--bg-main)" strokeWidth="1.2" />
-                          ))}
-                        </svg>
-                        <div style={{ display: 'flex', gap: '15px', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-                          <span><span style={{ color: '#f59e0b', fontWeight: 'bold' }}>---</span> Referência Saudável</span>
-                          <span><span style={{ color: '#0d9488', fontWeight: 'bold' }}>—</span> Suas amplitudes</span>
-                        </div>
-                      </div>
-                    );
-                  };
-
-                  return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-                      
-                      {/* Flagged mobility asymmetries */}
-                      {flaggedAsymmetries.length > 0 && (
-                        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', padding: '16px', borderRadius: '12px' }}>
-                          <h5 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px 0', fontSize: '0.9rem', fontFamily: 'var(--font-title)' }}>
-                            <i className="fa-solid fa-triangle-exclamation"></i> Assimetrias de Mobilidade Detectadas (&gt;8°)
-                          </h5>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>Identificamos variações na amplitude articular entre os membros esquerdo e direito. Esse desequilíbrio pode ser trabalhado com exercícios de mobilidade:</p>
-                          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {flaggedAsymmetries.map((asym, asymIdx) => (
-                              <li key={asymIdx}>
-                                <strong>{asym.label}</strong>: Diferença de {asym.diff.toFixed(0)}° (Dir: {asym.dVal}° vs Esq: {asym.eVal}°)
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-                        
-                        {/* Goniometry Table */}
-                        <div className="content-panel" style={{ 
-                          flex: 2, 
-                          minWidth: '300px', 
-                          margin: 0,
-                          background: 'rgba(22, 29, 45, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                          padding: '24px'
-                        }}>
-                          <div className="panel-header" style={{ marginBottom: '16px' }}>
-                            <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-arrows-spin" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Métricas de Mobilidade (Goniometria)</h2>
-                          </div>
-                          <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                            <table className="data-table">
-                              <thead>
-                                <tr>
-                                  <th>Articulação</th>
-                                  <th className="text-center">Lado Direito</th>
-                                  <th className="text-center">Lado Esquerdo</th>
-                                  <th className="text-center">Diferença</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {goniometryPairs.map(p => {
-                                  const dVal = latestGoniometry[p.dKey];
-                                  const eVal = latestGoniometry[p.eKey];
-                                  const dValNum = getValNum(dVal);
-                                  const eValNum = getValNum(eVal);
-                                  const diff = Math.abs(dValNum - eValNum);
-                                  return (
-                                    <tr key={p.dKey}>
-                                      <td><strong>{p.label}</strong></td>
-                                      <td className="text-center" style={{ fontWeight: 'bold' }}>{formatGonioValue(dVal)}</td>
-                                      <td className="text-center" style={{ fontWeight: 'bold' }}>{formatGonioValue(eVal)}</td>
-                                      <td className="text-center">
-                                        <span className={`badge ${diff > 8 ? 'badge-danger' : 'badge-success'}`}>
-                                          {diff.toFixed(0)}°
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-
-                        {/* Maigne Star Visualizer */}
-                        {maigneData && (
-                          <div style={{ flex: 1, minWidth: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {renderMaigneStarClient(maigneData)}
-                          </div>
-                        )}
-
-                      </div>
-
-                    </div>
-                  );
-                }
-
-                // 4. FORÇA E CARGAS
-                if (evoSubTab === 'forca') {
-                  const sortedSt = [...strengthTests].sort((a, b) => a.data.localeCompare(b.data));
-                  const latestSt = sortedSt[sortedSt.length - 1];
-                  const isNew = latestSt?.testesRealizados && latestSt.testesRealizados.length > 0;
-
-                  const renderStrengthChart = () => {
-                    if (sortedSt.length === 0) {
-                      return (
-                        <div className="empty-state-card" style={{ padding: '30px' }}>
-                          <i className="fa-solid fa-dumbbell empty-state-icon" style={{ fontSize: '2rem' }}></i>
-                          <div className="empty-state-title" style={{ fontSize: '0.9rem' }}>Nenhum teste de força</div>
-                          <div className="empty-state-desc" style={{ fontSize: '0.75rem' }}>Os testes de força máxima de 1RM são cadastrados no painel do profissional.</div>
-                        </div>
-                      );
-                    }
-                    
-                    const exerciseNames = ['Supino Reto', 'Remada Curvada / Máquina', 'Puxada Alta / Lat Pulldown', 'Desenvolvimento de Ombros', 'Abdução de Ombro', 'Rotação Externa de Ombro', 'Rotação Interna de Ombro'];
-
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {exerciseNames.map(exName => {
-                          const progression = sortedSt.map(t => {
-                            const match = t.exercicios?.find((e: any) => e.nome.toLowerCase() === exName.toLowerCase() || e.nome.toLowerCase().includes(exName.toLowerCase().split(' ')[0]));
-                            return {
-                              data: t.data,
-                              carga: match?.carga || t.cargaMax || 0
-                            };
-                          });
-
-                          const maxCarga = Math.max(...progression.map(p => p.carga), 10);
-
-                          return (
-                            <div key={exName} style={{ 
-                              background: 'rgba(0,0,0,0.15)', 
-                              border: '1px solid rgba(255,255,255,0.04)', 
-                              borderRadius: '10px', 
-                              padding: '16px' 
-                            }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{exName}</strong>
-                                {progression.length > 1 && (
-                                  (() => {
-                                    const diff = progression[progression.length - 1].carga - progression[0].carga;
-                                    const percent = progression[0].carga > 0 ? (diff / progression[0].carga) * 100 : 0;
-                                    return (
-                                      <span style={{ fontSize: '0.75rem', color: diff >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 'bold' }}>
-                                        {diff >= 0 ? '+' : ''}{diff} kg ({percent >= 0 ? '+' : ''}{percent.toFixed(0)}%)
-                                      </span>
-                                    );
-                                  })()
-                                )}
-                              </div>
-                              
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {progression.map((p, idx) => {
-                                  const pctWidth = maxCarga > 0 ? (p.carga / maxCarga) * 100 : 0;
-                                  const barColor = idx === progression.length - 1 ? 'var(--color-primary)' : 'var(--text-dim)';
-                                  return (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', width: '80px', flexShrink: 0 }}>{formatDateBR(p.data)}</span>
-                                      <div style={{ flexGrow: 1, background: 'rgba(255,255,255,0.03)', height: '14px', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <div style={{ width: `${pctWidth}%`, height: '100%', background: barColor, borderRadius: '6px', transition: 'width 0.6s ease' }}></div>
-                                      </div>
-                                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', width: '45px', textAlign: 'right', color: idx === progression.length - 1 ? 'var(--color-primary)' : 'var(--text-main)' }}>{p.carga} kg</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  };
-
-                  if (isNew) {
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        {/* Banner de informações da avaliação */}
-                        <div style={{ 
-                          background: 'rgba(22, 29, 45, 0.45)', 
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)', 
-                          borderRadius: '12px', 
-                          padding: '16px', 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          flexWrap: 'wrap', 
-                          gap: '15px' 
-                        }}>
-                          <div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data da última avaliação:</span>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{formatDateBR(latestSt.data)}</div>
-                          </div>
-                          <div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peso Corporal registrado:</span>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{latestSt.pesoCliente} kg</div>
-                          </div>
-                        </div>
-
-                        {/* Testes de Força Individual */}
-                        <div style={{ 
-                          background: 'rgba(22, 29, 45, 0.45)', 
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)', 
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                          borderRadius: '12px', 
-                          padding: '20px' 
-                        }}>
-                          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
-                            <i className="fa-solid fa-gauge-simple-high" style={{ color: 'var(--color-accent)', marginRight: '6px' }}></i> Força Muscular Individual por Movimento
-                          </h4>
-                          <div className="table-responsive">
-                            <table className="data-table">
-                              <thead>
-                                <tr>
-                                  <th>Articulação</th>
-                                  <th>Movimento</th>
-                                  <th style={{ textAlign: 'center' }}>Lado</th>
-                                  <th style={{ textAlign: 'right' }}>Valor Obtido</th>
-                                  <th style={{ textAlign: 'right' }}>Força (N)</th>
-                                  <th style={{ textAlign: 'right' }}>Normalização (%PC)</th>
-                                  <th style={{ textAlign: 'center' }}>Classificação</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {latestSt.testesRealizados.map((t: any, idx: number) => {
-                                  let badgeClass = 'badge-success';
-                                  if (t.classificacao === 'DÉFICIT LEVE') badgeClass = 'badge-info';
-                                  else if (t.classificacao === 'DÉFICIT MODERADO') badgeClass = 'badge-warning';
-                                  else if (t.classificacao === 'DÉFICIT GRAVE') badgeClass = 'badge-danger';
-                                  return (
-                                    <tr key={idx}>
-                                      <td><strong>{t.articulacao}</strong></td>
-                                      <td>{t.movimento}</td>
-                                      <td style={{ textAlign: 'center' }}>{t.lado}</td>
-                                      <td style={{ textAlign: 'right' }}>{t.valorObtido} {t.unidade}</td>
-                                      <td style={{ textAlign: 'right' }}>{t.forcaN?.toFixed(1)} N</td>
-                                      <td style={{ textAlign: 'right' }}>{t.pcPercent?.toFixed(1)}%</td>
-                                      <td style={{ textAlign: 'center' }}>
-                                        <span className={`badge ${badgeClass}`}>{t.classificacao || 'FORÇA NORMAL'}</span>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-
-                        {/* Análise de Simetria e Déficits */}
-                        {latestSt.comparativos && latestSt.comparativos.length > 0 && (
-                          <div style={{ 
-                            background: 'rgba(22, 29, 45, 0.45)', 
-                            backdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255, 255, 255, 0.05)', 
-                            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                            borderRadius: '12px', 
-                            padding: '20px' 
-                          }}>
-                            <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
-                              <i className="fa-solid fa-arrows-left-right" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Índice de Simetria e Déficits Bilaterais
-                            </h4>
-                            <div className="table-responsive">
-                              <table className="data-table">
-                                <thead>
-                                  <tr>
-                                    <th>Articulação</th>
-                                    <th>Movimento</th>
-                                    <th style={{ textAlign: 'right' }}>Lado Direito (N)</th>
-                                    <th style={{ textAlign: 'right' }}>Lado Esquerdo (N)</th>
-                                    <th style={{ textAlign: 'right' }}>Déficit Lateral (%)</th>
-                                    <th style={{ textAlign: 'right' }}>Simetria (%)</th>
-                                    <th style={{ textAlign: 'center' }}>Classificação</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {latestSt.comparativos.map((c: any, idx: number) => {
-                                    let badgeClass = 'badge-success';
-                                    if (c.classificacaoSimetria === 'Aceitável') badgeClass = 'badge-info';
-                                    else if (c.classificacaoSimetria === 'Atenção') badgeClass = 'badge-warning';
-                                    else if (c.classificacaoSimetria === 'Assimetria Relevante') badgeClass = 'badge-danger';
-                                    return (
-                                      <tr key={idx}>
-                                        <td><strong>{c.articulacao}</strong></td>
-                                        <td>{c.movimento}</td>
-                                        <td style={{ textAlign: 'right' }}>{c.valorD?.toFixed(1)} N</td>
-                                        <td style={{ textAlign: 'right' }}>{c.valorE?.toFixed(1)} N</td>
-                                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: c.deficit > 15 ? 'var(--color-danger)' : 'inherit' }}>{c.deficit?.toFixed(1)}%</td>
-                                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: c.simetria < 85 ? 'var(--color-danger)' : 'var(--color-success)' }}>{c.simetria?.toFixed(1)}%</td>
-                                        <td style={{ textAlign: 'center' }}>
-                                          <span className={`badge ${badgeClass}`}>{c.classificacaoSimetria || 'Excelente'}</span>
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Observações do Fisioterapeuta */}
-                        {latestSt.observacoes && (
-                          <div style={{ 
-                            background: 'rgba(22, 29, 45, 0.45)', 
-                            backdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255, 255, 255, 0.05)', 
-                            borderRadius: '12px', 
-                            padding: '20px' 
-                          }}>
-                            <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '8px' }}>
-                              <i className="fa-solid fa-comment-medical" style={{ color: 'var(--color-success)', marginRight: '6px' }}></i> Observações do Fisioterapeuta
-                            </h4>
-                            <p style={{ fontSize: '0.875rem', lineHeight: '1.6', color: 'var(--text-dim)', whiteSpace: 'pre-wrap', margin: 0 }}>
-                              {latestSt.observacoes}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Interpretação Clínica dos Resultados */}
-                        <div style={{ 
-                          background: 'rgba(22, 29, 45, 0.45)', 
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)', 
-                          borderRadius: '12px', 
-                          padding: '20px', 
-                          marginTop: '16px' 
-                        }}>
-                          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
-                            <i className="fa-solid fa-square-poll-vertical" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Interpretação Clínica dos Resultados
-                          </h4>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.04)' }}>
-                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>&ge; 90% do Valor de Referência</strong>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
-                                <strong>Força normal:</strong> o paciente apresenta força muscular dentro dos parâmetros normativos para sua faixa demográfica. Liberação para progressão de carga ou retorno ao esporte/atividades.
-                              </span>
-                            </div>
-                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #3b82f6', background: 'rgba(59, 130, 246, 0.04)' }}>
-                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>75-89% do Valor de Referência</strong>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
-                                <strong>Déficit leve:</strong> força levemente reduzida. Indica necessidade de fortalecimento direcionado, porém funcionalidade preservada para a maioria das atividades de vida diária.
-                              </span>
-                            </div>
-                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #f97316', background: 'rgba(249, 115, 22, 0.04)' }}>
-                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>50-74% do Valor de Referência</strong>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
-                                <strong>Déficit moderado:</strong> comprometimento funcional relevante. Requer programa de reabilitação estruturado com reavaliação periódica. Restrição de atividades de maior demanda.
-                              </span>
-                            </div>
-                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.04)' }}>
-                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>&lt; 50% do Valor de Referência</strong>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
-                                <strong>Déficit grave:</strong> fraqueza muscular importante com alto impacto funcional. Investigação de causas subjacentes, possível encaminhamento médico e reabilitação intensiva são indicados.
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const extOmbro = latestSt?.exercicios?.find((e: any) => e.nome.includes('Rotação Externa'))?.carga || 0;
-                  const intOmbro = latestSt?.exercicios?.find((e: any) => e.nome.includes('Rotação Interna'))?.carga || 0;
-                  const computedRatio = intOmbro > 0 ? extOmbro / intOmbro : 0;
-
-                  const getRatioStatus = (ratio: number) => {
-                    if (ratio === 0) return { label: 'Sem dados', color: 'var(--text-muted)', class: 'badge-secondary' };
-                    if (ratio < 0.66) return { label: 'Risco de Lesão (Desbalanceado)', color: 'var(--color-danger)', class: 'badge-danger' };
-                    if (ratio > 0.75) return { label: 'Dominância Extensores', color: 'var(--color-warning)', class: 'badge-warning' };
-                    return { label: 'Ótimo / Equilibrado (Safe Zone)', color: 'var(--color-success)', class: 'badge-success' };
-                  };
-                  const ratioStatus = getRatioStatus(computedRatio);
-
-                  return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-                      {latestSt && computedRatio > 0 && (
-                        <div style={{ 
-                          background: 'rgba(22, 29, 45, 0.45)', 
-                          backdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)', 
-                          borderRadius: '12px', 
-                          padding: '20px' 
-                        }}>
-                          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '12px' }}>
-                            <i className="fa-solid fa-shield-halved" style={{ color: 'var(--color-accent)', marginRight: '6px' }}></i> Balanço de Rotadores do Ombro (Estabilidade Articular)
-                          </h4>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                            <div>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Proporção Rotadores (Externa / Interna):</span>
-                              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: ratioStatus.color }}>
-                                {computedRatio.toFixed(2)}
-                              </div>
-                            </div>
-                            <div>
-                              <span className={`badge ${ratioStatus.class}`} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
-                                {ratioStatus.label}
-                              </span>
-                            </div>
-                          </div>
-                          <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                              <span>Desequilíbrio (Risco) &lt; 0.66</span>
-                              <span>Safe Zone (0.66 - 0.75)</span>
-                              <span>Dominância &gt; 0.75</span>
-                            </div>
-                            <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
-                              <div style={{ position: 'absolute', left: '0%', width: '66%', height: '100%', background: 'var(--color-danger)' }}></div>
-                              <div style={{ position: 'absolute', left: '66%', width: '9%', height: '100%', background: 'var(--color-success)' }}></div>
-                              <div style={{ position: 'absolute', left: '75%', width: '25%', height: '100%', background: 'var(--color-warning)' }}></div>
-                              {/* Indicator dot */}
-                              <div style={{
-                                position: 'absolute',
-                                left: `${Math.min(100, (computedRatio / 1.0) * 100)}%`,
-                                top: '-2px',
-                                width: '12px',
-                                height: '12px',
-                                background: '#ffffff',
-                                border: '2px solid #000',
-                                borderRadius: '50%',
-                                transform: 'translateX(-6px)'
-                              }}></div>
-                            </div>
-                          </div>
-                          <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '10px', fontSize: '0.75rem', fontStyle: 'italic' }}>
-                            * A relação de força ideal entre os rotadores externos e internos de ombro protege contra lesões do manguito rotador e melhora a postura em exercícios como supino e desenvolvimento.
-                          </small>
-                        </div>
-                      )}
-
-                      <div className="content-panel" style={{ 
-                        margin: 0,
-                        background: 'rgba(22, 29, 45, 0.45)', 
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)', 
-                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                        padding: '24px'
-                      }}>
-                        <div className="panel-header" style={{ marginBottom: '16px' }}>
-                          <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-dumbbell" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Evolução de Carga Máxima (1RM Estimado)</h2>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Histórico de progressão de carga de exercícios multiarticulares</p>
-                        </div>
-                        {renderStrengthChart()}
-                      </div>
-                    </div>
-                  );
-                }
-
-                return null;
-              })()}
+                {/* Segmented Control Touch: Recente vs Histórico */}
+                <div style={{
+                  display: 'inline-flex',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '12px',
+                  padding: '3px',
+                  gap: '4px'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setEvoViewMode('recente')}
+                    style={{
+                      padding: '7px 14px',
+                      minHeight: '38px',
+                      borderRadius: '9px',
+                      border: 'none',
+                      background: evoViewMode === 'recente' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent',
+                      color: evoViewMode === 'recente' ? '#ffffff' : '#94a3b8',
+                      fontWeight: 800,
+                      fontSize: '0.76rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <i className="fa-solid fa-forward-step"></i> Último Salto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEvoViewMode('historico')}
+                    style={{
+                      padding: '7px 14px',
+                      minHeight: '38px',
+                      borderRadius: '9px',
+                      border: 'none',
+                      background: evoViewMode === 'historico' ? 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)' : 'transparent',
+                      color: evoViewMode === 'historico' ? '#ffffff' : '#94a3b8',
+                      fontWeight: 800,
+                      fontSize: '0.76rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <i className="fa-solid fa-chart-line"></i> Total Acumulado
+                  </button>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="empty-state-card" style={{ 
-              marginTop: '24px',
-              background: 'rgba(22, 29, 45, 0.45)', 
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.05)', 
-              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-              padding: '40px 20px',
-              borderRadius: '14px',
-              textAlign: 'center'
-            }}>
-              <i className="fa-solid fa-chart-line empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)' }}></i>
-              <div className="empty-state-title" style={{ fontSize: '1.1rem', fontWeight: 700, margin: '12px 0' }}>Nenhuma avaliação física</div>
-              <div className="empty-state-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Você ainda não possui avaliações físicas registradas. Fale com seu fisioterapeuta ou instrutor para agendar uma avaliação.</div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* View: Meus Documentos */}
-      {activeTab === 'documentos' && (
-        <>
-          <div className="view-header" style={{ marginBottom: '20px' }}>
-            <div className="view-title-group">
-              <h1 style={{ 
-                fontFamily: 'var(--font-title)', 
-                fontSize: '1.8rem', 
-                fontWeight: 800, 
-                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
-                WebkitBackgroundClip: 'text', 
-                WebkitTextFillColor: 'transparent',
-                marginBottom: '4px'
-              }}>
-                Meus Documentos Clínicos
-              </h1>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
-            </div>
-
           </div>
 
-          <div className="content-panel" style={{ 
-            background: 'rgba(22, 29, 45, 0.45)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-            padding: '24px'
+          {/* ========================================================
+              CARROSSEL HORIZONTAL DE CATEGORIAS (MOBILE SNAP)
+             ======================================================== */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            paddingBottom: '8px',
+            marginBottom: '20px',
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+            scrollSnapType: 'x proximity'
           }}>
-            <div className="panel-header" style={{ marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-folder-open" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Arquivos Disponíveis para Download</h2>
-            </div>
-
-            {(() => {
-              const listKey = 'documents';
-              const size = getPageSize(listKey);
-              const docs = [
-                ...assessments.map(a => ({
-                  id: a._id,
-                  data: a.data,
-                  tipo: 'Avaliação Física',
-                  icon: 'fa-heart-pulse',
-                  color: 'var(--color-success)',
-                  badgeBg: 'rgba(16, 185, 129, 0.1)',
-                  desc: 'Métricas corporais e goniometria completa',
-                  rawDoc: a
-                })),
-                ...reports.map(r => ({
-                  id: r._id,
-                  data: r.data,
-                  tipo: 'Relatório Fisioterápico',
-                  icon: 'fa-file-prescription',
-                  color: 'var(--color-info)',
-                  badgeBg: 'rgba(59, 130, 246, 0.1)',
-                  desc: 'Evolução do tratamento de reabilitação e condutas',
-                  rawDoc: r
-                })),
-                ...strengthTests.map(st => ({
-                  id: st._id,
-                  data: st.data,
-                  tipo: 'Teste de Força',
-                  icon: 'fa-dumbbell',
-                  color: '#f59e0b',
-                  badgeBg: 'rgba(245, 158, 11, 0.1)',
-                  desc: 'Métricas de força muscular bilateral e comparativos',
-                  rawDoc: st
-                }))
-              ].sort((a, b) => b.data.localeCompare(a.data));
-
-              const totalItems = docs.length;
-              const totalPages = Math.ceil(totalItems / size);
-              const activeP = getPage(listKey);
-              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-              const paginated = docs.slice((curP - 1) * size, curP * size);
-
-              if (totalItems === 0) {
-                return (
-                  <div className="empty-state-card" style={{ padding: '40px 20px', background: 'transparent', border: 'none' }}>
-                    <i className="fa-solid fa-folder-open empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)' }}></i>
-                    <div className="empty-state-title" style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0' }}>Nenhum documento disponível</div>
-                    <div className="empty-state-desc" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Não há laudos de fisioterapia, relatórios de avaliação física ou testes de força disponíveis para download no momento.</div>
-                  </div>
-                );
-              }
+            {evolutionData.gruposOrdenados.map(g => {
+              const isActive = evoSubTab === g.id;
+              const hasItems = g.totalElegiveis > 0;
 
               return (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-                    {paginated.map(doc => (
-                      <div 
-                        key={doc.id}
-                        style={{
-                          background: 'rgba(0,0,0,0.15)',
-                          border: '1px solid rgba(255,255,255,0.04)',
-                          borderRadius: '14px',
-                          padding: '20px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          transition: 'all 0.3s ease',
-                          position: 'relative',
-                          overflow: 'hidden'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-3px)';
-                          e.currentTarget.style.borderColor = doc.color;
-                          e.currentTarget.style.boxShadow = `0 10px 30px 0 ${doc.color}15`;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: doc.badgeBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <i className={`fa-solid ${doc.icon}`} style={{ fontSize: '18px', color: doc.color }}></i>
-                            </div>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: 600 }}>{formatDateBR(doc.data)}</span>
-                          </div>
-
-                          <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{doc.tipo}</h4>
-                          <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: '1.4', margin: '0 0 16px 0' }}>{doc.desc}</p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => {
-                            if (doc.tipo === 'Avaliação Física') {
-                              downloadAssessmentPDF(doc.rawDoc, assessments);
-                            } else if (doc.tipo === 'Teste de Força') {
-                              downloadStrengthTestPDF(doc.rawDoc, client, doc.rawDoc.profissionalId);
-                            } else {
-                              downloadReportPDF(doc.rawDoc);
-                            }
-                          }}
-                          style={{ width: '100%', fontSize: '0.75rem', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
-                        >
-                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar PDF
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {totalItems > size && (
-                    <div style={{ marginTop: '24px' }}>
-                      <Pagination
-                        currentPage={curP}
-                        totalItems={totalItems}
-                        itemsPerPage={size}
-                        onPageChange={page => setPage(listKey, page)}
-                      />
-                    </div>
-                  )}
-                </>
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => setEvoSubTab(g.id)}
+                  style={{
+                    flexShrink: 0,
+                    scrollSnapAlign: 'start',
+                    padding: '10px 16px',
+                    minHeight: '44px',
+                    borderRadius: '14px',
+                    border: isActive ? `1.5px solid ${g.cor}` : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: isActive ? `${g.cor}20` : 'rgba(30, 41, 59, 0.5)',
+                    color: isActive ? '#ffffff' : hasItems ? '#cbd5e1' : '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    boxShadow: isActive ? `0 4px 16px ${g.cor}33` : 'none'
+                  }}
+                >
+                  <i className={`fa-solid ${g.icone}`} style={{ color: isActive ? g.cor : hasItems ? g.cor : '#64748b', fontSize: '0.9rem' }}></i>
+                  <span>{g.titulo}</span>
+                  <span style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    padding: '2px 7px',
+                    borderRadius: '10px',
+                    background: hasItems ? (isActive ? g.cor : 'rgba(255, 255, 255, 0.1)') : 'rgba(255, 255, 255, 0.04)',
+                    color: hasItems ? (isActive ? '#000000' : '#ffffff') : '#64748b'
+                  }}>
+                    {g.totalElegiveis}
+                  </span>
+                </button>
               );
-            })()}
+            })}
           </div>
+
+          {/* ========================================================
+              CONTEÚDO DA CATEGORIA ATIVA
+             ======================================================== */}
+          {(() => {
+            const currentGroup = evolutionData.grupos[evoSubTab] || evolutionData.grupos.composicao;
+
+            // CASO 1: SEM ITENS ELEGÍVEIS (REGRA >= 2 REGISTROS)
+            if (currentGroup.totalElegiveis === 0) {
+              return (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.7) 100%)',
+                  backdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '20px',
+                  padding: '48px 24px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+                  margin: '8px 0'
+                }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: `${currentGroup.cor}18`,
+                    border: `${currentGroup.cor}44 1px solid`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '16px',
+                    color: currentGroup.cor,
+                    fontSize: '1.6rem',
+                    boxShadow: `0 0 24px ${currentGroup.cor}22`
+                  }}>
+                    <i className={`fa-solid ${currentGroup.icone}`}></i>
+                  </div>
+                  <h3 style={{ margin: '0 0 8px', fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'var(--font-title)' }}>
+                    Aguardando 2ª Medição em {currentGroup.titulo}
+                  </h3>
+                  <p style={{ margin: 0, maxWidth: '520px', fontSize: '0.86rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                    Em conformidade com o padrão técnico de excelência do Clube Fitness, <strong>só exibimos comparativos e gráficos quando existem pelo menos 2 registros</strong> de uma mesma variável.
+                  </p>
+                  <div style={{
+                    marginTop: '20px',
+                    padding: '8px 16px',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    fontSize: '0.78rem',
+                    color: '#cbd5e1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <i className="fa-solid fa-lock" style={{ color: currentGroup.cor }}></i>
+                    <span>Sua linha do tempo e curvas serão desbloqueadas aqui na sua próxima avaliação.</span>
+                  </div>
+                </div>
+              );
+            }
+
+            // CASO 2: POSSUI MÉTRICAS ELEGÍVEIS (>= 2 REGISTROS)
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* 1. GRÁFICO SPLINE EM DESTAQUE (PARA COMPOSIÇÃO CORPORAL) */}
+                {evoSubTab === 'composicao' && (() => {
+                  const chartSeries = [];
+                  const pesoM = currentGroup.metricas.find(m => m.id === 'peso');
+                  const magraM = currentGroup.metricas.find(m => m.id === 'massaMagra');
+                  const gordaM = currentGroup.metricas.find(m => m.id === 'massaGorda');
+
+                  if (pesoM) {
+                    chartSeries.push({
+                      id: 'peso',
+                      nome: 'Peso (kg)',
+                      unidade: 'kg',
+                      cor: '#38bdf8',
+                      pontos: pesoM.historico
+                    });
+                  }
+                  if (magraM) {
+                    chartSeries.push({
+                      id: 'massaMagra',
+                      nome: 'Massa Magra (kg)',
+                      unidade: 'kg',
+                      cor: '#10b981',
+                      pontos: magraM.historico
+                    });
+                  }
+                  if (gordaM) {
+                    chartSeries.push({
+                      id: 'massaGorda',
+                      nome: 'Massa Gorda (kg)',
+                      unidade: 'kg',
+                      cor: '#f87171',
+                      pontos: gordaM.historico
+                    });
+                  }
+
+                  if (chartSeries.length > 0) {
+                    return (
+                      <EvolutionSplineChart
+                        series={chartSeries}
+                        titulo="Curva Histórica de Composição Corporal"
+                        subtitulo="Toque em qualquer ponto para conferir peso e tecidos na data correspondente"
+                        altura={250}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* 1.1 GRÁFICO SPLINE PARA DOR CLÍNICA (EVA) */}
+                {evoSubTab === 'clinica' && (() => {
+                  const evaM = currentGroup.metricas.find(m => m.id === 'clinica_eva');
+                  if (evaM && evaM.historico.length >= 2) {
+                    return (
+                      <EvolutionSplineChart
+                        series={[{
+                          id: 'eva',
+                          nome: 'Nível de Dor (EVA 0–10)',
+                          unidade: '/10',
+                          cor: '#14b8a6',
+                          pontos: evaM.historico
+                        }]}
+                        titulo="Curva de Alívio de Sintomas e Conforto (EVA)"
+                        subtitulo="Acompanhamento da intensidade de dor registrada nos relatórios de fisioterapia"
+                        altura={220}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* 2. SEÇÃO DE SIMETRIAS BILATERAIS (QUANDO HOUVER) */}
+                {currentGroup.simetrias && currentGroup.simetrias.length > 0 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 14px', fontSize: '1.02rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-scale-balanced" style={{ color: currentGroup.cor }}></i>
+                      Equilíbrio & Simetria Bilateral (Direito vs Esquerdo)
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '14px' }}>
+                      {currentGroup.simetrias.map(sym => (
+                        <EvolutionSymmetryGauge key={sym.id} symmetry={sym} color={currentGroup.cor} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. GRID DE CARDS DE MÉTRICA INDIVIDUAL */}
+                {currentGroup.metricas.length > 0 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 14px', fontSize: '1.02rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-chart-simple" style={{ color: currentGroup.cor }}></i>
+                      {currentGroup.titulo} ({currentGroup.metricas.length} métricas ativas)
+                    </h3>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                      gap: '14px'
+                    }}>
+                      {currentGroup.metricas.map(m => (
+                        <EvolutionMetricCard
+                          key={m.id}
+                          metric={m}
+                          color={currentGroup.cor}
+                          viewMode={evoViewMode}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. HISTÓRICO DETALHADO DE LAUDOS E AVALIAÇÕES PARA DOWNLOAD */}
+                {assessments.length > 0 && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.65) 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    marginTop: '10px'
+                  }}>
+                    <h4 style={{ margin: '0 0 14px', fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i>
+                      Laudos Oficiais Emitidos ({assessments.length})
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
+                      {assessments.map(a => (
+                        <div
+                          key={a._id}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: '12px',
+                            padding: '12px 14px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>
+                              📅 {formatDateBR(a.data)}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                              {a.avaliadorId?.nome || 'Avaliador Técnico'}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '6px 10px', fontSize: '0.72rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                            onClick={() => downloadAssessmentPDF(a, assessments)}
+                          >
+                            <i className="fa-solid fa-download"></i> PDF
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </>
       )}
 
