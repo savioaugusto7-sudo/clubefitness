@@ -8691,6 +8691,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           <>
                             <option value="Treino Monitorado">Treino Monitorado</option>
                             <option value="Treino Livre">Treino Livre</option>
+                            <option value="Atendimento Individual">Atendimento Individual</option>
                           </>
                         )}
                       </select>

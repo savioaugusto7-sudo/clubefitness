@@ -11364,6 +11364,7 @@ goniometria: {
                           <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
                           <option value="Emergência">Atendimento de Emergência</option>
                           <option value="Terapia Manual">Terapia Manual</option>
+                          <option value="Atendimento Individual">Atendimento Individual</option>
                         </>
                       )}
                     </select>

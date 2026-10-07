@@ -42,6 +42,9 @@ const getServiceColor = (service: string) => {
   if (name.includes('recovery') || name.includes('recuperacao') || name.includes('recuperação')) {
     return { bg: 'rgba(244, 63, 94, 0.15)', text: '#f43f5e' }; // Rose
   }
+  if (name.includes('individual')) {
+    return { bg: 'rgba(192, 132, 252, 0.15)', text: '#c084fc' }; // Purple/Violet
+  }
   if (name.includes('emergencia') || name.includes('emergência')) {
     return { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' }; // Red
   }
@@ -1385,6 +1388,7 @@ export default function AgendaCompletaPanel({
                             <option value="Avaliação Fisioterápica">Avaliação Fisioterápica (2 blocos de 1h)</option>
                             <option value="Emergência">Atendimento de Emergência</option>
                             <option value="Terapia Manual">Terapia Manual</option>
+                            <option value="Atendimento Individual">Atendimento Individual</option>
                           </>
                         )}
                       </select>

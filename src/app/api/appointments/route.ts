@@ -32,7 +32,7 @@ const SERVICOS_CONFIG: Record<string, {
   'Emergência':                             { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Terapia Manual':                         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
   // Especialidades
-  'Atendimento Individual':   { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Atendimento Individual':   { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Consulta':                 { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'    },
   'Quiropraxia':              { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'    },
 };

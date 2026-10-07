@@ -19,7 +19,7 @@ const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' 
   'Avaliação Fisioterápica (Continuação)':  { vagasOcupadas: 3, tipo: 'academia'    },
   'Emergência':               { vagasOcupadas: 3, tipo: 'academia'    },
   'Terapia Manual':           { vagasOcupadas: 3, tipo: 'academia'    },
-  'Atendimento Individual':   { vagasOcupadas: 1, tipo: 'academia'    },
+  'Atendimento Individual':   { vagasOcupadas: 3, tipo: 'academia'    },
   'Consulta':                 { vagasOcupadas: 1, tipo: 'dr_albert'    },
   'Quiropraxia':              { vagasOcupadas: 1, tipo: 'dr_albert'    },
 };

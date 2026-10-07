@@ -19,7 +19,7 @@ const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number }> = {
   'Avaliação Fisioterápica (Continuação)':  { vagasOcupadas: 3 },
   'Emergência':                             { vagasOcupadas: 3 },
   'Terapia Manual':           { vagasOcupadas: 3 },
-  'Atendimento Individual':   { vagasOcupadas: 1 },
+  'Atendimento Individual':   { vagasOcupadas: 3 },
   'Consulta':                 { vagasOcupadas: 1 },
   'Quiropraxia':              { vagasOcupadas: 1 }
 };
