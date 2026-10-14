@@ -5081,41 +5081,22 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       const saldoBg = saldo > 2 ? 'rgba(16, 185, 129, 0.12)' : (saldo > 0 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
                       const saldoBorder = saldo > 2 ? 'rgba(16, 185, 129, 0.3)' : (saldo > 0 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)');
 
-                      // Iniciais do Aluno para Avatar
+                      // Nome e identificação do Aluno
                       const nomeAluno = c.dadosPessoais?.nome || 'Aluno';
-                      const initials = nomeAluno.split(' ').filter(Boolean).slice(0, 2).map((n: string) => n[0].toUpperCase()).join('');
 
                       return (
                         <tr key={c._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.15s ease' }}>
                           
-                          {/* Coluna 1: Aluno com Avatar */}
+                          {/* Coluna 1: Aluno */}
                           <td style={{ padding: '12px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{
-                                width: '38px',
-                                height: '38px',
-                                borderRadius: '10px',
-                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                color: '#38bdf8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.82rem',
-                                fontWeight: 800,
-                                flexShrink: 0
-                              }}>
-                                {initials || 'AL'}
-                              </div>
-                              <div>
-                                <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block' }}>
-                                  {nomeAluno}
-                                </strong>
-                                <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                  <span>{c.dadosPessoais?.cpf || 'Sem CPF'}</span>
-                                  <span>•</span>
-                                  <span>{c.dadosPessoais?.telefone || c.dadosPessoais?.email || ''}</span>
-                                </div>
+                            <div>
+                              <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block' }}>
+                                {nomeAluno}
+                              </strong>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
+                                <span>{c.dadosPessoais?.cpf || 'Sem CPF'}</span>
+                                <span>•</span>
+                                <span>{c.dadosPessoais?.telefone || c.dadosPessoais?.email || ''}</span>
                               </div>
                             </div>
                           </td>
