@@ -632,6 +632,24 @@ export async function POST(request: Request) {
       await client.save();
     }
 
+    // --- Prevenção de Agendamento Conflitante / Duplicado no Mesmo Horário ---
+    const existingActiveSlot = await Appointment.findOne({
+      clienteId,
+      data,
+      horario,
+      status: { $in: ['agendado', 'presenca', 'falta'] }
+    }).populate('profissionalId');
+
+    if (existingActiveSlot && (!isRemanejamento || String(existingActiveSlot._id) !== String(remanejarDeAptId))) {
+      const agendaDesc = existingActiveSlot.tipo === 'dr_albert'
+        ? 'do Dr. Albert'
+        : (existingActiveSlot.tipo === 'dr_guilherme' ? 'do Dr. Guilherme' : 'da Academia');
+      return NextResponse.json({
+        success: false,
+        error: `O aluno já possui um agendamento ativo às ${horario} na agenda ${agendaDesc} (${existingActiveSlot.servico}). Não é permitido agendar atendimentos simultâneos.`
+      }, { status: 400 });
+    }
+
     const observacoesText = body.observacoes?.trim() || '';
     const mesReferencia = data.slice(0, 7); // "YYYY-MM"
     const appointment = await Appointment.create({
@@ -676,6 +694,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: appointment });
   } catch (error: any) {
+    if (error.code === 11000 || (error.message && error.message.includes('unique_active_client_slot'))) {
+      return NextResponse.json({
+        success: false,
+        error: 'O aluno já possui um agendamento ativo neste mesmo dia e horário. Não é permitido agendar atendimentos simultâneos.'
+      }, { status: 400 });
+    }
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

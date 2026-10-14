@@ -226,7 +226,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [creditAmount, setCreditAmount] = useState(1);
   const [resetPassword, setResetPassword] = useState(false);
   const [creditType, setCreditType] = useState<'academia' | 'massagem' | 'emergencia'>('academia');
-  const [creditOperation, setCreditOperation] = useState<'add' | 'sub'>('add');
+  const [creditOperation, setCreditOperation] = useState<'add' | 'sub' | 'reset_usados' | 'set_total'>('add');
 
   // States for Data Shielding & Unlock Audit
   const [showUnlockModal, setShowUnlockModal] = useState(false);
@@ -628,6 +628,75 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       alert('Regras de crédito atualizadas!');
     } else {
       alert('Erro ao salvar regras: ' + data.error);
+    }
+  };
+
+  // Estados & Handlers para o Módulo Alto Padrão de Controle de Créditos & Extrato Real
+  const [selectedCreditMonth, setSelectedCreditMonth] = useState<string>(() => new Date().toISOString().substring(0, 7));
+  const [creditFilterStatus, setCreditFilterStatus] = useState<'todos' | 'zerados' | 'criticos' | 'disponiveis'>('todos');
+  const [showCreditExtratoModal, setShowCreditExtratoModal] = useState(false);
+  const [extratoClient, setExtratoClient] = useState<any>(null);
+  const [extratoData, setExtratoData] = useState<any>(null);
+  const [loadingExtrato, setLoadingExtrato] = useState(false);
+  const [extratoFilterType, setExtratoFilterType] = useState<string>('todos');
+  const [creditJustificativa, setCreditJustificativa] = useState('');
+  const [syncingClientId, setSyncingClientId] = useState<string | null>(null);
+
+  const fetchCreditExtrato = async (client: any, mes: string) => {
+    if (!client) return;
+    setLoadingExtrato(true);
+    try {
+      const res = await fetch(`/api/admin/client-credits?clientId=${client._id}&mes=${mes}`);
+      const json = await res.json();
+      if (json.success) {
+        setExtratoData(json.data);
+      } else {
+        alert('Erro ao carregar extrato de créditos: ' + json.error);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao carregar extrato: ' + err.message);
+    } finally {
+      setLoadingExtrato(false);
+    }
+  };
+
+  const handleOpenCreditExtrato = (client: any) => {
+    setExtratoClient(client);
+    setExtratoFilterType('todos');
+    setShowCreditExtratoModal(true);
+    fetchCreditExtrato(client, selectedCreditMonth);
+  };
+
+  const handleSyncMonthCredits = async (client: any, targetMonth?: string) => {
+    if (!client) return;
+    const mesToSync = targetMonth || selectedCreditMonth;
+    setSyncingClientId(client._id);
+    try {
+      const res = await fetch('/api/admin/client-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: client._id,
+          operacao: 'sincronizar_mes',
+          mes: mesToSync,
+          tipoCredito: 'academia',
+          justificativa: `Sincronização automática com as presenças e reservas da competência ${mesToSync}`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+        if (extratoClient && extratoClient._id === client._id) {
+          fetchCreditExtrato(client, mesToSync);
+        }
+        alert(`✅ Créditos sincronizados com sucesso!\n\n${data.message}`);
+      } else {
+        alert('Erro ao sincronizar créditos: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de rede: ' + err.message);
+    } finally {
+      setSyncingClientId(null);
     }
   };
 
@@ -2281,28 +2350,29 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           alert('Erro ao salvar e aprovar exercício: ' + data.error);
         }
       } else if (modalType === 'credit') {
-        // Update client credits
-        const isMassage = creditType === 'massagem';
-        const isEmergencia = creditType === 'emergencia';
-        const currentCom = editingItem.dadosComerciais;
-        const change = creditOperation === 'sub' ? -creditAmount : creditAmount;
         const payload = {
-          id: editingItem._id,
-          dadosComerciais: {
-            creditosTotal:           (!isMassage && !isEmergencia) ? Math.max(0, (currentCom.creditosTotal || 0) + change) : currentCom.creditosTotal,
-            creditosMassagemTotal:   isMassage    ? Math.max(0, (currentCom.creditosMassagemTotal    || 0) + change) : currentCom.creditosMassagemTotal,
-            creditosEmergenciaTotal: isEmergencia ? Math.max(0, (currentCom.creditosEmergenciaTotal  || 0) + change) : currentCom.creditosEmergenciaTotal,
-          }
+          clientId: editingItem._id,
+          operacao: creditOperation,
+          tipoCredito: creditType,
+          quantidade: creditAmount,
+          justificativa: creditJustificativa || 'Ajuste manual de créditos realizado pela administração'
         };
-        const res = await fetch('/api/clients', {
-          method: 'PUT',
+        const res = await fetch('/api/admin/client-credits', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.success) {
           setShowModal(false);
+          setCreditJustificativa('');
           fetchData();
+          if (extratoClient && extratoClient._id === editingItem._id) {
+            fetchCreditExtrato(editingItem, selectedCreditMonth);
+          }
+          alert(`✅ ${data.message || 'Créditos atualizados com sucesso!'}`);
+        } else {
+          alert('Erro ao ajustar créditos: ' + data.error);
         }
       }
     } catch (err: any) {
@@ -4764,71 +4834,419 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
         const paginated = filtered.slice((curP - 1) * size, curP * size);
 
+        // Cálculos dos KPIs consolidados do controle de créditos
+        const totalCreditosConcedidos = clients.reduce((sum, c) => sum + (c.dadosComerciais?.creditosTotal || 0), 0);
+        const totalCreditosUsados = clients.reduce((sum, c) => sum + (c.dadosComerciais?.creditosUsados || 0), 0);
+        const totalCreditosReservados = clients.reduce((sum, c) => sum + (c.dadosComerciais?.creditosReservados || 0), 0);
+        const alunosZerados = clients.filter(c => {
+          const tot = c.dadosComerciais?.creditosTotal || 0;
+          const usd = c.dadosComerciais?.creditosUsados || 0;
+          const res = c.dadosComerciais?.creditosReservados || 0;
+          return (tot - usd - res) <= 0;
+        });
+        const alunosCriticos = clients.filter(c => {
+          const tot = c.dadosComerciais?.creditosTotal || 0;
+          const usd = c.dadosComerciais?.creditosUsados || 0;
+          const res = c.dadosComerciais?.creditosReservados || 0;
+          const saldo = tot - usd - res;
+          return saldo > 0 && saldo <= 2;
+        });
+
+        // Filtragem avançada por status de saldo
+        const filteredByStatus = filtered.filter(c => {
+          const tot = c.dadosComerciais?.creditosTotal || 0;
+          const usd = c.dadosComerciais?.creditosUsados || 0;
+          const res = c.dadosComerciais?.creditosReservados || 0;
+          const saldo = tot - usd - res;
+          if (creditFilterStatus === 'zerados') return saldo <= 0;
+          if (creditFilterStatus === 'criticos') return saldo > 0 && saldo <= 2;
+          if (creditFilterStatus === 'disponiveis') return saldo > 2;
+          return true;
+        });
+
+        const totalPagesStatus = Math.ceil(filteredByStatus.length / size);
+        const curPStatus = activeP > totalPagesStatus ? Math.max(1, totalPagesStatus) : activeP;
+        const paginatedStatus = filteredByStatus.slice((curPStatus - 1) * size, curPStatus * size);
+
         return (
           <>
-            <div className="view-header">
+            <div className="view-header" style={{ marginBottom: '20px' }}>
               <div className="view-title-group">
-                <h1>Controle de Créditos</h1>
-                <p>Audite e gerencie o saldo de créditos semanais e mensais dos alunos.</p>
+                <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-coins" style={{ color: '#fbbf24' }}></i>
+                  Controle & Extrato de Créditos
+                </h1>
+                <p>Monitore a franquia mensal, consumo real de sessões, extrato de movimentações e renovações dos alunos.</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+
+              {/* Seletor de Competência Mensal & Busca */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '6px 14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                    <i className="fa-regular fa-calendar" style={{ marginRight: '5px', color: 'var(--color-primary)' }}></i> Mês:
+                  </span>
+                  <input
+                    type="month"
+                    className="form-control"
+                    value={selectedCreditMonth}
+                    onChange={e => setSelectedCreditMonth(e.target.value)}
+                    style={{ width: '150px', padding: '4px 8px', fontSize: '0.85rem', fontWeight: 700, background: 'transparent', border: 'none', color: 'var(--text-main)' }}
+                  />
+                </div>
+
                 <SmartSearchInput
                   value={q}
                   onChange={val => setSearchQueryForKey('controle_creditos', val)}
-                  placeholder="Buscar aluno por nome, CPF ou plano..."
-                  resultCount={filtered.length}
+                  placeholder="Buscar por aluno, CPF, plano..."
+                  resultCount={filteredByStatus.length}
                   totalCount={clients.length}
                 />
               </div>
             </div>
 
-            <div className="content-panel">
+            {/* 4 Cards de Métricas e KPIs Alto Padrão */}
+            <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              
+              <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                <div className="metric-info">
+                  <h3 style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Franquia Mensal Ativa</h3>
+                  <div className="value" style={{ color: '#38bdf8', fontSize: '1.7rem', fontWeight: 900 }}>
+                    {totalCreditosConcedidos} <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>cr.</span>
+                  </div>
+                  <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Total concedido no ciclo</small>
+                </div>
+                <div className="metric-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                  <i className="fa-solid fa-wallet"></i>
+                </div>
+              </div>
+
+              <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 78, 59, 0.15) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                <div className="metric-info">
+                  <h3 style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Créditos Consumidos</h3>
+                  <div className="value" style={{ color: '#34d399', fontSize: '1.7rem', fontWeight: 900 }}>
+                    {totalCreditosUsados} <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>usados</span>
+                  </div>
+                  <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>+{totalCreditosReservados} agendamentos reservados</small>
+                </div>
+                <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                  <i className="fa-solid fa-calendar-check"></i>
+                </div>
+              </div>
+
+              <div 
+                className="metric-card" 
+                onClick={() => setCreditFilterStatus(creditFilterStatus === 'zerados' ? 'todos' : 'zerados')}
+                style={{ 
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(153, 27, 27, 0.15) 100%)', 
+                  border: `1px solid ${alunosZerados.length > 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  cursor: 'pointer',
+                  transform: creditFilterStatus === 'zerados' ? 'scale(1.02)' : 'none',
+                  boxShadow: creditFilterStatus === 'zerados' ? '0 0 16px rgba(239, 68, 68, 0.3)' : 'none'
+                }}
+              >
+                <div className="metric-info">
+                  <h3 style={{ fontSize: '0.8rem', color: '#f87171' }}>Alunos com Saldo Zerado</h3>
+                  <div className="value" style={{ color: '#ef4444', fontSize: '1.7rem', fontWeight: 900 }}>
+                    {alunosZerados.length}
+                  </div>
+                  <small style={{ color: '#fca5a5', fontSize: '0.72rem' }}>Clique para filtrar</small>
+                </div>
+                <div className="metric-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                </div>
+              </div>
+
+              <div 
+                className="metric-card" 
+                onClick={() => setCreditFilterStatus(creditFilterStatus === 'criticos' ? 'todos' : 'criticos')}
+                style={{ 
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.15) 100%)', 
+                  border: `1px solid ${alunosCriticos.length > 0 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  cursor: 'pointer',
+                  transform: creditFilterStatus === 'criticos' ? 'scale(1.02)' : 'none',
+                  boxShadow: creditFilterStatus === 'criticos' ? '0 0 16px rgba(245, 158, 11, 0.3)' : 'none'
+                }}
+              >
+                <div className="metric-info">
+                  <h3 style={{ fontSize: '0.8rem', color: '#fbbf24' }}>Saldo Crítico (1 a 2 cr.)</h3>
+                  <div className="value" style={{ color: '#f59e0b', fontSize: '1.7rem', fontWeight: 900 }}>
+                    {alunosCriticos.length}
+                  </div>
+                  <small style={{ color: '#fde68a', fontSize: '0.72rem' }}>Atenção para renovação</small>
+                </div>
+                <div className="metric-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                  <i className="fa-solid fa-hourglass-half"></i>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Barra de Filtros de Status */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginRight: '4px' }}>Filtrar Saldo:</span>
+              <button
+                type="button"
+                className={`btn btn-sm ${creditFilterStatus === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: '8px' }}
+                onClick={() => setCreditFilterStatus('todos')}
+              >
+                Todos ({clients.length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${creditFilterStatus === 'disponiveis' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: '8px', color: creditFilterStatus === 'disponiveis' ? '#000' : '#34d399', borderColor: 'rgba(16, 185, 129, 0.3)' }}
+                onClick={() => setCreditFilterStatus('disponiveis')}
+              >
+                <i className="fa-solid fa-circle-check"></i> Em Dia ({clients.length - alunosZerados.length - alunosCriticos.length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${creditFilterStatus === 'criticos' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: '8px', color: creditFilterStatus === 'criticos' ? '#000' : '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+                onClick={() => setCreditFilterStatus('criticos')}
+              >
+                <i className="fa-solid fa-hourglass-half"></i> Críticos ({alunosCriticos.length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${creditFilterStatus === 'zerados' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: '8px', color: creditFilterStatus === 'zerados' ? '#000' : '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                onClick={() => setCreditFilterStatus('zerados')}
+              >
+                <i className="fa-solid fa-circle-xmark"></i> Zerados ({alunosZerados.length})
+              </button>
+            </div>
+
+            {/* Tabela de Alto Padrão */}
+            <div className="content-panel" style={{ borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
               <div className="table-responsive">
-                <table className="data-table">
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr>
-                      <th>Aluno</th>
-                      <th>Plano Atual</th>
-                      <th style={{ textAlign: 'center' }}>Total de Créditos</th>
-                      <th style={{ textAlign: 'center' }}>Créditos Usados</th>
-                      <th style={{ textAlign: 'center' }}>Créditos Reservados</th>
-                      <th style={{ textAlign: 'center' }}>Saldo Disponível</th>
-                      <th>Ações</th>
+                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border-color)' }}>
+                      <th style={{ padding: '14px 16px', textAlign: 'left' }}>Aluno</th>
+                      <th style={{ padding: '14px 12px', textAlign: 'left' }}>Plano / Frequência</th>
+                      <th style={{ padding: '14px 12px', textAlign: 'center' }}>Franquia Mensal</th>
+                      <th style={{ padding: '14px 12px', textAlign: 'center' }}>Usados</th>
+                      <th style={{ padding: '14px 12px', textAlign: 'center' }}>Reservados</th>
+                      <th style={{ padding: '14px 12px', textAlign: 'left', minWidth: '130px' }}>Uso no Ciclo</th>
+                      <th style={{ padding: '14px 12px', textAlign: 'center' }}>Saldo Disponível</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'center', minWidth: '280px' }}>Ações de Auditoria</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paginated.map(c => {
+                    {paginatedStatus.map(c => {
                       const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
-                      const total = c.dadosComerciais?.creditosTotal || 0;
-                      const usados = c.dadosComerciais?.creditosUsados || 0;
-                      const reservados = c.dadosComerciais?.creditosReservados || 0;
+                      const total = Number(c.dadosComerciais?.creditosTotal || 0);
+                      const usados = Number(c.dadosComerciais?.creditosUsados || 0);
+                      const reservados = Number(c.dadosComerciais?.creditosReservados || 0);
                       const saldo = Math.max(0, total - usados - reservados);
+                      const pctUso = total > 0 ? Math.min(100, Math.round(((usados + reservados) / total) * 100)) : 0;
+                      
+                      const saldoColor = saldo > 2 ? '#34d399' : (saldo > 0 ? '#fbbf24' : '#ef4444');
+                      const saldoBg = saldo > 2 ? 'rgba(16, 185, 129, 0.12)' : (saldo > 0 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
+                      const saldoBorder = saldo > 2 ? 'rgba(16, 185, 129, 0.3)' : (saldo > 0 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)');
+
+                      // Iniciais do Aluno para Avatar
+                      const nomeAluno = c.dadosPessoais?.nome || 'Aluno';
+                      const initials = nomeAluno.split(' ').filter(Boolean).slice(0, 2).map((n: string) => n[0].toUpperCase()).join('');
+
                       return (
-                        <tr key={c._id}>
-                          <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
-                          <td>{planName}</td>
-                          <td style={{ textAlign: 'center' }}>{total}</td>
-                          <td style={{ textAlign: 'center' }}>{usados}</td>
-                          <td style={{ textAlign: 'center' }}>{reservados}</td>
-                          <td style={{ textAlign: 'center' }}><strong style={{ color: 'var(--color-primary)' }}>{saldo}</strong></td>
-                          <td style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
-                              <i className="fa-solid fa-coins"></i> Ajustar Créditos
-                            </button>
-                            <button className="btn btn-info btn-sm" onClick={() => handleOpenRulesModal(c)}>
-                              <i className="fa-solid fa-scale-balanced"></i> Regras
-                            </button>
+                        <tr key={c._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.15s ease' }}>
+                          
+                          {/* Coluna 1: Aluno com Avatar */}
+                          <td style={{ padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{
+                                width: '38px',
+                                height: '38px',
+                                borderRadius: '10px',
+                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                color: '#38bdf8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.82rem',
+                                fontWeight: 800,
+                                flexShrink: 0
+                              }}>
+                                {initials || 'AL'}
+                              </div>
+                              <div>
+                                <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block' }}>
+                                  {nomeAluno}
+                                </strong>
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  <span>{c.dadosPessoais?.cpf || 'Sem CPF'}</span>
+                                  <span>•</span>
+                                  <span>{c.dadosPessoais?.telefone || c.dadosPessoais?.email || ''}</span>
+                                </div>
+                              </div>
+                            </div>
                           </td>
+
+                          {/* Coluna 2: Plano */}
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(168, 85, 247, 0.12)',
+                              color: '#c084fc',
+                              border: '1px solid rgba(168, 85, 247, 0.25)',
+                              fontSize: '0.74rem',
+                              fontWeight: 700
+                            }}>
+                              {planName}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                              {c.dadosComerciais?.frequencia ? `${c.dadosComerciais.frequencia}x por semana` : 'Frequência padrão'}
+                            </div>
+                          </td>
+
+                          {/* Coluna 3: Franquia Total */}
+                          <td style={{ textAlign: 'center', padding: '12px', fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)' }}>
+                            {total} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>cr.</span>
+                          </td>
+
+                          {/* Coluna 4: Usados */}
+                          <td style={{ textAlign: 'center', padding: '12px', fontWeight: 700, fontSize: '0.9rem', color: '#cbd5e1' }}>
+                            {usados}
+                          </td>
+
+                          {/* Coluna 5: Reservados */}
+                          <td style={{ textAlign: 'center', padding: '12px', fontWeight: 700, fontSize: '0.9rem', color: '#38bdf8' }}>
+                            {reservados > 0 ? (
+                              <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)' }}>{reservados}</span>
+                            ) : '0'}
+                          </td>
+
+                          {/* Coluna 6: Barra de Progresso de Uso */}
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                              <span>{pctUso}% usado</span>
+                              <span>{usados + reservados}/{total}</span>
+                            </div>
+                            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{
+                                width: `${pctUso}%`,
+                                height: '100%',
+                                background: pctUso >= 100 ? '#ef4444' : (pctUso >= 75 ? '#f59e0b' : '#10b981'),
+                                borderRadius: '3px',
+                                transition: 'width 0.3s ease'
+                              }}></div>
+                            </div>
+                          </td>
+
+                          {/* Coluna 7: Saldo Disponível Destaque */}
+                          <td style={{ textAlign: 'center', padding: '12px' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              background: saldoBg,
+                              border: `1px solid ${saldoBorder}`,
+                              color: saldoColor,
+                              fontWeight: 900,
+                              fontSize: '0.95rem',
+                              minWidth: '45px'
+                            }}>
+                              {saldo}
+                            </span>
+                          </td>
+
+                          {/* Coluna 8: Ações Alto Padrão */}
+                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                              
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                style={{
+                                  background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                                  color: '#38bdf8',
+                                  padding: '5px 10px',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 700,
+                                  borderRadius: '8px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => handleOpenCreditExtrato(c)}
+                                title="Ver Extrato Detalhado e Movimentações Reais"
+                              >
+                                <i className="fa-solid fa-list-check"></i> Extrato Real
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                style={{
+                                  background: 'rgba(16, 185, 129, 0.12)',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  color: '#34d399',
+                                  padding: '5px 8px',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 700,
+                                  borderRadius: '8px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  cursor: 'pointer'
+                                }}
+                                disabled={syncingClientId === c._id}
+                                onClick={() => handleSyncMonthCredits(c)}
+                                title="Sincronizar com as presenças reais deste mês"
+                              >
+                                {syncingClientId === c._id ? (
+                                  <i className="fa-solid fa-spinner fa-spin"></i>
+                                ) : (
+                                  <i className="fa-solid fa-arrows-rotate"></i>
+                                )} Sincronizar
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '5px 8px', fontSize: '0.76rem', borderRadius: '8px' }}
+                                onClick={() => handleOpenCreditModal(c)}
+                                title="Ajuste manual com auditoria"
+                              >
+                                <i className="fa-solid fa-sliders"></i> Ajustar
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '5px 8px', fontSize: '0.76rem', borderRadius: '8px' }}
+                                onClick={() => handleOpenRulesModal(c)}
+                                title="Configurar regras de tolerância e cancelamento"
+                              >
+                                <i className="fa-solid fa-scale-balanced"></i>
+                              </button>
+
+                            </div>
+                          </td>
+
                         </tr>
                       );
                     })}
-                    {filtered.length === 0 && (
+
+                    {filteredByStatus.length === 0 && (
                       <tr>
-                        <td colSpan={7}>
-                          <div className="empty-state-card">
-                            <i className="fa-solid fa-coins empty-state-icon"></i>
-                            <div className="empty-state-title">Nenhum aluno encontrado</div>
-                            <div className="empty-state-desc">Não há alunos correspondentes aos filtros.</div>
+                        <td colSpan={8}>
+                          <div className="empty-state-card" style={{ padding: '36px', textAlign: 'center' }}>
+                            <i className="fa-solid fa-coins empty-state-icon" style={{ fontSize: '2rem', color: '#64748b', marginBottom: '10px' }}></i>
+                            <div className="empty-state-title" style={{ fontSize: '1rem', fontWeight: 800 }}>Nenhum aluno encontrado</div>
+                            <div className="empty-state-desc" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                              Nenhum aluno corresponde aos filtros de busca e status selecionados.
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -4836,11 +5254,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </tbody>
                 </table>
               </div>
-              {filtered.length > 0 && (
-                <div style={{ marginTop: '16px' }}>
+
+              {filteredByStatus.length > 0 && (
+                <div style={{ padding: '16px', borderTop: '1px solid var(--border-color)' }}>
                   <Pagination
-                    currentPage={curP}
-                    totalItems={filtered.length}
+                    currentPage={curPStatus}
+                    totalItems={filteredByStatus.length}
                     itemsPerPage={size}
                     onPageChange={page => setPage('controle_creditos', page)}
                   />
@@ -6881,10 +7300,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
         // Helper: Somente Plano Anual permite trancamento
         const isContractAnual = (c: any) => {
-          return Number(c.vigenciaMeses) === 12 || 
+          const cl = clients.find((client: any) => client._id === (c.clientId?._id || c.clientId));
+          const com = cl?.dadosComerciais || {};
+          // Fonte Canônica Oficial: duracao anual no cadastro comercial do aluno ou vigenciaMeses >= 12
+          const isAnualClient = (com.duracao || '').toLowerCase() === 'anual' || com.recorrenciaMeses === 12;
+          const isAnualContract = Number(c.vigenciaMeses) >= 12 || 
             (c.planoTipo || '').toLowerCase().includes('anual') || 
             (c.planoNome || '').toLowerCase().includes('anual') ||
             (c.duracao || '').toLowerCase().includes('anual');
+          return isAnualClient || isAnualContract;
         };
 
         // Helper: Aluno Dynamus NÃO permite trancamento
@@ -6905,7 +7329,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
         // Active contracts list - ESTRITAMENTE PLANOS ANUAIS (EXCETO DYNAMUS)
         const activeContracts = contractsAdminList.filter((c: any) => {
-          const statusValido = c.status === 'assinado' || c.status === 'ativo' || c.status === 'congelado';
+          const statusValido = c.status === 'assinado' || c.status === 'ativo' || c.status === 'congelado' || c.status === 'vigente';
           return statusValido && isContractAnual(c) && !isDynamusContract(c);
         });
 
@@ -7092,7 +7516,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
               const semanasDisponiveis = Math.max(0, 4 - semanasUsadas);
               
-              const frequencia = Number(selectedContract?.frequencia);
+              const frequencia = Number(selectedContract?.frequencia || selectedClient?.dadosComerciais?.frequencia || selectedClient?.frequencia || 0);
               const frequenciaValida = !isNaN(frequencia) && frequencia > 0;
               const creditosCongelados = frequenciaValida ? adminTrancSemanas * frequencia : 0;
 
@@ -8029,24 +8453,41 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   <>
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Operação</label>
+                        <label>Operação de Crédito</label>
                         <select className="select-custom" value={creditOperation} onChange={e => setCreditOperation(e.target.value as any)}>
-                          <option value="add">Adicionar (+)</option>
-                          <option value="sub">Subtrair (-)</option>
+                          <option value="add">➕ Adicionar Créditos (Bônus / Reposição)</option>
+                          <option value="sub">➖ Subtrair Créditos (Débito Manual)</option>
+                          <option value="reset_usados">🔄 Zerar Consumo Usado (Novo Ciclo)</option>
+                          <option value="set_total">⚙️ Definir Nova Franquia Total</option>
                         </select>
                       </div>
                       <div className="form-group">
                         <label>Tipo de Crédito</label>
                         <select className="select-custom" value={creditType} onChange={e => setCreditType(e.target.value as any)}>
-                          <option value="academia">Créditos de Academia</option>
-                          <option value="massagem">Créditos de Massagem</option>
-                          <option value="emergencia">Créditos de Emergência</option>
+                          <option value="academia">🏋️ Créditos de Academia (Sessões)</option>
+                          <option value="massagem">💆 Créditos de Massagem</option>
+                          <option value="emergencia">🚨 Créditos de Emergência</option>
                         </select>
                       </div>
                     </div>
+                    {creditOperation !== 'reset_usados' && (
+                      <div className="form-group">
+                        <label>
+                          {creditOperation === 'add' ? 'Quantidade a Adicionar' : (creditOperation === 'sub' ? 'Quantidade a Subtrair' : 'Novo Total de Créditos')}
+                        </label>
+                        <input type="number" className="form-control" value={creditAmount} onFocus={selectOnFocus} onChange={e => setCreditAmount(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))} min={1} required />
+                      </div>
+                    )}
                     <div className="form-group">
-                      <label>{creditOperation === 'add' ? 'Quantidade a Adicionar' : 'Quantidade a Subtrair'}</label>
-                      <input type="number" className="form-control" value={creditAmount} onFocus={selectOnFocus} onChange={e => setCreditAmount(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))} min={1} required />
+                      <label>Justificativa do Ajuste (Auditoria)</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Ex: Renovação adiantada, reposição autorizada pela coordenação, correção cadastral..." 
+                        value={creditJustificativa} 
+                        onChange={e => setCreditJustificativa(e.target.value)}
+                        required
+                      />
                     </div>
                   </>
                 )}
@@ -8426,6 +8867,456 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <button className="btn btn-secondary" onClick={() => setShowRulesModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleSaveRules}>Salvar Regras</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ALTO PADRÃO: EXTRATO & HISTÓRICO DE MOVIMENTAÇÕES REAIS DE CRÉDITO */}
+      {showCreditExtratoModal && extratoClient && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 9999 }} onClick={() => setShowCreditExtratoModal(false)}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '960px', 
+              width: '95%', 
+              maxHeight: '90vh', 
+              display: 'flex', 
+              flexDirection: 'column',
+              background: 'var(--bg-card, #1e293b)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+            }}
+          >
+            {/* Modal Header */}
+            <div className="modal-header" style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  color: '#fff',
+                  boxShadow: '0 8px 16px rgba(14, 165, 233, 0.3)'
+                }}>
+                  <i className="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main, #f8fafc)' }}>
+                      Extrato & Movimentações Reais
+                    </h2>
+                    <span className={`badge ${extratoClient.dadosComerciais?.status === 'ativo' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.72rem' }}>
+                      {extratoClient.dadosComerciais?.status === 'ativo' ? 'Ativo' : 'Vencido'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <strong>{extratoClient.dadosPessoais?.nome}</strong>
+                    <span>•</span>
+                    <span>Plano: <strong>{extratoClient.dadosComerciais?.planoId?.nome || 'Personalizado'}</strong></span>
+                    <span>•</span>
+                    <span>CPF: {extratoClient.dadosPessoais?.cpf || 'Não informado'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Seletor de Competência & Fechar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  background: 'rgba(255,255,255,0.05)', 
+                  padding: '6px 12px', 
+                  borderRadius: '10px', 
+                  border: '1px solid rgba(255,255,255,0.1)' 
+                }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                    <i className="fa-regular fa-calendar" style={{ marginRight: '4px', color: '#38bdf8' }}></i> Mês:
+                  </span>
+                  <input
+                    type="month"
+                    className="form-control"
+                    value={selectedCreditMonth}
+                    onChange={e => {
+                      setSelectedCreditMonth(e.target.value);
+                      fetchCreditExtrato(extratoClient, e.target.value);
+                    }}
+                    style={{ width: '135px', padding: '2px 4px', fontSize: '0.82rem', fontWeight: 700, background: 'transparent', border: 'none', color: '#f8fafc' }}
+                  />
+                </div>
+                <button className="modal-close" onClick={() => setShowCreditExtratoModal(false)} style={{ fontSize: '1.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>&times;</button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {loadingExtrato ? (
+                <div style={{ padding: '60px', textAlign: 'center' }}>
+                  <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: '#38bdf8', marginBottom: '16px' }}></i>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>Processando extrato de movimentações reais...</div>
+                  <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>Cruzando agendamentos, presenças, faltas e logs de auditoria.</div>
+                </div>
+              ) : extratoData ? (
+                <>
+                  {/* Cards de Métricas do Mês Selecionado */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                    
+                    <div style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.12) 100%)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Franquia Mensal</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
+                        {extratoData.resumo?.creditosTotal || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cr.</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Capacidade contratada do ciclo</div>
+                    </div>
+
+                    <div style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(153, 27, 27, 0.12) 100%)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>Consumidos no Mês</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#ef4444', marginTop: '4px' }}>
+                        {extratoData.resumo?.consumidosNoMes || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>usados</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#fca5a5', marginTop: '2px' }}>Presenças e faltas debitadas</div>
+                    </div>
+
+                    <div style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.12) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>Reservas Ativas</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#f59e0b', marginTop: '4px' }}>
+                        {extratoData.resumo?.reservadosNoMes || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>reservados</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#fde68a', marginTop: '2px' }}>Agendamentos futuros ativos</div>
+                    </div>
+
+                    <div style={{ 
+                      background: extratoData.resumo?.saldoDisponivelCalculado > 0 
+                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 78, 59, 0.2) 100%)' 
+                        : 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(153, 27, 27, 0.2) 100%)', 
+                      border: `1px solid ${extratoData.resumo?.saldoDisponivelCalculado > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`, 
+                      borderRadius: '14px', 
+                      padding: '14px 18px' 
+                    }}>
+                      <div style={{ fontSize: '0.75rem', color: extratoData.resumo?.saldoDisponivelCalculado > 0 ? '#34d399' : '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Saldo Disponível Real
+                      </div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: extratoData.resumo?.saldoDisponivelCalculado > 0 ? '#10b981' : '#ef4444', marginTop: '4px' }}>
+                        {extratoData.resumo?.saldoDisponivelCalculado || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cr.</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: extratoData.resumo?.saldoDisponivelCalculado > 0 ? '#a7f3d0' : '#fca5a5', marginTop: '2px' }}>
+                        Cálculo exato da competência
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Banner de Sincronização / Divergência */}
+                  {extratoData.resumo?.temDivergencia && (
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: '12px',
+                      padding: '12px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ color: '#f59e0b', fontSize: '1.2rem' }}></i>
+                        <div>
+                          <strong style={{ color: '#fbbf24', fontSize: '0.85rem' }}>Divergência de Saldo Detectada</strong>
+                          <div style={{ fontSize: '0.78rem', color: '#fde68a' }}>
+                            O saldo registrado no cadastro ({extratoData.resumo?.saldoDisponivelBanco} cr.) difere do extrato real deste mês ({extratoData.resumo?.saldoDisponivelCalculado} cr.).
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ background: '#f59e0b', color: '#000', fontWeight: 800, padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        onClick={() => handleSyncMonthCredits(extratoClient, selectedCreditMonth)}
+                        disabled={syncingClientId === extratoClient._id}
+                      >
+                        {syncingClientId === extratoClient._id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>} Sincronizar Agora
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Filtros do Extrato */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${extratoFilterType === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px' }}
+                        onClick={() => setExtratoFilterType('todos')}
+                      >
+                        Todos ({extratoData.movimentacoes?.length || 0})
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${extratoFilterType === 'consumo' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'consumo' ? '#000' : '#34d399' }}
+                        onClick={() => setExtratoFilterType('consumo')}
+                      >
+                        <i className="fa-solid fa-check"></i> Presenças & Faltas ({extratoData.movimentacoes?.filter((m: any) => m.status === 'presenca' || m.status === 'falta').length || 0})
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${extratoFilterType === 'reserva' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'reserva' ? '#000' : '#38bdf8' }}
+                        onClick={() => setExtratoFilterType('reserva')}
+                      >
+                        <i className="fa-regular fa-clock"></i> Agendados ({extratoData.movimentacoes?.filter((m: any) => m.status === 'agendado').length || 0})
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${extratoFilterType === 'estorno' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'estorno' ? '#000' : '#94a3b8' }}
+                        onClick={() => setExtratoFilterType('estorno')}
+                      >
+                        <i className="fa-solid fa-ban"></i> Cancelados ({extratoData.movimentacoes?.filter((m: any) => m.status === 'cancelado').length || 0})
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${extratoFilterType === 'logs' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'logs' ? '#000' : '#c084fc' }}
+                        onClick={() => setExtratoFilterType('logs')}
+                      >
+                        <i className="fa-solid fa-shield-halved"></i> Auditoria / Ajustes ({extratoData.logsAuditoria?.length || 0})
+                      </button>
+                    </div>
+
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                      Competência: <strong>{selectedCreditMonth}</strong>
+                    </div>
+                  </div>
+
+                  {/* Visualização de Auditoria de Logs */}
+                  {extratoFilterType === 'logs' ? (
+                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Data & Hora</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Ação Realizada</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Detalhes & Justificativa</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Autor / Profissional</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {extratoData.logsAuditoria && extratoData.logsAuditoria.length > 0 ? (
+                            extratoData.logsAuditoria.map((log: any) => (
+                              <tr key={log._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                                  {new Date(log.createdAt).toLocaleString('pt-BR')}
+                                </td>
+                                <td style={{ padding: '10px 14px', fontSize: '0.82rem', fontWeight: 700, color: '#c084fc' }}>
+                                  {log.acao}
+                                </td>
+                                <td style={{ padding: '10px 14px', fontSize: '0.8rem', color: '#e2e8f0' }}>
+                                  {log.detalhes}
+                                </td>
+                                <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+                                  {log.autor || log.profissionalId?.nome || 'Sistema'}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
+                                Nenhum registro de auditoria encontrado para este aluno.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    /* Tabela de Movimentações Reais (Agendamentos, Presenças, Faltas, Cancelamentos) */
+                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Data & Horário</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Evento / Status</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Profissional</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '0.76rem' }}>Impacto no Saldo</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Observações / Wellness</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const filteredMovs = (extratoData.movimentacoes || []).filter((m: any) => {
+                              if (extratoFilterType === 'consumo') return m.status === 'presenca' || m.status === 'falta';
+                              if (extratoFilterType === 'reserva') return m.status === 'agendado';
+                              if (extratoFilterType === 'estorno') return m.status === 'cancelado';
+                              return true;
+                            });
+
+                            if (filteredMovs.length === 0) {
+                              return (
+                                <tr>
+                                  <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                                    <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '1.5rem', marginBottom: '8px', display: 'block', color: '#64748b' }}></i>
+                                    Nenhuma movimentação de créditos encontrada para a competência selecionada.
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            return filteredMovs.map((m: any) => {
+                              let statusBadgeStyle = { background: 'rgba(255,255,255,0.08)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' };
+                              let icon = 'fa-solid fa-circle-info';
+
+                              if (m.status === 'presenca') {
+                                statusBadgeStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' };
+                                icon = 'fa-solid fa-circle-check';
+                              } else if (m.status === 'falta') {
+                                statusBadgeStyle = { background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' };
+                                icon = 'fa-solid fa-circle-xmark';
+                              } else if (m.status === 'agendado') {
+                                statusBadgeStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' };
+                                icon = 'fa-regular fa-clock';
+                              } else if (m.status === 'cancelado') {
+                                statusBadgeStyle = { background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)' };
+                                icon = 'fa-solid fa-ban';
+                              }
+
+                              const impactText = m.impactoCredito < 0 ? `${m.impactoCredito} cr.` : (m.impactoCredito > 0 ? `+${m.impactoCredito} cr.` : '0 cr.');
+                              const impactColor = m.impactoCredito < 0 ? '#ef4444' : (m.impactoCredito > 0 ? '#34d399' : '#94a3b8');
+                              const impactBg = m.impactoCredito < 0 ? 'rgba(239, 68, 68, 0.1)' : (m.impactoCredito > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)');
+
+                              return (
+                                <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                  
+                                  {/* Data & Horário */}
+                                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                    <strong style={{ color: '#f8fafc', fontSize: '0.85rem' }}>
+                                      {formatDateBR(m.data)}
+                                    </strong>
+                                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>{m.horario}</div>
+                                  </td>
+
+                                  {/* Evento & Status */}
+                                  <td style={{ padding: '12px 14px' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.74rem',
+                                      fontWeight: 700,
+                                      ...statusBadgeStyle
+                                    }}>
+                                      <i className={icon}></i> {m.statusDesc}
+                                    </span>
+                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                      Serviço: {m.servico || 'Musculação / Acompanhamento'} ({m.tipoCredito || 'academia'})
+                                    </div>
+                                  </td>
+
+                                  {/* Profissional */}
+                                  <td style={{ padding: '12px 14px', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                                    {m.profissional?.nome || 'Equipe Geral'}
+                                  </td>
+
+                                  {/* Impacto no Saldo */}
+                                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px',
+                                      background: impactBg,
+                                      color: impactColor,
+                                      fontWeight: 800,
+                                      fontSize: '0.82rem'
+                                    }}>
+                                      {impactText}
+                                    </span>
+                                  </td>
+
+                                  {/* Observações / Wellness */}
+                                  <td style={{ padding: '12px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+                                    {m.wellness?.score !== undefined ? (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38bdf8' }}>
+                                        <i className="fa-solid fa-heart-pulse"></i> Score {m.wellness.score}/100 {m.wellness.dor > 0 ? `(Dor: ${m.wellness.dor})` : ''}
+                                      </span>
+                                    ) : m.justificativaCancelamento ? (
+                                      <span style={{ color: '#fca5a5' }}>Motivo: {m.justificativaCancelamento}</span>
+                                    ) : (
+                                      <span>Sessão regular sem intercorrências</span>
+                                    )}
+                                  </td>
+
+                                </tr>
+                              );
+                            });
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              ) : null}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer" style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    color: '#34d399',
+                    padding: '8px 16px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  disabled={syncingClientId === extratoClient._id}
+                  onClick={() => handleSyncMonthCredits(extratoClient, selectedCreditMonth)}
+                >
+                  {syncingClientId === extratoClient._id ? (
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fa-solid fa-arrows-rotate"></i>
+                  )} Sincronizar Mês com Presenças
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ padding: '8px 14px', borderRadius: '10px' }}
+                  onClick={() => {
+                    handleOpenCreditModal(extratoClient);
+                  }}
+                >
+                  <i className="fa-solid fa-sliders" style={{ marginRight: '5px' }}></i> Ajustar Saldo
+                </button>
+              </div>
+
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                style={{ padding: '8px 22px', borderRadius: '10px', fontWeight: 700 }}
+                onClick={() => setShowCreditExtratoModal(false)}
+              >
+                Fechar
+              </button>
+            </div>
+
           </div>
         </div>
       )}

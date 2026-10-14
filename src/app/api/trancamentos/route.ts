@@ -49,7 +49,11 @@ export async function POST(request: Request) {
     }
 
     // Regra Estrita: Somente plano anual permite trancamento
-    const isAnual = Number(contract.vigenciaMeses) === 12 || 
+    const client = await Client.findById(clientId || contract.clientId);
+    const com = client?.dadosComerciais || {};
+    const isAnual = (com.duracao || '').toLowerCase() === 'anual' ||
+      com.recorrenciaMeses === 12 ||
+      Number(contract.vigenciaMeses) >= 12 || 
       (contract.planoTipo || '').toLowerCase().includes('anual') || 
       (contract.duracao || '').toLowerCase().includes('anual') ||
       (contract.planoNome || '').toLowerCase().includes('anual');
@@ -61,12 +65,12 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 2. Consult weekly frequency (estrita sem fallback)
-    const frequencia = Number(contract.frequencia);
+    // 2. Consult weekly frequency (com fallback no cadastro do aluno se ausente no contrato)
+    const frequencia = Number(contract.frequencia || com.frequencia || client?.frequencia || 0);
     if (!frequencia || frequencia <= 0) {
       return NextResponse.json({
         success: false,
-        error: 'O contrato não possui uma frequência semanal válida cadastrada.'
+        error: 'O contrato/aluno não possui uma frequência semanal válida cadastrada.'
       }, { status: 400 });
     }
 
@@ -103,7 +107,6 @@ export async function POST(request: Request) {
     });
 
     // 6. Update current month's credits in database if credits are redistributed to current month
-    const client = await Client.findById(clientId);
     if (client) {
       const currentMonthStr = new Date().toISOString().slice(0, 7); // e.g. "2026-06"
       const currentAlloc = redistribuicao.find((r: any) => r.mesAno === currentMonthStr);

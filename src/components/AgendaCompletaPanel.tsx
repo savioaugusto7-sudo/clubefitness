@@ -196,6 +196,8 @@ export default function AgendaCompletaPanel({
   const [clientSearchText, setClientSearchText] = useState('');
   const [isBookingManual, setIsBookingManual] = useState(false);
   const [bookingError, setBookingError] = useState('');
+  const [clientDayAppointments, setClientDayAppointments] = useState<any[]>([]);
+  const [loadingClientDayApts, setLoadingClientDayApts] = useState(false);
 
   // States para Modal Customizado de Confirmação de Deleção
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -288,6 +290,32 @@ export default function AgendaCompletaPanel({
       fetchSlotsAndConfigs();
     }
   }, [selectedDate, activeTab]);
+
+  // Buscar todos os agendamentos ativos do aluno no dia (em todas as agendas) para prevenir colisões e permitir trocas inteligentes
+  useEffect(() => {
+    if (!manualClientId || !selectedDate) {
+      setClientDayAppointments([]);
+      return;
+    }
+    let isMounted = true;
+    const fetchClientDayApts = async () => {
+      setLoadingClientDayApts(true);
+      try {
+        const res = await fetch(`/api/appointments?clientId=${manualClientId}&date=${selectedDate}`);
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.data)) {
+          const active = data.data.filter((a: any) => a.status === 'agendado');
+          setClientDayAppointments(active);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar agendamentos do aluno no dia:', err);
+      } finally {
+        if (isMounted) setLoadingClientDayApts(false);
+      }
+    };
+    fetchClientDayApts();
+    return () => { isMounted = false; };
+  }, [manualClientId, selectedDate]);
 
   const fetchSlotsAndConfigs = async () => {
     setLoading(true);
@@ -981,18 +1009,6 @@ export default function AgendaCompletaPanel({
                           >
                             <i className="fa-solid fa-sliders"></i> Vagas
                           </button>
-                          <button 
-                            type="button"
-                            className="btn btn-secondary btn-sm" 
-                            style={{ color: 'var(--color-danger)', touchAction: 'manipulation', minHeight: '36px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => {
-                              setDeleteTargetTime(slot.horario);
-                              setDeleteTargetType(slot.tipo);
-                              setShowDeleteConfirmModal(true);
-                            }}
-                          >
-                            <i className="fa-solid fa-trash-can"></i>
-                          </button>
                         </div>
                       </div>
                     );
@@ -1394,50 +1410,85 @@ export default function AgendaCompletaPanel({
                       </select>
                     </div>
 
-                    {/* Detecção de Agendamento no mesmo dia para Troca de Horário */}
+                    {/* Detecção de Agendamentos no mesmo dia e Conflito de Horário */}
                     {(() => {
-                      const existingSameDayApt = manualClientId && selectedDate && selectedSlot
-                        ? slots.flatMap(s => s.appointments || []).find(a => ((a.clienteId?._id || a.clienteId) === manualClientId) && a.status === 'agendado' && a.horario !== selectedSlot.horario)
-                        : null;
+                      if (!manualClientId || !selectedDate || !selectedSlot) return null;
 
-                      if (!existingSameDayApt) return null;
+                      // 1. Conflito Exato no mesmo horário
+                      const exactSlotConflict = clientDayAppointments.find(
+                        a => a.horario === selectedSlot.horario && a.status === 'agendado'
+                      );
+
+                      // 2. Agendamentos em outros horários do dia (candidatos a troca)
+                      const otherSlotApts = clientDayAppointments.filter(
+                        a => a.horario !== selectedSlot.horario && a.status === 'agendado'
+                      );
+
+                      const getAgendaLabel = (tipo: string) => {
+                        if (tipo === 'dr_albert') return 'Dr. Albert';
+                        if (tipo === 'dr_guilherme') return 'Dr. Guilherme';
+                        return 'Academia';
+                      };
 
                       return (
-                        <div style={{
-                          background: 'rgba(245, 158, 11, 0.12)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          borderRadius: '10px',
-                          padding: '12px 14px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '10px',
-                          flexWrap: 'wrap'
-                        }}>
-                          <div style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>
-                            <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px' }}></i>
-                            Aluno já possui horário às <strong>{existingSameDayApt.horario}</strong> ({existingSameDayApt.servico}).
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleManualBook(existingSameDayApt._id)}
-                            disabled={isBookingManual}
-                            style={{
-                              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                              color: '#000',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '8px 14px',
-                              fontWeight: 800,
-                              fontSize: '0.78rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {/* Alerta de Conflito Exato de Horário */}
+                          {exactSlotConflict && (
+                            <div style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1.5px solid rgba(239, 68, 68, 0.45)',
+                              borderRadius: '10px',
+                              padding: '12px 14px',
+                              display: 'flex',
                               alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <i className="fa-solid fa-arrow-right-arrow-left"></i> Trocar para {selectedSlot?.horario}
-                          </button>
+                              gap: '10px'
+                            }}>
+                              <i className="fa-solid fa-ban" style={{ color: '#ef4444', fontSize: '1.1rem' }}></i>
+                              <div style={{ fontSize: '0.82rem', color: '#fca5a5', lineHeight: 1.4 }}>
+                                <strong>Conflito de Horário:</strong> O aluno já possui agendamento ativo às <strong>{selectedSlot.horario}</strong> ({exactSlotConflict.servico} • {getAgendaLabel(exactSlotConflict.tipo)}). Não é permitido agendar atendimentos simultâneos.
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Sugestão de Troca para horários diferentes */}
+                          {!exactSlotConflict && otherSlotApts.map(apt => (
+                            <div key={apt._id} style={{
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              borderRadius: '10px',
+                              padding: '12px 14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '10px',
+                              flexWrap: 'wrap'
+                            }}>
+                              <div style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>
+                                <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px' }}></i>
+                                Aluno já possui horário às <strong>{apt.horario}</strong> ({apt.servico} • {getAgendaLabel(apt.tipo)}).
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleManualBook(apt._id)}
+                                disabled={isBookingManual}
+                                style={{
+                                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                  color: '#000',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '8px 14px',
+                                  fontWeight: 800,
+                                  fontSize: '0.78rem',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <i className="fa-solid fa-arrow-right-arrow-left"></i> Trocar para {selectedSlot?.horario}
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       );
                     })()}
@@ -1452,7 +1503,7 @@ export default function AgendaCompletaPanel({
                       type="button"
                       className="btn btn-primary"
                       onClick={() => handleManualBook()}
-                      disabled={isBookingManual}
+                      disabled={isBookingManual || clientDayAppointments.some(a => a.horario === selectedSlot?.horario && a.status === 'agendado')}
                       style={{
                         alignSelf: 'flex-end',
                         marginTop: '6px',
@@ -1462,8 +1513,8 @@ export default function AgendaCompletaPanel({
                         justifyContent: 'center',
                         gap: '8px',
                         fontWeight: 700,
-                        opacity: isBookingManual ? 0.7 : 1,
-                        cursor: isBookingManual ? 'not-allowed' : 'pointer'
+                        opacity: (isBookingManual || clientDayAppointments.some(a => a.horario === selectedSlot?.horario && a.status === 'agendado')) ? 0.6 : 1,
+                        cursor: (isBookingManual || clientDayAppointments.some(a => a.horario === selectedSlot?.horario && a.status === 'agendado')) ? 'not-allowed' : 'pointer'
                       }}
                     >
                       {isBookingManual ? (

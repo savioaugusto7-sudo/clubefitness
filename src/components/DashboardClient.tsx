@@ -694,8 +694,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
   const isContractAnual = (c: any) => {
     if (!c) return false;
+    if ((client?.dadosComerciais?.duracao || '').toLowerCase() === 'anual') return true;
     const vigencia = Number(c.vigenciaMeses);
-    if (vigencia === 12) return true;
+    if (vigencia >= 12) return true;
     const tipo = (c.planoTipo || '').toLowerCase();
     const duracao = (c.duracao || '').toLowerCase();
     const nome = (c.planoNome || '').toLowerCase();

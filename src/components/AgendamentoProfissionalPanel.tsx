@@ -1088,6 +1088,13 @@ export default function AgendamentoProfissionalPanel({
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '6px' }}>
                     💡 <strong>Ação Recomendada:</strong> Troque o horário para liberar a vaga anterior e reaproveitar o crédito sem bloqueios.
                   </div>
+
+                  {existingDayAppointments.some(a => a.horario === selectedHour) && (
+                    <div style={{ marginTop: '10px', padding: '10px 14px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '8px', color: '#fca5a5', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-ban" style={{ color: '#ef4444' }}></i>
+                      <span><strong>Conflito de Horário:</strong> O aluno já possui agendamento ativo às <strong>{selectedHour}</strong>. Escolha outro horário ou troque um agendamento existente.</span>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -1151,16 +1158,16 @@ export default function AgendamentoProfissionalPanel({
 
             <button
               type="submit"
-              disabled={submitting || !selectedClient || !selectedHour}
+              disabled={submitting || !selectedClient || !selectedHour || existingDayAppointments.some(a => a.horario === selectedHour)}
               style={{
-                background: (!selectedClient || !selectedHour) ? 'var(--bg-darker)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: (!selectedClient || !selectedHour) ? 'var(--text-muted)' : '#ffffff',
+                background: (!selectedClient || !selectedHour || existingDayAppointments.some(a => a.horario === selectedHour)) ? 'var(--bg-darker)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: (!selectedClient || !selectedHour || existingDayAppointments.some(a => a.horario === selectedHour)) ? 'var(--text-muted)' : '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
                 padding: '14px 28px',
                 fontWeight: 700,
                 fontSize: '0.95rem',
-                cursor: (!selectedClient || !selectedHour || submitting) ? 'not-allowed' : 'pointer',
+                cursor: (!selectedClient || !selectedHour || submitting || existingDayAppointments.some(a => a.horario === selectedHour)) ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '10px',
