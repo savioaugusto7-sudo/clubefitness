@@ -5333,12 +5333,37 @@ goniometria: {
               .filter(a => a.data === hojeISO)
               .sort((a, b) => a.horario.localeCompare(b.horario));
 
-            const countTotal = allTodayApts.filter(a => a.status !== 'cancelado').length;
+            const checkIsAlbertAgenda = (a: any) => {
+              const meta = getAppointmentMeta(a);
+              return a.tipo === 'dr_albert' || (a.tipo !== 'academia' && (
+                meta.key === 'dr_albert' || 
+                (a.profissionalNome || '').toLowerCase().includes('albert') || 
+                (a.profissionalId?.nome || '').toLowerCase().includes('albert')
+              ));
+            };
+
+            const countTotal = allTodayApts.filter(a => {
+              if (a.status === 'cancelado') return false;
+              if (!isAlbert && checkIsAlbertAgenda(a)) return false;
+              return true;
+            }).length;
             const countAcademia = allTodayApts.filter(a => a.status !== 'cancelado' && getAppointmentMeta(a).key === 'academia').length;
-            const countAlbert = allTodayApts.filter(a => a.status !== 'cancelado' && getAppointmentMeta(a).key === 'dr_albert').length;
+            const countAlbert = allTodayApts.filter(a => a.status !== 'cancelado' && checkIsAlbertAgenda(a)).length;
             const countGuilherme = allTodayApts.filter(a => a.status !== 'cancelado' && getAppointmentMeta(a).key === 'dr_guilherme').length;
 
             const todayApts = allTodayApts.filter(a => {
+              const isAlbertAgenda = checkIsAlbertAgenda(a);
+
+              if (filtroAgendaResumo === 'dr_albert') {
+                return isAlbertAgenda;
+              }
+
+              // Se não for o próprio Albert e o filtro for geral ('todos') ou outro,
+              // os agendamentos da agenda do Albert são omitidos para a equipe da academia
+              if (isAlbertAgenda && !isAlbert) {
+                return false;
+              }
+
               if (filtroAgendaResumo === 'todos') return true;
               const meta = getAppointmentMeta(a);
               return meta.key === filtroAgendaResumo;
@@ -5349,11 +5374,7 @@ goniometria: {
 
             todayApts.forEach(a => {
               const meta = getAppointmentMeta(a);
-              const isAlbertAgenda = a.tipo === 'dr_albert' || (a.tipo !== 'academia' && (
-                meta.key === 'dr_albert' || 
-                (a.profissionalNome || '').toLowerCase().includes('albert') || 
-                (a.profissionalId?.nome || '').toLowerCase().includes('albert')
-              ));
+              const isAlbertAgenda = checkIsAlbertAgenda(a);
 
               // Regra de Negócio: Clientes na agenda do Albert só aparecem em "Horário Atual" e "Urgentes/Pendentes" para o próprio Albert
               if (isAlbertAgenda && !isAlbert) {
@@ -7203,6 +7224,9 @@ goniometria: {
                     // Agrupar agendamentos por horário
                     const appointmentsByTime: Record<string, any[]> = {};
                     todayApts.forEach(a => {
+                      if (!isAlbert && filtroAgendaResumo !== 'dr_albert' && checkIsAlbertAgenda(a)) {
+                        return;
+                      }
                       if (!appointmentsByTime[a.horario]) {
                         appointmentsByTime[a.horario] = [];
                       }
