@@ -660,11 +660,45 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
   };
 
+  const [extratoPage, setExtratoPage] = useState<number>(1);
+  const [actionAptId, setActionAptId] = useState<string | null>(null);
+
   const handleOpenCreditExtrato = (client: any) => {
     setExtratoClient(client);
     setExtratoFilterType('todos');
+    setExtratoPage(1);
     setShowCreditExtratoModal(true);
     fetchCreditExtrato(client, selectedCreditMonth);
+  };
+
+  const handleBaixaPendente = async (client: any, aptId: string, novoStatus: 'presenca' | 'falta' | 'cancelado') => {
+    if (!client || !aptId) return;
+    setActionAptId(aptId);
+    try {
+      const res = await fetch('/api/admin/client-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: client._id,
+          operacao: 'baixa_pendente',
+          appointmentId: aptId,
+          novoStatus,
+          tipoCredito: 'academia',
+          justificativa: `Baixa de ${novoStatus.toUpperCase()} pelo extrato administrativo`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchCreditExtrato(client, selectedCreditMonth);
+        fetchData();
+      } else {
+        alert('Erro ao dar baixa no agendamento: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao dar baixa: ' + err.message);
+    } finally {
+      setActionAptId(null);
+    }
   };
 
   const handleSyncMonthCredits = async (client: any, targetMonth?: string) => {
@@ -8963,307 +8997,399 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>Processando extrato de movimentações reais...</div>
                   <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>Cruzando agendamentos, presenças, faltas e logs de auditoria.</div>
                 </div>
-              ) : extratoData ? (
-                <>
-                  {/* Cards de Métricas do Mês Selecionado */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-                    
-                    <div style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.12) 100%)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Franquia Mensal</div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
-                        {extratoData.resumo?.creditosTotal || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cr.</span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Capacidade contratada do ciclo</div>
-                    </div>
+              ) : extratoData ? (() => {
+                  const resumo = extratoData.resumoMes || extratoData.resumo || {};
+                  const franquiaVal = resumo.franquiaMensal ?? resumo.creditosTotal ?? 0;
+                  const consumidosVal = resumo.consumidosNoMes ?? 0;
+                  const reservadosVal = resumo.reservadosNoMes ?? 0;
+                  const pendentesPassadosVal = resumo.pendentesPassadosNoMes ?? 0;
+                  const saldoRealVal = resumo.saldoRealDisponivel ?? resumo.saldoDisponivelCalculado ?? 0;
 
-                    <div style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(153, 27, 27, 0.12) 100%)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>Consumidos no Mês</div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#ef4444', marginTop: '4px' }}>
-                        {extratoData.resumo?.consumidosNoMes || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>usados</span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#fca5a5', marginTop: '2px' }}>Presenças e faltas debitadas</div>
-                    </div>
+                  return (
+                    <>
+                      {/* Cards de Métricas do Mês Selecionado */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                        
+                        <div style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.12) 100%)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Franquia Mensal</div>
+                          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
+                            {franquiaVal} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cr.</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Capacidade contratada do ciclo</div>
+                        </div>
 
-                    <div style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.12) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>Reservas Ativas</div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#f59e0b', marginTop: '4px' }}>
-                        {extratoData.resumo?.reservadosNoMes || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>reservados</span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#fde68a', marginTop: '2px' }}>Agendamentos futuros ativos</div>
-                    </div>
+                        <div style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(153, 27, 27, 0.12) 100%)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '14px', padding: '14px 18px' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>Consumidos no Mês</div>
+                          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#ef4444', marginTop: '4px' }}>
+                            {consumidosVal} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>usados</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#fca5a5', marginTop: '2px' }}>Presenças e faltas debitadas</div>
+                        </div>
 
-                    <div style={{ 
-                      background: extratoData.resumo?.saldoDisponivelCalculado > 0 
-                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 78, 59, 0.2) 100%)' 
-                        : 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(153, 27, 27, 0.2) 100%)', 
-                      border: `1px solid ${extratoData.resumo?.saldoDisponivelCalculado > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`, 
-                      borderRadius: '14px', 
-                      padding: '14px 18px' 
-                    }}>
-                      <div style={{ fontSize: '0.75rem', color: extratoData.resumo?.saldoDisponivelCalculado > 0 ? '#34d399' : '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>
-                        Saldo Disponível Real
-                      </div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: extratoData.resumo?.saldoDisponivelCalculado > 0 ? '#10b981' : '#ef4444', marginTop: '4px' }}>
-                        {extratoData.resumo?.saldoDisponivelCalculado || 0} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cr.</span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: extratoData.resumo?.saldoDisponivelCalculado > 0 ? '#a7f3d0' : '#fca5a5', marginTop: '2px' }}>
-                        Cálculo exato da competência
-                      </div>
-                    </div>
+                        <div style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(14, 116, 144, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '14px', padding: '14px 18px' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>Reservas Futuras</div>
+                          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
+                            {reservadosVal} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>reservados</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Agendamentos futuros garantidos</div>
+                        </div>
 
-                  </div>
-
-                  {/* Banner de Sincronização / Divergência */}
-                  {extratoData.resumo?.temDivergencia && (
-                    <div style={{
-                      background: 'rgba(245, 158, 11, 0.12)',
-                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                      borderRadius: '12px',
-                      padding: '12px 18px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <i className="fa-solid fa-triangle-exclamation" style={{ color: '#f59e0b', fontSize: '1.2rem' }}></i>
-                        <div>
-                          <strong style={{ color: '#fbbf24', fontSize: '0.85rem' }}>Divergência de Saldo Detectada</strong>
-                          <div style={{ fontSize: '0.78rem', color: '#fde68a' }}>
-                            O saldo registrado no cadastro ({extratoData.resumo?.saldoDisponivelBanco} cr.) difere do extrato real deste mês ({extratoData.resumo?.saldoDisponivelCalculado} cr.).
+                        <div style={{ 
+                          background: saldoRealVal > 0 
+                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 78, 59, 0.2) 100%)' 
+                            : 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(153, 27, 27, 0.2) 100%)', 
+                          border: `1px solid ${saldoRealVal > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`, 
+                          borderRadius: '14px', 
+                          padding: '14px 18px' 
+                        }}>
+                          <div style={{ fontSize: '0.75rem', color: saldoRealVal > 0 ? '#34d399' : '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>
+                            Saldo Disponível Real
+                          </div>
+                          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: saldoRealVal > 0 ? '#10b981' : '#ef4444', marginTop: '4px' }}>
+                            {saldoRealVal} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cr.</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: saldoRealVal > 0 ? '#a7f3d0' : '#fca5a5', marginTop: '2px' }}>
+                            Cálculo exato da competência
                           </div>
                         </div>
+
                       </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        style={{ background: '#f59e0b', color: '#000', fontWeight: 800, padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        onClick={() => handleSyncMonthCredits(extratoClient, selectedCreditMonth)}
-                        disabled={syncingClientId === extratoClient._id}
-                      >
-                        {syncingClientId === extratoClient._id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>} Sincronizar Agora
-                      </button>
-                    </div>
-                  )}
 
-                  {/* Filtros do Extrato */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${extratoFilterType === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px' }}
-                        onClick={() => setExtratoFilterType('todos')}
-                      >
-                        Todos ({extratoData.movimentacoes?.length || 0})
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${extratoFilterType === 'consumo' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'consumo' ? '#000' : '#34d399' }}
-                        onClick={() => setExtratoFilterType('consumo')}
-                      >
-                        <i className="fa-solid fa-check"></i> Presenças & Faltas ({extratoData.movimentacoes?.filter((m: any) => m.status === 'presenca' || m.status === 'falta').length || 0})
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${extratoFilterType === 'reserva' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'reserva' ? '#000' : '#38bdf8' }}
-                        onClick={() => setExtratoFilterType('reserva')}
-                      >
-                        <i className="fa-regular fa-clock"></i> Agendados ({extratoData.movimentacoes?.filter((m: any) => m.status === 'agendado').length || 0})
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${extratoFilterType === 'estorno' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'estorno' ? '#000' : '#94a3b8' }}
-                        onClick={() => setExtratoFilterType('estorno')}
-                      >
-                        <i className="fa-solid fa-ban"></i> Cancelados ({extratoData.movimentacoes?.filter((m: any) => m.status === 'cancelado').length || 0})
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${extratoFilterType === 'logs' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'logs' ? '#000' : '#c084fc' }}
-                        onClick={() => setExtratoFilterType('logs')}
-                      >
-                        <i className="fa-solid fa-shield-halved"></i> Auditoria / Ajustes ({extratoData.logsAuditoria?.length || 0})
-                      </button>
-                    </div>
+                      {/* Alerta de Sessões Passadas Pendentes */}
+                      {pendentesPassadosVal > 0 && (
+                        <div style={{
+                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(180, 83, 9, 0.18) 100%)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          borderRadius: '12px',
+                          padding: '12px 18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}>
+                          <i className="fa-solid fa-triangle-exclamation" style={{ color: '#fbbf24', fontSize: '1.3rem' }}></i>
+                          <div>
+                            <strong style={{ color: '#fbbf24', fontSize: '0.85rem' }}>
+                              {pendentesPassadosVal} sessão(ões) anterior(es) a hoje sem registro de presença ou falta
+                            </strong>
+                            <div style={{ fontSize: '0.78rem', color: '#fde68a', marginTop: '2px' }}>
+                              Como essas datas já passaram, elas não são mais reservas futuras. Utilize os botões de ação rápida na tabela abaixo para regularizar.
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                    <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                      Competência: <strong>{selectedCreditMonth}</strong>
-                    </div>
-                  </div>
-
-                  {/* Visualização de Auditoria de Logs */}
-                  {extratoFilterType === 'logs' ? (
-                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Data & Hora</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Ação Realizada</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Detalhes & Justificativa</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Autor / Profissional</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {extratoData.logsAuditoria && extratoData.logsAuditoria.length > 0 ? (
-                            extratoData.logsAuditoria.map((log: any) => (
-                              <tr key={log._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                                  {new Date(log.createdAt).toLocaleString('pt-BR')}
-                                </td>
-                                <td style={{ padding: '10px 14px', fontSize: '0.82rem', fontWeight: 700, color: '#c084fc' }}>
-                                  {log.acao}
-                                </td>
-                                <td style={{ padding: '10px 14px', fontSize: '0.8rem', color: '#e2e8f0' }}>
-                                  {log.detalhes}
-                                </td>
-                                <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-                                  {log.autor || log.profissionalId?.nome || 'Sistema'}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
-                                Nenhum registro de auditoria encontrado para este aluno.
-                              </td>
-                            </tr>
+                      {/* Filtros do Extrato */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${extratoFilterType === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px' }}
+                            onClick={() => { setExtratoFilterType('todos'); setExtratoPage(1); }}
+                          >
+                            Todos ({extratoData.movimentacoes?.length || 0})
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${extratoFilterType === 'consumo' ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'consumo' ? '#000' : '#34d399' }}
+                            onClick={() => { setExtratoFilterType('consumo'); setExtratoPage(1); }}
+                          >
+                            <i className="fa-solid fa-check"></i> Presenças & Faltas ({extratoData.movimentacoes?.filter((m: any) => m.status === 'presenca' || m.status === 'falta').length || 0})
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${extratoFilterType === 'reserva' ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'reserva' ? '#000' : '#38bdf8' }}
+                            onClick={() => { setExtratoFilterType('reserva'); setExtratoPage(1); }}
+                          >
+                            <i className="fa-regular fa-clock"></i> Reservas Futuras ({extratoData.movimentacoes?.filter((m: any) => m.status === 'agendado' && !m.isPendentePassado).length || 0})
+                          </button>
+                          {pendentesPassadosVal > 0 && (
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${extratoFilterType === 'pendentes' ? 'btn-primary' : 'btn-secondary'}`}
+                              style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'pendentes' ? '#000' : '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                              onClick={() => { setExtratoFilterType('pendentes'); setExtratoPage(1); }}
+                            >
+                              <i className="fa-solid fa-triangle-exclamation"></i> Pendentes Passados ({pendentesPassadosVal})
+                            </button>
                           )}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    /* Tabela de Movimentações Reais (Agendamentos, Presenças, Faltas, Cancelamentos) */
-                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Data & Horário</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Evento / Status</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Profissional</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '0.76rem' }}>Impacto no Saldo</th>
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Observações / Wellness</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            const filteredMovs = (extratoData.movimentacoes || []).filter((m: any) => {
-                              if (extratoFilterType === 'consumo') return m.status === 'presenca' || m.status === 'falta';
-                              if (extratoFilterType === 'reserva') return m.status === 'agendado';
-                              if (extratoFilterType === 'estorno') return m.status === 'cancelado';
-                              return true;
-                            });
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${extratoFilterType === 'estorno' ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'estorno' ? '#000' : '#94a3b8' }}
+                            onClick={() => { setExtratoFilterType('estorno'); setExtratoPage(1); }}
+                          >
+                            <i className="fa-solid fa-ban"></i> Cancelados ({extratoData.movimentacoes?.filter((m: any) => m.status === 'cancelado').length || 0})
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${extratoFilterType === 'logs' ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '8px', color: extratoFilterType === 'logs' ? '#000' : '#c084fc' }}
+                            onClick={() => { setExtratoFilterType('logs'); setExtratoPage(1); }}
+                          >
+                            <i className="fa-solid fa-shield-halved"></i> Auditoria / Ajustes ({extratoData.logsAuditoria?.length || 0})
+                          </button>
+                        </div>
 
-                            if (filteredMovs.length === 0) {
-                              return (
+                        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                          Competência: <strong>{selectedCreditMonth}</strong>
+                        </div>
+                      </div>
+
+                      {/* Visualização de Auditoria de Logs */}
+                      {extratoFilterType === 'logs' ? (
+                        <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Data & Hora</th>
+                                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Ação Realizada</th>
+                                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Detalhes & Justificativa</th>
+                                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '0.76rem' }}>Autor / Profissional</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {extratoData.logsAuditoria && extratoData.logsAuditoria.length > 0 ? (
+                                extratoData.logsAuditoria.map((log: any) => (
+                                  <tr key={log._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                    <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                                      {new Date(log.createdAt).toLocaleString('pt-BR')}
+                                    </td>
+                                    <td style={{ padding: '10px 14px', fontSize: '0.82rem', fontWeight: 700, color: '#c084fc' }}>
+                                      {log.acao}
+                                    </td>
+                                    <td style={{ padding: '10px 14px', fontSize: '0.8rem', color: '#e2e8f0' }}>
+                                      {log.detalhes}
+                                    </td>
+                                    <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+                                      {log.autor || log.profissionalId?.nome || 'Sistema'}
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
                                 <tr>
-                                  <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
-                                    <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '1.5rem', marginBottom: '8px', display: 'block', color: '#64748b' }}></i>
-                                    Nenhuma movimentação de créditos encontrada para a competência selecionada.
+                                  <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
+                                    Nenhum registro de auditoria encontrado para este aluno.
                                   </td>
                                 </tr>
-                              );
-                            }
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        /* Tabela de Movimentações Reais com Container Scrollable e Header Sticky */
+                        (() => {
+                          const filteredMovs = (extratoData.movimentacoes || []).filter((m: any) => {
+                            if (extratoFilterType === 'consumo') return m.status === 'presenca' || m.status === 'falta';
+                            if (extratoFilterType === 'reserva') return m.status === 'agendado' && !m.isPendentePassado;
+                            if (extratoFilterType === 'pendentes') return m.isPendentePassado;
+                            if (extratoFilterType === 'estorno') return m.status === 'cancelado';
+                            return true;
+                          });
 
-                            return filteredMovs.map((m: any) => {
-                              let statusBadgeStyle = { background: 'rgba(255,255,255,0.08)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' };
-                              let icon = 'fa-solid fa-circle-info';
+                          const PAGE_SIZE = 10;
+                          const totalPages = Math.ceil(filteredMovs.length / PAGE_SIZE) || 1;
+                          const curPage = Math.min(Math.max(1, extratoPage), totalPages);
+                          const paginatedMovs = filteredMovs.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
 
-                              if (m.status === 'presenca') {
-                                statusBadgeStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' };
-                                icon = 'fa-solid fa-circle-check';
-                              } else if (m.status === 'falta') {
-                                statusBadgeStyle = { background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' };
-                                icon = 'fa-solid fa-circle-xmark';
-                              } else if (m.status === 'agendado') {
-                                statusBadgeStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' };
-                                icon = 'fa-regular fa-clock';
-                              } else if (m.status === 'cancelado') {
-                                statusBadgeStyle = { background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)' };
-                                icon = 'fa-solid fa-ban';
-                              }
-
-                              const impactText = m.impactoCredito < 0 ? `${m.impactoCredito} cr.` : (m.impactoCredito > 0 ? `+${m.impactoCredito} cr.` : '0 cr.');
-                              const impactColor = m.impactoCredito < 0 ? '#ef4444' : (m.impactoCredito > 0 ? '#34d399' : '#94a3b8');
-                              const impactBg = m.impactoCredito < 0 ? 'rgba(239, 68, 68, 0.1)' : (m.impactoCredito > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)');
-
-                              return (
-                                <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                  
-                                  {/* Data & Horário */}
-                                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                    <strong style={{ color: '#f8fafc', fontSize: '0.85rem' }}>
-                                      {formatDateBR(m.data)}
-                                    </strong>
-                                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>{m.horario}</div>
-                                  </td>
-
-                                  {/* Evento & Status */}
-                                  <td style={{ padding: '12px 14px' }}>
-                                    <span style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      padding: '3px 8px',
-                                      borderRadius: '6px',
-                                      fontSize: '0.74rem',
-                                      fontWeight: 700,
-                                      ...statusBadgeStyle
-                                    }}>
-                                      <i className={icon}></i> {m.statusDesc}
-                                    </span>
-                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                      Serviço: {m.servico || 'Musculação / Acompanhamento'} ({m.tipoCredito || 'academia'})
-                                    </div>
-                                  </td>
-
-                                  {/* Profissional */}
-                                  <td style={{ padding: '12px 14px', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                                    {m.profissional?.nome || 'Equipe Geral'}
-                                  </td>
-
-                                  {/* Impacto no Saldo */}
-                                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                                    <span style={{
-                                      display: 'inline-block',
-                                      padding: '3px 8px',
-                                      borderRadius: '6px',
-                                      background: impactBg,
-                                      color: impactColor,
-                                      fontWeight: 800,
-                                      fontSize: '0.82rem'
-                                    }}>
-                                      {impactText}
-                                    </span>
-                                  </td>
-
-                                  {/* Observações / Wellness */}
-                                  <td style={{ padding: '12px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-                                    {m.wellness?.score !== undefined ? (
-                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38bdf8' }}>
-                                        <i className="fa-solid fa-heart-pulse"></i> Score {m.wellness.score}/100 {m.wellness.dor > 0 ? `(Dor: ${m.wellness.dor})` : ''}
-                                      </span>
-                                    ) : m.justificativaCancelamento ? (
-                                      <span style={{ color: '#fca5a5' }}>Motivo: {m.justificativaCancelamento}</span>
+                          return (
+                            <div>
+                              <div style={{ 
+                                background: 'rgba(0,0,0,0.25)', 
+                                borderRadius: '14px', 
+                                border: '1px solid rgba(255,255,255,0.08)', 
+                                overflowX: 'auto',
+                                maxHeight: '420px',
+                                overflowY: 'auto'
+                              }}>
+                                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#172033', boxShadow: '0 2px 6px rgba(0,0,0,0.4)' }}>
+                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '0.76rem', color: '#cbd5e1' }}>Data & Horário</th>
+                                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '0.76rem', color: '#cbd5e1' }}>Evento / Status</th>
+                                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '0.76rem', color: '#cbd5e1' }}>Profissional</th>
+                                      <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '0.76rem', color: '#cbd5e1' }}>Impacto no Saldo</th>
+                                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '0.76rem', color: '#cbd5e1', minWidth: '220px' }}>Observações / Ações</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {paginatedMovs.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: '#94a3b8' }}>
+                                          <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '1.8rem', marginBottom: '8px', display: 'block', color: '#64748b' }}></i>
+                                          Nenhuma movimentação encontrada para o filtro selecionado.
+                                        </td>
+                                      </tr>
                                     ) : (
-                                      <span>Sessão regular sem intercorrências</span>
-                                    )}
-                                  </td>
+                                      paginatedMovs.map((m: any) => {
+                                        let statusBadgeStyle = { background: 'rgba(255,255,255,0.08)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' };
+                                        let icon = 'fa-solid fa-circle-info';
+                                        let statusText = m.statusDesc;
 
-                                </tr>
-                              );
-                            });
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </>
-              ) : null}
+                                        if (m.status === 'presenca') {
+                                          statusBadgeStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' };
+                                          icon = 'fa-solid fa-circle-check';
+                                        } else if (m.status === 'falta') {
+                                          statusBadgeStyle = { background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' };
+                                          icon = 'fa-solid fa-circle-xmark';
+                                        } else if (m.isPendentePassado) {
+                                          statusBadgeStyle = { background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' };
+                                          icon = 'fa-solid fa-triangle-exclamation';
+                                          statusText = 'Pendente de Baixa (Passado)';
+                                        } else if (m.status === 'agendado') {
+                                          statusBadgeStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' };
+                                          icon = 'fa-regular fa-clock';
+                                          statusText = 'Reserva Futura Ativa';
+                                        } else if (m.status === 'cancelado') {
+                                          statusBadgeStyle = { background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)' };
+                                          icon = 'fa-solid fa-ban';
+                                        }
+
+                                        const impactText = m.impactoCredito < 0 ? `${m.impactoCredito} cr.` : (m.impactoCredito > 0 ? `+${m.impactoCredito} cr.` : '0 cr.');
+                                        const impactColor = m.impactoCredito < 0 ? '#ef4444' : (m.impactoCredito > 0 ? '#34d399' : '#94a3b8');
+                                        const impactBg = m.impactoCredito < 0 ? 'rgba(239, 68, 68, 0.1)' : (m.impactoCredito > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)');
+
+                                        return (
+                                          <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: m.isPendentePassado ? 'rgba(245, 158, 11, 0.03)' : 'transparent' }}>
+                                            
+                                            {/* Data & Horário */}
+                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                              <strong style={{ color: '#f8fafc', fontSize: '0.85rem' }}>
+                                                {formatDateBR(m.data)}
+                                              </strong>
+                                              <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>{m.horario}</div>
+                                            </td>
+
+                                            {/* Evento & Status */}
+                                            <td style={{ padding: '12px 14px' }}>
+                                              <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                padding: '3px 8px',
+                                                borderRadius: '6px',
+                                                fontSize: '0.74rem',
+                                                fontWeight: 700,
+                                                ...statusBadgeStyle
+                                              }}>
+                                                <i className={icon}></i> {statusText}
+                                              </span>
+                                              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                Serviço: {m.servico || 'Musculação / Acompanhamento'} ({m.tipoCredito || 'academia'})
+                                              </div>
+                                            </td>
+
+                                            {/* Profissional */}
+                                            <td style={{ padding: '12px 14px', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                                              {m.profissionalNome || 'Equipe Geral'}
+                                            </td>
+
+                                            {/* Impacto no Saldo */}
+                                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                              <span style={{
+                                                display: 'inline-block',
+                                                padding: '3px 8px',
+                                                borderRadius: '6px',
+                                                background: impactBg,
+                                                color: impactColor,
+                                                fontWeight: 800,
+                                                fontSize: '0.82rem'
+                                              }}>
+                                                {impactText}
+                                              </span>
+                                            </td>
+
+                                            {/* Observações / Ações de Regularização */}
+                                            <td style={{ padding: '12px 14px', fontSize: '0.78rem' }}>
+                                              {m.isPendentePassado ? (
+                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                  <button
+                                                    type="button"
+                                                    disabled={actionAptId === m.id}
+                                                    onClick={() => handleBaixaPendente(extratoClient, m.id, 'presenca')}
+                                                    style={{ background: '#10b981', color: '#ffffff', border: 'none', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                    title="Confirmar Presença (debita crédito)"
+                                                  >
+                                                    {actionAptId === m.id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>} Presença
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    disabled={actionAptId === m.id}
+                                                    onClick={() => handleBaixaPendente(extratoClient, m.id, 'falta')}
+                                                    style={{ background: '#ef4444', color: '#ffffff', border: 'none', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                    title="Registrar Falta (debita crédito)"
+                                                  >
+                                                    {actionAptId === m.id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-xmark"></i>} Falta
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    disabled={actionAptId === m.id}
+                                                    onClick={() => handleBaixaPendente(extratoClient, m.id, 'cancelado')}
+                                                    style={{ background: 'rgba(255,255,255,0.08)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                                                    title="Liberar sem débito"
+                                                  >
+                                                    Liberar
+                                                  </button>
+                                                </div>
+                                              ) : m.wellness?.score !== undefined ? (
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38bdf8' }}>
+                                                  <i className="fa-solid fa-heart-pulse"></i> Score {m.wellness.score}/100 {m.wellness.dor > 0 ? `(Dor: ${m.wellness.dor})` : ''}
+                                                </span>
+                                              ) : m.justificativaCancelamento ? (
+                                                <span style={{ color: '#fca5a5' }}>Motivo: {m.justificativaCancelamento}</span>
+                                              ) : (
+                                                <span style={{ color: '#94a3b8' }}>Sessão regular sem intercorrências</span>
+                                              )}
+                                            </td>
+
+                                          </tr>
+                                        );
+                                      })
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Barra de Paginação Interna do Extrato */}
+                              {totalPages > 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px 4px 4px', fontSize: '0.78rem', color: '#94a3b8', flexWrap: 'wrap', gap: '8px' }}>
+                                  <div>
+                                    Mostrando <strong>{(curPage - 1) * PAGE_SIZE + 1}</strong> a <strong>{Math.min(curPage * PAGE_SIZE, filteredMovs.length)}</strong> de <strong>{filteredMovs.length}</strong> eventos
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      disabled={curPage <= 1}
+                                      onClick={() => setExtratoPage(p => Math.max(1, p - 1))}
+                                      style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', cursor: curPage <= 1 ? 'not-allowed' : 'pointer' }}
+                                    >
+                                      <i className="fa-solid fa-chevron-left"></i> Anterior
+                                    </button>
+                                    <span style={{ padding: '0 8px', fontWeight: 700, color: '#f8fafc' }}>
+                                      {curPage} de {totalPages}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      disabled={curPage >= totalPages}
+                                      onClick={() => setExtratoPage(p => Math.min(totalPages, p + 1))}
+                                      style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', cursor: curPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                                    >
+                                      Próxima <i className="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
+                    </>
+                  );
+                })() : null}
 
             </div>
 

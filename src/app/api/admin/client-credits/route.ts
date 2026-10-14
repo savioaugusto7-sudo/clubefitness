@@ -51,12 +51,20 @@ export async function GET(request: Request) {
       .limit(50)
       .lean();
 
+    // Data e Hora de referência no horário de Brasília (UTC-3)
+    const now = new Date();
+    const formatterDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const formatterTime = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+    const todayStr = formatterDate.format(now); // "YYYY-MM-DD"
+    const nowTimeStr = formatterTime.format(now); // "HH:MM"
+    const currentDateTimeStr = `${todayStr}T${nowTimeStr}`;
+
     // 3. Processar movimentações reais de créditos
     const movimentacoes: any[] = [];
     let consumidosNoMes = 0;
     let reservadosNoMes = 0;
+    let pendentesPassadosNoMes = 0;
     let canceladosComEstornoNoMes = 0;
-    let canceladosTardiosNoMes = 0;
 
     for (const apt of appointments) {
       const isConsuming = apt.consumeCredito !== false && apt.tipoCredito && apt.tipoCredito !== 'nenhum';
@@ -64,9 +72,13 @@ export async function GET(request: Request) {
       const aptMonth = apt.data ? apt.data.substring(0, 7) : '';
       const isCurrentFilterMonth = !mes || mes === 'todos' || aptMonth === targetMonth;
 
+      const aptDateTimeStr = `${apt.data}T${apt.horario || '00:00'}`;
+      const isPast = aptDateTimeStr < currentDateTimeStr;
+
       let tipoMovimento = 'informativo';
       let impactoCredito = 0;
       let statusDesc = '';
+      let isPendentePassado = false;
 
       if (apt.status === 'presenca') {
         tipoMovimento = isConsuming ? 'consumo_presenca' : 'livre_presenca';
@@ -79,10 +91,20 @@ export async function GET(request: Request) {
         statusDesc = 'Falta Registrada (Débito)';
         if (isConsuming && isCurrentFilterMonth) consumidosNoMes += custo;
       } else if (apt.status === 'agendado') {
-        tipoMovimento = isConsuming ? 'reserva_agendado' : 'livre_agendado';
-        impactoCredito = isConsuming ? -custo : 0;
-        statusDesc = isConsuming ? 'Horário Agendado (Reserva Ativa)' : 'Agendamento Livre (Sem Custo)';
-        if (isConsuming && isCurrentFilterMonth) reservadosNoMes += custo;
+        if (isPast) {
+          // Data já passou mas não houve baixa de presença nem falta
+          tipoMovimento = 'pendente_passado';
+          isPendentePassado = true;
+          impactoCredito = 0;
+          statusDesc = 'Pendente de Registro (Passado)';
+          if (isConsuming && isCurrentFilterMonth) pendentesPassadosNoMes += custo;
+        } else {
+          // Agendamento futuro legítimo
+          tipoMovimento = isConsuming ? 'reserva_agendado' : 'livre_agendado';
+          impactoCredito = isConsuming ? -custo : 0;
+          statusDesc = isConsuming ? 'Horário Agendado (Reserva Futura)' : 'Agendamento Livre (Sem Custo)';
+          if (isConsuming && isCurrentFilterMonth) reservadosNoMes += custo;
+        }
       } else if (apt.status === 'cancelado') {
         tipoMovimento = 'estorno_cancelado';
         impactoCredito = 0;
@@ -103,6 +125,8 @@ export async function GET(request: Request) {
         statusDesc: statusDesc,
         tipoMovimento: tipoMovimento,
         impactoCredito: impactoCredito,
+        isPast: isPast,
+        isPendentePassado: isPendentePassado,
         profissionalNome: (apt.profissionalId as any)?.nome || 'Profissional da Grade',
         origemHorarioFixo: Boolean(apt.origemHorarioFixo),
         isEmergenciaExtra: Boolean(apt.isEmergenciaExtra),
@@ -130,6 +154,8 @@ export async function GET(request: Request) {
             statusDesc: l.detalhes || l.acao,
             tipoMovimento: 'ajuste_admin',
             impactoCredito: 0,
+            isPast: true,
+            isPendentePassado: false,
             profissionalNome: (l.profissionalId as any)?.nome || 'Administrador',
             origemHorarioFixo: false,
             isEmergenciaExtra: false,
@@ -139,11 +165,33 @@ export async function GET(request: Request) {
       }
     }
 
-    // Ordenar todas as movimentações em ordem cronológica decrescente
-    movimentacoes.sort((a, b) => new Date(b.createdAt || `${b.data}T${b.horario}:00`).getTime() - new Date(a.createdAt || `${a.data}T${a.horario}:00`).getTime());
+    // Ordenar todas as movimentações em ordem cronológica decrescente estrita por Data e Horário
+    movimentacoes.sort((a, b) => {
+      const dtA = `${a.data || '1970-01-01'}T${a.horario || '00:00'}:00`;
+      const dtB = `${b.data || '1970-01-01'}T${b.horario || '00:00'}:00`;
+      return dtB.localeCompare(dtA);
+    });
 
     const creditosTotal = Number(com.creditosTotal || 0);
     const saldoDisponivelCalculado = Math.max(0, creditosTotal - consumidosNoMes - reservadosNoMes);
+
+    const resumoConsolidado = {
+      mesReferencia: targetMonth,
+      franquiaMensal: creditosTotal,
+      creditosTotal: creditosTotal,
+      consumidosNoMes: consumidosNoMes,
+      reservadosNoMes: reservadosNoMes,
+      pendentesPassadosNoMes: pendentesPassadosNoMes,
+      canceladosComEstornoNoMes: canceladosComEstornoNoMes,
+      saldoRealDisponivel: saldoDisponivelCalculado,
+      saldoDisponivelCalculado: saldoDisponivelCalculado,
+      saldoCadastrado: {
+        creditosTotal: com.creditosTotal || 0,
+        creditosUsados: com.creditosUsados || 0,
+        creditosReservados: com.creditosReservados || 0,
+        disponivel: Math.max(0, (com.creditosTotal || 0) - (com.creditosUsados || 0) - (com.creditosReservados || 0))
+      }
+    };
 
     return NextResponse.json({
       success: true,
@@ -162,21 +210,8 @@ export async function GET(request: Request) {
           duracao: com.duracao || 'mensal',
           regrasCredito: com.regrasCredito || {}
         },
-        resumoMes: {
-          mesReferencia: targetMonth,
-          franquiaMensal: creditosTotal,
-          consumidosNoMes: consumidosNoMes,
-          reservadosNoMes: reservadosNoMes,
-          canceladosComEstornoNoMes: canceladosComEstornoNoMes,
-          saldoRealDisponivel: saldoDisponivelCalculado,
-          // Valores brutos registrados no cadastro
-          saldoCadastrado: {
-            creditosTotal: com.creditosTotal || 0,
-            creditosUsados: com.creditosUsados || 0,
-            creditosReservados: com.creditosReservados || 0,
-            disponivel: Math.max(0, (com.creditosTotal || 0) - (com.creditosUsados || 0) - (com.creditosReservados || 0))
-          }
-        },
+        resumoMes: resumoConsolidado,
+        resumo: resumoConsolidado,
         movimentacoes: movimentacoes
       }
     });
@@ -256,16 +291,60 @@ export async function POST(request: Request) {
         consumeCredito: true
       });
 
+      const now = new Date();
+      const formatterDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const formatterTime = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+      const currentDateTime = `${formatterDate.format(now)}T${formatterTime.format(now)}`;
+
       let realUsados = 0;
       let realReservados = 0;
       appointments.forEach((a: any) => {
         if (a.status === 'presenca' || a.status === 'falta') realUsados += 1;
-        if (a.status === 'agendado') realReservados += 1;
+        // Apenas agendamentos FUTUROS contam como reserva ativa
+        if (a.status === 'agendado' && `${a.data}T${a.horario || '00:00'}` >= currentDateTime) realReservados += 1;
       });
 
       com[targetFields.usados] = realUsados;
       com[targetFields.reservados] = realReservados;
       actionLabel = `Sincronizou créditos com consumo real de ${targetMonth}: ${realUsados} usados, ${realReservados} reservados`;
+    } else if (operacao === 'baixa_pendente') {
+      const { appointmentId, novoStatus } = body;
+      if (!appointmentId || !['presenca', 'falta', 'cancelado'].includes(novoStatus)) {
+        return NextResponse.json({ success: false, error: 'appointmentId e novoStatus (presenca, falta ou cancelado) são obrigatórios.' }, { status: 400 });
+      }
+
+      const apt = await Appointment.findById(appointmentId);
+      if (!apt) {
+        return NextResponse.json({ success: false, error: 'Agendamento não encontrado.' }, { status: 404 });
+      }
+
+      const statusAntigo = apt.status;
+      apt.status = novoStatus;
+      await apt.save();
+
+      // Recalcular consumo real do mês
+      const targetMonth = apt.data ? apt.data.substring(0, 7) : new Date().toISOString().substring(0, 7);
+      const allMonthApts = await Appointment.find({
+        clienteId: client._id,
+        data: { $regex: `^${targetMonth}` },
+        consumeCredito: true
+      });
+
+      const now = new Date();
+      const formatterDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const formatterTime = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+      const currentDateTime = `${formatterDate.format(now)}T${formatterTime.format(now)}`;
+
+      let realUsados = 0;
+      let realReservados = 0;
+      allMonthApts.forEach((a: any) => {
+        if (a.status === 'presenca' || a.status === 'falta') realUsados += 1;
+        if (a.status === 'agendado' && `${a.data}T${a.horario || '00:00'}` >= currentDateTime) realReservados += 1;
+      });
+
+      com[targetFields.usados] = realUsados;
+      com[targetFields.reservados] = realReservados;
+      actionLabel = `Baixa de ${novoStatus.toUpperCase()} na sessão de ${apt.data} às ${apt.horario} (era ${statusAntigo})`;
     }
 
     client.markModified('dadosComerciais');
