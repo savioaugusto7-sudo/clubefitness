@@ -18,6 +18,7 @@ import LiveClinicalAlert from './LiveClinicalAlert';
 import TestComparativeSummary, { ComparativeItem } from './TestComparativeSummary';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import DadosClinicosPanel from './DadosClinicosPanel';
+import AlunosPanel from './AlunosPanel';
 import WellnessModal from './WellnessModal';
 import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
@@ -364,6 +365,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientFilterScope, setClientFilterScope] = useState<'todos' | 'meus'>('todos');
+  const [clientFilterProf, setClientFilterProf] = useState<string>('todos');
+  const [clientFilterPlano, setClientFilterPlano] = useState<string>('todos');
+  const [clientFilterSt, setClientFilterSt] = useState<string>('todos');
+  const [clientFilterAs, setClientFilterAs] = useState<string>('todos');
+  const [clientFilterPlanStatus, setClientFilterPlanStatus] = useState<string>('todos');
+  const [clientFilterRotina, setClientFilterRotina] = useState<string>('todos');
+  const [clientFilterRisco, setClientFilterRisco] = useState<string>('todos');
+  const [clientSortOrder, setClientSortOrder] = useState<string>('nome_asc');
+  const [clientViewMode, setClientViewMode] = useState<'cards' | 'tabela'>('cards');
   const [frequenciaFilterScope, setFrequenciaFilterScope] = useState<'todos' | 'meus'>('todos');
   const [frequenciaRiskFilter, setFrequenciaRiskFilter] = useState<'todos' | 'baixo' | 'medio' | 'alto'>('todos');
   const [frequenciaViewMode, setFrequenciaViewMode] = useState<'cards' | 'tabela'>('cards');
@@ -7510,423 +7520,23 @@ goniometria: {
       )}
 
       {/* 2. View: Clientes Vinculados */}
-      {activeTab === 'clientes' && (() => {
-        const getDaysSince = (clientId: string) => {
-          const clientApts = appointments.filter((a: any) =>
-            (a.clientId === clientId || a.clientId?._id === clientId) &&
-            (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
-          );
-          if (clientApts.length === 0) return 999;
-          const dates = clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime());
-          return Math.floor((Date.now() - Math.max(...dates)) / (1000 * 60 * 60 * 24));
-        };
-
-        const getRisk = (days: number) => {
-          if (days === 999) return { level: 'Sem histórico', color: 'var(--text-muted)' };
-          if (days <= 7) return { level: 'Baixo', color: 'var(--color-primary)' };
-          if (days <= 20) return { level: 'Médio', color: 'var(--color-warning)' };
-          return { level: 'Alto', color: 'var(--color-danger)' };
-        };
-
-        const getLastAssessment = (clientId: string) => {
-          const clientAs = assessments.filter((as: any) => {
-            const cid = typeof as.clienteId === 'object' ? as.clienteId?._id : as.clienteId;
-            return cid === clientId;
-          });
-          if (clientAs.length === 0) return null;
-          const sorted = [...clientAs].sort((a: any, b: any) => b.data.localeCompare(a.data));
-          return sorted[0].data; // YYYY-MM-DD
-        };
-
-        const getLastStrengthTest = (clientId: string) => {
-          const clientSt = strengthTests.filter((st: any) => {
-            const cid = typeof st.clienteId === 'object' ? st.clienteId?._id : st.clienteId;
-            return cid === clientId;
-          });
-          if (clientSt.length === 0) return null;
-          const sorted = [...clientSt].sort((a: any, b: any) => b.data.localeCompare(a.data));
-          return sorted[0].data; // YYYY-MM-DD
-        };
-
-        const getPlanStyleAndIcon = (vencimentoStr: string) => {
-          if (!vencimentoStr) return { displayVal: '-', style: { color: 'var(--text-muted)' }, icon: null };
-          const parts = vencimentoStr.split('-');
-          if (parts.length !== 3) return { displayVal: vencimentoStr, style: {}, icon: null };
-          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-          
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          d.setHours(0,0,0,0);
-
-          const diffTime = d.getTime() - today.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          const displayVal = vencimentoStr.split('-').reverse().join('/');
-
-          if (diffDays < 0) {
-            return {
-              displayVal,
-              style: { color: 'var(--color-danger)', fontWeight: 700 },
-              icon: <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px', color: 'var(--color-danger)' }} title="Plano Vencido"></i>
-            };
-          } else if (diffDays <= 15) {
-            return {
-              displayVal,
-              style: { color: 'var(--color-warning)', fontWeight: 600 },
-              icon: <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px', color: 'var(--color-warning)' }} title="Vence nos próximos 15 dias"></i>
-            };
-          } else {
-            return { displayVal, style: {}, icon: null };
-          }
-        };
-
-        const getExamStyleAndIcon = (examDateStr: string | null) => {
-          if (!examDateStr || examDateStr === '-') return { displayVal: '-', style: { color: 'var(--text-muted)' }, icon: null };
-          const parts = examDateStr.split('-');
-          if (parts.length !== 3) return { displayVal: examDateStr, style: {}, icon: null };
-          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-          
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          d.setHours(0,0,0,0);
-
-          const diffTime = today.getTime() - d.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          const displayVal = examDateStr.split('-').reverse().join('/');
-
-          if (diffDays > 60) {
-            return {
-              displayVal,
-              style: { color: 'var(--color-danger)', fontWeight: 700 },
-              icon: <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px', color: 'var(--color-danger)' }} title="Vencido (Mais de 2 meses)"></i>
-            };
-          } else if (diffDays > 40) {
-            return {
-              displayVal,
-              style: { color: 'var(--color-warning)', fontWeight: 600 },
-              icon: <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px', color: 'var(--color-warning)' }} title="Vencendo em breve (Restam menos de 20 dias)"></i>
-            };
-          } else {
-            return { displayVal, style: {}, icon: null };
-          }
-        };
-
-        return (
-          <>
-            <div className="view-header">
-              <div className="view-title-group">
-                <h1>Alunos</h1>
-                <p>Acompanhamento de fichas clínicas, testes de força e evolução.</p>
-              </div>
-            </div>
-
-            <div className="content-panel">
-              {(() => {
-                const listKey = 'clientes';
-                const q = getSearchQuery(listKey);
-                const scopedClients = clients.filter(c => {
-                  if (clientFilterScope === 'meus') {
-                    const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                    return linkedProfId === professionalId;
-                  }
-                  return true;
-                });
-                const filtered = scopedClients.filter(c => {
-                  return smartSearchMatch([
-                    c.dadosPessoais?.nome,
-                    c.dadosPessoais?.email,
-                    c.dadosPessoais?.cpf,
-                    c.dadosPessoais?.telefone,
-                    c.dadosClinicos?.objetivoPrincipal
-                  ], q);
-                });
-
-                const activeP = getPage(listKey);
-                const size = getPageSize(listKey);
-                const totalPages = Math.ceil(filtered.length / size);
-                const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                return (
-                  <>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: '16px' }}>
-                      {/* Scope selector */}
-                      <div style={{ display: 'inline-flex', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '4px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          style={{
-                            background: clientFilterScope === 'todos' ? 'var(--color-primary)' : 'transparent',
-                            color: clientFilterScope === 'todos' ? '#fff' : 'var(--text-muted)',
-                            fontWeight: 600,
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '6px 14px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                          onClick={() => { setClientFilterScope('todos'); setPage('clientes', 1); }}
-                        >
-                          <i className="fa-solid fa-users" style={{ marginRight: '6px' }}></i>
-                          Todos os Alunos ({clients.length})
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          style={{
-                            background: clientFilterScope === 'meus' ? '#10b981' : 'transparent',
-                            color: clientFilterScope === 'meus' ? '#fff' : 'var(--text-muted)',
-                            fontWeight: 600,
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '6px 14px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                          onClick={() => { setClientFilterScope('meus'); setPage('clientes', 1); }}
-                        >
-                          <i className="fa-solid fa-star" style={{ marginRight: '6px', color: clientFilterScope === 'meus' ? '#fff' : '#f59e0b' }}></i>
-                          Meus Alunos ({clients.filter(c => {
-                            const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                            return linkedProfId === professionalId;
-                          }).length})
-                        </button>
-                      </div>
-
-                      <SmartSearchInput
-                        value={q}
-                        onChange={val => setSearchQueryForKey('clientes', val)}
-                        placeholder="Buscar por nome, CPF, telefone..."
-                        resultCount={filtered.length}
-                        totalCount={scopedClients.length}
-                      />
-                    </div>
-
-                    <div>
-                      {filtered.length === 0 ? (
-                        <div style={{
-                          background: 'var(--bg-card)',
-                          border: '1.5px dashed var(--border-color)',
-                          borderRadius: '16px',
-                          padding: '48px 20px',
-                          textAlign: 'center'
-                        }}>
-                          <i className="fa-solid fa-graduation-cap" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-                          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum aluno encontrado</h3>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há alunos correspondentes aos filtros aplicados.</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-                            {(() => {
-                              const totalPages = Math.ceil(filtered.length / size);
-                              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                              const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                              return paginated.map(c => {
-                                const days = getDaysSince(c._id);
-                                const risk = getRisk(days);
-                                const lastAsRaw = getLastAssessment(c._id);
-                                const lastStRaw = getLastStrengthTest(c._id);
-
-                                const asObj = getExamStyleAndIcon(lastAsRaw);
-                                const stObj = getExamStyleAndIcon(lastStRaw);
-                                const planObj = getPlanStyleAndIcon(c.dadosComerciais?.vencimento);
-
-                                const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                                const isMyStudent = linkedProfId === professionalId;
-
-                                return (
-                                  <div
-                                    key={c._id}
-                                    style={{
-                                      background: 'var(--bg-card)',
-                                      border: '1px solid var(--border-color)',
-                                      borderRadius: '16px',
-                                      padding: '18px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      justifyContent: 'space-between',
-                                      gap: '14px',
-                                      boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
-                                      transition: 'transform 0.15s ease, border-color 0.15s ease'
-                                    }}
-                                  >
-                                    <div>
-                                      {/* Header */}
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
-                                        <div style={{ flex: '1 1 55%', minWidth: 0 }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                            <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: 'var(--text-main)', wordBreak: 'break-word' }}>
-                                              {c.dadosPessoais?.nome}
-                                            </h3>
-                                            {isMyStudent ? (
-                                              <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                                                <i className="fa-solid fa-star" style={{ marginRight: '3px' }}></i>Meu Aluno
-                                              </span>
-                                            ) : c.profissionalId?.nome ? (
-                                              <span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                                Prof. {c.profissionalId.nome}
-                                              </span>
-                                            ) : null}
-                                          </div>
-                                          <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                                            {c.dadosPessoais?.telefone || c.dadosPessoais?.email || 'Sem contato'}
-                                          </div>
-                                        </div>
-
-                                        <span style={{
-                                          background: risk.color + '22',
-                                          color: risk.color,
-                                          border: `1px solid ${risk.color}55`,
-                                          padding: '3px 8px',
-                                          borderRadius: '8px',
-                                          fontSize: '0.72rem',
-                                          fontWeight: 800,
-                                          whiteSpace: 'nowrap',
-                                          flexShrink: 0
-                                        }}>
-                                          Risco {risk.level}
-                                        </span>
-                                      </div>
-
-                                      {/* Grid de Informações 2x2 */}
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
-                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Última Avaliação</div>
-                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, marginTop: '2px', ...asObj.style, background: 'transparent' }}>
-                                            {asObj.icon} {asObj.displayVal}
-                                          </div>
-                                        </div>
-                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Teste de Força</div>
-                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, marginTop: '2px', ...stObj.style, background: 'transparent' }}>
-                                            {stObj.icon} {stObj.displayVal}
-                                          </div>
-                                        </div>
-                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Fim do Plano</div>
-                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, marginTop: '2px', ...planObj.style, background: 'transparent' }}>
-                                            {planObj.icon} {planObj.displayVal}
-                                          </div>
-                                        </div>
-                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Plano</div>
-                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {c.dadosComerciais?.planoId?.nome || 'Personalizado'}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                      {/* Pílula / Resumo da Grade Semanal */}
-                                      {(() => {
-                                        const contractFreq = c.contratosAtivos?.[0]?.frequencia || c.dadosComerciais?.frequencia || 3;
-                                        const rotinaDias: any[] = c.rotinaSemanal?.dias || [];
-                                        const hasRotina = rotinaDias.length > 0;
-
-                                        return (
-                                          <div style={{
-                                            marginTop: '10px',
-                                            background: hasRotina ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-                                            border: hasRotina ? '1px solid rgba(16, 185, 129, 0.25)' : '1px dashed rgba(255, 255, 255, 0.1)',
-                                            borderRadius: '10px',
-                                            padding: '8px 10px',
-                                            fontSize: '0.76rem'
-                                          }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                               <span style={{ fontWeight: 800, color: hasRotina ? '#10b981' : '#94a3b8', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
-                                                 <i className="fa-solid fa-calendar-week" style={{ marginRight: '4px' }}></i>
-                                                 Rotina Semanal ({contractFreq}x)
-                                               </span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                              {hasRotina ? (
-                                                rotinaDias.slice(0, contractFreq).map((d: any, dIdx: number) => {
-                                                  const isManual = d.servico === 'Terapia Manual';
-                                                  const isIndividual = d.servico === 'Atendimento Individual';
-                                                  const isMonitorado = d.servico === 'Treino Monitorado';
-                                                  const badgeColor = isManual ? '#38bdf8' : (isIndividual ? '#c084fc' : (isMonitorado ? '#10b981' : '#f59e0b'));
-                                                  const badgeBg = isManual ? 'rgba(56, 189, 248, 0.15)' : (isIndividual ? 'rgba(192, 132, 252, 0.15)' : (isMonitorado ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'));
-                                                  const shortLabel = isManual ? 'Manual' : (isIndividual ? 'Individual' : (isMonitorado ? 'Monitorado' : (d.servico === 'Treino Livre' ? 'Livre' : d.servico)));
-
-                                                  return (
-                                                    <span
-                                                      key={dIdx}
-                                                      style={{
-                                                        background: badgeBg,
-                                                        color: badgeColor,
-                                                        border: `1px solid ${badgeColor}40`,
-                                                        padding: '1px 6px',
-                                                        borderRadius: '5px',
-                                                        fontSize: '0.70rem',
-                                                        fontWeight: 750
-                                                      }}
-                                                    >
-                                                      D{dIdx + 1}: {shortLabel}
-                                                    </span>
-                                                  );
-                                                })
-                                              ) : (
-                                                <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.72rem' }}>
-                                                  Serviços ainda não detalhados
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })()}
-
-                                    {/* Action button */}
-                                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', gap: '8px' }}>
-                                      <button
-                                        type="button"
-                                        className="btn btn-primary"
-                                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px', fontWeight: 750, borderRadius: '10px', fontSize: '0.82rem' }}
-                                        onClick={() => {
-                                          setDetailClient(c);
-                                          setClientDetailTab('agendamentos');
-                                          setShowClientDetailModal(true);
-                                          logReadActivity('Visualizou Dossiê do Aluno', c._id, c.dadosPessoais?.nome || '');
-                                        }}
-                                      >
-                                        <i className="fa-solid fa-address-card"></i> Dossiê do Aluno
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="btn btn-secondary"
-                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', fontWeight: 750, borderRadius: '10px', fontSize: '0.82rem' }}
-                                        onClick={() => handleOpenWorkoutEditor(c)}
-                                        title="Montar ou editar ficha de treino"
-                                      >
-                                        <i className="fa-solid fa-dumbbell"></i> Treino
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
-
-                          {filtered.length > 0 && (
-                            <div style={{ marginTop: '16px' }}>
-                              <Pagination
-                                currentPage={curP}
-                                totalItems={filtered.length}
-                                itemsPerPage={size}
-                                onPageChange={page => setPage('clientes', page)}
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </>
-        );
-      })()}
+      {activeTab === 'clientes' && (
+        <AlunosPanel
+          clients={clients}
+          professionalId={professionalId}
+          professionals={professionals}
+          appointments={appointments}
+          assessments={assessments}
+          strengthTests={strengthTests}
+          onOpenDossier={(c: any) => {
+            setDetailClient(c);
+            setClientDetailTab('agendamentos');
+            setShowClientDetailModal(true);
+            logReadActivity('Visualizou Dossiê do Aluno', c._id, c.dadosPessoais?.nome || '');
+          }}
+          onOpenWorkout={(c: any) => handleOpenWorkoutEditor(c)}
+        />
+      )}
 
       {/* 2b. View: Dados Clínicos */}
       {activeTab === 'dados_clinicos' && (
