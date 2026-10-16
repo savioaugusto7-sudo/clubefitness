@@ -231,8 +231,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
   const isSavio = 
     (userEmail || '').toLowerCase().trim() === 'savioaugusto7@gmail.com' ||
     (userName || '').toLowerCase().includes('sávio') ||
-    (userName || '').toLowerCase().includes('savio') ||
-    userCargo === 'Administrador Geral';
+    (userName || '').toLowerCase().includes('savio');
 
   const categories = React.useMemo(() => {
     let base = categoryConfigs[role] || [];

@@ -144,7 +144,7 @@ export default function DashboardPage() {
         (user?.email || '').toLowerCase().trim() === 'savioaugusto7@gmail.com' ||
         (user?.name || '').toLowerCase().includes('sávio') ||
         (user?.name || '').toLowerCase().includes('savio') ||
-        user?.cargo === 'Administrador Geral';
+        String(user?.id || user?._id || '') === '6a3d455ae52a33bfc8e5302f';
       if (!isSavio) {
         return (
           <div style={{ padding: '32px', textAlign: 'center', color: '#ef4444' }}>
