@@ -138,7 +138,16 @@ export default function GabiIntelligenceStudio({ user }: GabiIntelligenceStudioP
         })
       });
 
-      const data = await res.json();
+      let data: any = null;
+      const textResponse = await res.text();
+      try {
+        data = JSON.parse(textResponse);
+      } catch {
+        if (res.status === 504) {
+          throw new Error('A requisição excedeu o tempo limite do servidor (504 Gateway Timeout).');
+        }
+        throw new Error(`Falha no servidor (${res.status}): ${textResponse.substring(0, 100)}`);
+      }
 
       if (data.success) {
         if (data.conversationId) setConversationId(data.conversationId);

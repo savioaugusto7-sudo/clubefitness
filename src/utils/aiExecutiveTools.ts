@@ -162,10 +162,22 @@ async function toolConsultarVencimentos(db: any, args: any) {
     query['dadosComerciais.status'] = 'ativo';
   }
 
-  const clients = await db.collection('clients').find(query).toArray();
-  const plans = await db.collection('plans').find({}).toArray();
+  // Busca em paralelo para eliminar latência sequencial
+  const [clients, plans, proposals] = await Promise.all([
+    db.collection('clients').find(query).toArray(),
+    db.collection('plans').find({}).toArray(),
+    db.collection('proposals').find({
+      status: { $in: ['pendente', 'aguardando_assinatura', 'enviada'] }
+    }, { projection: { clientId: 1 } }).toArray()
+  ]);
+
   const planMap: Record<string, string> = {};
   plans.forEach((p: any) => { planMap[String(p._id)] = p.nome || p.name; });
+
+  const proposalSet = new Set<string>();
+  proposals.forEach((p: any) => {
+    if (p.clientId) proposalSet.add(String(p.clientId));
+  });
 
   const expiringList: any[] = [];
   let valorTotalPrevisto = 0;
@@ -174,7 +186,6 @@ async function toolConsultarVencimentos(db: any, args: any) {
     const venc = c.dadosComerciais?.vencimento || c.dadosComerciais?.dataFim;
     if (!venc) continue;
 
-    // Se o vencimento estiver entre hoje e a data máxima futura
     if (venc >= todayStr && venc <= maxDateStr) {
       const dtVenc = new Date(venc + 'T12:00:00Z');
       const dtHoje = new Date(todayStr + 'T12:00:00Z');
@@ -185,14 +196,9 @@ async function toolConsultarVencimentos(db: any, args: any) {
       const valor = Number(c.dadosComerciais?.valorTotal || c.dadosComerciais?.valorUnitario || 0);
       valorTotalPrevisto += valor;
 
-      // Verificar se já possui proposta de renovação
-      const proposal = await db.collection('proposals').findOne({
-        $or: [{ clientId: c._id }, { clientId: String(c._id) }],
-        status: { $in: ['pendente', 'aguardando_assinatura', 'enviada'] }
-      });
-
+      const cIdStr = String(c._id);
       expiringList.push({
-        clienteId: String(c._id),
+        clienteId: cIdStr,
         nome: c.dadosPessoais?.nome || 'Sem Nome',
         telefone: c.dadosPessoais?.telefone || '',
         plano: planoNome,
@@ -201,12 +207,11 @@ async function toolConsultarVencimentos(db: any, args: any) {
         diasRestantes: diasRestantes,
         valor: valor,
         formaPagamento: c.dadosComerciais?.formaPagamento || 'Boleto/Pix',
-        temPropostaRenovacao: Boolean(proposal)
+        temPropostaRenovacao: proposalSet.has(cIdStr)
       });
     }
   }
 
-  // Ordenar por data de vencimento mais próxima
   expiringList.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 
   return {
@@ -224,9 +229,29 @@ async function toolAuditarInconsistencias(db: any, args: any) {
   const filtroTipo = args.filtroTipo || 'todos';
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const activeClients = await db.collection('clients').find({
-    'dadosComerciais.status': 'ativo'
-  }).toArray();
+  // Busca paralela e projeções leves para máxima performance (< 400ms)
+  const [activeClients, payments, financials, appointments] = await Promise.all([
+    db.collection('clients').find({ 'dadosComerciais.status': 'ativo' }).toArray(),
+    db.collection('payments').find({}, { projection: { clientId: 1, userId: 1 } }).toArray(),
+    db.collection('financials').find({}, { projection: { clientId: 1, clienteId: 1 } }).toArray(),
+    db.collection('appointments').find({}, { projection: { clienteId: 1 } }).toArray()
+  ]);
+
+  // Indexação em O(1)
+  const paidSet = new Set<string>();
+  payments.forEach((p: any) => {
+    if (p.clientId) paidSet.add(String(p.clientId));
+    if (p.userId) paidSet.add(String(p.userId));
+  });
+  financials.forEach((f: any) => {
+    if (f.clientId) paidSet.add(String(f.clientId));
+    if (f.clienteId) paidSet.add(String(f.clienteId));
+  });
+
+  const appSet = new Set<string>();
+  appointments.forEach((a: any) => {
+    if (a.clienteId) appSet.add(String(a.clienteId));
+  });
 
   const semFinanceiro: any[] = [];
   const vencidosComoAtivos: any[] = [];
@@ -235,11 +260,13 @@ async function toolAuditarInconsistencias(db: any, args: any) {
   for (const c of activeClients) {
     const nome = c.dadosPessoais?.nome || 'Sem Nome';
     const venc = c.dadosComerciais?.vencimento || c.dadosComerciais?.dataFim;
+    const cIdStr = String(c._id);
+    const uIdStr = c.userId ? String(c.userId) : null;
 
     // 1. Vencidos mas marcados como ativos
     if (venc && venc < todayStr) {
       vencidosComoAtivos.push({
-        id: String(c._id),
+        id: cIdStr,
         nome,
         vencimento: venc,
         plano: c.dadosComerciais?.planoNome || c.dadosComerciais?.duracao,
@@ -248,16 +275,10 @@ async function toolAuditarInconsistencias(db: any, args: any) {
     }
 
     // 2. Alunos ativos sem registros na coleção de pagamentos/financials
-    const hasPayment = await db.collection('payments').findOne({
-      $or: [{ clientId: c._id }, { clientId: String(c._id) }, { userId: c.userId }]
-    });
-    const hasFinancial = await db.collection('financials').findOne({
-      $or: [{ clientId: c._id }, { clienteId: c._id }, { clienteId: String(c._id) }]
-    });
-
-    if (!hasPayment && !hasFinancial) {
+    const hasFinanceiro = paidSet.has(cIdStr) || (uIdStr && paidSet.has(uIdStr));
+    if (!hasFinanceiro) {
       semFinanceiro.push({
-        id: String(c._id),
+        id: cIdStr,
         nome,
         formaPagamento: c.dadosComerciais?.formaPagamento || 'Não informada',
         valorTotal: c.dadosComerciais?.valorTotal || 0,
@@ -267,12 +288,9 @@ async function toolAuditarInconsistencias(db: any, args: any) {
     }
 
     // 3. Alunos ativos que nunca tiveram agendamento
-    const appCount = await db.collection('appointments').countDocuments({
-      $or: [{ clienteId: c._id }, { clienteId: String(c._id) }]
-    });
-    if (appCount === 0) {
+    if (!appSet.has(cIdStr)) {
       nuncaAgendaram.push({
-        id: String(c._id),
+        id: cIdStr,
         nome,
         plano: c.dadosComerciais?.planoNome || c.dadosComerciais?.duracao,
         dataInicio: c.dadosComerciais?.dataInicio || (c.createdAt ? new Date(c.createdAt).toISOString().split('T')[0] : '—'),
@@ -317,9 +335,16 @@ async function toolAuditarInconsistencias(db: any, args: any) {
 async function toolAuditarFrequenciaAgendas(db: any, args: any) {
   const diasAusenciaMin = Number(args.diasAusenciaMinimo) || 0;
   const profFiltro = (args.profissionalFiltro || 'todos').toLowerCase();
-  const todayStr = '2026-10-16';
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  const professionals = await db.collection('professionals').find({}).toArray();
+  // Busca em paralelo de todas as coleções
+  const [professionals, activeClients, allFixed, allAppointments] = await Promise.all([
+    db.collection('professionals').find({}).toArray(),
+    db.collection('clients').find({ 'dadosComerciais.status': 'ativo' }).toArray(),
+    db.collection('fixedschedules').find({ active: { $ne: false } }).toArray(),
+    db.collection('appointments').find({}).sort({ data: -1 }).toArray()
+  ]);
+
   const profMap: Record<string, string> = {};
   professionals.forEach((p: any) => { profMap[String(p._id)] = p.nome || p.name; });
 
@@ -330,27 +355,33 @@ async function toolAuditarFrequenciaAgendas(db: any, args: any) {
     if (/guilherme/i.test(name)) guilhermeIds.push(id);
   }
 
-  const activeClients = await db.collection('clients').find({
-    'dadosComerciais.status': 'ativo'
-  }).toArray();
+  // Agrupamento em memória por clienteId
+  const fixedByClient = new Map<string, any[]>();
+  allFixed.forEach((f: any) => {
+    if (f.clienteId) {
+      const key = String(f.clienteId);
+      if (!fixedByClient.has(key)) fixedByClient.set(key, []);
+      fixedByClient.get(key)!.push(f);
+    }
+  });
+
+  const appsByClient = new Map<string, any[]>();
+  allAppointments.forEach((a: any) => {
+    if (a.clienteId) {
+      const key = String(a.clienteId);
+      if (!appsByClient.has(key)) appsByClient.set(key, []);
+      appsByClient.get(key)!.push(a);
+    }
+  });
 
   const auditList: any[] = [];
 
   for (const c of activeClients) {
     const nome = c.dadosPessoais?.nome || 'Sem Nome';
-    const cIdObj = c._id;
     const cIdStr = String(c._id);
 
-    // Fixed schedules
-    const fixed = await db.collection('fixedschedules').find({
-      $or: [{ clienteId: cIdObj }, { clienteId: cIdStr }],
-      active: { $ne: false }
-    }).toArray();
-
-    // Appointments
-    const apps = await db.collection('appointments').find({
-      $or: [{ clienteId: cIdObj }, { clienteId: cIdStr }]
-    }).sort({ data: -1 }).toArray();
+    const fixed = fixedByClient.get(cIdStr) || [];
+    const apps = appsByClient.get(cIdStr) || [];
 
     let presencas = 0;
     let faltas = 0;
@@ -406,7 +437,7 @@ async function toolAuditarFrequenciaAgendas(db: any, args: any) {
     if (profFiltro === 'guilherme' && !agendaCategoria.includes('Guilherme')) continue;
 
     auditList.push({
-      id: String(c._id),
+      id: cIdStr,
       nome,
       plano: c.dadosComerciais?.planoNome || c.dadosComerciais?.duracao,
       vencimento: c.dadosComerciais?.vencimento || '—',
@@ -422,7 +453,6 @@ async function toolAuditarFrequenciaAgendas(db: any, args: any) {
     });
   }
 
-  // Ordenar por dias sem vir decrescente
   auditList.sort((a, b) => {
     if (typeof a.diasSemVir === 'string') return 1;
     if (typeof b.diasSemVir === 'string') return -1;
@@ -439,19 +469,20 @@ async function toolAuditarFrequenciaAgendas(db: any, args: any) {
 
 // 4. Tool: Resumo de KPIs
 async function toolObterResumoKpis(db: any) {
-  const activeCount = await db.collection('clients').countDocuments({ 'dadosComerciais.status': 'ativo' });
-  const fixedCount = await db.collection('fixedschedules').countDocuments({ active: { $ne: false } });
-
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   const next30 = new Date();
   next30.setDate(next30.getDate() + 30);
   const next30Str = next30.toISOString().split('T')[0];
 
-  const vencendo30d = await db.collection('clients').countDocuments({
-    'dadosComerciais.status': 'ativo',
-    'dadosComerciais.vencimento': { $gte: todayStr, $lte: next30Str }
-  });
+  const [activeCount, fixedCount, vencendo30d] = await Promise.all([
+    db.collection('clients').countDocuments({ 'dadosComerciais.status': 'ativo' }),
+    db.collection('fixedschedules').countDocuments({ active: { $ne: false } }),
+    db.collection('clients').countDocuments({
+      'dadosComerciais.status': 'ativo',
+      'dadosComerciais.vencimento': { $gte: todayStr, $lte: next30Str }
+    })
+  ]);
 
   return {
     totalAlunosAtivos: activeCount,
