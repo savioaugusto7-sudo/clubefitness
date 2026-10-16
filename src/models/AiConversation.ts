@@ -18,7 +18,7 @@ const AiConversationSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User' },
   userName: { type: String, default: 'Usuário' },
   title: { type: String, default: 'Nova Conversa' },
-  channel: { type: String, enum: ['dashboard', 'whatsapp'], default: 'dashboard' },
+  channel: { type: String, enum: ['dashboard', 'whatsapp', 'gabi_executive', 'executive'], default: 'dashboard' },
   whatsappNumber: { type: String, default: '' },
   messages: [AiMessageSchema]
 }, { timestamps: true });
