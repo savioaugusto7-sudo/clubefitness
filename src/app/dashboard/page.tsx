@@ -10,6 +10,7 @@ import DashboardProfessional from '@/components/DashboardProfessional';
 import DashboardClient from '@/components/DashboardClient';
 import AiCopilotWidget from '@/components/AiCopilotWidget';
 import GabiChatPage from '@/components/GabiChatPage';
+import GabiIntelligenceStudio from '@/components/GabiIntelligenceStudio';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -136,6 +137,19 @@ export default function DashboardPage() {
   const renderContent = () => {
     if (activeTab === 'gabi') {
       return <GabiChatPage />;
+    }
+
+    if (activeTab === 'gabi_intelligence') {
+      const isSavio = (user?.email || '').toLowerCase().trim() === 'savioaugusto7@gmail.com';
+      if (!isSavio) {
+        return (
+          <div style={{ padding: '32px', textAlign: 'center', color: '#ef4444' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Acesso Restrito</h2>
+            <p style={{ color: '#94a3b8' }}>O Gabi Intelligence Studio é de uso exclusivo do Gestor Geral Sávio Augusto Oliveira.</p>
+          </div>
+        );
+      }
+      return <GabiIntelligenceStudio user={user} />;
     }
 
     if (effectiveRole === 'admin') {

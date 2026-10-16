@@ -20,6 +20,7 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   userName: string;
+  userEmail?: string;
   userCargo?: string;
   activeRoles?: string[];
   onChangeRole?: (newRole: 'admin' | 'receptionist' | 'professional' | 'client') => void;
@@ -220,12 +221,14 @@ const bottomNavConfigs: Record<string, TabConfig[]> = {
   ]
 };
 
-export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo, activeRoles, onChangeRole, hasAnnualContract }: SidebarProps) {
+export default function Sidebar({ role, activeTab, setActiveTab, userName, userEmail, userCargo, activeRoles, onChangeRole, hasAnnualContract }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [pendingExercisesCount, setPendingExercisesCount] = useState<number>(0);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
+
+  const isSavio = (userEmail || '').toLowerCase().trim() === 'savioaugusto7@gmail.com';
 
   const categories = React.useMemo(() => {
     let base = categoryConfigs[role] || [];
@@ -235,8 +238,20 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
         tabs: cat.tabs.filter(t => t.id !== 'trancamento')
       }));
     }
+    if (role === 'admin' && isSavio) {
+      base = [
+        ...base,
+        {
+          title: 'INTELIGÊNCIA EXECUTIVA',
+          icon: 'fa-brain',
+          tabs: [
+            { id: 'gabi_intelligence', label: 'Gabi Intelligence Studio', icon: 'fa-wand-magic-sparkles' }
+          ]
+        }
+      ];
+    }
     return base;
-  }, [role, hasAnnualContract]);
+  }, [role, hasAnnualContract, isSavio]);
   const allTabs = categories.flatMap(c => c.tabs);
 
   // Consultar contagem de exercícios pendentes para alerta visual na sidebar
