@@ -140,7 +140,11 @@ export default function DashboardPage() {
     }
 
     if (activeTab === 'gabi_intelligence') {
-      const isSavio = (user?.email || '').toLowerCase().trim() === 'savioaugusto7@gmail.com';
+      const isSavio = 
+        (user?.email || '').toLowerCase().trim() === 'savioaugusto7@gmail.com' ||
+        (user?.name || '').toLowerCase().includes('sávio') ||
+        (user?.name || '').toLowerCase().includes('savio') ||
+        user?.cargo === 'Administrador Geral';
       if (!isSavio) {
         return (
           <div style={{ padding: '32px', textAlign: 'center', color: '#ef4444' }}>
@@ -171,6 +175,7 @@ export default function DashboardPage() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         userName={user.name || 'Usuário'}
+        userEmail={user.email}
         userCargo={user.cargo}
         activeRoles={activeRoles}
         hasAnnualContract={hasAnnualContract ?? undefined}

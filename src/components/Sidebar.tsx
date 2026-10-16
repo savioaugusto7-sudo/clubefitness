@@ -228,7 +228,11 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
   const [pendingExercisesCount, setPendingExercisesCount] = useState<number>(0);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  const isSavio = (userEmail || '').toLowerCase().trim() === 'savioaugusto7@gmail.com';
+  const isSavio = 
+    (userEmail || '').toLowerCase().trim() === 'savioaugusto7@gmail.com' ||
+    (userName || '').toLowerCase().includes('sávio') ||
+    (userName || '').toLowerCase().includes('savio') ||
+    userCargo === 'Administrador Geral';
 
   const categories = React.useMemo(() => {
     let base = categoryConfigs[role] || [];
@@ -238,17 +242,19 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
         tabs: cat.tabs.filter(t => t.id !== 'trancamento')
       }));
     }
-    if (role === 'admin' && isSavio) {
-      base = [
-        ...base,
-        {
-          title: 'INTELIGÊNCIA EXECUTIVA',
-          icon: 'fa-brain',
-          tabs: [
-            { id: 'gabi_intelligence', label: 'Gabi Intelligence Studio', icon: 'fa-wand-magic-sparkles' }
-          ]
-        }
-      ];
+    if (isSavio) {
+      const gabiCat: SidebarCategory = {
+        title: 'INTELIGÊNCIA EXECUTIVA',
+        icon: 'fa-brain',
+        tabs: [
+          { id: 'gabi_intelligence', label: '✨ Gabi Intelligence Studio', icon: 'fa-wand-magic-sparkles' }
+        ]
+      };
+      if (base.length > 0) {
+        base = [base[0], gabiCat, ...base.slice(1)];
+      } else {
+        base = [gabiCat];
+      }
     }
     return base;
   }, [role, hasAnnualContract, isSavio]);
