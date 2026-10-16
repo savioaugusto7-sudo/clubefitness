@@ -13,10 +13,12 @@ import {
 export const maxDuration = 45;
 
 const MODEL_CHAIN = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-flash-latest'
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-flash-lite-latest',
+  'gemini-3.7-flash',
+  'gemini-3.8-flash'
 ];
 
 function isSavio(user: any): boolean {
@@ -139,13 +141,22 @@ export async function POST(request: Request) {
       } catch (err: any) {
         lastErr = err;
         console.warn(`[Gabi Executive API] Tentativa com modelo ${modelName} falhou:`, err?.message);
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
     if (!finalAnswerText && lastErr) {
+      let friendlyError = lastErr?.message || 'Erro inesperado';
+      try {
+        const parsed = JSON.parse(friendlyError);
+        if (parsed?.error?.message) {
+          friendlyError = parsed.error.message;
+        }
+      } catch (_) {}
+
       return NextResponse.json({ 
         success: false, 
-        error: `Falha ao processar análise com IA: ${lastErr?.message || 'Erro inesperado'}` 
+        error: `Falha ao processar análise com IA: ${friendlyError}` 
       }, { status: 500 });
     }
 
