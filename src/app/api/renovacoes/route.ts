@@ -7,6 +7,7 @@ import Contract from '@/models/Contract';
 import { createClicksignDocument } from '@/app/api/contracts/route';
 import { generateContractTemplate } from '@/utils/contractTemplate';
 import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
+import { syncClientFixedSchedulesValidity } from '@/utils/fixedScheduleSync';
 
 export const maxDuration = 30;
 
@@ -244,6 +245,13 @@ export async function PUT(request: Request) {
     client.dadosComerciais.parcelas = numParcelas;
 
     await client.save();
+
+    // Sincronizar e manter contínua a grade de horários fixos do aluno
+    try {
+      await syncClientFixedSchedulesValidity(client._id.toString());
+    } catch (schedErr) {
+      console.error('[renovacoes] Erro ao sincronizar horários fixos:', schedErr);
+    }
 
     // 4. Gerar template do contrato
     const pes = client.dadosPessoais || {};

@@ -3,6 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
 import Payment from '@/models/Payment';
 import { syncClientPlanValidity } from '@/utils/commercial';
+import { syncClientFixedSchedulesValidity } from '@/utils/fixedScheduleSync';
 
 export const maxDuration = 30;
 
@@ -103,6 +104,13 @@ export async function POST(request: Request) {
     // If it was created as paid (zero value), trigger sync helper to confirm alignment
     if (isZeroVal) {
       await syncClientPlanValidity(client._id.toString());
+    }
+
+    // Sincronizar e manter contínua a grade de horários fixos do aluno
+    try {
+      await syncClientFixedSchedulesValidity(client._id.toString());
+    } catch (schedErr) {
+      console.error('[contracts/renew] Erro ao sincronizar horários fixos:', schedErr);
     }
 
     return NextResponse.json({

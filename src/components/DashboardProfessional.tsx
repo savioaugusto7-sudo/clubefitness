@@ -6216,6 +6216,11 @@ goniometria: {
                                     <i className="fa-solid fa-calendar-check" style={{ fontSize: '0.7rem' }}></i> {freqStr}
                                   </span>
                                 )}
+                                {a.origemHorarioFixo && (
+                                  <span style={{ fontSize: '0.73rem', fontWeight: 800, color: '#c084fc', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.35)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    📌 Horário Fixo
+                                  </span>
+                                )}
                               </div>
                             </div>
 

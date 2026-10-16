@@ -934,6 +934,26 @@ export default function AgendaCompletaPanel({
                                        <i className="fa-solid fa-bolt" style={{ fontSize: '0.56rem' }}></i> DYNAMUS
                                      </span>
                                    )}
+                                   {apt.origemHorarioFixo && (
+                                     <span 
+                                       title="Horário Fixo Semanal Garantido"
+                                       style={{ 
+                                         fontSize: '0.62rem', 
+                                         fontWeight: 800, 
+                                         padding: '1px 5px', 
+                                         borderRadius: '8px', 
+                                         background: 'rgba(168, 85, 247, 0.18)', 
+                                         color: '#c084fc', 
+                                         border: '1px solid rgba(168, 85, 247, 0.4)', 
+                                         display: 'inline-flex', 
+                                         alignItems: 'center', 
+                                         gap: '2px',
+                                         pointerEvents: 'none'
+                                       }}
+                                     >
+                                       📌 Fixo
+                                     </span>
+                                   )}
                                    <span 
                                      style={{ 
                                        fontSize: '0.64rem', 
@@ -1251,6 +1271,22 @@ export default function AgendaCompletaPanel({
                                   boxShadow: '0 1px 4px rgba(6, 182, 212, 0.2)'
                                 }}>
                                   <i className="fa-solid fa-bolt" style={{ fontSize: '0.58rem' }}></i> DYNAMUS
+                                </span>
+                              )}
+                              {apt.origemHorarioFixo && (
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  fontWeight: 800,
+                                  padding: '2px 7px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(168, 85, 247, 0.2)',
+                                  color: '#c084fc',
+                                  border: '1px solid rgba(168, 85, 247, 0.4)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  📌 Horário Fixo
                                 </span>
                               )}
                             </div>
@@ -1602,6 +1638,22 @@ export default function AgendaCompletaPanel({
                   }}>
                     {inspectApt.servico}
                   </span>
+                  {inspectApt.origemHorarioFixo && (
+                    <span style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      background: 'rgba(168, 85, 247, 0.18)',
+                      color: '#c084fc',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      📌 Horário Fixo Semanal
+                    </span>
+                  )}
                 </div>
 
                 {/* Bloco de Observação Clínica com Timestamp */}

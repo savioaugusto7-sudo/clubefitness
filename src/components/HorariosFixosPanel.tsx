@@ -143,8 +143,7 @@ export default function HorariosFixosPanel({
   const [modalClient, setModalClient] = useState('');
   const [modalProf, setModalProf] = useState('');
   const [modalService, setModalService] = useState('Treino Monitorado');
-  const [modalStartDate, setModalStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [modalDurationType, setModalDurationType] = useState<'contrato' | 'indeterminado' | 'manual'>('contrato');
+  const [modalDurationType, setModalDurationType] = useState<'indeterminado' | 'manual'>('indeterminado');
   const [modalManualEndDate, setModalManualEndDate] = useState('');
 
   // Modo de horários: 'uniforme' (mesmo horário para os dias escolhidos) ou 'individual' (horário por dia)
@@ -392,7 +391,7 @@ export default function HorariosFixosPanel({
     setModalProf('');
     setModalService('Treino Monitorado');
     setModalStartDate(new Date().toISOString().split('T')[0]);
-    setModalDurationType('contrato');
+    setModalDurationType('indeterminado');
     setModalManualEndDate('');
     setScheduleMode('uniforme');
     setExceptionsMap({});
@@ -482,23 +481,7 @@ export default function HorariosFixosPanel({
       // 1. Resolver a data de vigência final
       let finalEndDate: string | null = null;
 
-      if (modalDurationType === 'contrato') {
-        const selClientObj = clients.find(c => c._id === modalClient);
-        const com = selClientObj?.dadosComerciais || {};
-        const hasRecurrence = Boolean(com.criarRecorrenciaMensal);
-
-        if (hasRecurrence) {
-          finalEndDate = null; // Modo contínuo recorrente
-        } else if (com.vencimento && com.vencimento >= modalStartDate) {
-          finalEndDate = com.vencimento;
-        } else {
-          // Consultar vigência do contrato
-          const valInfo = getContractValidityInfo(selClientObj, undefined, contractsList);
-          if (valInfo && valInfo.dataFim && valInfo.dataFim >= modalStartDate) {
-            finalEndDate = valInfo.dataFim;
-          }
-        }
-      } else if (modalDurationType === 'manual') {
+      if (modalDurationType === 'manual') {
         if (!modalManualEndDate) {
           alert('Por favor, informe a data final de término da regra.');
           setSavingSchedule(false);
@@ -506,7 +489,7 @@ export default function HorariosFixosPanel({
         }
         finalEndDate = modalManualEndDate;
       } else {
-        // Indeterminado / Contínuo
+        // Indeterminado / Contínuo (Padrão Recomendado)
         finalEndDate = null;
       }
 
@@ -2036,9 +2019,8 @@ export default function HorariosFixosPanel({
                       value={modalDurationType}
                       onChange={e => setModalDurationType(e.target.value as any)}
                     >
-                      <option value="contrato">Até o fim da vigência do contrato comercial</option>
-                      <option value="indeterminado">Sem data final (Contínuo / Recorrente)</option>
-                      <option value="manual">Definir data de término manual</option>
+                      <option value="indeterminado">♾️ Indeterminado (Sem data final - Contínuo enquanto ativo)</option>
+                      <option value="manual">📅 Prazo Específico (Definir data de término manual)</option>
                     </select>
                   </div>
 

@@ -11,8 +11,17 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
     const com = client.dadosComerciais;
     const isRecurring = Boolean(com.criarRecorrenciaMensal);
 
-    // If client does NOT have recurrence active, do not auto-extend validity based on paid installments!
-    if (!isRecurring) return;
+    // If client does NOT have recurrence active, do not auto-extend validity based on paid installments,
+    // but still ensure fixed schedules validity and appointments are in sync!
+    if (!isRecurring) {
+      try {
+        const { syncClientFixedSchedulesValidity } = await import('./fixedScheduleSync');
+        await syncClientFixedSchedulesValidity(clientId);
+      } catch (schedErr) {
+        console.error('[syncClientPlanValidity] Erro ao sincronizar horários fixos para não recorrente:', schedErr);
+      }
+      return;
+    }
 
     // Find all paid payments (non-zero or zero payments, status === 'Pago')
     const paidPayments = await Payment.find({
