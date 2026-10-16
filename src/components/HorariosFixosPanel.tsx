@@ -143,6 +143,7 @@ export default function HorariosFixosPanel({
   const [modalClient, setModalClient] = useState('');
   const [modalProf, setModalProf] = useState('');
   const [modalService, setModalService] = useState('Treino Monitorado');
+  const [modalStartDate, setModalStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [modalDurationType, setModalDurationType] = useState<'indeterminado' | 'manual'>('indeterminado');
   const [modalManualEndDate, setModalManualEndDate] = useState('');
 
