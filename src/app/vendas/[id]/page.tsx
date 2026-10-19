@@ -66,8 +66,9 @@ export default function VendaPage({ params }: { params: any }) {
           const isAnualProp = prop.duracao === 'anual' || (prop.planoTipo && prop.planoTipo.toLowerCase().includes('anual')) || (prop.vigenciaQtd || 1) >= 12;
           const isSemanalProp = prop.duracao === 'semana';
           const isRecorrenteProp = Boolean(prop.criarRecorrenciaMensal);
+          const isSpecial10xProp = id === '6ad605bf79ad698a492bbad5' || Boolean(prop.permitir10xBoleto) || Number(prop.maxParcelasBoleto) === 10;
           const mEq = isAnualProp ? 12 : isSemanalProp ? Math.max(1, Math.floor((prop.vigenciaQtd || 1) / 4)) : Math.max(1, prop.vigenciaQtd || 1);
-          const defaultBoletoInstallments = isRecorrenteProp ? 1 : isAnualProp ? 10 : Math.min(10, mEq);
+          const defaultBoletoInstallments = isRecorrenteProp ? 1 : (isAnualProp || isSpecial10xProp) ? 10 : Math.min(10, mEq);
           setParcelas(defaultBoletoInstallments);
 
           // Prefill with client personal data if already exists
@@ -246,10 +247,14 @@ export default function VendaPage({ params }: { params: any }) {
   const dataInicioFormatada = formatPtBr(rawDataInicio);
   const dataFimCalculada = formatPtBr(dataFimCalculadaRaw);
 
+  // Condição especial: exclusivamente para o link da proposta 6ad605bf79ad698a492bbad5 ou se configurado na proposta
+  const isSpecial10xBoleto = id === '6ad605bf79ad698a492bbad5' || Boolean(proposal?.permitir10xBoleto) || Number(proposal?.maxParcelasBoleto) === 10;
+
   // Máximo de parcelas para Boleto / Pix
   const maxInstallmentsBoleto = (() => {
     if (isRecorrente) return 1;
     if (isAnual) return 10;
+    if (isSpecial10xBoleto) return 10;
     return Math.min(10, vigenciaMesesEquivalentes);
   })();
 

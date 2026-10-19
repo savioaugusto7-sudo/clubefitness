@@ -19,6 +19,8 @@ const ProposalSchema = new Schema({
   criarRecorrenciaMensal: { type: Boolean, default: false },
   recorrenciaMeses: { type: Number, default: 12 },
   isMinor: { type: Boolean, default: false },
+  permitir10xBoleto: { type: Boolean, default: false },
+  maxParcelasBoleto: { type: Number, default: null },
 
   status: { type: String, default: 'pendente' },
   abertoEm: { type: Date, default: null }, // Sempre armazena a ÚLTIMA visualização
