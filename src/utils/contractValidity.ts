@@ -131,11 +131,50 @@ export function calculateContractEndDate(
   }
 }
 
-export function getContractValidityInfo(client: any, planObj?: any, clientPayments?: any[]): ContractValidityInfo {
+export function getContractValidityInfo(
+  client: any, 
+  planObj?: any, 
+  clientPayments?: any[],
+  latestContractOrContracts?: any
+): ContractValidityInfo {
   try {
+    // 1. Resolução do Contrato Oficial Único (Prioridade Máxima e Absoluta)
+    let contract: any = null;
+    if (latestContractOrContracts) {
+      if (Array.isArray(latestContractOrContracts)) {
+        const sorted = [...latestContractOrContracts].sort((a: any, b: any) => {
+          const vA = Number(a.versao || 0);
+          const vB = Number(b.versao || 0);
+          if (vB !== vA) return vB - vA;
+          return (b.dataFim || '').localeCompare(a.dataFim || '');
+        });
+        contract = sorted.find((c: any) => c.status === 'assinado' || c.status === 'ativo') || sorted[0] || null;
+      } else if (typeof latestContractOrContracts === 'object') {
+        contract = latestContractOrContracts;
+      }
+    }
+
+    if (!contract && client?.latestContract) {
+      contract = client.latestContract;
+    }
+
+    // Proteção de assinatura: se o 3º argumento for array de contratos ao invés de pagamentos
+    let paymentsList = clientPayments || client?.payments || [];
+    if (Array.isArray(paymentsList) && paymentsList.length > 0 && (paymentsList[0]?.versao !== undefined || paymentsList[0]?.clicksignStatus !== undefined)) {
+      if (!contract) {
+        const sorted = [...paymentsList].sort((a: any, b: any) => {
+          const vA = Number(a.versao || 0);
+          const vB = Number(b.versao || 0);
+          if (vB !== vA) return vB - vA;
+          return (b.dataFim || '').localeCompare(a.dataFim || '');
+        });
+        contract = sorted.find((c: any) => c.status === 'assinado' || c.status === 'ativo') || sorted[0] || null;
+      }
+      paymentsList = client?.payments || [];
+    }
+
     const com = client?.dadosComerciais || {};
     const dp = client?.dadosPessoais || {};
-    const statusSaved = (com.status || client?.status || 'ativo').toString().toLowerCase();
 
     // Detecção de Convênio Dynamus
     const isDynamus = Boolean(
@@ -147,278 +186,317 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       client?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
     );
 
-    // Se tiver convênio Dynamus mas NÃO tiver plano Clube Fitness contratado:
     const hasClubePlan = Boolean(com.planoId && !planObj?.nome?.toLowerCase().includes('dynamus'));
-
-    // TRATAMENTO FACTUAL DE LEADS E CADASTROS SEM CONTRATO:
-    // Se for Lead ou não tiver data de início nem pagamentos nem contrato emitido, NÃO INVENTAR DATAS!
-    const paymentsList = clientPayments || client?.payments || [];
-    const hasPaidPayments = Array.isArray(paymentsList) && paymentsList.some((p: any) => p.status === 'Pago');
-    
-    // Alunos com plano real contratado, valor definido e vigência configurada NÃO são leads aguardando venda
-    const valorContrato = Number(com.valorTotal || com.valorUnitario || 0);
-    const hasRealContractDates = Boolean(com.dataInicio && (com.dataFim || com.vencimento));
-    const isManualContractActive = Boolean(
-      (hasClubePlan || com.planoNome || planObj?.nome) && 
-      valorContrato > 0 && 
-      hasRealContractDates
-    );
-
-    const isLeadStatus = (statusSaved === 'lead') && !isManualContractActive && !hasPaidPayments;
-    const isUncontracted = !com.dataInicio && !com.vencimento && !hasPaidPayments && !isDynamus && !isManualContractActive;
-
-    if ((isDynamus && !hasClubePlan && !hasPaidPayments) || isLeadStatus || (isUncontracted && statusSaved !== 'ativo')) {
-      return {
-        dataInicio: '',
-        dataFim: '',
-        dataFimRecorrencia: '',
-        dataFimCicloTotal: '',
-        dataInicioFormatted: '-',
-        dataFimFormatted: '-',
-        dataFimRecorrenciaFormatted: '-',
-        dataFimCicloTotalFormatted: '-',
-        isExpired: false,
-        isExpiringSoon: false,
-        daysLeft: 0,
-        daysLeftText: isLeadStatus ? 'Aguardando Venda' : 'Sem Contrato',
-        statusKey: 'lead',
-        statusLabel: isLeadStatus ? '🟣 Lead / Novo Cadastro' : 'Sem Contrato Emitido',
-        badgeColor: '#a855f7',
-        badgeBg: 'rgba(168, 85, 247, 0.12)',
-        badgeBorder: 'rgba(168, 85, 247, 0.35)',
-        isLead: true,
-        isUncontracted: true
-      };
-    }
-
-    const isAnual = com.duracao === 'anual' || (!com.duracao && planObj?.tipo === 'Anual') || (planObj?.nome || '').toLowerCase().includes('anual');
-    
-    // Regra Oficial da Empresa: Não usamos 'semestral'. Contratos por meses usam duracao: 'mensal' e duracaoQtd: N
-    let duracao = isAnual ? 'anual' : (com.duracao || 'mensal');
-    let vigenciaQtd = isDynamus ? 1 : (Number(com.duracaoQtd) || Number(com.vigenciaQtd) || 1);
-    const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
-    
-    // RECORRÊNCIA É EXCLUSIVAMENTE QUANDO HÁ CONFIGURAÇÃO EXPLÍCITA DE ASSINATURA RECORRENTE
-    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal);
-
-    const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
-
-    // 1. DATA FIM DO CICLO CONTRATUAL TOTAL (12 Meses para Anual / Vigência Contratada)
-    const recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
-
-    let dataFimCicloTotal = isRecorrente
-      ? calculateContractEndDate(dataInicio, 'anual', 1, undefined, false)
-      : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
-    let dataFimRecorrencia = dataFimCicloTotal;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = safeFormatYYYYMMDD(today);
 
-    const isPaidStatus = (s: string) => {
-      const st = (s || '').toLowerCase();
-      return st === 'pago' || st === 'received' || st === 'confirmed' || st === 'received_in_cash' || st === 'recebido';
-    };
-
-    // Detecção de inadimplência pontual de parcelas
-    const atrasadas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => {
-      if (isPaidStatus(p.status)) return false;
-      if (p.status === 'Atrasado' || p.status === 'OVERDUE') return true;
-      return p.vencimento && p.vencimento < todayStr;
-    });
-    const hasOverdueInstallment = atrasadas.length > 0;
-    const pagas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => isPaidStatus(p.status));
-    const parcelasInfo = `${pagas.length}/${(paymentsList || []).length || vigenciaQtd} pagas`;
-
-    let dataFim = dataFimCicloTotal;
-    let isExpired = false;
-    let isExpiringSoon = false;
-    let daysLeft = 0;
-    let daysLeftText = '';
-
     // =========================================================================
-    // 🅰️ CASO 1: SEM RECORRÊNCIA (Planos Fechados: À vista, Parcelado 10x/12x)
-    // A Data Fim é 100% INDEPENDENTE dos pagamentos! (Data Início + Duração)
+    // 🅰️ CENÁRIO 1: ALUNO COM CONTRATO OFICIAL (Coleção Contract)
+    // O contrato é a AUTORIDADE ÚNICA E ABSOLUTA (Zero Fallback Ambíguo)
     // =========================================================================
-    let isWithinTolerance = false;
-    let toleranceDaysLeft = 0;
-    let overdueDays = 0;
+    if (contract && (contract.status || contract.dataInicio || contract.dataFim)) {
+      const contractStatus = String(contract.status || 'assinado').toLowerCase();
+      const isAnual = contract.duracao === 'anual' || (contract.planoNome || '').toLowerCase().includes('anual') || (Number(contract.vigenciaMeses) >= 12);
+      const duracao = isAnual ? 'anual' : (contract.duracao || 'mensal');
+      const vigenciaQtd = isAnual ? 1 : (Number(contract.vigenciaMeses) || Number(contract.vigenciaQtd) || 1);
+      const isRecorrente = Boolean(contract.criarRecorrenciaMensal);
 
-    if (hasOverdueInstallment && atrasadas.length > 0) {
-      const earliestOverdue = [...atrasadas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
-      if (earliestOverdue?.vencimento) {
-        const overD = safeParseDate(earliestOverdue.vencimento);
-        overD.setHours(0, 0, 0, 0);
-        overdueDays = Math.max(1, Math.ceil((today.getTime() - overD.getTime()) / (1000 * 60 * 60 * 24)));
-        if (overdueDays <= 5) {
-          isWithinTolerance = true;
-          toleranceDaysLeft = Math.max(0, 5 - overdueDays);
-        }
-      }
-    }
+      const dataInicioRaw = contract.dataInicio || contract.dataEmissao || contract.createdAt || todayStr;
+      const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    if (!isRecorrente) {
-      dataFim = isDynamus ? dataFimCicloTotal : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
-      const endD = safeParseDate(dataFim);
-      endD.setHours(0, 0, 0, 0);
-      const diffTime = endD.getTime() - today.getTime();
-      daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const dataFimCalculada = contract.dataFim || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, isRecorrente);
+      const dataFim = safeFormatYYYYMMDD(safeParseDate(dataFimCalculada));
+      const dataFimCicloTotal = dataFim;
+      const dataFimRecorrencia = dataFim;
 
-      isExpired = daysLeft < 0;
-      isExpiringSoon = !isExpired && daysLeft <= 30;
+      const isPaidStatus = (s: string) => {
+        const st = (s || '').toLowerCase();
+        return st === 'pago' || st === 'received' || st === 'confirmed' || st === 'received_in_cash' || st === 'recebido';
+      };
 
-      if (isExpired) {
-        daysLeftText = `Vencido há ${Math.abs(daysLeft)}d`;
-      } else if (isExpiringSoon) {
-        daysLeftText = daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft}d`;
-      } else if (isWithinTolerance) {
-        daysLeftText = `Tolerância • ${toleranceDaysLeft}d restantes`;
-      } else if (hasOverdueInstallment) {
-        daysLeftText = `Parcela em atraso (${overdueDays}d) • ${daysLeft}d restantes`;
-      } else {
-        daysLeftText = `${daysLeft}d restantes`;
-      }
-    } else {
-      // =========================================================================
-      // 🅱️ CASO 2: COM RECORRÊNCIA ATIVADA (Assinatura Mensal Contínua)
-      // A ÂNCORA É SEMPRE O DIA DA DATA DE INÍCIO (ex: dia 26)
-      // REGRA OFICIAL (1 Ciclo na Assinatura + 1 por Mês Pago com Trava de Unicidade):
-      // 1. Ao assinar contrato: O cliente está ativo e possui o 1º ciclo garantido.
-      // 2. Ao confirmar o 1º pagamento: Renova e destrava o 2º ciclo.
-      // 3. Ao confirmar o 2º pagamento e seguintes: Aceita estritamente 1 avanço por mês
-      //    de competência (YYYY-MM), blindando contra duplicidade de boletos e 2ª vias!
-      // =========================================================================
-      const startD = safeParseDate(dataInicio);
-      
-      const paidCompetenceMonths = new Set<string>();
-      pagas.forEach((p: any) => {
-        const rawDate = p.vencimento || p.dataPagamento;
-        if (rawDate) {
-          const dateStr = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
-          const ym = dateStr.slice(0, 7); // 'YYYY-MM'
-          if (ym && ym.length === 7) {
-            paidCompetenceMonths.add(ym);
+      const atrasadas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => {
+        if (isPaidStatus(p.status)) return false;
+        if (p.status === 'Atrasado' || p.status === 'OVERDUE') return true;
+        return p.vencimento && p.vencimento < todayStr;
+      });
+      const hasOverdueInstallment = atrasadas.length > 0;
+      const pagas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => isPaidStatus(p.status));
+      const parcelasInfo = `${pagas.length}/${(paymentsList || []).length || vigenciaQtd} pagas`;
+
+      let isWithinTolerance = false;
+      let toleranceDaysLeft = 0;
+      let overdueDays = 0;
+
+      if (hasOverdueInstallment && atrasadas.length > 0) {
+        const earliestOverdue = [...atrasadas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
+        if (earliestOverdue?.vencimento) {
+          const overD = safeParseDate(earliestOverdue.vencimento);
+          overD.setHours(0, 0, 0, 0);
+          overdueDays = Math.max(1, Math.ceil((today.getTime() - overD.getTime()) / (1000 * 60 * 60 * 24)));
+          if (overdueDays <= 5) {
+            isWithinTolerance = true;
+            toleranceDaysLeft = Math.max(0, 5 - overdueDays);
           }
         }
-      });
-
-      const distinctPaidCount = paidCompetenceMonths.size;
-      const cyclesUnlocked = Math.min(recorrenciaMeses, Math.max(1, 1 + distinctPaidCount));
-
-      const cycleEndD = new Date(startD);
-      cycleEndD.setMonth(cycleEndD.getMonth() + cyclesUnlocked);
-      dataFim = safeFormatYYYYMMDD(cycleEndD);
+      }
 
       const endD = safeParseDate(dataFim);
       endD.setHours(0, 0, 0, 0);
       const diffTime = endD.getTime() - today.getTime();
-      daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      isExpired = false;
-      isExpiringSoon = false;
-
-      if (isWithinTolerance) {
-        daysLeftText = `Tolerância de 5d • ${toleranceDaysLeft}d restantes`;
-      } else if (hasOverdueInstallment) {
-        daysLeftText = `Mensalidade em atraso há ${overdueDays}d`;
-      } else if (daysLeft >= 0) {
-        daysLeftText = `Ciclo ativo até ${formatPtBr(dataFim)}`;
-      } else {
-        daysLeftText = `Ciclo encerrado em ${formatPtBr(dataFim)}`;
+      // Rescisão ou Cancelamento Formal
+      if (contractStatus === 'cancelado') {
+        return {
+          dataInicio,
+          dataFim,
+          dataFimRecorrencia,
+          dataFimCicloTotal,
+          dataInicioFormatted: formatPtBr(dataInicio),
+          dataFimFormatted: formatPtBr(dataFim),
+          dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
+          dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
+          isExpired: true,
+          isExpiringSoon: false,
+          isWithinTolerance: false,
+          toleranceDaysLeft: 0,
+          overdueDays: 0,
+          canSchedule: false,
+          daysLeft,
+          daysLeftText: 'Cancelado',
+          statusKey: 'inativo',
+          statusLabel: 'Contrato Cancelado',
+          badgeColor: '#64748b',
+          badgeBg: 'rgba(100, 116, 139, 0.12)',
+          badgeBorder: 'rgba(100, 116, 139, 0.3)',
+          parcelasInfo,
+          hasOverdueInstallment: false,
+          isEndOfRecurrenceCycle: false,
+          isRecorrente,
+          isLead: false,
+          isUncontracted: false
+        };
       }
+
+      // Finalizado (Não Renovou)
+      if (contractStatus === 'finalizado') {
+        return {
+          dataInicio,
+          dataFim,
+          dataFimRecorrencia,
+          dataFimCicloTotal,
+          dataInicioFormatted: formatPtBr(dataInicio),
+          dataFimFormatted: formatPtBr(dataFim),
+          dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
+          dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
+          isExpired: false,
+          isExpiringSoon: false,
+          isWithinTolerance: false,
+          toleranceDaysLeft: 0,
+          overdueDays: 0,
+          canSchedule: false,
+          daysLeft,
+          daysLeftText: 'Encerrado',
+          statusKey: 'finalizado',
+          statusLabel: 'Finalizado (Não Renovou)',
+          badgeColor: '#9ca3af',
+          badgeBg: 'rgba(107, 114, 128, 0.15)',
+          badgeBorder: 'rgba(107, 114, 128, 0.35)',
+          parcelasInfo,
+          hasOverdueInstallment: false,
+          isEndOfRecurrenceCycle: false,
+          isRecorrente,
+          isLead: false,
+          isUncontracted: false
+        };
+      }
+
+      // Aguardando Assinatura
+      if (contractStatus === 'pendente') {
+        return {
+          dataInicio,
+          dataFim,
+          dataFimRecorrencia,
+          dataFimCicloTotal,
+          dataInicioFormatted: formatPtBr(dataInicio),
+          dataFimFormatted: formatPtBr(dataFim),
+          dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
+          dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
+          isExpired: false,
+          isExpiringSoon: false,
+          isWithinTolerance: false,
+          toleranceDaysLeft: 0,
+          overdueDays: 0,
+          canSchedule: false,
+          daysLeft,
+          daysLeftText: 'Aguardando Assinatura',
+          statusKey: 'pendente',
+          statusLabel: 'Aguardando Assinatura',
+          badgeColor: '#f59e0b',
+          badgeBg: 'rgba(245, 158, 11, 0.12)',
+          badgeBorder: 'rgba(245, 158, 11, 0.3)',
+          parcelasInfo,
+          hasOverdueInstallment: false,
+          isEndOfRecurrenceCycle: false,
+          isRecorrente,
+          isLead: false,
+          isUncontracted: false
+        };
+      }
+
+      // Contrato Assinado / Ativo
+      const isExpired = daysLeft < 0;
+      const isExpiringSoon = !isExpired && daysLeft <= 30;
+
+      let statusKey: 'ativo' | 'vencendo' | 'vencido' = 'ativo';
+      let statusLabel = isRecorrente ? 'Contrato Vigente (Recorrência)' : 'Contrato Ativo';
+      let badgeColor = '#10b981';
+      let badgeBg = 'rgba(16, 185, 129, 0.12)';
+      let badgeBorder = 'rgba(16, 185, 129, 0.3)';
+      let daysLeftText = `${daysLeft}d restantes`;
+
+      if (isExpired) {
+        statusKey = 'vencido';
+        statusLabel = isRecorrente ? 'Recorrência Vencida' : 'Contrato Vencido';
+        badgeColor = '#ef4444';
+        badgeBg = 'rgba(239, 68, 68, 0.12)';
+        badgeBorder = 'rgba(239, 68, 68, 0.3)';
+        daysLeftText = `Vencido há ${Math.abs(daysLeft)}d`;
+      } else if (isExpiringSoon) {
+        statusKey = 'vencendo';
+        statusLabel = 'Renovação <30d';
+        badgeColor = '#f59e0b';
+        badgeBg = 'rgba(245, 158, 11, 0.12)';
+        badgeBorder = 'rgba(245, 158, 11, 0.3)';
+        daysLeftText = daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft}d`;
+      } else if (isWithinTolerance) {
+        statusKey = 'ativo';
+        statusLabel = `Tolerância Ativa (${toleranceDaysLeft}d)`;
+        badgeColor = '#eab308';
+        badgeBg = 'rgba(234, 179, 8, 0.15)';
+        badgeBorder = 'rgba(234, 179, 8, 0.4)';
+        daysLeftText = `Tolerância • ${toleranceDaysLeft}d restantes`;
+      } else if (hasOverdueInstallment) {
+        statusKey = 'ativo';
+        statusLabel = 'Vigente • Parcela em Atraso';
+        badgeColor = '#f97316';
+        badgeBg = 'rgba(249, 115, 22, 0.12)';
+        badgeBorder = 'rgba(249, 115, 22, 0.3)';
+        daysLeftText = `Parcela em atraso (${overdueDays}d) • ${daysLeft}d restantes`;
+      }
+
+      return {
+        dataInicio,
+        dataFim,
+        dataFimRecorrencia,
+        dataFimCicloTotal,
+        dataInicioFormatted: formatPtBr(dataInicio),
+        dataFimFormatted: formatPtBr(dataFim),
+        dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
+        dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
+        isExpired,
+        isExpiringSoon,
+        isWithinTolerance,
+        toleranceDaysLeft,
+        overdueDays,
+        canSchedule: !isExpired && (!hasOverdueInstallment || isWithinTolerance),
+        daysLeft,
+        daysLeftText,
+        statusKey,
+        statusLabel,
+        badgeColor,
+        badgeBg,
+        badgeBorder,
+        parcelasInfo,
+        hasOverdueInstallment,
+        isEndOfRecurrenceCycle: Boolean(isRecorrente && isExpiringSoon),
+        isRecorrente,
+        isLead: false,
+        isUncontracted: false
+      };
     }
 
-    // Status Badge
-    let statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' | 'finalizado' = 'ativo';
-    let statusLabel = isRecorrente ? 'Contrato Vigente (Recorrência)' : 'Contrato Ativo';
-    let badgeColor = '#10b981';
-    let badgeBg = 'rgba(16, 185, 129, 0.12)';
-    let badgeBorder = 'rgba(16, 185, 129, 0.3)';
+    // =========================================================================
+    // 🅱️ CENÁRIO 2: ALUNO CONVÊNIO DYNAMUS
+    // =========================================================================
+    if (isDynamus) {
+      const dataInicioRaw = com.dataInicio || client?.createdAt || todayStr;
+      const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
+      const dataFim = com.vigenciaDynamusFim || calculateContractEndDate(dataInicio, 'anual', 1, undefined, false);
 
-    if (isExpired) {
-      statusKey = 'vencido';
-      statusLabel = isRecorrente ? 'Recorrência Vencida' : 'Contrato Vencido';
-      badgeColor = '#ef4444';
-      badgeBg = 'rgba(239, 68, 68, 0.12)';
-      badgeBorder = 'rgba(239, 68, 68, 0.3)';
-    } else if (isExpiringSoon) {
-      statusKey = 'vencendo';
-      statusLabel = 'Renovação <30d';
-      badgeColor = '#f59e0b';
-      badgeBg = 'rgba(245, 158, 11, 0.12)';
-      badgeBorder = 'rgba(245, 158, 11, 0.3)';
-    } else if (isWithinTolerance) {
-      statusKey = 'ativo';
-      statusLabel = `Tolerância Ativa (${toleranceDaysLeft}d)`;
-      badgeColor = '#eab308';
-      badgeBg = 'rgba(234, 179, 8, 0.15)';
-      badgeBorder = 'rgba(234, 179, 8, 0.4)';
-    } else if (hasOverdueInstallment) {
-      statusKey = 'ativo';
-      statusLabel = 'Vigente • Parcela em Atraso';
-      badgeColor = '#f97316';
-      badgeBg = 'rgba(249, 115, 22, 0.12)';
-      badgeBorder = 'rgba(249, 115, 22, 0.3)';
+      const endD = safeParseDate(dataFim);
+      endD.setHours(0, 0, 0, 0);
+      const diffTime = endD.getTime() - today.getTime();
+      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const isExpired = daysLeft < 0;
+
+      return {
+        dataInicio,
+        dataFim,
+        dataFimRecorrencia: dataFim,
+        dataFimCicloTotal: dataFim,
+        dataInicioFormatted: formatPtBr(dataInicio),
+        dataFimFormatted: formatPtBr(dataFim),
+        dataFimRecorrenciaFormatted: formatPtBr(dataFim),
+        dataFimCicloTotalFormatted: formatPtBr(dataFim),
+        isExpired,
+        isExpiringSoon: !isExpired && daysLeft <= 30,
+        isWithinTolerance: false,
+        toleranceDaysLeft: 0,
+        overdueDays: 0,
+        canSchedule: !isExpired,
+        daysLeft,
+        daysLeftText: isExpired ? `Vencido há ${Math.abs(daysLeft)}d` : `${daysLeft}d restantes`,
+        statusKey: isExpired ? 'vencido' : 'ativo',
+        statusLabel: '⚡ Convênio Dynamus',
+        badgeColor: '#06b6d4',
+        badgeBg: 'rgba(6, 182, 212, 0.12)',
+        badgeBorder: 'rgba(6, 182, 212, 0.35)',
+        parcelasInfo: 'Convênio',
+        hasOverdueInstallment: false,
+        isEndOfRecurrenceCycle: false,
+        isRecorrente: false,
+        isLead: false,
+        isUncontracted: false
+      };
     }
 
-    if (statusSaved === 'finalizado') {
-      statusKey = 'finalizado';
-      statusLabel = 'Finalizado (Não Renovou)';
-      badgeColor = '#9ca3af';
-      badgeBg = 'rgba(107, 114, 128, 0.15)';
-      badgeBorder = 'rgba(107, 114, 128, 0.35)';
-      daysLeftText = 'Encerrado';
-      isExpired = false;
-      isExpiringSoon = false;
-    } else if (statusSaved === 'congelado') {
-      statusKey = 'congelado';
-      statusLabel = 'Congelado';
-      badgeColor = '#f59e0b';
-      badgeBg = 'rgba(245, 158, 11, 0.12)';
-      badgeBorder = 'rgba(245, 158, 11, 0.3)';
-    } else if (statusSaved === 'lead') {
-      statusKey = 'lead';
-      statusLabel = 'Lead / Avaliação';
-      badgeColor = '#8b5cf6';
-      badgeBg = 'rgba(139, 92, 246, 0.12)';
-      badgeBorder = 'rgba(139, 92, 246, 0.3)';
-    } else if (statusSaved === 'inativo') {
-      statusKey = 'inativo';
-      statusLabel = 'Inativo';
-      badgeColor = '#64748b';
-      badgeBg = 'rgba(100, 116, 139, 0.12)';
-      badgeBorder = 'rgba(100, 116, 139, 0.3)';
-    }
-
-    const isEndOfRecurrenceCycle = Boolean(isRecorrente && isExpiringSoon);
-
+    // =========================================================================
+    // 🅲 CENÁRIO 3: ALUNO SEM CONTRATO OFICIAL (Lead / Novo Cadastro)
+    // ZERO Fallback a datas fantasmas em dadosComerciais!
+    // NUNCA marcar como "Contrato Vencido" quem não tem contrato emitido!
+    // =========================================================================
+    const isLeadOrUncontracted = true;
     return {
-      dataInicio,
-      dataFim,
-      dataFimRecorrencia,
-      dataFimCicloTotal,
-      dataInicioFormatted: formatPtBr(dataInicio),
-      dataFimFormatted: formatPtBr(dataFim),
-      dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
-      dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
-      isExpired,
-      isExpiringSoon,
-      isWithinTolerance,
-      toleranceDaysLeft,
-      overdueDays,
-      canSchedule: !isExpired && (!hasOverdueInstallment || isWithinTolerance),
-      daysLeft,
-      daysLeftText,
-      statusKey,
-      statusLabel,
-      badgeColor,
-      badgeBg,
-      badgeBorder,
-      parcelasInfo,
-      hasOverdueInstallment,
-      isEndOfRecurrenceCycle,
-      isRecorrente,
-      recorrenciaMeses: isRecorrente ? recorrenciaMeses : undefined
+      dataInicio: '',
+      dataFim: '',
+      dataFimRecorrencia: '',
+      dataFimCicloTotal: '',
+      dataInicioFormatted: '-',
+      dataFimFormatted: '-',
+      dataFimRecorrenciaFormatted: '-',
+      dataFimCicloTotalFormatted: '-',
+      isExpired: false,
+      isExpiringSoon: false,
+      isWithinTolerance: false,
+      toleranceDaysLeft: 0,
+      overdueDays: 0,
+      canSchedule: false,
+      daysLeft: 0,
+      daysLeftText: 'Sem Contrato',
+      statusKey: 'lead',
+      statusLabel: '🟣 Lead / Sem Contrato Emitido',
+      badgeColor: '#8b5cf6',
+      badgeBg: 'rgba(139, 92, 246, 0.12)',
+      badgeBorder: 'rgba(139, 92, 246, 0.35)',
+      parcelasInfo: '0/0',
+      hasOverdueInstallment: false,
+      isEndOfRecurrenceCycle: false,
+      isRecorrente: false,
+      isLead: true,
+      isUncontracted: true
     };
   } catch (err) {
     console.error('[getContractValidityInfo] Error:', err);

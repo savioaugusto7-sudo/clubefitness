@@ -65,7 +65,7 @@ export interface ClientContractStage {
 export function resolveClientContractStage(c: any, plan: any, latestContract: any, latestProposal: any, clientPayments?: any[]): ClientContractStage {
   const com = c?.dadosComerciais || {};
   const dp = c?.dadosPessoais || {};
-  const info = getContractValidityInfo(c, plan, clientPayments);
+  const info = getContractValidityInfo(c, plan, clientPayments, latestContract);
 
   const isRecorrente = Boolean(com.criarRecorrenciaMensal || latestContract?.criarRecorrenciaMensal);
   const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
@@ -2684,12 +2684,27 @@ export default function GestaoContratosPanel({
     })();
     setDcVigenciaQtd(effectiveVigenciaQtd);
 
-    setDcValorUnitario(Number(com.valorUnitario || com.valorTotal || latestContract?.valorLiquido || latestContract?.valorUnitario || latestProposal?.valorFinalRecalculado || latestProposal?.valorUnitario || planObj?.preco || 0));
-    setDcVencimento(com.dataPrimeiroVencimento || com.vencimento || latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestProposal?.dataVencimentoEscolhida || latestProposal?.dataVencimento || '');
-    setDcDescontoTipo(com.descontoTipo || latestContract?.descontoTipo || latestProposal?.descontoTipo || 'percentual');
-    setDcDescontoValor(Number(com.descontoValor !== undefined ? com.descontoValor : (latestContract?.descontoValor || latestProposal?.descontoValor || 0)));
-    setDcParcelas(Number(com.parcelas || latestContract?.parcelas || latestProposal?.parcelasEscolhidas || 1));
-    setDcDataInicio(com.dataInicio || latestContract?.dataInicio || latestProposal?.dataInicio || '');
+    const hasActiveCt = Boolean(latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'));
+
+    if (hasActiveCt) {
+      setDcValorUnitario(Number(latestContract.valorLiquido !== undefined ? (latestContract.parcelas > 1 ? Number((latestContract.valorLiquido / latestContract.parcelas).toFixed(2)) : latestContract.valorLiquido) : (latestContract.valorUnitario || com.valorUnitario || 0)));
+      setDcVencimento(latestContract.dataPrimeiroVencimento || latestContract.dataInicio || com.dataPrimeiroVencimento || com.vencimento || '');
+      setDcDescontoTipo(latestContract.descontoTipo || com.descontoTipo || 'percentual');
+      setDcDescontoValor(Number(latestContract.descontoValor !== undefined ? latestContract.descontoValor : (com.descontoValor || 0)));
+      setDcParcelas(Number(latestContract.parcelas || com.parcelas || 1));
+      setDcDataInicio(latestContract.dataInicio || com.dataInicio || '');
+      setDcFormaPag(latestContract.formaPagamento || com.formaPagamento || 'pix');
+      if (latestContract.planoId) {
+        setDcPlano(typeof latestContract.planoId === 'object' ? latestContract.planoId._id : latestContract.planoId);
+      }
+    } else {
+      setDcValorUnitario(Number(com.valorUnitario || com.valorTotal || latestProposal?.valorFinalRecalculado || latestProposal?.valorUnitario || planObj?.preco || 0));
+      setDcVencimento(com.dataPrimeiroVencimento || com.vencimento || latestProposal?.dataVencimentoEscolhida || latestProposal?.dataVencimento || '');
+      setDcDescontoTipo(com.descontoTipo || latestProposal?.descontoTipo || 'percentual');
+      setDcDescontoValor(Number(com.descontoValor !== undefined ? com.descontoValor : (latestProposal?.descontoValor || 0)));
+      setDcParcelas(Number(com.parcelas || latestProposal?.parcelasEscolhidas || 1));
+      setDcDataInicio(com.dataInicio || latestProposal?.dataInicio || '');
+    }
     setDcResponsavelVenda(com.responsavelVenda || latestContract?.usuarioEmissor || '');
     setDcUnidadeContratada(com.unidadeContratada || latestContract?.unidadeContratada || latestProposal?.unidadeContratada || planObj?.unidadeAtendimento || '');
     setDcObservacoesContratuais(com.observacoesContratuais || latestContract?.observacoesContratuais || latestProposal?.observacoesContratuais || '');
@@ -2813,7 +2828,27 @@ export default function GestaoContratosPanel({
     if (!selectedClient) return;
     try {
       setGeneratingPayments(true);
-      // First save commercial data to ensure profile is synced
+      // Ensure commercial data aligns with latestContract if one exists
+      const targetInicio = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
+        ? latestContract.dataInicio
+        : (dcDataInicio || selectedClient.dadosComerciais?.dataInicio);
+
+      const targetVenc = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
+        ? (latestContract.dataPrimeiroVencimento || latestContract.dataInicio)
+        : (dcVencimento || selectedClient.dadosComerciais?.dataPrimeiroVencimento);
+
+      const targetForma = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
+        ? (latestContract.formaPagamento || dcFormaPag)
+        : dcFormaPag;
+
+      const targetParcelas = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
+        ? (latestContract.parcelas || dcParcelas)
+        : dcParcelas;
+
+      const targetDataFim = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
+        ? latestContract.dataFim
+        : dcVencimento;
+
       await fetch('/api/clients', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -2822,16 +2857,17 @@ export default function GestaoContratosPanel({
           dadosComerciais: {
             planoId: dcPlano || null,
             status: dcStatus || 'ativo',
-            formaPagamento: dcFormaPag,
+            formaPagamento: targetForma,
             duracao: dcDuracao,
             duracaoQtd: dcVigenciaQtd,
             valorUnitario: dcValorUnitario,
-            vencimento: dcVencimento,
-            dataPrimeiroVencimento: dcVencimento,
+            vencimento: targetDataFim,
+            dataFim: targetDataFim,
+            dataPrimeiroVencimento: targetVenc,
             descontoTipo: dcDescontoTipo,
             descontoValor: dcDescontoValor,
-            parcelas: dcParcelas,
-            dataInicio: dcDataInicio,
+            parcelas: targetParcelas,
+            dataInicio: targetInicio,
             observacoesContratuais: dcObservacoesContratuais,
             frequencia: dcFrequencia,
             creditosTotal: dcCreditosTotal,
@@ -5270,7 +5306,7 @@ export default function GestaoContratosPanel({
         
         {/* Left Column: Commercial settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {activeProposal && activeProposal.status === 'respondida' && (
+          {activeProposal && activeProposal.status === 'respondida' && !(latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo')) && (
             <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', padding: '16px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
               <h4 style={{ margin: '0 0 8px 0', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem', fontWeight: 700 }}>
                 <i className="fa-solid fa-bell"></i> Proposta de Auto-Cadastro Respondida!
@@ -5597,18 +5633,24 @@ export default function GestaoContratosPanel({
               dcCriarRecorrencia
             );
 
-            // Período Oficial
-            const dtInicioStr = info.dataInicio || latestContract?.dataInicio || selectedClient.dadosComerciais?.dataInicio || currentProposal?.dataInicio || dcDataInicio || '';
-            const dtFimStr = (() => {
-              if (isRecorrenteResolved) {
-                return info.dataFim || selectedClient.dadosComerciais?.vencimento || '';
-              }
-              if (currentProposal?.dataFim) return currentProposal.dataFim;
-              if (dtInicioStr) {
-                return calculateContractEndDate(dtInicioStr, rawTipo, qtdVal, undefined, false);
-              }
-              return latestContract?.dataFim || selectedClient.dadosComerciais?.vencimento || info.dataFim || '';
-            })();
+            // Período Oficial (Single Source of Truth: Contrato emitido)
+            const dtInicioStr = (latestContract && latestContract.dataInicio)
+              ? latestContract.dataInicio
+              : (info.dataInicio || selectedClient.dadosComerciais?.dataInicio || currentProposal?.dataInicio || dcDataInicio || '');
+
+            const dtFimStr = (latestContract && latestContract.dataFim)
+              ? latestContract.dataFim
+              : (() => {
+                  if (isRecorrenteResolved) {
+                    return info.dataFim || selectedClient.dadosComerciais?.vencimento || '';
+                  }
+                  if (currentProposal?.dataFim) return currentProposal.dataFim;
+                  if (dtInicioStr) {
+                    return calculateContractEndDate(dtInicioStr, rawTipo, qtdVal, undefined, false);
+                  }
+                  return selectedClient.dadosComerciais?.vencimento || info.dataFim || '';
+                })();
+
             const periodoOficialDisplay = (() => {
               if (!dtInicioStr) return 'Não definido';
               const startFmt = new Date(dtInicioStr + (dtInicioStr.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
@@ -5616,18 +5658,15 @@ export default function GestaoContratosPanel({
                 const endFmt = new Date(dtFimStr + (dtFimStr.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
                 return `${startFmt} até ${endFmt}`;
               }
-              const endCalc = calculateContractEndDate(dtInicioStr, rawTipo, qtdVal, undefined, false);
-              const endFmt = new Date(endCalc + 'T12:00:00').toLocaleDateString('pt-BR');
-              return `${startFmt} até ${endFmt}`;
+              return `${startFmt}`;
             })();
 
             // 1º Vencimento da Parcela Financeira
             const firstVencDate = 
               latestContract?.dataPrimeiroVencimento || 
-              latestContract?.dataVencimento || 
-              currentProposal?.dataVencimentoEscolhida || 
-              currentProposal?.dataVencimento ||
+              latestContract?.dataInicio ||
               selectedClient.dadosComerciais?.dataPrimeiroVencimento || 
+              currentProposal?.dataVencimentoEscolhida || 
               dcVencimento || 
               dtInicioStr ||
               '';

@@ -170,28 +170,60 @@ export async function POST(request: Request) {
       if (!client) {
         return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
       }
+
+      // Buscar contrato oficial mais recente emitido/assinado
+      const ContractModel = (await import('@/models/Contract')).default;
+      const activeContract = await ContractModel.findOne({
+        clientId: client._id,
+        status: { $in: ['assinado', 'ativo', 'emitido', 'pendente'] }
+      }).sort({ versao: -1, createdAt: -1 });
+
       // Delete existing non-Asaas payments
       await Payment.deleteMany({ clientId: client._id, formaPagamento: { $ne: 'Asaas' } });
 
       const com = client.dadosComerciais || {};
-      const planName = (com.planoId as any)?.nome || 'Plano Personalizado';
+      const planName = activeContract?.planoNome || (com.planoId as any)?.nome || 'Plano Personalizado';
       const todayStr = new Date().toISOString().split('T')[0];
-      const rawFirstDue = com.dataPrimeiroVencimento || com.dataInicio || todayStr;
-      const firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
 
-      const isRecorrente = Boolean(com.criarRecorrenciaMensal);
-      const totalInstallments = isRecorrente ? Math.max(1, Number(com.recorrenciaMeses) || 12) : Math.max(1, Number(com.parcelas) || 1);
-      const valorUnitario = Number(com.valorUnitario) || 0;
-      const duracaoQtd = Number(com.duracaoQtd) || 1;
-      const bruto = valorUnitario * duracaoQtd;
-      const desc = Number(com.descontoValor) || 0;
-      let liquido = bruto;
-      if (com.descontoTipo === 'percentual') {
-        liquido = bruto * (1 - desc / 100);
+      let totalInstallments = 1;
+      let valorParcela = 0;
+      let firstDueStr = todayStr;
+      let formaPagamentoRaw = com.formaPagamento || 'pix';
+
+      if (activeContract) {
+        // AUTORIDADE DO CONTRATO OFICIAL
+        formaPagamentoRaw = activeContract.formaPagamento || com.formaPagamento || 'pix';
+        const rawFirstDue = activeContract.dataPrimeiroVencimento || activeContract.dataInicio || todayStr;
+        firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
+
+        const isRecorrente = Boolean(activeContract.criarRecorrenciaMensal);
+        totalInstallments = isRecorrente 
+          ? Math.max(1, Number(activeContract.recorrenciaMeses) || 12) 
+          : Math.max(1, Number(activeContract.parcelas) || 1);
+
+        const totalLiquido = Number(activeContract.valorLiquido !== undefined ? activeContract.valorLiquido : activeContract.valorBruto) || 0;
+        valorParcela = isRecorrente 
+          ? totalLiquido 
+          : (totalInstallments > 0 ? Number((totalLiquido / totalInstallments).toFixed(2)) : totalLiquido);
       } else {
-        liquido = Math.max(0, bruto - desc);
+        // Fallback apenas para alunos sem contrato oficial emitido
+        const rawFirstDue = com.dataPrimeiroVencimento || com.dataInicio || todayStr;
+        firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
+
+        const isRecorrente = Boolean(com.criarRecorrenciaMensal);
+        totalInstallments = isRecorrente ? Math.max(1, Number(com.recorrenciaMeses) || 12) : Math.max(1, Number(com.parcelas) || 1);
+        const valorUnitario = Number(com.valorUnitario) || 0;
+        const duracaoQtd = Number(com.duracaoQtd) || 1;
+        const bruto = valorUnitario * duracaoQtd;
+        const desc = Number(com.descontoValor) || 0;
+        let liquido = bruto;
+        if (com.descontoTipo === 'percentual') {
+          liquido = bruto * (1 - desc / 100);
+        } else {
+          liquido = Math.max(0, bruto - desc);
+        }
+        valorParcela = isRecorrente ? liquido : (totalInstallments > 0 ? liquido / totalInstallments : liquido);
       }
-      const valorParcela = isRecorrente ? liquido : (totalInstallments > 0 ? liquido / totalInstallments : liquido);
 
       const recordsToInsert = [];
       for (let i = 0; i < totalInstallments; i++) {
@@ -202,13 +234,14 @@ export async function POST(request: Request) {
         const isZeroVal = parseFloat(valorParcela.toFixed(2)) === 0;
         recordsToInsert.push({
           clientId: client._id,
+          contractId: activeContract ? activeContract._id : undefined,
           clientNome: client.dadosPessoais?.nome || 'Sem Nome',
           planoNome: planName,
           valor: parseFloat(valorParcela.toFixed(2)),
           vencimento: dueIso,
           dataPagamento: isZeroVal ? todayStr : '',
           status: isZeroVal ? 'Pago' : 'Pendente',
-          formaPagamento: formatFormaPagamento(com.formaPagamento),
+          formaPagamento: formatFormaPagamento(formaPagamentoRaw),
           parcelaNumero: i + 1,
           parcelasTotal: totalInstallments
         });

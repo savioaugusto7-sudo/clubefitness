@@ -920,6 +920,8 @@ export async function POST(request: Request) {
 
     Object.assign(client.dadosComerciais, {
       planoId: planoId,
+      dataInicio: dataInicio,
+      dataFim: dataFim,
       vencimento: dataFim,
       status: targetClientStatus,
       parcelas: numParcelas,
@@ -929,7 +931,10 @@ export async function POST(request: Request) {
       duracaoQtd: isAnual ? 1 : (Number(vigenciaMeses) || 1),
       vigenciaQtd: isAnual ? 1 : (Number(vigenciaMeses) || 1),
       formaPagamento: formaPagamento,
-      dataInicio: dataInicio,
+      valorTotal: valorLiquido,
+      valorUnitario: numParcelas > 1 ? Number((valorLiquido / numParcelas).toFixed(2)) : valorLiquido,
+      dataPrimeiroVencimento: dataPrimeiroVencimento || dataInicio,
+      diaVencimento: diaVencimento || (dataPrimeiroVencimento ? parseInt(dataPrimeiroVencimento.split('-')[2] || '5', 10) : 5),
       responsavelVenda: responsavelVenda || '',
       observacoesContratuais: observacoesContratuais || '',
       frequencia: frequencia !== undefined ? Number(frequencia) : client.dadosComerciais.frequencia,
@@ -942,6 +947,7 @@ export async function POST(request: Request) {
       contratoAnexo: contratoAnexo || contratoPdfBase64 || client.dadosComerciais?.contratoAnexo || '',
       contratoPdfBase64: contratoPdfBase64 || contratoAnexo || client.dadosComerciais?.contratoPdfBase64 || ''
     });
+    client.markModified('dadosComerciais');
     if (contratoAnexo || contratoPdfBase64) {
       client.contratoAnexo = contratoAnexo || contratoPdfBase64;
     }
@@ -1012,6 +1018,8 @@ export async function PUT(request: Request) {
 
       Object.assign(client.dadosComerciais, {
         planoId: contract.planoId,
+        dataInicio: contract.dataInicio,
+        dataFim: contract.dataFim,
         vencimento: contract.dataFim,
         status: 'ativo',
         parcelas: contract.parcelas,
@@ -1019,8 +1027,12 @@ export async function PUT(request: Request) {
         descontoTipo: contract.descontoTipo,
         duracao: isAnual ? 'anual' : 'mensal',
         duracaoQtd: isAnual ? 1 : (contract.vigenciaMeses || 1),
+        vigenciaQtd: isAnual ? 1 : (contract.vigenciaMeses || 1),
         formaPagamento: contract.formaPagamento,
-        dataInicio: contract.dataInicio,
+        valorTotal: contract.valorLiquido,
+        valorUnitario: contract.parcelas > 1 ? Number((contract.valorLiquido / contract.parcelas).toFixed(2)) : contract.valorLiquido,
+        dataPrimeiroVencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
+        diaVencimento: contract.diaVencimento || (contract.dataPrimeiroVencimento ? parseInt(contract.dataPrimeiroVencimento.split('-')[2] || '5', 10) : 5),
         responsavelVenda: contract.responsavelVenda || '',
         unidadeContratada: contract.unidadeContratada || '',
         observacoesContratuais: contract.observacoesContratuais || '',
@@ -1032,6 +1044,7 @@ export async function PUT(request: Request) {
         creditosMassagemUsados: 0,
         creditosMassagemReservados: 0
       });
+      client.markModified('dadosComerciais');
       await client.save();
 
       // Se formaPagamento for BOLETO e não possuir cobrança/assinatura Asaas, gerar no Asaas
@@ -1118,9 +1131,16 @@ export async function PUT(request: Request) {
         { status: 'Cancelado' }
       );
 
-      // Se o contrato cancelado era o atual do cliente, marcar cliente como inativo
-      if (client.dadosComerciais?.planoId?.toString() === contract.planoId.toString()) {
+      // Se o contrato cancelado era o atual do cliente, verificar se não existe outro contrato ativo mais recente
+      const otherActiveCt = await Contract.findOne({
+        clientId: client._id,
+        _id: { $ne: contract._id },
+        status: { $in: ['assinado', 'ativo'] }
+      }).sort({ versao: -1, createdAt: -1 });
+
+      if (!otherActiveCt) {
         client.dadosComerciais.status = 'inativo';
+        client.markModified('dadosComerciais');
         await client.save();
       }
 

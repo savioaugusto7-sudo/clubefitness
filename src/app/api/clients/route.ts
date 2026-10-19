@@ -4,6 +4,7 @@ import Client from '@/models/Client';
 import User from '@/models/User';
 import Plan from '@/models/Plan';
 import Professional from '@/models/Professional';
+import Contract from '@/models/Contract';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { hashPassword } from '@/utils/auth';
 
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
     const _plan = Plan;
     const _user = User;
     const _prof = Professional;
+    const _contract = Contract;
 
     const { user } = await checkSessionPermission(['admin', 'receptionist', 'professional', 'client'], undefined, request);
 
@@ -54,39 +56,87 @@ export async function GET(request: Request) {
       clients = await Client.find(query).lean().maxTimeMS(5000);
     }
 
-    // Auto-Heal & Consistência de Vigência: calcula a vigência real unificada
+    // Single Source of Truth: Carregar contratos oficiais e alinhar perfil comercial
     try {
-      clients.forEach((c: any) => {
-        if (c && c.dadosComerciais) {
-          try {
-            const currentStatus = String(c.dadosComerciais.status || '').toLowerCase();
-            const preservedStatuses = [
-              'cancelado_agendado',
-              'cancelado',
-              'finalizado',
-              'congelado',
-              'inativo',
-              'lead',
-              'dynamus',
-              'aguardando_assinatura'
-            ];
+      const clientIds = clients.map((c: any) => c._id);
+      let contracts: any[] = [];
+      if (clientIds.length > 0) {
+        contracts = await Contract.find({ clientId: { $in: clientIds } })
+          .sort({ versao: -1, createdAt: -1 })
+          .lean()
+          .maxTimeMS(5000);
+      }
 
-            if (!preservedStatuses.includes(currentStatus)) {
-              const info = getContractValidityInfo(c, c.dadosComerciais.planoId);
-              if (info && info.dataFim && !c.dadosComerciais.dataFim) {
-                c.dadosComerciais.dataFim = info.dataFim;
+      const latestContractMap = new Map<string, any>();
+      for (const ct of contracts) {
+        const cid = ct.clientId?.toString();
+        if (!cid) continue;
+        const existing = latestContractMap.get(cid);
+        if (!existing) {
+          latestContractMap.set(cid, ct);
+        } else {
+          const ctIsActive = ct.status === 'assinado' || ct.status === 'ativo';
+          const exIsActive = existing.status === 'assinado' || existing.status === 'ativo';
+          if (ctIsActive && !exIsActive) {
+            latestContractMap.set(cid, ct);
+          }
+        }
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      clients.forEach((c: any) => {
+        if (!c) return;
+        const cid = c._id.toString();
+        const latestCt = latestContractMap.get(cid) || null;
+        c.latestContract = latestCt;
+
+        if (c.dadosComerciais) {
+          if (latestCt) {
+            const ctStatus = String(latestCt.status || '').toLowerCase();
+            const isSignedOrActive = ctStatus === 'assinado' || ctStatus === 'ativo';
+
+            if (isSignedOrActive) {
+              c.dadosComerciais.dataInicio = latestCt.dataInicio || c.dadosComerciais.dataInicio;
+              c.dadosComerciais.dataFim = latestCt.dataFim || c.dadosComerciais.dataFim;
+              c.dadosComerciais.vencimento = latestCt.dataFim || c.dadosComerciais.vencimento;
+              c.dadosComerciais.formaPagamento = latestCt.formaPagamento || c.dadosComerciais.formaPagamento;
+              c.dadosComerciais.parcelas = latestCt.parcelas || c.dadosComerciais.parcelas;
+              if (latestCt.valorLiquido !== undefined) {
+                c.dadosComerciais.valorTotal = latestCt.valorLiquido;
+                c.dadosComerciais.valorUnitario = latestCt.parcelas > 1 ? Number((latestCt.valorLiquido / latestCt.parcelas).toFixed(2)) : latestCt.valorLiquido;
               }
-              if (info?.statusKey === 'vencido') {
-                c.dadosComerciais.status = 'vencido';
+
+              if (latestCt.dataFim) {
+                if (todayStr <= latestCt.dataFim) {
+                  c.dadosComerciais.status = 'ativo';
+                } else {
+                  c.dadosComerciais.status = 'vencido';
+                }
+              }
+            } else if (ctStatus === 'pendente') {
+              if (c.dadosComerciais.status !== 'cancelado_agendado' && c.dadosComerciais.status !== 'finalizado') {
+                c.dadosComerciais.status = 'aguardando_assinatura';
+              }
+            } else if (ctStatus === 'cancelado') {
+              if (c.dadosComerciais.status !== 'cancelado_agendado' && c.dadosComerciais.status !== 'finalizado') {
+                c.dadosComerciais.status = 'cancelado';
               }
             }
-          } catch (itemErr: any) {
-            console.warn('[clients GET] Error calculating validity for client:', c._id, itemErr?.message);
+          } else {
+            // Zero Fallback Ambíguo: se não há contrato e não é Dynamus, nunca exibir "vencido" sem histórico
+            const isDynamus = Boolean(
+              c.dadosComerciais.isConvenioDynamus ||
+              (c.codigo && c.codigo.toUpperCase().includes('DYN'))
+            );
+            if (!isDynamus && c.dadosComerciais.status === 'vencido' && !c.dadosComerciais.dataInicio) {
+              c.dadosComerciais.status = 'lead';
+            }
           }
         }
       });
     } catch (loopErr: any) {
-      console.warn('[clients GET] Loop error in auto-heal:', loopErr?.message);
+      console.warn('[clients GET] Error resolving official contracts:', loopErr?.message);
     }
 
     return NextResponse.json({ success: true, data: clients });
@@ -250,6 +300,31 @@ export async function PUT(request: Request) {
       client.markModified('dadosClinicos');
     }
     if (dadosComerciais) {
+      // Guard: verificar se o cliente possui contrato oficial ativo/assinado para prevenir regressão involuntária
+      try {
+        const activeCt = await Contract.findOne({
+          clientId: client._id,
+          status: { $in: ['assinado', 'ativo'] }
+        }).sort({ versao: -1, createdAt: -1 });
+
+        if (activeCt && activeCt.dataInicio && activeCt.dataFim) {
+          if (dadosComerciais.dataInicio && dadosComerciais.dataInicio < activeCt.dataInicio) {
+            console.warn(`[API Clients PUT] Guard: impedindo regressão de dataInicio de ${activeCt.dataInicio} para ${dadosComerciais.dataInicio}`);
+            dadosComerciais.dataInicio = activeCt.dataInicio;
+          }
+          if (!dadosComerciais.dataFim || dadosComerciais.dataFim < activeCt.dataFim) {
+            dadosComerciais.dataFim = activeCt.dataFim;
+            dadosComerciais.vencimento = activeCt.dataFim;
+          }
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (todayStr <= activeCt.dataFim && dadosComerciais.status === 'vencido') {
+            dadosComerciais.status = 'ativo';
+          }
+        }
+      } catch (guardErr) {
+        console.warn('[API Clients PUT] Guard error checking active contract:', guardErr);
+      }
+
       const isRecorrente = Boolean(dadosComerciais.criarRecorrenciaMensal !== undefined ? dadosComerciais.criarRecorrenciaMensal : client.dadosComerciais?.criarRecorrenciaMensal);
       const calculatedEnd = calculateContractEndDate(
         dadosComerciais.dataInicio || client.dadosComerciais?.dataInicio,
