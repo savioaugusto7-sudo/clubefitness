@@ -934,7 +934,7 @@ export async function POST(request: Request) {
       valorTotal: valorLiquido,
       valorUnitario: numParcelas > 1 ? Number((valorLiquido / numParcelas).toFixed(2)) : valorLiquido,
       dataPrimeiroVencimento: dataPrimeiroVencimento || dataInicio,
-      diaVencimento: diaVencimento || (dataPrimeiroVencimento ? parseInt(dataPrimeiroVencimento.split('-')[2] || '5', 10) : 5),
+      diaVencimento: diaVenc || (dataPrimeiroVencimento ? parseInt(dataPrimeiroVencimento.split('-')[2] || '5', 10) : 5),
       responsavelVenda: responsavelVenda || '',
       observacoesContratuais: observacoesContratuais || '',
       frequencia: frequencia !== undefined ? Number(frequencia) : client.dadosComerciais.frequencia,
