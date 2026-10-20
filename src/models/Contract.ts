@@ -59,11 +59,16 @@ const ContractSchema = new Schema({
   asaasPixQrCode: { type: String, default: '' },
   asaasBillingStatus: { type: String, default: 'pendente' },
   criarRecorrenciaMensal: { type: Boolean, default: false },
+  isRecorrente: { type: Boolean, default: false },
+  recorrenciaMeses: { type: Number, default: 12 },
+  dataFimRecorrencia: { type: String, default: '' },
+  dataFimCicloAtual: { type: String, default: '' },
   congelamento: { type: CongelamentoSchema, default: null }
 }, { timestamps: true });
 
 ContractSchema.index({ clientId: 1, versao: -1, dataEmissao: -1 });
 ContractSchema.index({ status: 1 });
 ContractSchema.index({ clicksignDocKey: 1 });
+ContractSchema.index({ asaasSubscriptionId: 1 });
 
 export default models.Contract || model('Contract', ContractSchema);

@@ -626,27 +626,44 @@ export async function POST(request: Request) {
 
     const numParcelas = Number(parcelas) || 1;
 
+    const isRecorrente = Boolean(
+      body.criarRecorrenciaMensal || 
+      body.isRecorrente || 
+      body.recorrenciaVigencia || 
+      client.dadosComerciais?.criarRecorrenciaMensal || 
+      client.dadosComerciais?.isRecorrente
+    );
+    const recorrenciaMeses = Number(body.recorrenciaMeses || client.dadosComerciais?.recorrenciaMeses) || 12;
+
     // 2. Definir Vigência (Anual = 12 meses, ou especificada em vigenciaMeses/duracaoQtd)
     const isAnual = body.planoTipo === 'Anual' || 
                     plan.tipo === 'Anual' || 
                     (plan.nome || '').toLowerCase().includes('anual') || 
                     body.duracao === 'anual' ||
                     (body.vigenciaMeses && Number(body.vigenciaMeses) >= 12);
-    const vigenciaMeses = isAnual ? 12 : (Number(body.vigenciaMeses) || Number(body.duracaoQtd) || Number(body.vigenciaQtd) || 1);
+    const vigenciaMeses = isRecorrente ? 1 : (isAnual ? 12 : (Number(body.vigenciaMeses) || Number(body.duracaoQtd) || Number(body.vigenciaQtd) || 1));
 
-    // Calcular data de fim de vigência
+    // Calcular data de fim de vigência (Ciclo de Acesso)
     let dataFim = manualDataFim;
     if (!dataFim) {
       const startD = new Date(dataInicio + 'T00:00:00');
       const endD = new Date(startD);
       if (body.duracao === 'semana') {
         endD.setDate(endD.getDate() + (vigenciaMeses * 7));
-      } else if (isAnual) {
+      } else if (isAnual && !isRecorrente) {
         endD.setFullYear(endD.getFullYear() + (vigenciaMeses >= 12 ? 1 : vigenciaMeses));
       } else {
         endD.setMonth(endD.getMonth() + vigenciaMeses);
       }
       dataFim = endD.toISOString().split('T')[0];
+    }
+
+    // Calcular horizonte anual de compromisso da recorrência (12 meses)
+    let dataFimRecorrencia = '';
+    if (isRecorrente) {
+      const startD = new Date(dataInicio + 'T12:00:00');
+      startD.setMonth(startD.getMonth() + recorrenciaMeses);
+      dataFimRecorrencia = startD.toISOString().split('T')[0];
     }
 
     // 3. Cálculos de Descontos e Valores - Prioriza valor informado/negociado na tela
@@ -850,6 +867,11 @@ export async function POST(request: Request) {
       diaVencimento: diaVenc,
       dataInicio,
       dataFim,
+      dataFimRecorrencia: dataFimRecorrencia || '',
+      dataFimCicloAtual: dataFim,
+      criarRecorrenciaMensal: isRecorrente,
+      isRecorrente,
+      recorrenciaMeses,
       vigenciaMeses,
       responsavelVenda: responsavelVenda || '',
       unidadeContratada: unidadeContratada || plan.unidadeAtendimento || '',
@@ -923,6 +945,11 @@ export async function POST(request: Request) {
       dataInicio: dataInicio,
       dataFim: dataFim,
       vencimento: dataFim,
+      dataFimRecorrencia: dataFimRecorrencia || client.dadosComerciais?.dataFimRecorrencia || '',
+      dataFimCicloAtual: dataFim,
+      criarRecorrenciaMensal: isRecorrente,
+      isRecorrente: isRecorrente,
+      recorrenciaMeses: recorrenciaMeses,
       status: targetClientStatus,
       parcelas: numParcelas,
       descontoValor: descVal,

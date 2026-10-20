@@ -67,7 +67,14 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   const dp = c?.dadosPessoais || {};
   const info = getContractValidityInfo(c, plan, clientPayments, latestContract);
 
-  const isRecorrente = Boolean(com.criarRecorrenciaMensal || latestContract?.criarRecorrenciaMensal);
+  const isRecorrente = Boolean(
+    com.criarRecorrenciaMensal || 
+    latestContract?.criarRecorrenciaMensal || 
+    com.isRecorrente || 
+    latestContract?.isRecorrente || 
+    com.recorrenciaVigencia || 
+    latestContract?.recorrenciaVigencia
+  );
   const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
   const hasAsaasBoleto = Boolean(latestContract?.asaasBoletoPdf || latestContract?.asaasInvoiceUrl);
   const hasPaidInstallment = Boolean(clientPayments && clientPayments.some((p: any) => p.status === 'Pago'));
@@ -4594,14 +4601,16 @@ export default function GestaoContratosPanel({
                               }}>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                   <span style={{ fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 600 }}>
-                                    Investimento Total
+                                    {stage.isRecorrente ? 'Mensalidade Recorrente' : 'Investimento Total'}
                                   </span>
                                   <span style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.2px' }}>
                                     {stage.stageKey === 'dynamus'
                                       ? 'Convênio Dynamus'
-                                      : (latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario)
-                                        ? `R$ ${Number(latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')}`
-                                        : 'A definir'}
+                                      : stage.isRecorrente
+                                        ? `R$ ${Number(com.valorUnitario || latestContract?.valorLiquido || com.valorTotal || 0).toFixed(2).replace('.', ',')}/mês`
+                                        : (latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario)
+                                          ? `R$ ${Number(latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')}`
+                                          : 'A definir'}
                                   </span>
                                 </div>
 
@@ -4617,11 +4626,15 @@ export default function GestaoContratosPanel({
                                       borderRadius: '6px',
                                       letterSpacing: '0.2px'
                                     }}>
-                                      {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
-                                      {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)} parcelas` : ''}
+                                      {stage.isRecorrente
+                                        ? `RECORRÊNCIA • ${(latestContract?.formaPagamento || com.formaPagamento || 'ASAAS').toUpperCase()}`
+                                        : (latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
+                                      {!stage.isRecorrente && (latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)} parcelas` : ''}
                                     </span>
                                     <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>
-                                      {latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses de acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1} meses de acesso`}
+                                      {stage.isRecorrente
+                                        ? '12 meses de acesso'
+                                        : (latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses de acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1} meses de acesso`)}
                                     </span>
                                   </div>
                                 )}
@@ -5202,7 +5215,7 @@ export default function GestaoContratosPanel({
                             <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
                               {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
                               {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)} parcelas` : ''}
-                              {' • '}{latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1}m acesso`}
+                              {' • '}{stage.isRecorrente || latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1}m acesso`}
                             </div>
                           )}
                           {Boolean(stage.isRecorrente) && (

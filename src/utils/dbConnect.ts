@@ -11,7 +11,8 @@ if (!cached) {
 }
 
 async function dbConnect(forceReconnect = false) {
-  if (!MONGODB_URI) {
+  const uri = process.env.MONGODB_URI || MONGODB_URI;
+  if (!uri) {
     throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
   }
 
@@ -56,7 +57,7 @@ async function dbConnect(forceReconnect = false) {
     tlsAllowInvalidCertificates: true
   };
 
-  cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
+  cached.promise = mongoose.connect(uri, opts).then((m) => {
     return m.connection;
   });
 

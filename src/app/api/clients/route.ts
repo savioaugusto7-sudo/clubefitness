@@ -97,9 +97,16 @@ export async function GET(request: Request) {
             const isSignedOrActive = ctStatus === 'assinado' || ctStatus === 'ativo';
 
             if (isSignedOrActive) {
+              const isRecorrente = Boolean(
+                latestCt.criarRecorrenciaMensal ||
+                latestCt.isRecorrente ||
+                latestCt.recorrenciaVigencia ||
+                c.dadosComerciais.criarRecorrenciaMensal ||
+                c.dadosComerciais.isRecorrente ||
+                c.dadosComerciais.recorrenciaVigencia
+              );
+
               c.dadosComerciais.dataInicio = latestCt.dataInicio || c.dadosComerciais.dataInicio;
-              c.dadosComerciais.dataFim = latestCt.dataFim || c.dadosComerciais.dataFim;
-              c.dadosComerciais.vencimento = latestCt.dataFim || c.dadosComerciais.vencimento;
               c.dadosComerciais.formaPagamento = latestCt.formaPagamento || c.dadosComerciais.formaPagamento;
               c.dadosComerciais.parcelas = latestCt.parcelas || c.dadosComerciais.parcelas;
               if (latestCt.valorLiquido !== undefined) {
@@ -107,11 +114,42 @@ export async function GET(request: Request) {
                 c.dadosComerciais.valorUnitario = latestCt.parcelas > 1 ? Number((latestCt.valorLiquido / latestCt.parcelas).toFixed(2)) : latestCt.valorLiquido;
               }
 
-              if (latestCt.dataFim) {
-                if (todayStr <= latestCt.dataFim) {
+              if (isRecorrente) {
+                const recMonths = Number(latestCt.recorrenciaMeses || c.dadosComerciais.recorrenciaMeses) || 12;
+                let dataFimRecorrencia = latestCt.dataFimRecorrencia || c.dadosComerciais.dataFimRecorrencia;
+                if (!dataFimRecorrencia && latestCt.dataInicio) {
+                  const d = new Date(latestCt.dataInicio + 'T12:00:00');
+                  d.setMonth(d.getMonth() + recMonths);
+                  dataFimRecorrencia = d.toISOString().split('T')[0];
+                }
+                c.dadosComerciais.dataFimRecorrencia = dataFimRecorrencia;
+                c.dadosComerciais.isRecorrente = true;
+                c.dadosComerciais.criarRecorrenciaMensal = true;
+
+                // Para recorrência, preservar o ciclo pago mais recente em dataFim/vencimento
+                const candidates = [c.dadosComerciais.dataFim, c.dadosComerciais.vencimento, latestCt.dataFim].filter(Boolean);
+                const bestCycleDate = candidates.length > 0 ? candidates.sort().reverse()[0] : (latestCt.dataFim || todayStr);
+                c.dadosComerciais.dataFim = bestCycleDate;
+                c.dadosComerciais.vencimento = bestCycleDate;
+
+                // Status de recorrência é ativo se o ciclo anual não expirou
+                if (dataFimRecorrencia && todayStr <= dataFimRecorrencia) {
+                  c.dadosComerciais.status = 'ativo';
+                } else if (bestCycleDate && todayStr <= bestCycleDate) {
                   c.dadosComerciais.status = 'ativo';
                 } else {
                   c.dadosComerciais.status = 'vencido';
+                }
+              } else {
+                c.dadosComerciais.dataFim = latestCt.dataFim || c.dadosComerciais.dataFim;
+                c.dadosComerciais.vencimento = latestCt.dataFim || c.dadosComerciais.vencimento;
+
+                if (latestCt.dataFim) {
+                  if (todayStr <= latestCt.dataFim) {
+                    c.dadosComerciais.status = 'ativo';
+                  } else {
+                    c.dadosComerciais.status = 'vencido';
+                  }
                 }
               }
             } else if (ctStatus === 'pendente') {

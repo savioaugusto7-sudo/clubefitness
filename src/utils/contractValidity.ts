@@ -138,19 +138,37 @@ export function getContractValidityInfo(
   latestContractOrContracts?: any
 ): ContractValidityInfo {
   try {
+    // Normalização flexível de parâmetros (suporte a polimorfismo de chamadas)
+    let resolvedPlan = planObj;
+    let resolvedPayments = clientPayments;
+    let resolvedContracts = latestContractOrContracts;
+
+    if (Array.isArray(planObj) && !clientPayments && !latestContractOrContracts) {
+      resolvedPayments = planObj;
+      resolvedPlan = undefined;
+    } else if (Array.isArray(planObj) && Array.isArray(clientPayments) && !latestContractOrContracts) {
+      const firstItem = planObj[0];
+      const isPayment = firstItem && (firstItem.vencimento !== undefined || firstItem.dataPagamento !== undefined || firstItem.status !== undefined);
+      if (isPayment) {
+        resolvedPayments = planObj;
+        resolvedContracts = clientPayments;
+        resolvedPlan = undefined;
+      }
+    }
+
     // 1. Resolução do Contrato Oficial Único (Prioridade Máxima e Absoluta)
     let contract: any = null;
-    if (latestContractOrContracts) {
-      if (Array.isArray(latestContractOrContracts)) {
-        const sorted = [...latestContractOrContracts].sort((a: any, b: any) => {
+    if (resolvedContracts) {
+      if (Array.isArray(resolvedContracts)) {
+        const sorted = [...resolvedContracts].sort((a: any, b: any) => {
           const vA = Number(a.versao || 0);
           const vB = Number(b.versao || 0);
           if (vB !== vA) return vB - vA;
           return (b.dataFim || '').localeCompare(a.dataFim || '');
         });
         contract = sorted.find((c: any) => c.status === 'assinado' || c.status === 'ativo') || sorted[0] || null;
-      } else if (typeof latestContractOrContracts === 'object') {
-        contract = latestContractOrContracts;
+      } else if (typeof resolvedContracts === 'object') {
+        contract = resolvedContracts;
       }
     }
 
@@ -158,8 +176,8 @@ export function getContractValidityInfo(
       contract = client.latestContract;
     }
 
-    // Proteção de assinatura: se o 3º argumento for array de contratos ao invés de pagamentos
-    let paymentsList = clientPayments || client?.payments || [];
+    // Proteção de assinatura: se o array de pagamentos na verdade contiver contratos
+    let paymentsList = resolvedPayments || client?.payments || [];
     if (Array.isArray(paymentsList) && paymentsList.length > 0 && (paymentsList[0]?.versao !== undefined || paymentsList[0]?.clicksignStatus !== undefined)) {
       if (!contract) {
         const sorted = [...paymentsList].sort((a: any, b: any) => {
@@ -179,14 +197,14 @@ export function getContractValidityInfo(
     // Detecção de Convênio Dynamus
     const isDynamus = Boolean(
       com.isConvenioDynamus ||
-      planObj?.nome?.toLowerCase().includes('dynamus') ||
+      resolvedPlan?.nome?.toLowerCase().includes('dynamus') ||
       com.planoNome?.toLowerCase().includes('dynamus') ||
       dp.email?.toLowerCase().includes('dynamus') ||
       client?.codigo?.toUpperCase().includes('DYN') ||
       client?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
     );
 
-    const hasClubePlan = Boolean(com.planoId && !planObj?.nome?.toLowerCase().includes('dynamus'));
+    const hasClubePlan = Boolean(com.planoId && !resolvedPlan?.nome?.toLowerCase().includes('dynamus'));
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -201,29 +219,30 @@ export function getContractValidityInfo(
       const isAnual = contract.duracao === 'anual' || (contract.planoNome || '').toLowerCase().includes('anual') || (Number(contract.vigenciaMeses) >= 12);
       const duracao = isAnual ? 'anual' : (contract.duracao || 'mensal');
       const vigenciaQtd = isAnual ? 1 : (Number(contract.vigenciaMeses) || Number(contract.vigenciaQtd) || 1);
-      const isRecorrente = Boolean(contract.criarRecorrenciaMensal);
+      const isRecorrente = Boolean(
+        contract.criarRecorrenciaMensal ||
+        contract.isRecorrente ||
+        contract.recorrenciaVigencia ||
+        com.criarRecorrenciaMensal ||
+        com.isRecorrente ||
+        com.recorrenciaVigencia
+      );
 
       const dataInicioRaw = contract.dataInicio || contract.dataEmissao || contract.createdAt || todayStr;
       const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
-
-      const dataFimCalculada = contract.dataFim || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, isRecorrente);
-      const dataFim = safeFormatYYYYMMDD(safeParseDate(dataFimCalculada));
-      const dataFimCicloTotal = dataFim;
-      const dataFimRecorrencia = dataFim;
 
       const isPaidStatus = (s: string) => {
         const st = (s || '').toLowerCase();
         return st === 'pago' || st === 'received' || st === 'confirmed' || st === 'received_in_cash' || st === 'recebido';
       };
 
+      const pagas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => isPaidStatus(p.status));
       const atrasadas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => {
         if (isPaidStatus(p.status)) return false;
         if (p.status === 'Atrasado' || p.status === 'OVERDUE') return true;
         return p.vencimento && p.vencimento < todayStr;
       });
       const hasOverdueInstallment = atrasadas.length > 0;
-      const pagas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => isPaidStatus(p.status));
-      const parcelasInfo = `${pagas.length}/${(paymentsList || []).length || vigenciaQtd} pagas`;
 
       let isWithinTolerance = false;
       let toleranceDaysLeft = 0;
@@ -242,10 +261,85 @@ export function getContractValidityInfo(
         }
       }
 
-      const endD = safeParseDate(dataFim);
-      endD.setHours(0, 0, 0, 0);
-      const diffTime = endD.getTime() - today.getTime();
-      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // Separação de Horizontes para Recorrência:
+      const recorrenciaMeses = Number(contract.recorrenciaMeses || com.recorrenciaMeses) || 12;
+      const dataFimRecorrencia = isRecorrente
+        ? (contract.dataFimRecorrencia || safeFormatYYYYMMDD(addMonthsWithClamping(safeParseDate(dataInicio), recorrenciaMeses)))
+        : (contract.dataFim || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false));
+      const dataFimCicloTotal = dataFimRecorrencia;
+
+      // Vigência do Ciclo Atual de Acesso (dataFim)
+      let dataFim = '';
+      if (isRecorrente) {
+        // Encontrar a próxima fatura pendente futura para definir o término do ciclo pago
+        const pendingPayments = (Array.isArray(paymentsList) ? paymentsList : [])
+          .filter((p: any) => !isPaidStatus(p.status) && p.vencimento && p.vencimento >= todayStr)
+          .sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''));
+
+        if (pendingPayments.length > 0 && pendingPayments[0]?.vencimento) {
+          dataFim = safeFormatYYYYMMDD(safeParseDate(pendingPayments[0].vencimento));
+        } else if (pagas.length > 0) {
+          const distinctMonths = new Set<string>();
+          pagas.forEach((p: any) => {
+            const raw = p.vencimento || p.dataPagamento;
+            if (raw) distinctMonths.add(raw.slice(0, 7));
+          });
+          const paidCycles = Math.max(1, distinctMonths.size);
+          dataFim = safeFormatYYYYMMDD(addMonthsWithClamping(safeParseDate(dataInicio), paidCycles));
+        } else if (com.vencimento && com.vencimento >= todayStr) {
+          dataFim = safeFormatYYYYMMDD(safeParseDate(com.vencimento));
+        } else if (contract.dataFim && contract.dataFim >= todayStr) {
+          dataFim = safeFormatYYYYMMDD(safeParseDate(contract.dataFim));
+        } else {
+          dataFim = safeFormatYYYYMMDD(addMonthsWithClamping(safeParseDate(dataInicio), 1));
+        }
+      } else {
+        dataFim = safeFormatYYYYMMDD(safeParseDate(contract.dataFim || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false)));
+      }
+
+      const parcelasInfo = isRecorrente
+        ? `${pagas.length}/${(paymentsList || []).length || recorrenciaMeses} pagas`
+        : `${pagas.length}/${(paymentsList || []).length || vigenciaQtd} pagas`;
+
+      // Análise de Dias Restantes e Expiração
+      let daysLeft = 0;
+      let isExpired = false;
+      let isExpiringSoon = false;
+
+      if (isRecorrente) {
+        const endRecD = safeParseDate(dataFimRecorrencia);
+        endRecD.setHours(0, 0, 0, 0);
+        const diffRecDays = Math.ceil((endRecD.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        const endCycleD = safeParseDate(dataFim);
+        endCycleD.setHours(0, 0, 0, 0);
+        const diffCycleDays = Math.ceil((endCycleD.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        daysLeft = diffCycleDays;
+
+        if (hasOverdueInstallment && !isWithinTolerance) {
+          isExpired = true;
+          isExpiringSoon = false;
+        } else if (diffRecDays < 0) {
+          // Ciclo de 12 meses totalmente encerrado
+          isExpired = true;
+          isExpiringSoon = false;
+        } else if (diffRecDays <= 30) {
+          // Fim do ciclo de 12 meses chegando
+          isExpired = false;
+          isExpiringSoon = true;
+        } else {
+          // Aluno em dia
+          isExpired = false;
+          isExpiringSoon = false;
+        }
+      } else {
+        const endD = safeParseDate(dataFim);
+        endD.setHours(0, 0, 0, 0);
+        daysLeft = Math.ceil((endD.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        isExpired = daysLeft < 0;
+        isExpiringSoon = !isExpired && daysLeft <= 30;
+      }
 
       // Rescisão ou Cancelamento Formal
       if (contractStatus === 'cancelado') {
@@ -347,9 +441,6 @@ export function getContractValidityInfo(
       }
 
       // Contrato Assinado / Ativo
-      const isExpired = daysLeft < 0;
-      const isExpiringSoon = !isExpired && daysLeft <= 30;
-
       let statusKey: 'ativo' | 'vencendo' | 'vencido' = 'ativo';
       let statusLabel = isRecorrente ? 'Contrato Vigente (Recorrência)' : 'Contrato Ativo';
       let badgeColor = '#10b981';
@@ -357,34 +448,77 @@ export function getContractValidityInfo(
       let badgeBorder = 'rgba(16, 185, 129, 0.3)';
       let daysLeftText = `${daysLeft}d restantes`;
 
-      if (isExpired) {
-        statusKey = 'vencido';
-        statusLabel = isRecorrente ? 'Recorrência Vencida' : 'Contrato Vencido';
-        badgeColor = '#ef4444';
-        badgeBg = 'rgba(239, 68, 68, 0.12)';
-        badgeBorder = 'rgba(239, 68, 68, 0.3)';
-        daysLeftText = `Vencido há ${Math.abs(daysLeft)}d`;
-      } else if (isExpiringSoon) {
-        statusKey = 'vencendo';
-        statusLabel = 'Renovação <30d';
-        badgeColor = '#f59e0b';
-        badgeBg = 'rgba(245, 158, 11, 0.12)';
-        badgeBorder = 'rgba(245, 158, 11, 0.3)';
-        daysLeftText = daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft}d`;
-      } else if (isWithinTolerance) {
-        statusKey = 'ativo';
-        statusLabel = `Tolerância Ativa (${toleranceDaysLeft}d)`;
-        badgeColor = '#eab308';
-        badgeBg = 'rgba(234, 179, 8, 0.15)';
-        badgeBorder = 'rgba(234, 179, 8, 0.4)';
-        daysLeftText = `Tolerância • ${toleranceDaysLeft}d restantes`;
-      } else if (hasOverdueInstallment) {
-        statusKey = 'ativo';
-        statusLabel = 'Vigente • Parcela em Atraso';
-        badgeColor = '#f97316';
-        badgeBg = 'rgba(249, 115, 22, 0.12)';
-        badgeBorder = 'rgba(249, 115, 22, 0.3)';
-        daysLeftText = `Parcela em atraso (${overdueDays}d) • ${daysLeft}d restantes`;
+      if (isRecorrente) {
+        const endRecD = safeParseDate(dataFimRecorrencia);
+        endRecD.setHours(0, 0, 0, 0);
+        const diffRecDays = Math.ceil((endRecD.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (hasOverdueInstallment && !isWithinTolerance) {
+          statusKey = 'vencido';
+          statusLabel = 'Recorrência Inadimplente';
+          badgeColor = '#ef4444';
+          badgeBg = 'rgba(239, 68, 68, 0.12)';
+          badgeBorder = 'rgba(239, 68, 68, 0.3)';
+          daysLeftText = `Parcela em atraso (${overdueDays}d)`;
+        } else if (diffRecDays < 0) {
+          statusKey = 'vencido';
+          statusLabel = 'Recorrência Vencida';
+          badgeColor = '#ef4444';
+          badgeBg = 'rgba(239, 68, 68, 0.12)';
+          badgeBorder = 'rgba(239, 68, 68, 0.3)';
+          daysLeftText = `Ciclo anual encerrado há ${Math.abs(diffRecDays)}d`;
+        } else if (diffRecDays <= 30) {
+          statusKey = 'vencendo';
+          statusLabel = 'Renovação Anual <30d';
+          badgeColor = '#f59e0b';
+          badgeBg = 'rgba(245, 158, 11, 0.12)';
+          badgeBorder = 'rgba(245, 158, 11, 0.3)';
+          daysLeftText = diffRecDays === 0 ? 'Vence hoje' : `Renovação Anual em ${diffRecDays}d`;
+        } else if (isWithinTolerance) {
+          statusKey = 'ativo';
+          statusLabel = `Tolerância Ativa (${toleranceDaysLeft}d)`;
+          badgeColor = '#eab308';
+          badgeBg = 'rgba(234, 179, 8, 0.15)';
+          badgeBorder = 'rgba(234, 179, 8, 0.4)';
+          daysLeftText = `Tolerância • ${toleranceDaysLeft}d restantes`;
+        } else {
+          statusKey = 'ativo';
+          statusLabel = 'Contrato Vigente (Recorrência)';
+          badgeColor = '#10b981';
+          badgeBg = 'rgba(16, 185, 129, 0.12)';
+          badgeBorder = 'rgba(16, 185, 129, 0.3)';
+          daysLeftText = daysLeft >= 0 ? (daysLeft === 0 ? 'Fatura vence hoje' : `Próx. fatura em ${daysLeft}d`) : 'Recorrência em dia';
+        }
+      } else {
+        if (isExpired) {
+          statusKey = 'vencido';
+          statusLabel = 'Contrato Vencido';
+          badgeColor = '#ef4444';
+          badgeBg = 'rgba(239, 68, 68, 0.12)';
+          badgeBorder = 'rgba(239, 68, 68, 0.3)';
+          daysLeftText = `Vencido há ${Math.abs(daysLeft)}d`;
+        } else if (isExpiringSoon) {
+          statusKey = 'vencendo';
+          statusLabel = 'Renovação <30d';
+          badgeColor = '#f59e0b';
+          badgeBg = 'rgba(245, 158, 11, 0.12)';
+          badgeBorder = 'rgba(245, 158, 11, 0.3)';
+          daysLeftText = daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft}d`;
+        } else if (isWithinTolerance) {
+          statusKey = 'ativo';
+          statusLabel = `Tolerância Ativa (${toleranceDaysLeft}d)`;
+          badgeColor = '#eab308';
+          badgeBg = 'rgba(234, 179, 8, 0.15)';
+          badgeBorder = 'rgba(234, 179, 8, 0.4)';
+          daysLeftText = `Tolerância • ${toleranceDaysLeft}d restantes`;
+        } else if (hasOverdueInstallment) {
+          statusKey = 'ativo';
+          statusLabel = 'Vigente • Parcela em Atraso';
+          badgeColor = '#f97316';
+          badgeBg = 'rgba(249, 115, 22, 0.12)';
+          badgeBorder = 'rgba(249, 115, 22, 0.3)';
+          daysLeftText = `Parcela em atraso (${overdueDays}d) • ${daysLeft}d restantes`;
+        }
       }
 
       return {
