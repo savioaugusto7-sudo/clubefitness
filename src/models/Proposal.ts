@@ -16,6 +16,7 @@ const ProposalSchema = new Schema({
   observacoesContratuais: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
   dataInicio: { type: String, default: '' },
+  dataFim: { type: String, default: '' },
   criarRecorrenciaMensal: { type: Boolean, default: false },
   recorrenciaMeses: { type: Number, default: 12 },
   isMinor: { type: Boolean, default: false },

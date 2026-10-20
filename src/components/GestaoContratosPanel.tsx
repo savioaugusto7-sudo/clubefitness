@@ -747,6 +747,7 @@ export default function GestaoContratosPanel({
 
       if (contractsRes.success && Array.isArray(contractsRes.data)) {
         const cMap: Record<string, any> = {};
+        let shouldRefreshClients = false;
         contractsRes.data.forEach((c: any) => {
           const rawId = c.clientId?._id || c.clientId;
           const cId = rawId ? String(rawId) : '';
@@ -2848,25 +2849,26 @@ export default function GestaoContratosPanel({
     if (!selectedClient) return;
     try {
       setGeneratingPayments(true);
-      // Ensure commercial data aligns with latestContract if one exists
-      const targetInicio = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
-        ? latestContract.dataInicio
+      const activeCt = contracts?.find((ct: any) => ct.status === 'assinado' || ct.status === 'ativo' || ct.clicksignStatus === 'assinado') || contracts?.[0] || allContractsMap[selectedClient._id] || null;
+      // Ensure commercial data aligns with activeCt if one exists
+      const targetInicio = (activeCt && (activeCt.status === 'assinado' || activeCt.status === 'ativo'))
+        ? activeCt.dataInicio
         : (dcDataInicio || selectedClient.dadosComerciais?.dataInicio);
 
-      const targetVenc = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
-        ? (latestContract.dataPrimeiroVencimento || latestContract.dataInicio)
+      const targetVenc = (activeCt && (activeCt.status === 'assinado' || activeCt.status === 'ativo'))
+        ? (activeCt.dataPrimeiroVencimento || activeCt.dataInicio)
         : (dcVencimento || selectedClient.dadosComerciais?.dataPrimeiroVencimento);
 
-      const targetForma = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
-        ? (latestContract.formaPagamento || dcFormaPag)
+      const targetForma = (activeCt && (activeCt.status === 'assinado' || activeCt.status === 'ativo'))
+        ? (activeCt.formaPagamento || dcFormaPag)
         : dcFormaPag;
 
-      const targetParcelas = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
-        ? (latestContract.parcelas || dcParcelas)
+      const targetParcelas = (activeCt && (activeCt.status === 'assinado' || activeCt.status === 'ativo'))
+        ? (activeCt.parcelas || dcParcelas)
         : dcParcelas;
 
-      const targetDataFim = (latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo'))
-        ? latestContract.dataFim
+      const targetDataFim = (activeCt && (activeCt.status === 'assinado' || activeCt.status === 'ativo'))
+        ? activeCt.dataFim
         : dcVencimento;
 
       await fetch('/api/clients', {
@@ -4418,14 +4420,20 @@ export default function GestaoContratosPanel({
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
                                 <span style={{ color: '#94a3b8', fontWeight: 500 }}>Duração & Franquia:</span>
                                 <strong style={{ color: '#fbbf24', fontWeight: 700 }}>
-                                  {latestProposal.duracao === 'semana' ? 'Semana' : 'Mensal'} • {latestProposal.vigenciaQtd || 1} {latestProposal.duracao === 'semana' ? 'sem' : 'mês(es)'} {latestProposal.frequencia ? `(${latestProposal.frequencia}x/sem)` : ''}
+                                  {latestProposal.duracao === 'semana' ? 'Semana' : 'Mensal'} • {latestProposal.vigenciaQtd || 1} {latestProposal.duracao === 'semana' ? (latestProposal.vigenciaQtd === 1 ? 'semana' : 'semanas') : (latestProposal.vigenciaQtd === 1 ? 'mês' : 'meses')} {latestProposal.frequencia ? `(${latestProposal.frequencia}x/sem)` : ''}
                                 </strong>
                               </div>
 
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', background: 'rgba(0,0,0,0.25)', padding: '5px 8px', borderRadius: '6px' }}>
                                 <span style={{ color: '#94a3b8', fontWeight: 500 }}>Previsão de Vigência:</span>
                                 <strong style={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.78rem' }}>
-                                  📅 A partir da ativação
+                                  {latestProposal.dataInicio ? (() => {
+                                    const st = latestProposal.dataInicio.split('T')[0];
+                                    const end = calculateContractEndDate(st, latestProposal.duracao || 'mensal', latestProposal.duracao === 'semana' ? Number(latestProposal.vigenciaQtd || 1) : Math.max(1, Math.floor((latestProposal.vigenciaQtd || 1) / (latestProposal.duracao === 'semana' ? 4 : 1))));
+                                    const [sY, sM, sD] = st.split('-');
+                                    const [eY, eM, eD] = end.split('-');
+                                    return `📅 ${sD}/${sM}/${sY} até ${eD}/${eM}/${eY}`;
+                                  })() : '📅 A partir da ativação'}
                                 </strong>
                               </div>
 
@@ -4647,7 +4655,9 @@ export default function GestaoContratosPanel({
                                     <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>
                                       {stage.isRecorrente
                                         ? '12 meses de acesso'
-                                        : (latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses de acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1} meses de acesso`)}
+                                        : (latestContract?.duracao === 'semana' || com.duracao === 'semana' || latestProposal?.duracao === 'semana'
+                                          ? `${latestContract?.vigenciaMeses || com.duracaoQtd || com.vigenciaQtd || latestProposal?.vigenciaQtd || 1} semanas de acesso`
+                                          : (latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses de acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1} meses de acesso`))}
                                     </span>
                                   </div>
                                 )}
@@ -5228,7 +5238,11 @@ export default function GestaoContratosPanel({
                             <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
                               {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
                               {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)} parcelas` : ''}
-                              {' • '}{stage.isRecorrente || latestContract?.vigenciaMeses === 12 || com.duracao === 'anual' ? '12 meses acesso' : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1}m acesso`}
+                              {' • '}{stage.isRecorrente || latestContract?.vigenciaMeses === 12 || com.duracao === 'anual'
+                                ? '12 meses acesso'
+                                : (latestContract?.duracao === 'semana' || com.duracao === 'semana'
+                                  ? `${latestContract?.vigenciaMeses || com.duracaoQtd || com.vigenciaQtd || 1}sem acesso`
+                                  : `${latestContract?.vigenciaMeses || com.duracaoQtd || 1}m acesso`)}
                             </div>
                           )}
                           {Boolean(stage.isRecorrente) && (
@@ -5332,7 +5346,7 @@ export default function GestaoContratosPanel({
         
         {/* Left Column: Commercial settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {activeProposal && activeProposal.status === 'respondida' && !(latestContract && (latestContract.status === 'assinado' || latestContract.status === 'ativo')) && (
+          {activeProposal && activeProposal.status === 'respondida' && !(contracts?.some((ct: any) => ct.status === 'assinado' || ct.status === 'ativo') || allContractsMap[selectedClient._id]?.status === 'assinado') && (
             <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', padding: '16px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
               <h4 style={{ margin: '0 0 8px 0', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem', fontWeight: 700 }}>
                 <i className="fa-solid fa-bell"></i> Proposta de Auto-Cadastro Respondida!
@@ -5633,8 +5647,11 @@ export default function GestaoContratosPanel({
               (dcPlano ? plans.find(p => p._id === dcPlano)?.nome : null) ||
               'Plano Personalizado';
 
+            const isProposalMode = Boolean(currentProposal && (!latestContract || (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado')));
+
             const rawTipo = String(
               latestContract?.duracao ||
+              (isProposalMode && currentProposal?.duracao ? currentProposal.duracao : null) ||
               selectedClient.dadosComerciais?.duracao || 
               currentProposal?.duracao || 
               dcDuracao || 
@@ -5644,8 +5661,9 @@ export default function GestaoContratosPanel({
             const isAnual = rawTipo === 'anual' || selectedPlan?.tipo === 'Anual' || (planNameResolved || '').toLowerCase().includes('anual');
             const tipoLabel = rawTipo === 'semana' ? 'Semana' : (isAnual ? 'Anual' : 'Mensal');
             const qtdVal = isAnual ? 1 : (() => {
-              if (currentProposal?.vigenciaQtd) return Number(currentProposal.vigenciaQtd);
+              if (isProposalMode && currentProposal?.vigenciaQtd) return Number(currentProposal.vigenciaQtd);
               if (latestContract?.vigenciaQtd) return Number(latestContract.vigenciaQtd);
+              if (currentProposal?.vigenciaQtd) return Number(currentProposal.vigenciaQtd);
               if (selectedClient.dadosComerciais?.duracaoQtd && selectedClient.dadosComerciais.duracaoQtd !== selectedClient.dadosComerciais.parcelas) {
                 return Number(selectedClient.dadosComerciais.duracaoQtd);
               }
@@ -5764,7 +5782,7 @@ export default function GestaoContratosPanel({
               0
             );
 
-            const isProposalMode = Boolean(currentProposal && (!latestContract || (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado')));
+            // isProposalMode is already defined above
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -6035,7 +6053,7 @@ export default function GestaoContratosPanel({
                         <div>
                           <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo / Duração</span>
                           <strong style={{ fontSize: '0.96rem', color: isProposalMode ? '#fbbf24' : '#34d399', marginTop: '2px', display: 'block', fontWeight: 800 }}>
-                            {tipoLabel} • {qtdVal} {tipoLabel === 'Semana' ? 'semana(s)' : tipoLabel === 'Anual' ? 'ano' : 'meses'}
+                            {tipoLabel} • {qtdVal} {tipoLabel === 'Semana' ? (qtdVal === 1 ? 'semana' : 'semanas') : (tipoLabel === 'Anual' ? 'ano' : (qtdVal === 1 ? 'mês' : 'meses'))}
                           </strong>
                         </div>
                       </div>
@@ -6047,7 +6065,7 @@ export default function GestaoContratosPanel({
                         {isProposalMode ? (
                           <div style={{ marginTop: '4px' }}>
                             <strong style={{ fontSize: '0.9rem', color: '#f8fafc', display: 'block', fontWeight: 700 }}>
-                              📅 {qtdVal} {tipoLabel === 'Semana' ? 'semana(s)' : tipoLabel === 'Anual' ? 'ano' : 'meses'} a partir da ativação / aceite
+                              📅 {qtdVal} {tipoLabel === 'Semana' ? (qtdVal === 1 ? 'semana' : 'semanas') : (tipoLabel === 'Anual' ? 'ano' : (qtdVal === 1 ? 'mês' : 'meses'))} a partir da ativação / aceite
                             </strong>
                             {currentProposal?.dataInicio && (
                               <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>

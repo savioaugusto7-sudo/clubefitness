@@ -230,10 +230,10 @@ export default function VendaPage({ params }: { params: any }) {
   })();
 
   const rawDataInicio = proposal.dataInicio || new Date().toISOString().split('T')[0];
-  const dataFimCalculadaRaw = calculateContractEndDate(
+  const dataFimCalculadaRaw = proposal.dataFim || calculateContractEndDate(
     rawDataInicio,
     isAnual ? 'anual' : (proposal.duracao || 'mensal'),
-    isRecorrente ? 1 : (isAnual ? 1 : vigenciaMesesEquivalentes),
+    isRecorrente ? 1 : (isAnual ? 1 : (isSemanal ? Number(proposal.vigenciaQtd || 1) : vigenciaMesesEquivalentes)),
     undefined,
     isRecorrente
   );

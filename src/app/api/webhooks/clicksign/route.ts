@@ -93,9 +93,9 @@ export async function POST(request: Request) {
         const client = await Client.findById(contract.clientId);
         if (client) {
           const plan = await Plan.findById(contract.planoId);
-          const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
+          const isSemana = contract.duracao === 'semana' || contract.planoTipo === 'Semanal';
+          const isAnual = !isSemana && (contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12);
 
-          // Arquivar contrato anterior se existente (Anti-Sobrescrita)
           // Arquivar contrato anterior se existente (Anti-Sobrescrita)
           if (client.dadosComerciais && client.dadosComerciais.status === 'ativo' && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
             const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
@@ -115,13 +115,17 @@ export async function POST(request: Request) {
 
           Object.assign(client.dadosComerciais, {
             planoId: contract.planoId,
+            planoNome: contract.planoNome || plan?.nome,
             vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
+            dataFim: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
             status: 'ativo',
             parcelas: contract.parcelas,
             descontoValor: contract.descontoValor,
             descontoTipo: contract.descontoTipo,
-            duracao: isAnual ? 'anual' : 'mensal',
-            duracaoQtd: isAnual ? 1 : (contract.vigenciaMeses || 1),
+            duracao: isSemana ? 'semana' : (isAnual ? 'anual' : 'mensal'),
+            duracaoQtd: isSemana ? (contract.vigenciaQtd || contract.vigenciaMeses || 1) : (isAnual ? 1 : (contract.vigenciaMeses || 1)),
+            vigenciaQtd: isSemana ? (contract.vigenciaQtd || contract.vigenciaMeses || 1) : (isAnual ? 1 : (contract.vigenciaMeses || 1)),
+            valorTotal: contract.valorLiquido || contract.valorBruto || 0,
             formaPagamento: contract.formaPagamento,
             dataInicio: contract.dataInicio,
             responsavelVenda: contract.responsavelVenda || '',

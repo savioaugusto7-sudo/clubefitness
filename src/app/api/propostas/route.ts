@@ -127,6 +127,14 @@ export async function POST(request: Request) {
       { $set: { status: 'expirada', expiradoEm: new Date() } }
     );
 
+    const calculatedDataFim = calculateContractEndDate(
+      dataInicio,
+      duracao,
+      duracao === 'semana' ? Number(vigenciaQtd || 1) : (Number(vigenciaQtd) || 1),
+      undefined,
+      Boolean(criarRecorrenciaMensal)
+    );
+
     // 2. Criar nova proposta com status pendente
     const proposal = await Proposal.create({
       clientId,
@@ -142,6 +150,7 @@ export async function POST(request: Request) {
       valorUnitario,
       vigenciaQtd,
       dataInicio,
+      dataFim: calculatedDataFim,
       criarRecorrenciaMensal,
       recorrenciaMeses,
       descontoTipo,
@@ -156,6 +165,17 @@ export async function POST(request: Request) {
     if (client.dadosComerciais) {
       if (client.dadosComerciais.status !== 'ativo' && client.dadosComerciais.status !== 'finalizado') {
         client.dadosComerciais.status = 'proposta_enviada';
+        client.dadosComerciais.planoId = planoId;
+        client.dadosComerciais.planoNome = plan.nome;
+        client.dadosComerciais.duracao = duracao;
+        client.dadosComerciais.duracaoQtd = vigenciaQtd;
+        client.dadosComerciais.vigenciaQtd = vigenciaQtd;
+        client.dadosComerciais.valorTotal = valorAcordado;
+        client.dadosComerciais.valorUnitario = valorUnitario;
+        client.dadosComerciais.frequencia = frequencia;
+        client.dadosComerciais.dataInicio = dataInicio;
+        client.dadosComerciais.dataFim = calculatedDataFim;
+        client.dadosComerciais.vencimento = calculatedDataFim;
         await client.save();
       }
     }
@@ -290,13 +310,14 @@ export async function PUT(request: Request) {
     if (dispararClicksign) {
       const plan = await Plan.findById(proposal.planoId);
       const isAnual = plan?.tipo === 'Anual' || proposal.duracao === 'anual' || (proposal.vigenciaQtd && proposal.vigenciaQtd >= 12);
+      const isSemana = proposal.duracao === 'semana';
       const numParcelas = Number(parcelasEscolhidas) || 1;
-      const vigenciaMeses = isAnual ? 12 : (Number(proposal.vigenciaQtd) || 1);
+      const vigenciaMeses = isAnual ? 12 : (isSemana ? Math.max(1, Math.round(Number(proposal.vigenciaQtd) / 4)) : (Number(proposal.vigenciaQtd) || 1));
 
       const dataFim = calculateContractEndDate(
         proposal.dataInicio || new Date().toISOString().split('T')[0],
         isAnual ? 'anual' : (proposal.duracao || 'mensal'),
-        isAnual ? 1 : vigenciaMeses,
+        isAnual ? 1 : (isSemana ? Number(proposal.vigenciaQtd) : vigenciaMeses),
         undefined,
         Boolean(proposal.criarRecorrenciaMensal)
       );
@@ -311,7 +332,9 @@ export async function PUT(request: Request) {
         clientId: client._id,
         planoId: proposal.planoId,
         planoNome: proposal.planoNome || plan?.nome,
-        planoTipo: isAnual ? 'Anual' : 'Mensal',
+        planoTipo: isAnual ? 'Anual' : (isSemana ? 'Semanal' : (proposal.duracao === 'semestral' ? 'Semestral' : 'Mensal')),
+        duracao: proposal.duracao || 'mensal',
+        vigenciaQtd: isSemana ? Number(proposal.vigenciaQtd || 1) : (Number(proposal.vigenciaQtd) || vigenciaMeses),
         valorBruto: plan?.preco || valorLiquido,
         descontoTipo: proposal.descontoTipo === 'fixo' ? 'fixo' : 'percentual',
         descontoValor: proposal.descontoValor || 0,

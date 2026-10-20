@@ -16,7 +16,7 @@ export interface ContractValidityInfo {
   isExpiringSoon: boolean;
   daysLeft: number;
   daysLeftText: string;
-  statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' | 'finalizado';
+  statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' | 'finalizado' | 'pendente';
   statusLabel: string;
   badgeColor: string;
   badgeBg: string;

@@ -23,6 +23,8 @@ const ContractSchema = new Schema({
   dataInicio: { type: String, required: true },
   dataFim: { type: String, required: true },
   vigenciaMeses: { type: Number, required: true },
+  duracao: { type: String, default: 'mensal' },
+  vigenciaQtd: { type: Number, default: 1 },
   responsavelVenda: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
   observacoesContratuais: { type: String, default: '' },
