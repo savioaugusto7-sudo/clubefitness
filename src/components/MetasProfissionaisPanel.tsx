@@ -19,15 +19,18 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filtro de Plano selecionado
+  const [selectedPlano, setSelectedPlano] = useState<string>('todos');
+
   // Modal de Extrato
   const [selectedProfExtrato, setSelectedProfExtrato] = useState<any | null>(null);
   const [extratoTab, setExtratoTab] = useState<'creditos' | 'debitos'>('creditos');
 
-  const fetchGoalsData = async (mes: string) => {
+  const fetchGoalsData = async (mes: string, plano: string = selectedPlano) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/professional-goals?mes=${mes}`);
+      const res = await fetch(`/api/admin/professional-goals?mes=${mes}&plano=${plano}`);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
@@ -42,8 +45,8 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
   };
 
   useEffect(() => {
-    fetchGoalsData(selectedMonth);
-  }, [selectedMonth]);
+    fetchGoalsData(selectedMonth, selectedPlano);
+  }, [selectedMonth, selectedPlano]);
 
   // Lista de meses para o seletor (últimos 12 meses)
   const availableMonths = React.useMemo(() => {
@@ -75,6 +78,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
 
   const rankingList = data?.ranking || [];
   const kpis = data?.kpis || {};
+  const planosDisponiveis: Array<{ id: string; nome: string; totalAlunos: number }> = data?.planosDisponiveis || kpis.planosDisponiveis || [];
   const alunosTracking: any[] = data?.alunosTracking || [];
   const emergenciasData = data?.emergenciasData || {};
   const historicoMensal: any[] = emergenciasData.historicoMensal || [];
@@ -132,11 +136,13 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
           <p>Painel de produtividade clínica, agilidade de prescrição e indicadores de retenção e conformidade</p>
         </div>
 
-        {/* Seletor de Mês e Botão de Atualizar */}
+        {/* Seletor de Mês, Seletor de Plano e Botão de Atualizar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          
+          {/* Seletor de Mês */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.05)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
             <i className="fa-regular fa-calendar-days" style={{ color: '#38bdf8' }}></i>
-            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 600 }}>Mês de Referência:</span>
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 600 }}>Mês:</span>
             <select
               className="form-control"
               value={selectedMonth}
@@ -151,10 +157,35 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
             </select>
           </div>
 
+          {/* Seletor de Plano */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.05)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            <i className="fa-solid fa-layer-group" style={{ color: '#c084fc' }}></i>
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 600 }}>Plano:</span>
+            <select
+              className="form-control"
+              value={selectedPlano}
+              onChange={(e) => setSelectedPlano(e.target.value)}
+              style={{ padding: '4px 10px', fontSize: '0.85rem', width: 'auto', background: 'var(--bg-main)', borderColor: 'var(--border-color)', color: 'var(--text-main)', cursor: 'pointer' }}
+            >
+              {planosDisponiveis && planosDisponiveis.length > 0 ? (
+                planosDisponiveis.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} ({p.totalAlunos})
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="todos">Todos os Planos</option>
+                  <option value="clube_fitness">Clube Fitness Monitorado</option>
+                </>
+              )}
+            </select>
+          </div>
+
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => fetchGoalsData(selectedMonth)}
+            onClick={() => fetchGoalsData(selectedMonth, selectedPlano)}
             disabled={loading}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
           >
@@ -807,8 +838,13 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                           </td>
 
                           {/* Plano */}
-                          <td style={{ padding: '12px 10px', textAlign: 'center', color: '#94a3b8' }}>
-                            {a.frequenciaContratada}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.8rem' }}>
+                              {a.planoNome || 'Sem Plano'}
+                            </div>
+                            <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>
+                              {a.frequenciaContratada}
+                            </small>
                           </td>
 
                           {/* Frequência (Check-ins / Meta) */}
@@ -850,22 +886,43 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
 
                           {/* Treino Livre */}
                           <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                background: a.statusTreinoLivre === 'ok' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                                color: a.statusTreinoLivre === 'ok' ? '#38bdf8' : '#fbbf24',
-                                border: `1px solid ${a.statusTreinoLivre === 'ok' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                                fontSize: '0.74rem',
-                                fontWeight: 700
-                              }}
-                            >
-                              <i className={`fa-solid ${a.statusTreinoLivre === 'ok' ? 'fa-circle-check' : 'fa-clock'}`}></i> {a.treinosLivresRealizados} feito(s) ({a.statusTreinoLivre === 'ok' ? 'OK' : 'Pendente'})
-                            </span>
+                            {a.statusTreinoLivre === 'isento' ? (
+                              <span
+                                title="Alunos de produtos clínicos/reabilitação não possuem obrigatoriedade de treino livre autônomo"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(148, 163, 184, 0.1)',
+                                  color: '#94a3b8',
+                                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 600,
+                                  cursor: 'help'
+                                }}
+                              >
+                                <i className="fa-solid fa-stethoscope"></i> Isento (Clínico)
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: a.statusTreinoLivre === 'ok' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                                  color: a.statusTreinoLivre === 'ok' ? '#38bdf8' : '#fbbf24',
+                                  border: `1px solid ${a.statusTreinoLivre === 'ok' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700
+                                }}
+                              >
+                                <i className={`fa-solid ${a.statusTreinoLivre === 'ok' ? 'fa-circle-check' : 'fa-clock'}`}></i> {a.treinosLivresRealizados} feito(s) ({a.statusTreinoLivre === 'ok' ? 'OK' : 'Pendente'})
+                              </span>
+                            )}
                           </td>
 
                           {/* Emergências */}

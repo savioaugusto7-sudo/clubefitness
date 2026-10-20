@@ -10,6 +10,7 @@ import Appointment from '@/models/Appointment';
 import Prontuario from '@/models/Prontuario';
 import PontoRecord from '@/models/PontoRecord';
 import Advertencia from '@/models/Advertencia';
+import Plan from '@/models/Plan';
 
 export const maxDuration = 30;
 
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
     const now = new Date();
     const currentYearMonth = now.toISOString().slice(0, 7); // "YYYY-MM"
     const mesParam = searchParams.get('mes') || currentYearMonth;
+    const planoParam = searchParams.get('plano') || 'todos';
 
     const [yearStr, monthStr] = mesParam.split('-');
     const year = parseInt(yearStr, 10) || now.getFullYear();
@@ -39,15 +41,77 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: { ranking: [], kpis: {}, mes: mesParam } });
     }
 
-    // 2. Buscar todos os clientes
+    // 2. Buscar todos os planos cadastrados
+    const allPlans = await Plan.find({}).lean();
+    const planMap = new Map<string, any>();
+    allPlans.forEach((p: any) => planMap.set(String(p._id), p));
+
+    // Helper para identificar características do plano
+    const getClientPlanInfo = (client: any) => {
+      const pId = client.dadosComerciais?.planoId ? String(client.dadosComerciais.planoId) : '';
+      const planObj = planMap.get(pId);
+      const planoNome = planObj?.nome || client.dadosComerciais?.contrato || 'Sem Plano Cadastrado';
+      const pLower = planoNome.toLowerCase();
+
+      // Um plano é monitorado/academia quando seu nome inclui 'monitorado' ou 'clube fitness'
+      const isPlanoMonitoradoAcademia = pLower.includes('monitorado') || pLower.includes('clube fitness');
+
+      // Um plano é estritamente clínico quando for Protocolo, Tratamento Personalizado, Consulta ou Captação
+      const isPlanoClinico = !isPlanoMonitoradoAcademia && (
+        pLower.includes('protocolo') ||
+        pLower.includes('tratamento') ||
+        pLower.includes('consulta') ||
+        pLower.includes('captação') ||
+        pLower.includes('captacao') ||
+        pLower.includes('avulso')
+      );
+
+      return {
+        planoId: pId,
+        planoNome,
+        isPlanoMonitoradoAcademia,
+        isPlanoClinico
+      };
+    };
+
+    // 3. Buscar todos os clientes
     const clients = await Client.find({}).lean();
     const clientMap = new Map<string, any>();
     clients.forEach((c: any) => clientMap.set(String(c._id), c));
 
-    // Filtrar clientes ativos no período
-    const activeClients = clients.filter((c: any) => {
+    // Filtrar clientes ativos no período (base total ativa)
+    const allActiveClients = clients.filter((c: any) => {
       const st = c.dadosComerciais?.status;
       return st === 'ativo' || st === 'pendente';
+    });
+
+    // Mapear opções de planos disponíveis e suas contagens de alunos ativos
+    const planCountsMap = new Map<string, { id: string; nome: string; totalAlunos: number }>();
+    planCountsMap.set('todos', { id: 'todos', nome: 'Todos os Planos', totalAlunos: allActiveClients.length });
+
+    allActiveClients.forEach((c: any) => {
+      const info = getClientPlanInfo(c);
+      const key = info.planoId || 'sem_plano';
+      if (!planCountsMap.has(key)) {
+        planCountsMap.set(key, {
+          id: key,
+          nome: info.planoNome,
+          totalAlunos: 0
+        });
+      }
+      planCountsMap.get(key)!.totalAlunos++;
+    });
+
+    const planosDisponiveis = Array.from(planCountsMap.values());
+
+    // Filtrar clientes ativos de acordo com o planoParam selecionado
+    const activeClients = allActiveClients.filter((c: any) => {
+      if (!planoParam || planoParam === 'todos') return true;
+      const info = getClientPlanInfo(c);
+      if (planoParam === 'sem_plano') return !info.planoId;
+      if (planoParam === 'clube_fitness') return info.isPlanoMonitoradoAcademia;
+      if (planoParam === 'clinicos') return info.isPlanoClinico;
+      return String(c.dadosComerciais?.planoId) === planoParam || info.planoNome.toLowerCase() === planoParam.toLowerCase();
     });
 
     // Calcular data de 6 meses atrás para o histórico de emergências
@@ -414,6 +478,10 @@ export async function GET(request: Request) {
       const targetScore = profScoresMap.get(respProfId);
       if (!targetScore) return;
 
+      const planInfo = getClientPlanInfo(client);
+      // Se for plano clínico (Protocolo/Tratamento), isentar de cobrança de avaliação física de academia
+      if (planInfo.isPlanoClinico) return;
+
       const alunoNome = client.dadosPessoais?.nome || client.nome || 'Aluno';
 
       // Verificar última avaliação física
@@ -540,6 +608,10 @@ export async function GET(request: Request) {
     interface AlunoTrackingData {
       clientId: string;
       nome: string;
+      planoId?: string;
+      planoNome: string;
+      isPlanoClinico: boolean;
+      isPlanoMonitoradoAcademia: boolean;
       frequenciaContratada: string;
       metaAulasMes: number;
       presencasRealizadas: number;
@@ -551,7 +623,7 @@ export async function GET(request: Request) {
       statusTexto: string;
       treinosLivresRealizados: number;
       treinosLivresEsperados: number;
-      statusTreinoLivre: 'ok' | 'pendente';
+      statusTreinoLivre: 'ok' | 'pendente' | 'isento';
       emergenciasNoMes: number;
       statusEmergencia: 'ok' | 'alerta';
       riscoGeral: 'baixo' | 'medio' | 'alto';
@@ -565,6 +637,7 @@ export async function GET(request: Request) {
       const alunoNome = client.dadosPessoais?.nome || client.nome || 'Aluno';
       const respProfId = client.dadosClinicos?.profissionalResponsavelId ? String(client.dadosClinicos.profissionalResponsavelId) : undefined;
       const respProf = respProfId ? profScoresMap.get(respProfId)?.prof?.nome : undefined;
+      const planInfo = getClientPlanInfo(client);
 
       const clientMonthApts = monthAppointments.filter((a: any) => {
         const aCId = String(a.clienteId?._id || a.clienteId);
@@ -607,12 +680,18 @@ export async function GET(request: Request) {
           statusRitmo = 'em_risco';
           statusTexto = 'Abaixo do esperado (Em risco)';
           totalAlunosEmRisco++;
-          totalAlunosBaixaFreq++;
+          // Se for produto clínico (Protocolo/Tratamento), não gera penalidade coletiva de baixa retenção de academia
+          if (!planInfo.isPlanoClinico) {
+            totalAlunosBaixaFreq++;
+          }
         } else {
           statusRitmo = 'fora_da_meta';
           statusTexto = 'Fora da meta (Risco crítico)';
           totalAlunosForaDaMeta++;
-          totalAlunosBaixaFreq++;
+          // Se for produto clínico, não gera penalidade coletiva
+          if (!planInfo.isPlanoClinico) {
+            totalAlunosBaixaFreq++;
+          }
         }
 
         if (!isCurrentMonth) {
@@ -624,12 +703,15 @@ export async function GET(request: Request) {
               pontos: 5
             });
           } else {
-            collectiveDebitEvents.push({
-              tipo: 'Baixa Frequência do Aluno (< 80%)',
-              motivo: `Aluno realizou apenas ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta)`,
-              alunoNome,
-              pontosDebito: 5
-            });
+            // Se for produto clínico, não gera débito coletivo de baixa retenção
+            if (!planInfo.isPlanoClinico) {
+              collectiveDebitEvents.push({
+                tipo: 'Baixa Frequência do Aluno (< 80%)',
+                motivo: `Aluno realizou apenas ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta)`,
+                alunoNome,
+                pontosDebito: 5
+              });
+            }
           }
         }
       } else {
@@ -643,7 +725,16 @@ export async function GET(request: Request) {
       }).length;
 
       const treinosLivresEsperadosAteHoje = Math.max(1, Math.round(4 * (currentDay / lastDayOfMonth)));
-      const statusTreinoLivre: 'ok' | 'pendente' = (treinosLivres >= 4 || (isCurrentMonth && treinosLivres >= treinosLivresEsperadosAteHoje)) ? 'ok' : 'pendente';
+      let statusTreinoLivre: 'ok' | 'pendente' | 'isento' = 'pendente';
+
+      if (planInfo.isPlanoClinico) {
+        // Pacientes clínicos de reabilitação não possuem obrigatoriedade de treino livre
+        statusTreinoLivre = 'isento';
+      } else if (treinosLivres >= 4 || (isCurrentMonth && treinosLivres >= treinosLivresEsperadosAteHoje)) {
+        statusTreinoLivre = 'ok';
+      } else {
+        statusTreinoLivre = 'pendente';
+      }
 
       if (statusTreinoLivre === 'ok') {
         totalAlunosTreinoLivreOk++;
@@ -655,7 +746,8 @@ export async function GET(request: Request) {
             pontos: 2
           });
         }
-      } else {
+      } else if (statusTreinoLivre === 'pendente') {
+        // Apenas alunos com obrigatoriedade não cumprida geram débito
         totalAlunosTreinoLivreFalta++;
         if (!isCurrentMonth) {
           collectiveDebitEvents.push({
@@ -708,6 +800,10 @@ export async function GET(request: Request) {
       alunosTracking.push({
         clientId: cId,
         nome: alunoNome,
+        planoId: planInfo.planoId,
+        planoNome: planInfo.planoNome,
+        isPlanoClinico: planInfo.isPlanoClinico,
+        isPlanoMonitoradoAcademia: planInfo.isPlanoMonitoradoAcademia,
         frequenciaContratada: typeof rawFreqStr === 'number' ? `${rawFreqStr}x/sem` : String(rawFreqStr),
         metaAulasMes: metaAulas,
         presencasRealizadas: presencas,
@@ -776,6 +872,8 @@ export async function GET(request: Request) {
 
     const kpis = {
       mesReferencia: mesParam,
+      planoSelecionado: planoParam,
+      planosDisponiveis,
       isMesEmAndamento: isCurrentMonth,
       diaAtualMes: currentDay,
       diasTotalMes: lastDayOfMonth,
@@ -993,6 +1091,7 @@ export async function GET(request: Request) {
         kpis,
         alunosTracking,
         emergenciasData,
+        planosDisponiveis,
         mes: mesParam
       }
     });
