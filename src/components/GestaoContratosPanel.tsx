@@ -747,17 +747,30 @@ export default function GestaoContratosPanel({
 
       if (contractsRes.success && Array.isArray(contractsRes.data)) {
         const cMap: Record<string, any> = {};
-        let shouldRefreshClients = false;
-
         contractsRes.data.forEach((c: any) => {
           const rawId = c.clientId?._id || c.clientId;
           const cId = rawId ? String(rawId) : '';
-          if (cId && (!cMap[cId] || new Date(c.createdAt || c.dataEmissao) > new Date(cMap[cId].createdAt || cMap[cId].dataEmissao))) {
+          if (!cId) return;
+
+          const existing = cMap[cId];
+          if (!existing) {
             cMap[cId] = c;
-            const prev = allContractsMap[cId];
-            if (prev && prev.status !== 'assinado' && c.status === 'assinado') {
-              shouldRefreshClients = true;
+          } else {
+            const cIsActive = c.status === 'assinado' || c.status === 'ativo' || c.clicksignStatus === 'assinado';
+            const exIsActive = existing.status === 'assinado' || existing.status === 'ativo' || existing.clicksignStatus === 'assinado';
+
+            if (cIsActive && !exIsActive) {
+              cMap[cId] = c;
+            } else if (!cIsActive && exIsActive) {
+              // Mantém o contrato assinado/ativo existente
+            } else if (new Date(c.createdAt || c.dataEmissao) > new Date(existing.createdAt || existing.dataEmissao)) {
+              cMap[cId] = c;
             }
+          }
+
+          const prev = allContractsMap[cId];
+          if (prev && prev.status !== 'assinado' && c.status === 'assinado') {
+            shouldRefreshClients = true;
           }
         });
         setAllContractsMap(cMap);
@@ -5429,7 +5442,9 @@ export default function GestaoContratosPanel({
               selectedClient.dadosPessoais?.cep || dcCep ? `CEP: ${selectedClient.dadosPessoais?.cep || dcCep}` : ''
             ].filter(Boolean).join(' • ');
 
-            const latestContractTop = (contracts && contracts.length > 0 ? contracts[0] : null) || allContractsMap[selectedClient._id] || null;
+            const latestContractTop = (contracts && contracts.length > 0 
+              ? (contracts.find((ct: any) => ct.status === 'assinado' || ct.status === 'ativo' || ct.clicksignStatus === 'assinado') || contracts[0]) 
+              : null) || allContractsMap[selectedClient._id] || null;
             const currentProposalTop = activeProposal || allProposalsMap[selectedClient._id] || null;
             const planIdStrTop = latestContractTop?.planoId?._id || latestContractTop?.planoId || currentProposalTop?.planoId || selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
             const selectedPlanTop = plans.find(p => p._id === planIdStrTop || p.nome === latestContractTop?.planoNome || p.nome === currentProposalTop?.planoNome || p.nome === selectedClient.dadosComerciais?.planoNome);
@@ -5599,7 +5614,9 @@ export default function GestaoContratosPanel({
               PAINEL EXECUTIVO DO ALUNO & AUDITORIA (DARK GLASSMORPHISM SOFISTICADO)
               ========================================================================= */}
           {(() => {
-            const latestContract = (contracts && contracts.length > 0 ? contracts[0] : null) || allContractsMap[selectedClient._id] || null;
+            const latestContract = (contracts && contracts.length > 0 
+              ? (contracts.find((ct: any) => ct.status === 'assinado' || ct.status === 'ativo' || ct.clicksignStatus === 'assinado') || contracts[0]) 
+              : null) || allContractsMap[selectedClient._id] || null;
             const currentProposal = activeProposal || allProposalsMap[selectedClient._id] || null;
             const planIdStr = latestContract?.planoId?._id || latestContract?.planoId || currentProposal?.planoId || selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
             const selectedPlan = plans.find(p => p._id === planIdStr || p.nome === latestContract?.planoNome || p.nome === currentProposal?.planoNome || p.nome === selectedClient.dadosComerciais?.planoNome || (typeof selectedClient.dadosComerciais?.planoId === 'object' && p._id === selectedClient.dadosComerciais?.planoId?._id));
@@ -5756,9 +5773,9 @@ export default function GestaoContratosPanel({
                 {(latestContract || selectedClient.dadosComerciais?.status === 'cancelado_agendado' || selectedClient.dadosComerciais?.status === 'cancelado') && (
                   (() => {
                     const isContractCancelled = Boolean(
-                      latestContract?.status === 'cancelado' ||
                       selectedClient.dadosComerciais?.status === 'cancelado_agendado' ||
-                      selectedClient.dadosComerciais?.status === 'cancelado'
+                      selectedClient.dadosComerciais?.status === 'cancelado' ||
+                      (latestContract?.status === 'cancelado' && (latestContract?.rescisao || latestContract?.motivoCancelamento || selectedClient.dadosComerciais?.status !== 'ativo'))
                     );
 
                     if (isContractCancelled) {

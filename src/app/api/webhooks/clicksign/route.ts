@@ -76,10 +76,10 @@ export async function POST(request: Request) {
       }
 
       if (contract.status !== 'assinado') {
-        // Cancelar qualquer outro contrato assinado anterior do mesmo cliente
+        // Marcar qualquer outro contrato assinado anterior do mesmo cliente como renovado/substituído
         await Contract.updateMany(
           { clientId: contract.clientId, _id: { $ne: contract._id }, status: 'assinado' },
-          { status: 'cancelado' }
+          { status: 'renovado' }
         );
 
         // Marcar contrato como assinado
