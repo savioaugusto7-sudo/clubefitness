@@ -269,6 +269,122 @@ export default function AgendaCompletaPanel({
   const [editProfId, setEditProfId] = useState('');
   const [savingProf, setSavingProf] = useState(false);
 
+  // States para Visualização de Agendamentos Futuros do Aluno & Agendamento Rápido
+  const [inspectModalTab, setInspectModalTab] = useState<'atual' | 'futuros'>('atual');
+  const [clientFutureApts, setClientFutureApts] = useState<any[]>([]);
+  const [loadingFutureApts, setLoadingFutureApts] = useState(false);
+  const [isQuickBooking, setIsQuickBooking] = useState(false);
+  const [quickBookingDate, setQuickBookingDate] = useState('');
+  const [quickBookingHorario, setQuickBookingHorario] = useState('07:00');
+  const [quickBookingServico, setQuickBookingServico] = useState('Treino Monitorado');
+  const [quickBookingProfId, setQuickBookingProfId] = useState('');
+  const [submittingQuickBooking, setSubmittingQuickBooking] = useState(false);
+
+  // Carregar agendamentos futuros do aluno
+  const handleLoadFutureAppointments = async (clientId: string) => {
+    if (!clientId) return;
+    setLoadingFutureApts(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await fetch(`/api/appointments?clientId=${clientId}&startDate=${today}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const active = json.data
+          .filter((a: any) => a.status !== 'cancelado')
+          .sort((a: any, b: any) => {
+            if (a.data === b.data) return (a.horario || '').localeCompare(b.horario || '');
+            return (a.data || '').localeCompare(b.data || '');
+          });
+        setClientFutureApts(active);
+      } else {
+        setClientFutureApts([]);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar agendamentos futuros:', err);
+      setClientFutureApts([]);
+    } finally {
+      setLoadingFutureApts(false);
+    }
+  };
+
+  // Confirmar agendamento rápido a partir do modal de futuros
+  const handleConfirmQuickBooking = async () => {
+    const cId = inspectApt?.clienteId?._id || inspectApt?.clienteId;
+    if (!cId || !quickBookingDate || !quickBookingHorario || !quickBookingServico) {
+      alert('Preencha a data, horário e serviço para agendar.');
+      return;
+    }
+
+    setSubmittingQuickBooking(true);
+    try {
+      const payload: any = {
+        clienteId: cId,
+        data: quickBookingDate,
+        horario: quickBookingHorario,
+        servico: quickBookingServico,
+        status: 'agendado',
+        tipo: inspectApt?.tipo || activeTab || 'academia',
+        bypassRestrictions: true
+      };
+      if (quickBookingProfId) {
+        payload.profissionalDesignadoId = quickBookingProfId;
+        payload.profissionalId = quickBookingProfId;
+      }
+
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success) {
+        setIsQuickBooking(false);
+        await handleLoadFutureAppointments(cId);
+        if (quickBookingDate === selectedDate) {
+          fetchSlotsAndConfigs();
+        }
+        showFeedback('Agendamento realizado com sucesso!', 'success');
+      } else {
+        alert('Erro ao agendar: ' + (json.error || 'Não foi possível agendar'));
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao agendar: ' + err.message);
+    } finally {
+      setSubmittingQuickBooking(false);
+    }
+  };
+
+  // Cancelar / Desmarcar agendamento futuro
+  const handleCancelFutureAppointment = async (aptId: string) => {
+    if (!confirm('Deseja realmente desmarcar este agendamento futuro?')) return;
+    try {
+      const res = await fetch(`/api/appointments?id=${aptId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelado' })
+      });
+      const json = await res.json();
+      if (json.success) {
+        const cId = inspectApt?.clienteId?._id || inspectApt?.clienteId;
+        if (cId) handleLoadFutureAppointments(cId);
+        fetchSlotsAndConfigs();
+        showFeedback('Agendamento desmarcado com sucesso.', 'success');
+      } else {
+        alert('Erro ao desmarcar: ' + (json.error || 'Falha ao processar'));
+      }
+    } catch (err: any) {
+      alert('Erro ao desmarcar agendamento: ' + err.message);
+    }
+  };
+
+  // Navegar para uma data futura na agenda
+  const handleNavigateToFutureDate = (targetDate: string) => {
+    setSelectedDate(targetDate);
+    setInspectApt(null);
+    setIsEditingObs(false);
+    setIsEditingProf(false);
+  };
+
   // States para Autenticação / Auditoria via PIN no Computador Coletivo
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinProfId, setPinProfId] = useState('');
@@ -1046,6 +1162,11 @@ export default function AgendaCompletaPanel({
                                      const curPid = apt.profissionalDesignadoId?._id || apt.profissionalDesignadoId || '';
                                      setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
                                      setIsEditingProf(false);
+                                      setInspectModalTab('atual');
+                                      setIsQuickBooking(false);
+                                      setQuickBookingDate(selectedDate || new Date().toISOString().split('T')[0]);
+                                      const cId = apt.clienteId?._id || apt.clienteId;
+                                      if (cId) handleLoadFutureAppointments(cId);
                                    }}
                                    title={
                                      isDynamus 
@@ -1532,6 +1653,26 @@ export default function AgendaCompletaPanel({
                           </div>
 
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <button 
+                              className="btn btn-secondary btn-sm" 
+                              style={{ color: '#38bdf8', borderColor: 'rgba(56,189,248,0.35)', padding: '6px 10px' }} 
+                              title="Ver Detalhes e Agendamentos Futuros" 
+                              onClick={() => {
+                                setInspectApt(apt);
+                                setEditObsText(apt.observacoes || '');
+                                setIsEditingObs(false);
+                                const curPid = apt.profissionalDesignadoId?._id || apt.profissionalDesignadoId || '';
+                                setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
+                                setIsEditingProf(false);
+                                setInspectModalTab('atual');
+                                setIsQuickBooking(false);
+                                setQuickBookingDate(selectedDate || new Date().toISOString().split('T')[0]);
+                                const cId = apt.clienteId?._id || apt.clienteId;
+                                if (cId) handleLoadFutureAppointments(cId);
+                              }}
+                            >
+                              <i className="fa-solid fa-calendar-days"></i>
+                            </button>
                             {apt.status === 'agendado' ? (
                               <>
                                 <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-success)', borderColor: 'rgba(16,185,129,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'presenca')}>
@@ -1809,16 +1950,16 @@ export default function AgendaCompletaPanel({
       )}
 
 
-      {/* MODAL 5: Modal Executivo de Inspeção Rápida de Agendamento & Observações (Desktop & Mobile) */}
+      {/* MODAL 5: Modal Executivo de Inspeção Rápida, Agendamentos Futuros & Agendamento Rápido */}
       {inspectApt && (
         <ModalPortal>
-          <div className="modal-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
+          <div className="modal-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); setIsEditingProf(false); setIsQuickBooking(false); }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: inspectModalTab === 'futuros' ? '600px' : '520px', width: '94%', transition: 'max-width 0.2s ease' }}>
               
               {/* Modal Header Executivo */}
-              <div className="modal-header">
+              <div className="modal-header" style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.15rem' }}>
                     <i className="fa-solid fa-user-check"></i>
                   </div>
                   <div>
@@ -1845,71 +1986,905 @@ export default function AgendaCompletaPanel({
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                      📅 {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong style={{ color: '#10b981' }}>{inspectApt.horario}</strong>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      CPF: <strong style={{ color: 'var(--text-main)' }}>{inspectApt.clienteId?.dadosPessoais?.cpf || '—'}</strong> • Tel: <strong style={{ color: 'var(--text-main)' }}>{inspectApt.clienteId?.dadosPessoais?.telefone || '—'}</strong>
                     </div>
                   </div>
                 </div>
-                <button className="modal-close" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>&times;</button>
+                <button className="modal-close" onClick={() => { setInspectApt(null); setIsEditingObs(false); setIsEditingProf(false); setIsQuickBooking(false); }}>&times;</button>
               </div>
 
-              {/* Modal Body com Scroll Inteligente */}
-              <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Modalidade & Contato */}
-                <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    CPF: <strong>{inspectApt.clienteId?.dadosPessoais?.cpf || '—'}</strong> • Tel: <strong>{inspectApt.clienteId?.dadosPessoais?.telefone || '—'}</strong>
-                  </div>
-                  <span style={{
-                    fontSize: '0.74rem',
-                    fontWeight: 800,
-                    padding: '4px 12px',
-                    borderRadius: '10px',
-                    background: getServiceColor(inspectApt.servico).bg,
-                    color: getServiceColor(inspectApt.servico).text,
-                    border: `1px solid ${getServiceColor(inspectApt.servico).text}40`
-                  }}>
-                    {inspectApt.servico}
-                  </span>
-                  {inspectApt.origemHorarioFixo && (
-                    <span style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      padding: '4px 10px',
+              {/* Tab Switcher & Botão Agendar Aluno */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 18px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderBottom: '1px solid var(--border-color)',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.25)', padding: '3px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setInspectModalTab('atual'); }}
+                    style={{
+                      background: inspectModalTab === 'atual' ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                      color: inspectModalTab === 'atual' ? '#38bdf8' : 'var(--text-muted)',
+                      border: inspectModalTab === 'atual' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
                       borderRadius: '8px',
-                      background: 'rgba(168, 85, 247, 0.18)',
-                      color: '#c084fc',
-                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      padding: '6px 12px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '5px'
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <i className="fa-regular fa-clock"></i> Agendamento Atual
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setInspectModalTab('futuros'); }}
+                    style={{
+                      background: inspectModalTab === 'futuros' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                      color: inspectModalTab === 'futuros' ? '#10b981' : 'var(--text-muted)',
+                      border: inspectModalTab === 'futuros' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <i className="fa-solid fa-calendar-days"></i> Agendamentos Futuros
+                    <span style={{
+                      background: inspectModalTab === 'futuros' ? '#10b981' : 'rgba(255, 255, 255, 0.12)',
+                      color: inspectModalTab === 'futuros' ? '#042f2e' : 'var(--text-main)',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '1px 6px',
+                      borderRadius: '10px',
+                      marginLeft: '2px'
                     }}>
-                      📌 Horário Fixo Semanal
+                      {loadingFutureApts ? '...' : clientFutureApts.length}
                     </span>
-                  )}
+                  </button>
                 </div>
 
-                {/* Bloco de Profissional Designado (Designação Operacional) */}
-                <div style={{ background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '14px', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontWeight: 800, fontSize: '0.88rem' }}>
-                      <i className="fa-solid fa-user-check"></i> Profissional Designado
+                {/* Botão Agendar Aluno no Cabeçalho */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInspectModalTab('futuros');
+                    setIsQuickBooking(true);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.9))',
+                    color: '#ffffff',
+                    border: '1px solid rgba(16, 185, 129, 0.5)',
+                    borderRadius: '8px',
+                    padding: '6px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 750,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <i className="fa-solid fa-calendar-plus"></i> Agendar Aluno
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                
+                {/* ABA 1: Agendamento Atual */}
+                {inspectModalTab === 'atual' && (
+                  <>
+                    {/* Modalidade, Horário & Ação Rápida */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '0.84rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                          📅 {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong style={{ color: '#10b981' }}>{inspectApt.horario}</strong>
+                        </div>
+                        <span style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          padding: '3px 10px',
+                          borderRadius: '8px',
+                          background: getServiceColor(inspectApt.servico).bg,
+                          color: getServiceColor(inspectApt.servico).text,
+                          border: `1px solid ${getServiceColor(inspectApt.servico).text}40`
+                        }}>
+                          {inspectApt.servico}
+                        </span>
+                        {inspectApt.origemHorarioFixo && (
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(168, 85, 247, 0.18)',
+                            color: '#c084fc',
+                            border: '1px solid rgba(168, 85, 247, 0.4)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            📌 Horário Fixo Semanal
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setInspectModalTab('futuros')}
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          color: '#10b981',
+                          borderRadius: '8px',
+                          padding: '5px 12px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        <i className="fa-solid fa-calendar-days"></i> Ver Futuros ({clientFutureApts.length})
+                      </button>
                     </div>
-                    {!isEditingProf && (
+
+                    {/* Bloco de Profissional Designado */}
+                    <div style={{ background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '14px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontWeight: 800, fontSize: '0.88rem' }}>
+                          <i className="fa-solid fa-user-check"></i> Profissional Designado
+                        </div>
+                        {!isEditingProf && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingProf(true);
+                              const curPid = inspectApt.profissionalDesignadoId?._id || inspectApt.profissionalDesignadoId || '';
+                              setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
+                            }}
+                            style={{
+                              background: 'rgba(59, 130, 246, 0.15)',
+                              border: '1px solid rgba(59, 130, 246, 0.35)',
+                              color: '#60a5fa',
+                              borderRadius: '8px',
+                              padding: '4px 12px',
+                              fontSize: '0.76rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <i className="fa-solid fa-pen-to-square"></i> {inspectApt.profissionalDesignadoId ? 'Alterar' : 'Designar'}
+                          </button>
+                        )}
+                      </div>
+
+                      {isEditingProf ? (
+                        <div>
+                          <select
+                            className="select-custom"
+                            value={editProfId}
+                            onChange={e => setEditProfId(e.target.value)}
+                            style={{
+                              width: '100%',
+                              background: '#080b11',
+                              color: 'var(--text-main)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                              fontSize: '0.9rem'
+                            }}
+                          >
+                            <option value="">Nenhum / Não atribuído</option>
+                            {professionals
+                              .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                              .map(p => (
+                                <option key={p._id} value={p._id}>
+                                  {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                                </option>
+                              ))}
+                          </select>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingProf(false)}
+                              style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid var(--border-color)',
+                                color: 'var(--text-muted)',
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                fontSize: '0.82rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingProf}
+                              onClick={handleSaveProfessional}
+                              style={{
+                                background: '#3b82f6',
+                                border: 'none',
+                                color: '#fff',
+                                padding: '8px 18px',
+                                borderRadius: '8px',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              {savingProf ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                              Salvar Profissional
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.92rem', color: '#ffffff', fontWeight: 600 }}>
+                          {inspectApt.profissionalDesignadoId ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ color: '#93c5fd' }}>{getProfFullName(inspectApt.profissionalDesignadoId)}</span>
+                              {inspectApt.origemHorarioFixo && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                                  (origem: horário fixo)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic', fontWeight: 400 }}>
+                              Nenhum profissional determinado para este agendamento.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bloco de Observação Clínica */}
+                    <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 800, fontSize: '0.88rem' }}>
+                          <i className="fa-solid fa-note-sticky"></i> Observação Clínica
+                        </div>
+                        {!isEditingObs && (
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingObs(true)}
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              color: '#f59e0b',
+                              borderRadius: '8px',
+                              padding: '4px 12px',
+                              fontSize: '0.76rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <i className="fa-solid fa-pen-to-square"></i> {inspectApt.observacoes ? 'Editar' : 'Adicionar'}
+                          </button>
+                        )}
+                      </div>
+
+                      {isEditingObs ? (
+                        <div>
+                          <textarea
+                            rows={3}
+                            className="form-control"
+                            placeholder="Digite orientações clínicas, foco do treino, dores ou restrições..."
+                            value={editObsText}
+                            onChange={e => setEditObsText(e.target.value)}
+                            style={{
+                              width: '100%',
+                              background: '#080b11',
+                              color: 'var(--text-main)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '10px',
+                              padding: '12px',
+                              fontSize: '0.9rem',
+                              resize: 'vertical',
+                              outline: 'none',
+                              fontFamily: 'inherit'
+                            }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingObs(false);
+                                setEditObsText(inspectApt.observacoes || '');
+                              }}
+                              style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid var(--border-color)',
+                                color: 'var(--text-muted)',
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                fontSize: '0.82rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingObs}
+                              onClick={handleSaveObservation}
+                              style={{
+                                background: '#10b981',
+                                border: 'none',
+                                color: '#fff',
+                                padding: '8px 18px',
+                                borderRadius: '8px',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              {savingObs ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                              Salvar Observação
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          {inspectApt.observacoes ? (
+                            <>
+                              <div style={{ fontSize: '0.92rem', color: '#ffffff', lineHeight: '1.45', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
+                                "{inspectApt.observacoes}"
+                              </div>
+                              {inspectApt.observacaoDataHora && (
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <i className="fa-regular fa-clock"></i> Lançada em {formatObsTimestamp(inspectApt.observacaoDataHora)}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                              Nenhuma observação clínica registrada para este agendamento.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Emergência em Andamento */}
+                    {(inspectApt.servico === 'Emergência' || inspectApt.tipo === 'Emergência') && inspectApt.status === 'presenca' && !inspectApt.finalizado && onOpenEmergencyFinalization && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1.5px solid #ef4444', borderRadius: '12px', padding: '14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                        <div>
+                          <strong style={{ color: '#ef4444', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-notes-medical"></i> Emergência em Atendimento
+                          </strong>
+                          <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                            Presença confirmada. Clique para registrar a evolução clínica no prontuário e definir a conduta.
+                          </small>
+                        </div>
+                        <button
+                          type="button"
+                          style={{
+                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '10px 18px',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+                          }}
+                          onClick={() => {
+                            const target = inspectApt;
+                            setInspectApt(null);
+                            onOpenEmergencyFinalization(target);
+                          }}
+                        >
+                          <i className="fa-solid fa-flag-checkered"></i>
+                          <span>Finalizar Atendimento</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Ações de Presença & Falta */}
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleUpdateAptStatus(inspectApt._id, 'presenca');
+                          setInspectApt(null);
+                        }}
+                        style={{
+                          flex: '1 1 140px',
+                          background: inspectApt.status === 'presenca' ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
+                          color: '#ffffff',
+                          border: inspectApt.status === 'presenca' ? 'none' : '1px solid rgba(16, 185, 129, 0.4)',
+                          borderRadius: '12px',
+                          padding: '12px 16px',
+                          fontSize: '0.88rem',
+                          fontWeight: 750,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <i className="fa-solid fa-check"></i> {inspectApt.status === 'presenca' ? 'Presença Confirmada' : 'Marcar Presença'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleUpdateAptStatus(inspectApt._id, 'falta');
+                          setInspectApt(null);
+                        }}
+                        style={{
+                          flex: '1 1 120px',
+                          background: inspectApt.status === 'falta' ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
+                          color: inspectApt.status === 'falta' ? '#ffffff' : '#ef4444',
+                          border: inspectApt.status === 'falta' ? 'none' : '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: '12px',
+                          padding: '12px 16px',
+                          fontSize: '0.88rem',
+                          fontWeight: 750,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <i className="fa-solid fa-xmark"></i> {inspectApt.status === 'falta' ? 'Falta Registrada' : 'Marcar Falta'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* ABA 2: Agendamentos Futuros */}
+                {inspectModalTab === 'futuros' && (
+                  <>
+                    {/* Header informativo da aba de Futuros */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 750, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-calendar-check" style={{ color: '#10b981' }}></i>
+                          Próximos Agendamentos do Aluno
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                          Sessões e treinos programados a partir de hoje ({new Date().toLocaleDateString('pt-BR')})
+                        </div>
+                      </div>
+
+                      {!isQuickBooking && (
+                        <button
+                          type="button"
+                          onClick={() => setIsQuickBooking(true)}
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.9))',
+                            border: '1px solid rgba(16, 185, 129, 0.5)',
+                            color: '#ffffff',
+                            borderRadius: '8px',
+                            padding: '6px 14px',
+                            fontSize: '0.78rem',
+                            fontWeight: 750,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
+                          }}
+                        >
+                          <i className="fa-solid fa-calendar-plus"></i> Agendar Aluno
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Formulário de Agendamento Rápido */}
+                    {isQuickBooking && (
+                      <div style={{
+                        background: 'rgba(16, 185, 129, 0.05)',
+                        border: '1.5px solid rgba(16, 185, 129, 0.35)',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        boxShadow: '0 4px 16px rgba(16, 185, 129, 0.1)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong style={{ fontSize: '0.86rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento para {inspectApt.clienteId?.dadosPessoais?.nome?.split(' ')[0] || 'Aluno'}
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={() => setIsQuickBooking(false)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              fontSize: '0.9rem'
+                            }}
+                          >
+                            <i className="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
+                              Data *
+                            </label>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={quickBookingDate}
+                              min={new Date().toISOString().split('T')[0]}
+                              onChange={e => setQuickBookingDate(e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
+                              Horário *
+                            </label>
+                            <select
+                              className="select-custom"
+                              value={quickBookingHorario}
+                              onChange={e => setQuickBookingHorario(e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                            >
+                              {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(h => (
+                                <option key={h} value={h}>{h}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
+                              Serviço *
+                            </label>
+                            <select
+                              className="select-custom"
+                              value={quickBookingServico}
+                              onChange={e => setQuickBookingServico(e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                            >
+                              <option value="Treino Monitorado">Treino Monitorado</option>
+                              <option value="Treino Livre">Treino Livre</option>
+                              <option value="Recovery">Recovery</option>
+                              <option value="Massagem">Massagem</option>
+                              <option value="Avaliação Física">Avaliação Física</option>
+                              <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                              <option value="Atendimento Individual">Atendimento Individual</option>
+                              <option value="Consulta">Consulta</option>
+                              <option value="Terapia Manual">Terapia Manual</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
+                              Profissional Designado
+                            </label>
+                            <select
+                              className="select-custom"
+                              value={quickBookingProfId}
+                              onChange={e => setQuickBookingProfId(e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                            >
+                              <option value="">Não atribuído</option>
+                              {professionals
+                                .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                                .map(p => (
+                                  <option key={p._id} value={p._id}>
+                                    {p.nome}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setIsQuickBooking(false)}
+                            style={{
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-muted)',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={submittingQuickBooking}
+                            onClick={handleConfirmQuickBooking}
+                            style={{
+                              background: '#10b981',
+                              border: 'none',
+                              color: '#fff',
+                              padding: '6px 18px',
+                              borderRadius: '8px',
+                              fontSize: '0.8rem',
+                              fontWeight: 750,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            {submittingQuickBooking ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                            Confirmar Agendamento
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Loading State */}
+                    {loadingFutureApts && (
+                      <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '1.2rem', color: '#10b981', marginBottom: '8px', display: 'block' }}></i>
+                        Buscando agendamentos futuros do aluno...
+                      </div>
+                    )}
+
+                    {/* Empty State com Botão Agendar Aluno */}
+                    {!loadingFutureApts && clientFutureApts.length === 0 && (
+                      <div style={{
+                        padding: '24px 20px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px dashed var(--border-color)',
+                        borderRadius: '12px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', marginBottom: '10px' }}>
+                          <i className="fa-regular fa-calendar-xmark"></i>
+                        </div>
+                        <div style={{ fontSize: '0.86rem', color: 'var(--text-main)', fontWeight: 600, marginBottom: '4px' }}>
+                          Nenhum agendamento futuro
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '16px', maxWidth: '320px', margin: '0 auto 16px' }}>
+                          Não constam outras sessões agendadas para este aluno a partir de hoje.
+                        </div>
+                        {!isQuickBooking && (
+                          <button
+                            type="button"
+                            onClick={() => setIsQuickBooking(true)}
+                            style={{
+                              background: '#10b981',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '8px 18px',
+                              fontSize: '0.82rem',
+                              fontWeight: 750,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                            }}
+                          >
+                            <i className="fa-solid fa-calendar-plus"></i> Agendar Aluno Agora
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Lista de Agendamentos Futuros */}
+                    {!loadingFutureApts && clientFutureApts.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        maxHeight: '340px',
+                        overflowY: 'auto',
+                        paddingRight: '4px'
+                      }}>
+                        {clientFutureApts.map((apt: any) => {
+                          const isSameAsInspected = apt._id === inspectApt._id;
+                          const sColor = getServiceColor(apt.servico);
+                          const profName = getProfShortName(apt.profissionalDesignadoId || apt.profissionalId);
+
+                          return (
+                            <div
+                              key={apt._id}
+                              style={{
+                                background: isSameAsInspected ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                                border: isSameAsInspected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-color)',
+                                borderRadius: '10px',
+                                padding: '10px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '10px',
+                                flexWrap: 'wrap'
+                              }}
+                            >
+                              <div style={{ flex: '1 1 180px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <strong style={{ fontSize: '0.84rem', color: '#ffffff' }}>
+                                    {formatSelectedDateWithDayOfWeek(apt.data)}
+                                  </strong>
+                                  <span style={{
+                                    fontSize: '0.78rem',
+                                    fontWeight: 800,
+                                    color: '#10b981',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px'
+                                  }}>
+                                    {apt.horario}
+                                  </span>
+                                  <span style={{
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    padding: '2px 6px',
+                                    borderRadius: '6px',
+                                    background: sColor.bg,
+                                    color: sColor.text,
+                                    border: `1px solid ${sColor.text}40`
+                                  }}>
+                                    {apt.servico}
+                                  </span>
+                                  {apt.origemHorarioFixo && (
+                                    <span style={{
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      padding: '2px 6px',
+                                      borderRadius: '5px',
+                                      background: 'rgba(168, 85, 247, 0.18)',
+                                      color: '#c084fc',
+                                      border: '1px solid rgba(168, 85, 247, 0.35)'
+                                    }}>
+                                      📌 Fixo
+                                    </span>
+                                  )}
+                                  {isSameAsInspected && (
+                                    <span style={{
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      padding: '2px 6px',
+                                      borderRadius: '5px',
+                                      background: 'rgba(56, 189, 248, 0.2)',
+                                      color: '#38bdf8'
+                                    }}>
+                                      Sessão Atual
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {profName ? (
+                                    <span>Prof: <strong style={{ color: '#93c5fd' }}>{profName}</strong></span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Sem prof. determinado</span>
+                                  )}
+                                  {apt.observacoes && (
+                                    <span style={{ color: '#f59e0b', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      • <i className="fa-regular fa-note-sticky"></i> {apt.observacoes}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleNavigateToFutureDate(apt.data)}
+                                  style={{
+                                    background: 'rgba(56, 189, 248, 0.12)',
+                                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                                    color: '#38bdf8',
+                                    borderRadius: '6px',
+                                    padding: '5px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Abrir este dia no calendário"
+                                >
+                                  <i className="fa-solid fa-arrow-up-right-from-square"></i> Ver na Agenda
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelFutureAppointment(apt._id)}
+                                  style={{
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    color: '#ef4444',
+                                    borderRadius: '6px',
+                                    padding: '5px 8px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Desmarcar este agendamento"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="modal-footer" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                {inspectModalTab === 'atual' ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '8px 14px' }}
+                      title="Excluir este agendamento"
+                      onClick={() => handleRemoveAppointment(inspectApt._id)}
+                    >
+                      <i className="fa-solid fa-trash-can"></i> Excluir Agendamento
+                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <button
                         type="button"
                         onClick={() => {
-                          setIsEditingProf(true);
-                          const curPid = inspectApt.profissionalDesignadoId?._id || inspectApt.profissionalDesignadoId || '';
-                          setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
+                          setInspectModalTab('futuros');
+                          setIsQuickBooking(true);
                         }}
                         style={{
-                          background: 'rgba(59, 130, 246, 0.15)',
-                          border: '1px solid rgba(59, 130, 246, 0.35)',
-                          color: '#60a5fa',
-                          borderRadius: '8px',
-                          padding: '4px 12px',
-                          fontSize: '0.76rem',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                          color: '#10b981',
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          fontSize: '0.82rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'inline-flex',
@@ -1917,320 +2892,50 @@ export default function AgendaCompletaPanel({
                           gap: '6px'
                         }}
                       >
-                        <i className="fa-solid fa-pen-to-square"></i> {inspectApt.profissionalDesignadoId ? 'Alterar' : 'Designar'}
+                        <i className="fa-solid fa-calendar-plus"></i> Agendar Aluno
                       </button>
-                    )}
-                  </div>
-
-                  {isEditingProf ? (
-                    <div>
-                      <select
-                        className="select-custom"
-                        value={editProfId}
-                        onChange={e => setEditProfId(e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: '#080b11',
-                          color: 'var(--text-main)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '10px',
-                          padding: '10px 12px',
-                          fontSize: '0.9rem'
-                        }}
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => { setInspectApt(null); setIsEditingObs(false); setIsEditingProf(false); setIsQuickBooking(false); }}
+                        style={{ padding: '10px 18px', borderRadius: '10px', fontSize: '0.85rem' }}
                       >
-                        <option value="">Nenhum / Não atribuído</option>
-                        {professionals
-                          .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
-                          .map(p => (
-                            <option key={p._id} value={p._id}>
-                              {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
-                            </option>
-                          ))}
-                      </select>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingProf(false)}
-                          style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid var(--border-color)',
-                            color: 'var(--text-muted)',
-                            padding: '8px 14px',
-                            borderRadius: '8px',
-                            fontSize: '0.82rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          disabled={savingProf}
-                          onClick={handleSaveProfessional}
-                          style={{
-                            background: '#3b82f6',
-                            border: 'none',
-                            color: '#fff',
-                            padding: '8px 18px',
-                            borderRadius: '8px',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          {savingProf ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
-                          Salvar Profissional
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '0.92rem', color: '#ffffff', fontWeight: 600 }}>
-                      {inspectApt.profissionalDesignadoId ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: '#93c5fd' }}>{getProfFullName(inspectApt.profissionalDesignadoId)}</span>
-                          {inspectApt.origemHorarioFixo && (
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                              (origem: horário fixo)
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic', fontWeight: 400 }}>
-                          Nenhum profissional determinado para este agendamento.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Bloco de Observação Clínica com Timestamp */}
-                <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 800, fontSize: '0.88rem' }}>
-                      <i className="fa-solid fa-note-sticky"></i> Observação Clínica
-                    </div>
-                    {!isEditingObs && (
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingObs(true)}
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.15)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          color: '#f59e0b',
-                          borderRadius: '8px',
-                          padding: '4px 12px',
-                          fontSize: '0.76rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <i className="fa-solid fa-pen-to-square"></i> {inspectApt.observacoes ? 'Editar' : 'Adicionar'}
+                        Fechar
                       </button>
-                    )}
-                  </div>
-
-                  {isEditingObs ? (
-                    <div>
-                      <textarea
-                        rows={3}
-                        className="form-control"
-                        placeholder="Digite orientações clínicas, foco do treino, dores ou restrições..."
-                        value={editObsText}
-                        onChange={e => setEditObsText(e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: '#080b11',
-                          color: 'var(--text-main)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '10px',
-                          padding: '12px',
-                          fontSize: '0.9rem',
-                          resize: 'vertical',
-                          outline: 'none',
-                          fontFamily: 'inherit'
-                        }}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsEditingObs(false);
-                            setEditObsText(inspectApt.observacoes || '');
-                          }}
-                          style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid var(--border-color)',
-                            color: 'var(--text-muted)',
-                            padding: '8px 14px',
-                            borderRadius: '8px',
-                            fontSize: '0.82rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          disabled={savingObs}
-                          onClick={handleSaveObservation}
-                          style={{
-                            background: '#10b981',
-                            border: 'none',
-                            color: '#fff',
-                            padding: '8px 18px',
-                            borderRadius: '8px',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          {savingObs ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
-                          Salvar Observação
-                        </button>
-                      </div>
                     </div>
-                  ) : (
-                    <div>
-                      {inspectApt.observacoes ? (
-                        <>
-                          <div style={{ fontSize: '0.92rem', color: '#ffffff', lineHeight: '1.45', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
-                            "{inspectApt.observacoes}"
-                          </div>
-                          {inspectApt.observacaoDataHora && (
-                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <i className="fa-regular fa-clock"></i> Lançada em {formatObsTimestamp(inspectApt.observacaoDataHora)}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-                          Nenhuma observação clínica registrada para este agendamento.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Alerta & Ação Direta para Atendimento de Emergência em Andamento */}
-                {(inspectApt.servico === 'Emergência' || inspectApt.tipo === 'Emergência') && inspectApt.status === 'presenca' && !inspectApt.finalizado && onOpenEmergencyFinalization && (
-                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1.5px solid #ef4444', borderRadius: '12px', padding: '14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                    <div>
-                      <strong style={{ color: '#ef4444', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <i className="fa-solid fa-notes-medical"></i> Emergência em Atendimento
-                      </strong>
-                      <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
-                        Presença confirmada. Clique para registrar a evolução clínica no prontuário e definir a conduta.
-                      </small>
-                    </div>
+                  </>
+                ) : (
+                  <>
                     <button
                       type="button"
+                      onClick={() => setIsQuickBooking(true)}
                       style={{
-                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.9))',
                         color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.5)',
+                        borderRadius: '10px',
                         padding: '10px 18px',
-                        fontSize: '0.85rem',
-                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        fontWeight: 750,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
-                      }}
-                      onClick={() => {
-                        const target = inspectApt;
-                        setInspectApt(null);
-                        onOpenEmergencyFinalization(target);
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
                       }}
                     >
-                      <i className="fa-solid fa-flag-checkered"></i>
-                      <span>Finalizar Atendimento</span>
+                      <i className="fa-solid fa-calendar-plus"></i> Agendar Aluno
                     </button>
-                  </div>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={() => { setInspectApt(null); setIsEditingObs(false); setIsEditingProf(false); setIsQuickBooking(false); }}
+                      style={{ padding: '10px 18px', borderRadius: '10px', fontSize: '0.85rem' }}
+                    >
+                      Fechar
+                    </button>
+                  </>
                 )}
-
-                {/* Ações de Frequência & Status */}
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await handleUpdateAptStatus(inspectApt._id, 'presenca');
-                      setInspectApt(null);
-                    }}
-                    style={{
-                      flex: '1 1 140px',
-                      background: inspectApt.status === 'presenca' ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
-                      color: '#ffffff',
-                      border: inspectApt.status === 'presenca' ? 'none' : '1px solid rgba(16, 185, 129, 0.4)',
-                      borderRadius: '12px',
-                      padding: '12px 16px',
-                      fontSize: '0.88rem',
-                      fontWeight: 750,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <i className="fa-solid fa-check"></i> {inspectApt.status === 'presenca' ? 'Presença Confirmada' : 'Marcar Presença'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await handleUpdateAptStatus(inspectApt._id, 'falta');
-                      setInspectApt(null);
-                    }}
-                    style={{
-                      flex: '1 1 120px',
-                      background: inspectApt.status === 'falta' ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
-                      color: inspectApt.status === 'falta' ? '#ffffff' : '#ef4444',
-                      border: inspectApt.status === 'falta' ? 'none' : '1px solid rgba(239, 68, 68, 0.3)',
-                      borderRadius: '12px',
-                      padding: '12px 16px',
-                      fontSize: '0.88rem',
-                      fontWeight: 750,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <i className="fa-solid fa-xmark"></i> {inspectApt.status === 'falta' ? 'Falta Registrada' : 'Marcar Falta'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '8px 14px' }}
-                  title="Excluir este agendamento"
-                  onClick={() => handleRemoveAppointment(inspectApt._id)}
-                >
-                  <i className="fa-solid fa-trash-can"></i> Excluir Agendamento
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  onClick={() => { setInspectApt(null); setIsEditingObs(false); setIsEditingProf(false); }}
-                  style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '0.85rem' }}
-                >
-                  Fechar
-                </button>
               </div>
 
             </div>
