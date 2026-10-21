@@ -289,9 +289,8 @@ export default function VendaPage({ params }: { params: any }) {
     ? (formaPagamento === 'cartao' ? 12 : 10)
     : Math.max(1, Math.min(parcelas, maxInstallments)));
 
-  // Para o link do Lúcio especificamente, taxa de cartão é 0% para manter 12x de R$ 850,00 cravados
   const cardRate = formaPagamento === 'cartao' 
-    ? (isApenasCartao ? 0 : (isAnual ? 0.05 : getCardRateForInstallment(currentInstallments))) 
+    ? (isAnual ? 0.05 : getCardRateForInstallment(currentInstallments)) 
     : 0;
   const finalPrice = formaPagamento === 'cartao' ? Number((basePrice * (1 + cardRate)).toFixed(2)) : basePrice;
   const valorParcelaAtual = Number((finalPrice / currentInstallments).toFixed(2));
@@ -300,7 +299,7 @@ export default function VendaPage({ params }: { params: any }) {
   const valorParcelaMaxBoleto = Number((basePrice / maxInstallmentsBoleto).toFixed(2));
   const valorMensalEquivalenteAnual = isAnual ? Number((basePrice / 12).toFixed(2)) : null;
 
-  const cardRateMax = isApenasCartao ? 0 : (isAnual ? 0.05 : getCardRateForInstallment(maxInstallmentsCartao));
+  const cardRateMax = isAnual ? 0.05 : getCardRateForInstallment(maxInstallmentsCartao);
   const finalPriceMaxCartao = Number((basePrice * (1 + cardRateMax)).toFixed(2));
   const valorParcelaMaxCartao = Number((finalPriceMaxCartao / maxInstallmentsCartao).toFixed(2));
 
@@ -1014,11 +1013,9 @@ export default function VendaPage({ params }: { params: any }) {
                           Condição Exclusiva do Plano Anual
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                          {isApenasCartao 
-                            ? '12x no cartão de crédito de R$ 850,00/mês' 
-                            : (formaPagamento === 'cartao' 
-                              ? '12x no cartão de crédito com taxa especial de 5%' 
-                              : '10x no boleto bancário / Pix sem juros')}
+                          {formaPagamento === 'cartao' 
+                            ? '12x no cartão de crédito com taxa de 5%' 
+                            : '10x no boleto bancário / Pix sem juros'}
                         </div>
                       </div>
                     </div>
