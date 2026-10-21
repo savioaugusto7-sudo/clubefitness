@@ -249,18 +249,16 @@ export default function VendaPage({ params }: { params: any }) {
 
   // Condição especial: exclusivamente para o link da proposta 6ad605bf79ad698a492bbad5 ou se configurado na proposta
   const isSpecial10xBoleto = id === '6ad605bf79ad698a492bbad5' || Boolean(proposal?.permitir10xBoleto) || Number(proposal?.maxParcelasBoleto) === 10;
-  const isSpecial12xBoleto = id === '6ad8f13637a508193f23591e' || Boolean(proposal?.clausulaTratamentoIntensivo);
 
-  // Máximo de parcelas para Boleto / Pix
+  // Máximo de parcelas para Boleto / Pix (Plano Anual: estritamente 10x)
   const maxInstallmentsBoleto = (() => {
     if (isRecorrente) return 1;
-    if (isSpecial12xBoleto) return 12;
     if (isAnual) return 10;
     if (isSpecial10xBoleto) return 10;
     return Math.min(10, vigenciaMesesEquivalentes);
   })();
 
-  // Máximo de parcelas para Cartão de Crédito
+  // Máximo de parcelas para Cartão de Crédito (Plano Anual: estritamente 12x)
   const maxInstallmentsCartao = (() => {
     if (isRecorrente) return 1;
     if (isAnual) return 12;
@@ -269,18 +267,16 @@ export default function VendaPage({ params }: { params: any }) {
 
   const maxInstallments = formaPagamento === 'cartao' ? maxInstallmentsCartao : maxInstallmentsBoleto;
 
-  // Opções de parcelas permitidas (Regra Anual: estritamente 10x no boleto ou 12x no cartão; 12x para proposta com tratamento intensivo)
+  // Opções de parcelas permitidas (Regra Anual: estritamente 10x no boleto ou 12x no cartão)
   const availableInstallments = (() => {
     if (isAnual) {
-      if (formaPagamento === 'cartao') return [12];
-      if (isSpecial12xBoleto) return [12];
-      return [10];
+      return formaPagamento === 'cartao' ? [12] : [10];
     }
     return Array.from({ length: maxInstallments }, (_, i) => i + 1);
   })();
 
   const currentInstallments = isAnual
-    ? (formaPagamento === 'cartao' ? 12 : (isSpecial12xBoleto ? 12 : 10))
+    ? (formaPagamento === 'cartao' ? 12 : 10)
     : Math.max(1, Math.min(parcelas, maxInstallments));
 
   const cardRate = formaPagamento === 'cartao' 

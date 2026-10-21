@@ -385,6 +385,11 @@ export function generateContractTemplate(data: ContractData): string {
     rescisaoClauses.push(`7.${nextNum}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor total do contrato, a título de cláusula penal.`);
 
     const hasTratamentoIntensivo = Boolean(data.clausulaTratamentoIntensivo);
+    const vParcelaMensal = valorParcela > 0 ? valorParcela : (valorFinal / (parcelasCount || 1));
+    const totalDesconto2Meses = vParcelaMensal * 2;
+    const acrescimoRescisao = Math.max(0, 8000 - totalDesconto2Meses);
+    const fmtMoeda = (val: number) => `R$ ${val.toFixed(2).replace('.', ',')}`;
+
     const clausulaTratamentoIntensivoHtml = hasTratamentoIntensivo ? `
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">
         CLÁUSULA OITAVA – DO TRATAMENTO INTENSIVO INICIAL E DA RESCISÃO ANTECIPADA
@@ -393,7 +398,7 @@ export function generateContractTemplate(data: ContractData): string {
         8.1. Será concedido ao CONTRATANTE tratamento intensivo durante os 2 (dois) primeiros meses de vigência do plano anual. Em caso de rescisão antecipada do contrato, o valor referente aos dois primeiros meses será recalculado com base no valor de tabela de R$ 4.000,00 por mês, totalizando R$ 8.000,00.
       </p>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        8.2. Do montante recalculado, serão descontados os valores de R$ 850,00 já pagos por parcela mensal, totalizando R$ 1.700,00 em descontos. Dessa forma, será acrescido o valor de R$ 6.300,00 ao montante da rescisão previsto neste contrato, referente à diferença entre o valor de tabela do tratamento intensivo e os valores pagos nos dois primeiros meses.
+        8.2. Do montante recalculado, serão descontados os valores de ${fmtMoeda(vParcelaMensal)} já pagos por parcela mensal, totalizando ${fmtMoeda(totalDesconto2Meses)} em descontos. Dessa forma, será acrescido o valor de ${fmtMoeda(acrescimoRescisao)} ao montante da rescisão previsto neste contrato, referente à diferença entre o valor de tabela do tratamento intensivo e os valores pagos nos dois primeiros meses.
       </p>
     ` : '';
 
