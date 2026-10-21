@@ -93,6 +93,42 @@ export const parseExerciseCarga = (ex: any) => {
   return { carga: val, unidadeCarga: unidade };
 };
 
+export const isUnilateralExercise = (nome: string): boolean => {
+  if (!nome) return false;
+  const n = normalizeText(nome);
+  return (
+    n.includes('unilateral') ||
+    n.includes('afundo') ||
+    n.includes('avanco') ||
+    n.includes('bulgaro') ||
+    n.includes('búlgaro') ||
+    n.includes('passada') ||
+    n.includes('step up') ||
+    n.includes('subida no banco') ||
+    n.includes('concha') ||
+    n.includes('abducao de quadril') ||
+    n.includes('aducao de quadril') ||
+    n.includes('quatro apoios') ||
+    n.includes('4 apoios') ||
+    n.includes('serrote') ||
+    n.includes('remada serrote') ||
+    n.includes('biceps concentrado') ||
+    n.includes('rosca concentrada') ||
+    n.includes('triceps frances unilateral') ||
+    n.includes('triceps coice') ||
+    n.includes('panturrilha unilateral') ||
+    n.includes('elevacao pelvica unilateral') ||
+    n.includes('gluteo cabo') ||
+    n.includes('gluteo caneleira') ||
+    n.includes('gluteo solo') ||
+    n.includes('cada lado') ||
+    n.includes('c/ lado') ||
+    n.includes('d+e') ||
+    n.includes('direito') ||
+    n.includes('esquerdo')
+  );
+};
+
 export const computeClientLastWorkout = (targetClientId: string, aptsList: any[], currentAptId?: string) => {
   if (!targetClientId || !Array.isArray(aptsList)) return null;
   const cIdStr = String(targetClientId);
@@ -320,7 +356,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         observacao: it.observacao,
         ritmo: it.ritmo,
         combinaGrupo: it.combinaGrupo,
-        dropSet: it.dropSet
+        dropSet: it.dropSet,
+        unilateral: Boolean(it.unilateral)
       }))
     });
   };
@@ -609,7 +646,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 tipo: ex.dropSet.tipo || 'none',
                 escopo: ex.dropSet.escopo || 'ultima_serie',
                 drops: Array.isArray(ex.dropSet.drops) ? ex.dropSet.drops.map((d: any) => Number(d) || 0) : []
-              } : undefined
+              } : undefined,
+              unilateral: ex.unilateral !== undefined ? Boolean(ex.unilateral) : isUnilateralExercise(exName || 'Exercício')
             };
           });
           setWorkoutItems(items);
@@ -810,7 +848,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             tipo: ex.dropSet.tipo || 'none',
             escopo: ex.dropSet.escopo || 'ultima_serie',
             drops: Array.isArray(ex.dropSet.drops) ? ex.dropSet.drops.map((d: any) => Number(d) || 0) : []
-          } : undefined
+          } : undefined,
+          unilateral: ex.unilateral !== undefined ? Boolean(ex.unilateral) : isUnilateralExercise(exName || 'Exercício')
         };
       });
       setWorkoutItems(items);
@@ -1181,7 +1220,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       ritmo: ex.ritmo || '',
       combinaGrupo: ex.combinaGrupo || '',
       dropSet: ex.dropSet || { tipo: 'none', escopo: 'ultima_serie', drops: [] },
-      historicoCargas: ex.historicoCargas || []
+      historicoCargas: ex.historicoCargas || [],
+      unilateral: ex.unilateral !== undefined ? Boolean(ex.unilateral) : isUnilateralExercise(typeof ex.exercicioId === 'object' ? (ex.exercicioId?.nome || 'Exercício') : (ex.exercicioId || ex.nome || 'Exercício'))
     }));
 
     setWorkoutItems(formatted);
@@ -1233,7 +1273,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       observacao: '',
       ritmo: '',
       combinaGrupo: '',
-      historicoCargas: []
+      historicoCargas: [],
+      unilateral: isUnilateralExercise(ex.nome)
     };
     const updated = [...workoutItems, newItem];
     setWorkoutItems(updated);
@@ -1260,7 +1301,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           descanso: '',
           observacao: '',
           historicoCargas: [],
-          dropSet: undefined
+          dropSet: undefined,
+          unilateral: isUnilateralExercise(newDbEx.nome)
         };
       }
       return item;
@@ -1488,25 +1530,27 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     let series = 0;
     workoutItems.forEach(it => {
       const s = Number(it.series) || 0;
-      const r = parseInt(String(it.reps).match(/\d+/)?.[0] || '10', 10);
+      const r = parseInt(String(it.reps || it.repeticoes).match(/\d+/)?.[0] || '10', 10);
       const rawC = parseFloat(String(it.carga)) || 0;
       const c = (it.unidadeCarga && String(it.unidadeCarga).toLowerCase().includes('lb')) ? rawC * 0.453592 : rawC;
+      const ladoMult = it.unilateral ? 2 : 1;
+      const totalRepsPerSet = r * ladoMult;
       series += s;
 
       const dropSet = it.dropSet;
       const hasDrop = dropSet && dropSet.tipo && dropSet.tipo !== 'none' && Array.isArray(dropSet.drops) && dropSet.drops.length > 0;
 
       if (!hasDrop) {
-        volume += s * r * c;
+        volume += s * totalRepsPerSet * c;
       } else {
         const dropSum = dropSet.drops.reduce((acc: number, d: number) => acc + (Number(d) || 0), 0);
-        const volumeUmaSerieComDrop = (r * c) + (r * dropSum);
+        const volumeUmaSerieComDrop = (totalRepsPerSet * c) + (totalRepsPerSet * dropSum);
 
         if (dropSet.escopo === 'todas_series') {
           volume += s * volumeUmaSerieComDrop;
         } else {
           const seriesNormais = Math.max(0, s - 1);
-          volume += (seriesNormais * r * c) + volumeUmaSerieComDrop;
+          volume += (seriesNormais * totalRepsPerSet * c) + volumeUmaSerieComDrop;
         }
       }
     });
@@ -1548,7 +1592,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         return {
           exercicioId: item.nome,
           series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : '',
-          repeticoes: String(item.reps || ''),
+          repeticoes: String(item.reps || item.repeticoes || ''),
           carga: cargaFinal,
           unidadeCarga: item.unidadeCarga || '',
           descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null ? `${item.descanso}s` : '',
@@ -1560,7 +1604,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             tipo: item.dropSet.tipo,
             escopo: item.dropSet.escopo || 'ultima_serie',
             drops: item.dropSet.drops || []
-          } : undefined
+          } : undefined,
+          unilateral: Boolean(item.unilateral)
         };
       })
     };
@@ -4405,6 +4450,27 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                     <span style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
                                       {item.grupo}
                                     </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateItem(item.id, 'unilateral', !item.unilateral)}
+                                      style={{
+                                        border: item.unilateral ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                        background: item.unilateral ? 'rgba(56, 189, 248, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                                        color: item.unilateral ? '#38bdf8' : '#94a3b8',
+                                        fontSize: '0.60rem',
+                                        fontWeight: 800,
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px'
+                                      }}
+                                      title={item.unilateral ? 'Exercício unilateral: o volume e tempo contam para ambos os lados (2x). Clique para alterar para bilateral.' : 'Exercício bilateral. Clique para marcar como unilateral (cada lado).'}
+                                    >
+                                      <span>⇄</span>
+                                      <span>{item.unilateral ? 'Cada Lado (D+E)' : 'Bilateral'}</span>
+                                    </button>
                                     {item.combinaGrupo && (
                                       <span style={{ background: groupColor, color: item.combinaGrupo === 'G5' ? '#000' : '#fff', fontSize: '0.62rem', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>
                                         {item.combinaGrupo}
@@ -4554,13 +4620,16 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 />
                               </div>
 
-                              <div style={{ background: '#080d1a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '4px 4px', textAlign: 'center' }}>
-                                <label style={{ fontSize: '0.58rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>Reps</label>
+                              <div style={{ background: '#080d1a', border: item.unilateral ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '4px 4px', textAlign: 'center' }}>
+                                <label style={{ fontSize: '0.58rem', color: item.unilateral ? '#38bdf8' : '#94a3b8', fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>
+                                  Reps {item.unilateral ? '(c/ lado)' : ''}
+                                </label>
                                 <input
                                   type="text"
                                   value={item.repeticoes}
                                   onChange={e => updateItem(item.id, 'repeticoes', e.target.value)}
-                                  style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}
+                                  placeholder={item.unilateral ? "8/lado" : "12"}
+                                  style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: item.unilateral ? '#38bdf8' : '#fff', fontWeight: 800, fontSize: '0.88rem' }}
                                 />
                               </div>
 
@@ -4603,11 +4672,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   onChange={val => updateItem(item.id, 'ritmo', val)}
                                   reps={item.repeticoes || item.reps}
                                   series={item.series}
+                                  exerciseName={item.nome}
+                                  unilateral={Boolean(item.unilateral)}
                                 />
                               </div>
                               <div style={{ flexShrink: 0 }}>
                                 {(() => {
-                                  const exTime = calculateExerciseTime(item.series, item.repeticoes || item.reps, item.ritmo, item.descanso);
+                                  const exTime = calculateExerciseTime(item.series, item.repeticoes || item.reps, item.ritmo, item.descanso, item.unilateral);
                                   if (!exTime.isPendingTempo) {
                                     return (
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3px 6px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: 800, color: '#38bdf8' }}>
@@ -4782,6 +4853,28 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                                   {item.grupo}
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'unilateral', !item.unilateral)}
+                                  style={{
+                                    border: item.unilateral ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                    background: item.unilateral ? 'rgba(56, 189, 248, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                                    color: item.unilateral ? '#38bdf8' : '#94a3b8',
+                                    fontSize: '0.62rem',
+                                    fontWeight: 800,
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    transition: 'all 0.12s ease'
+                                  }}
+                                  title={item.unilateral ? 'Exercício unilateral: o volume e o tempo contam para ambos os lados (2x). Clique para alterar para bilateral.' : 'Exercício bilateral. Clique para marcar como unilateral (cada lado).'}
+                                >
+                                  <span>⇄</span>
+                                  <span>{item.unilateral ? 'Cada Lado (D+E)' : 'Bilateral'}</span>
+                                </button>
                                 {loadProg && (
                                   <button
                                     type="button"
@@ -4831,26 +4924,32 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             />
                           </div>
 
-                          <div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                             <input
                               type="text"
                               className="form-control form-control-sm"
                               value={item.reps}
                               onChange={e => updateItem(item.id, 'reps', e.target.value)}
-                              placeholder="12"
+                              placeholder={item.unilateral ? "8/lado" : "12"}
+                              title={item.unilateral ? "Repetições prescritas por lado (o sistema dobra automaticamente para Direita + Esquerda no volume e tempo)" : "Repetições"}
                               style={{
                                 width: '100%',
-                                height: '34px',
+                                height: item.unilateral ? '25px' : '34px',
                                 textAlign: 'center',
                                 padding: '0 2px',
                                 background: '#070b14',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                color: '#fff',
+                                border: item.unilateral ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                color: item.unilateral ? '#38bdf8' : '#fff',
                                 borderRadius: '7px',
                                 fontWeight: 700,
                                 fontSize: '0.82rem'
                               }}
                             />
+                            {item.unilateral && (
+                              <span style={{ fontSize: '0.54rem', fontWeight: 800, color: '#38bdf8', marginTop: '1px', lineHeight: 1 }}>
+                                c/ lado
+                              </span>
+                            )}
                           </div>
 
                           <div>
@@ -4859,6 +4958,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               onChange={val => updateItem(item.id, 'ritmo', val)}
                               reps={item.reps}
                               series={item.series}
+                              exerciseName={item.nome}
+                              unilateral={Boolean(item.unilateral)}
                             />
                           </div>
 
@@ -5083,18 +5184,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           {/* Coluna TEMPO do Exercício */}
                           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '34px' }}>
                             {(() => {
-                              const exTime = calculateExerciseTime(item.series, item.reps, item.ritmo, item.descanso);
+                              const exTime = calculateExerciseTime(item.series, item.reps, item.ritmo, item.descanso, item.unilateral);
                               if (!exTime.isPendingTempo) {
                                 return (
                                   <div
                                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'help' }}
-                                    title={`Tempo total estimado: ${formatSecondsToTime(exTime.totalSeconds)} (${formatSecondsToTime(exTime.executionSeconds)} sob tensão + ${formatSecondsToTime(exTime.restSeconds)} descansos)`}
+                                    title={`Tempo total estimado: ${formatSecondsToTime(exTime.totalSeconds)} (${formatSecondsToTime(exTime.executionSeconds)} sob tensão${item.unilateral ? ' [2x lados]' : ''} + ${formatSecondsToTime(exTime.restSeconds)} descansos)`}
                                   >
                                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
                                       ⏱️ {formatSecondsToTime(exTime.totalSeconds)}
                                     </span>
                                     <span style={{ fontSize: '0.58rem', color: '#64748b' }}>
-                                      {formatSecondsToTime(exTime.executionSeconds)} ativo
+                                      {formatSecondsToTime(exTime.executionSeconds)} ativo {item.unilateral ? '(2x)' : ''}
                                     </span>
                                   </div>
                                 );

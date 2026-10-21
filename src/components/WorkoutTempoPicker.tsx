@@ -10,6 +10,8 @@ interface WorkoutTempoPickerProps {
   reps?: any;
   series?: any;
   disabled?: boolean;
+  exerciseName?: string;
+  unilateral?: boolean;
 }
 
 export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
@@ -17,75 +19,34 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
   onChange,
   reps = '12',
   series = 3,
-  disabled = false
+  disabled = false,
+  exerciseName,
+  unilateral = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [customNum, setCustomNum] = useState<string>('');
   const [customUnit, setCustomUnit] = useState<'min' | 'seg'>('min');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number; openUpwards: boolean }>({ top: 0, left: 0, openUpwards: false });
+  const modalBoxRef = useRef<HTMLDivElement>(null);
 
-  // Calcula a posição do popover flutuante com viewport clamping e detecção de borda
-  const updatePosition = () => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const popoverWidth = 315;
-    const popoverHeight = 460;
-
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUpwards = spaceBelow < popoverHeight && rect.top > popoverHeight;
-
-    let left = rect.left + rect.width / 2 - popoverWidth / 2;
-    // Garante margem de segurança nas bordas da tela
-    left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, left));
-
-    const top = openUpwards ? Math.max(10, rect.top - popoverHeight - 6) : rect.bottom + 6;
-    setCoords({ top, left, openUpwards });
-  };
-
-  // Atualiza posição no scroll ou resize enquanto aberto
+  // Fecha o modal ao pressionar ESC
   useEffect(() => {
     if (!isOpen) return;
-    updatePosition();
-
-    const handleScrollOrResize = () => {
-      updatePosition();
-    };
-
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-
-    return () => {
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [isOpen]);
-
-  // Fecha o dropdown ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (
-        containerRef.current && !containerRef.current.contains(target) &&
-        (!popoverRef.current || !popoverRef.current.contains(target))
-      ) {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         setIsOpen(false);
       }
-    }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
   const execInfo = parseTempoExecucaoSerie(value, reps);
+  const ladoMult = unilateral ? 2 : 1;
+  const secondsTotalSet = execInfo.secondsPerSet * ladoMult;
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Input com botão integrado de dropdown */}
+    <div style={{ position: 'relative', width: '100%' }}>
+      {/* Input com botão integrado de dropdown / modal */}
       <div
         style={{
           display: 'flex',
@@ -101,8 +62,8 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
         }}
         title={
           execInfo.isValid
-            ? `Tempo/Ritmo válido: ${execInfo.labelExplicativo}`
-            : 'Tempo ou Ritmo — clique para selecionar ou digite (ex: 6 min, 360seg, 2-1)'
+            ? `Tempo/Ritmo: ${execInfo.labelExplicativo}${unilateral ? ' (2x lados)' : ''}`
+            : 'Tempo ou Ritmo — clique para abrir o seletor ou digite (ex: 6 min, 360seg, 2-1)'
         }
       >
         <input
@@ -123,9 +84,8 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
             textAlign: 'center',
             padding: 0
           }}
-          onFocus={() => {
-            updatePosition();
-            setIsOpen(true);
+          onClick={() => {
+            if (!disabled) setIsOpen(true);
           }}
         />
 
@@ -133,8 +93,7 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
           type="button"
           onClick={() => {
             if (!disabled) {
-              if (!isOpen) updatePosition();
-              setIsOpen(!isOpen);
+              setIsOpen(true);
             }
           }}
           style={{
@@ -151,59 +110,110 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
           }}
           title="Opções padronizadas de ritmo e tempo"
         >
-          <i className={`fa-solid fa-chevron-${isOpen ? 'up' : 'down'}`} style={{ opacity: 0.8 }}></i>
+          <i className="fa-solid fa-stopwatch" style={{ opacity: 0.85, color: '#38bdf8' }}></i>
         </button>
       </div>
 
-      {/* 🌟 Popover de Seleção renderizado via Portal no document.body para nunca ser cortado por overflow: hidden */}
+      {/* 🌟 Modal Centralizado com Backdrop Escuro & Blur (Nunca extrapola tela) */}
       {isOpen && typeof document !== 'undefined' && createPortal(
         <div
-          ref={popoverRef}
-          onClick={e => e.stopPropagation()}
+          onClick={() => setIsOpen(false)}
           style={{
             position: 'fixed',
-            top: `${coords.top}px`,
-            left: `${coords.left}px`,
+            inset: 0,
             zIndex: 99999999,
-            width: '315px',
-            maxHeight: 'min(490px, 88vh)',
-            overflowY: 'auto',
-            background: '#090d16',
-            border: '1px solid rgba(56, 189, 248, 0.45)',
-            boxShadow: '0 20px 48px rgba(0, 0, 0, 0.95), 0 0 20px rgba(56, 189, 248, 0.15)',
-            borderRadius: '10px',
-            padding: '8px',
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
           }}
         >
-          {/* Cabeçalho do Popover */}
+          <div
+            ref={modalBoxRef}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '430px',
+              maxHeight: 'min(580px, 88vh)',
+              overflowY: 'auto',
+              background: '#090d16',
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.95), 0 0 25px rgba(56, 189, 248, 0.18)',
+              borderRadius: '12px',
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}
+          >
+          {/* Cabeçalho do Modal */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '2px 6px 6px',
+              paddingBottom: '8px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i className="fa-solid fa-stopwatch" style={{ color: '#38bdf8', fontSize: '0.80rem' }}></i>
-              <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#f1f5f9' }}>
-                Padronização de Ritmo & Tempo
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38bdf8',
+                  fontSize: '0.85rem'
+                }}
+              >
+                <i className="fa-solid fa-stopwatch"></i>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f1f5f9' }}>
+                  Padronização de Ritmo & Tempo
+                </div>
+                {exerciseName && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>
+                      {exerciseName}
+                    </span>
+                    {unilateral && (
+                      <span
+                        style={{
+                          fontSize: '0.60rem',
+                          fontWeight: 800,
+                          color: '#38bdf8',
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          border: '1px solid rgba(56, 189, 248, 0.35)',
+                          padding: '1px 5px',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        ⇄ Unilateral (2x lados)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
               style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#64748b',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#94a3b8',
                 cursor: 'pointer',
-                fontSize: '0.75rem',
-                padding: '2px'
+                fontSize: '0.80rem',
+                borderRadius: '6px',
+                padding: '4px 8px'
               }}
             >
               <i className="fa-solid fa-xmark"></i>
@@ -515,35 +525,35 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
           {execInfo.isValid ? (
             <div
               style={{
-                marginTop: '2px',
-                padding: '6px 8px',
-                borderRadius: '6px',
+                marginTop: '4px',
+                padding: '8px 10px',
+                borderRadius: '8px',
                 background: 'rgba(56, 189, 248, 0.08)',
                 border: '1px solid rgba(56, 189, 248, 0.25)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '2px'
+                gap: '3px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', color: '#cbd5e1' }}>
-                <span>1 série ({reps} reps):</span>
-                <strong style={{ color: '#38bdf8' }}>
-                  ~{formatSecondsToTime(execInfo.secondsPerSet)} sob tensão
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: '#cbd5e1' }}>
+                <span>1 série ({reps} reps{unilateral ? ' cada lado' : ''}):</span>
+                <strong style={{ color: '#38bdf8', fontSize: '0.80rem' }}>
+                  ~{formatSecondsToTime(secondsTotalSet)} sob tensão
                 </strong>
               </div>
-              <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>
-                ✓ {execInfo.labelExplicativo}
+              <div style={{ fontSize: '0.64rem', color: '#94a3b8' }}>
+                ✓ {execInfo.labelExplicativo}{unilateral ? ' • Tempo dobrado automaticamente (Direita + Esquerda)' : ''}
               </div>
             </div>
           ) : (
             <div
               style={{
-                marginTop: '2px',
-                padding: '6px 8px',
-                borderRadius: '6px',
+                marginTop: '4px',
+                padding: '8px 10px',
+                borderRadius: '8px',
                 background: 'rgba(245, 158, 11, 0.08)',
                 border: '1px solid rgba(245, 158, 11, 0.25)',
-                fontSize: '0.66rem',
+                fontSize: '0.68rem',
                 color: '#fbbf24',
                 textAlign: 'center'
               }}
@@ -551,6 +561,7 @@ export const WorkoutTempoPicker: React.FC<WorkoutTempoPickerProps> = ({
               ⚠️ Selecione uma opção acima ou digite (ex: 6 min ou 360seg)
             </div>
           )}
+          </div>
         </div>,
         document.body
       )}

@@ -373,11 +373,13 @@ export function calculateExerciseTime(
   series: any,
   reps: any,
   ritmo: any,
-  descanso: any
+  descanso: any,
+  unilateral?: boolean
 ): ExerciseTimeResult {
   const s = Math.max(1, parseInt(String(series), 10) || 3);
   const d = parseDescansoSeconds(descanso);
   const exec = parseTempoExecucaoSerie(ritmo, reps);
+  const ladoMult = unilateral ? 2 : 1;
 
   if (!exec.isValid) {
     return {
@@ -391,7 +393,7 @@ export function calculateExerciseTime(
     };
   }
 
-  const executionSeconds = s * exec.secondsPerSet;
+  const executionSeconds = s * (exec.secondsPerSet * ladoMult);
   // (s - 1) descansos entre as séries + 1 descanso de transição após última série
   const restSeconds = s * d;
   const totalSeconds = executionSeconds + restSeconds;
@@ -401,10 +403,10 @@ export function calculateExerciseTime(
     restSeconds,
     totalSeconds,
     isPendingTempo: false,
-    secondsPerSet: exec.secondsPerSet,
+    secondsPerSet: exec.secondsPerSet * ladoMult,
     secondsPerRep: exec.secondsPerRep,
     tipo: exec.tipo,
-    labelExplicativo: exec.labelExplicativo
+    labelExplicativo: unilateral ? `${exec.labelExplicativo} (2x lados)` : exec.labelExplicativo
   };
 }
 
@@ -463,9 +465,10 @@ export function calculateSheetTotalTime(items: any[]): SheetTotalTimeResult {
     const s = Math.max(1, parseInt(String(it.series), 10) || 3);
     const d = parseDescansoSeconds(it.descanso);
     const exec = parseTempoExecucaoSerie(it.ritmo, it.reps);
+    const ladoMult = it.unilateral ? 2 : 1;
 
     if (exec.isValid) {
-      totalExecutionSeconds += s * exec.secondsPerSet;
+      totalExecutionSeconds += s * (exec.secondsPerSet * ladoMult);
     } else {
       pendingCount++;
     }
@@ -483,8 +486,9 @@ export function calculateSheetTotalTime(items: any[]): SheetTotalTimeResult {
     groupItems.forEach(it => {
       const s = Math.max(1, parseInt(String(it.series), 10) || 3);
       const exec = parseTempoExecucaoSerie(it.ritmo, it.reps);
+      const ladoMult = it.unilateral ? 2 : 1;
       if (exec.isValid) {
-        totalExecutionSeconds += s * exec.secondsPerSet;
+        totalExecutionSeconds += s * (exec.secondsPerSet * ladoMult);
       } else {
         pendingCount++;
       }

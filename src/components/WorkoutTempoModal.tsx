@@ -27,7 +27,7 @@ export const WorkoutTempoModal: React.FC<WorkoutTempoModalProps> = ({
   const timeData = calculateSheetTotalTime(items);
   const diffMeta = timeData.totalMinutes - metaMinutos;
   const pendingItems = items.filter(it => {
-    const res = calculateExerciseTime(it.series, it.reps || it.repeticoes, it.ritmo, it.descanso);
+    const res = calculateExerciseTime(it.series, it.reps || it.repeticoes, it.ritmo, it.descanso, it.unilateral);
     return res.isPendingTempo;
   });
 
