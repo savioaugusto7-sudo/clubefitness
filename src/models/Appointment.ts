@@ -34,6 +34,7 @@ const AppointmentSchema = new Schema({
   consumeCredito: { type: Boolean, default: false },
   tipoCredito: { type: String, enum: ['academia', 'massagem', 'emergencia', 'nenhum'], default: 'nenhum' },
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', required: false, default: null },
+  profissionalDesignadoId: { type: Schema.Types.ObjectId, ref: 'Professional', required: false, default: null },
   clienteId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
   status: { type: String, enum: ['agendado', 'presenca', 'cancelado', 'falta'], default: 'agendado' },
   origemHorarioFixo: { type: Boolean, default: false },

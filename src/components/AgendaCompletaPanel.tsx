@@ -348,7 +348,7 @@ export default function AgendaCompletaPanel({
   // Salvar profissional designado pontualmente para esta sessão
   const handleSaveProfessional = () => {
     if (!inspectApt) return;
-    const oldProfName = getProfFullName(inspectApt.profissionalId);
+    const oldProfName = getProfFullName(inspectApt.profissionalDesignadoId);
     const newProfObj = professionals.find(p => p._id === editProfId);
     const newProfName = newProfObj ? newProfObj.nome : 'Nenhum / Removido';
     const cName = inspectApt.clienteId?.dadosPessoais?.nome || 'Aluno';
@@ -366,7 +366,7 @@ export default function AgendaCompletaPanel({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: inspectApt._id,
-              profissionalId: editProfId || null
+              profissionalDesignadoId: editProfId || null
             })
           });
           const data = await res.json();
@@ -375,7 +375,7 @@ export default function AgendaCompletaPanel({
             const updatedProf = editProfId ? (newProfObj || { _id: editProfId, nome: newProfName }) : null;
             setInspectApt((prev: any) => prev ? {
               ...prev,
-              profissionalId: updatedProf
+              profissionalDesignadoId: updatedProf
             } : null);
             setIsEditingProf(false);
             fetchSlotsAndConfigs();
@@ -1043,7 +1043,7 @@ export default function AgendaCompletaPanel({
                                      setInspectApt(apt);
                                      setEditObsText(apt.observacoes || '');
                                      setIsEditingObs(false);
-                                     const curPid = apt.profissionalId?._id || apt.profissionalId || '';
+                                     const curPid = apt.profissionalDesignadoId?._id || apt.profissionalDesignadoId || '';
                                      setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
                                      setIsEditingProf(false);
                                    }}
@@ -1152,7 +1152,7 @@ export default function AgendaCompletaPanel({
                                      {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
                                    </span>
                                    {(() => {
-                                     const pShort = getProfShortName(apt.profissionalId);
+                                     const pShort = getProfShortName(apt.profissionalDesignadoId);
                                      if (!pShort) return null;
                                      return (
                                        <span
@@ -1498,7 +1498,7 @@ export default function AgendaCompletaPanel({
                               CPF: {apt.clienteId?.dadosPessoais?.cpf || '—'} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
                             </div>
                             <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                              Profissional: <strong style={{ color: 'var(--color-primary)' }}>{getProfFullName(apt.profissionalId)}</strong> · Serviço: <strong>{apt.servico}</strong>
+                              {selectedSlot?.tipo !== 'academia' ? (<>Profissional: <strong style={{ color: 'var(--color-primary)' }}>{getProfFullName(apt.profissionalId)}</strong> · Serviço: <strong>{apt.servico}</strong></>) : (<>Serviço: <strong>{apt.servico}</strong>{apt.profissionalDesignadoId ? <> · Prof. Designado: <strong style={{ color: '#60a5fa' }}>{getProfFullName(apt.profissionalDesignadoId)}</strong></> : null}</>)}
                             </div>
                             {apt.observacoes && (
                               <div style={{
@@ -1892,7 +1892,7 @@ export default function AgendaCompletaPanel({
                         type="button"
                         onClick={() => {
                           setIsEditingProf(true);
-                          const curPid = inspectApt.profissionalId?._id || inspectApt.profissionalId || '';
+                          const curPid = inspectApt.profissionalDesignadoId?._id || inspectApt.profissionalDesignadoId || '';
                           setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
                         }}
                         style={{
@@ -1909,7 +1909,7 @@ export default function AgendaCompletaPanel({
                           gap: '6px'
                         }}
                       >
-                        <i className="fa-solid fa-pen-to-square"></i> {inspectApt.profissionalId ? 'Alterar' : 'Designar'}
+                        <i className="fa-solid fa-pen-to-square"></i> {inspectApt.profissionalDesignadoId ? 'Alterar' : 'Designar'}
                       </button>
                     )}
                   </div>
@@ -1980,9 +1980,9 @@ export default function AgendaCompletaPanel({
                     </div>
                   ) : (
                     <div style={{ fontSize: '0.92rem', color: '#ffffff', fontWeight: 600 }}>
-                      {inspectApt.profissionalId ? (
+                      {inspectApt.profissionalDesignadoId ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: '#93c5fd' }}>{getProfFullName(inspectApt.profissionalId)}</span>
+                          <span style={{ color: '#93c5fd' }}>{getProfFullName(inspectApt.profissionalDesignadoId)}</span>
                           {inspectApt.origemHorarioFixo && (
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
                               (origem: horário fixo)

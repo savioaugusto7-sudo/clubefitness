@@ -143,6 +143,7 @@ export default function HorariosFixosPanel({
   const [modalClient, setModalClient] = useState('');
   const [modalProf, setModalProf] = useState('');
   const [hasCustomProf, setHasCustomProf] = useState(false);
+  const [modalProfDesignado, setModalProfDesignado] = useState('');
   const [modalService, setModalService] = useState('Treino Monitorado');
   const [modalStartDate, setModalStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [modalDurationType, setModalDurationType] = useState<'indeterminado' | 'manual'>('indeterminado');
@@ -391,6 +392,7 @@ export default function HorariosFixosPanel({
     setEditingGroup(null);
     setModalClient('');
     setModalProf('');
+    setModalProfDesignado('');
     setHasCustomProf(false);
     setModalService('Treino Monitorado');
     setModalStartDate(new Date().toISOString().split('T')[0]);
@@ -424,12 +426,14 @@ export default function HorariosFixosPanel({
     setModalClient(group.client?._id || group.client || '');
     const curProfId = group.professional?._id || group.professional || '';
     setModalProf(curProfId);
-    setHasCustomProf(Boolean(curProfId));
+    const firstRule = group.rules?.[0] || {};
+    const curDesignado = firstRule.profissionalDesignadoId?._id || firstRule.profissionalDesignadoId || '';
+    setModalProfDesignado(curDesignado);
+    setHasCustomProf(Boolean(curDesignado));
     setModalService(group.servico || 'Treino Monitorado');
     setModalStartDate(group.dataInicio || new Date().toISOString().split('T')[0]);
     setExceptionsMap({});
 
-    const firstRule = group.rules?.[0] || {};
     const repMode = firstRule.frequenciaRepeticao || 'semanal';
     setRepetitionMode(repMode);
     setCustomIntervalWeeks(firstRule.intervaloSemanas || 2);
@@ -526,6 +530,7 @@ export default function HorariosFixosPanel({
             clienteId: modalClient,
             oldProfessionalId: editingGroup.professional?._id || editingGroup.professional || null,
             profissionalId: modalProf || null,
+            profissionalDesignadoId: hasCustomProf ? (modalProfDesignado || null) : null,
             slots,
             frequenciaRepeticao: repetitionMode,
             intervaloSemanas: effectiveIntervalWeeks,
@@ -543,6 +548,7 @@ export default function HorariosFixosPanel({
           body: JSON.stringify({
             clienteId: modalClient,
             profissionalId: modalProf || null,
+            profissionalDesignadoId: hasCustomProf ? (modalProfDesignado || null) : null,
             slots,
             frequenciaRepeticao: repetitionMode,
             intervaloSemanas: effectiveIntervalWeeks,
@@ -1024,6 +1030,30 @@ export default function HorariosFixosPanel({
                             <i className="fa-solid fa-dumbbell"></i> Treino / Geral
                           </span>
                         )}
+                        {(() => {
+                          const desig = group.rules?.find((r: any) => r.profissionalDesignadoId)?.profissionalDesignadoId;
+                          if (!desig) return null;
+                          const name = desig.nome ? desig.nome.split(' ')[0] : '';
+                          if (!name) return null;
+                          return (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                marginLeft: '6px',
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: '#3b82f6',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                padding: '2px 8px',
+                                borderRadius: '8px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              [Prof: {name}]
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Dias e Horários Fixados */}
@@ -1474,7 +1504,7 @@ export default function HorariosFixosPanel({
                         const checked = e.target.checked;
                         setHasCustomProf(checked);
                         if (!checked) {
-                          setModalProf('');
+                          setModalProfDesignado('');
                         }
                       }}
                       style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
@@ -1489,8 +1519,8 @@ export default function HorariosFixosPanel({
                       </label>
                       <select
                         className="select-custom"
-                        value={modalProf}
-                        onChange={e => setModalProf(e.target.value)}
+                        value={modalProfDesignado}
+                        onChange={e => setModalProfDesignado(e.target.value)}
                         style={{ width: '100%' }}
                       >
                         <option value="">Selecione um profissional...</option>

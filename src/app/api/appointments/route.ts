@@ -221,6 +221,7 @@ export async function GET(request: Request) {
     const appointments = await Appointment.find(query)
       .populate('clienteId', 'dadosPessoais dadosComerciais.frequencia dadosComerciais.vencimento dadosComerciais.planoId status')
       .populate('profissionalId', 'nome email especialidade')
+      .populate('profissionalDesignadoId', 'nome email especialidade')
       .sort({ data: 1, horario: 1 })
       .lean();
 
@@ -238,7 +239,7 @@ export async function POST(request: Request) {
     const _pr = Professional;
     const _a = Appointment;
     const body = await request.json();
-    const { data, horario, servico, profissionalId: requestedProfId, clienteId, bypassRestrictions, remanejarDeAptId } = body;
+    const { data, horario, servico, profissionalId: requestedProfId, profissionalDesignadoId, clienteId, bypassRestrictions, remanejarDeAptId } = body;
 
     const servicoConfig = SERVICOS_CONFIG[servico];
     if (!servicoConfig) {
@@ -662,6 +663,7 @@ export async function POST(request: Request) {
       isEmergenciaExtra,
       mesReferencia,
       profissionalId: finalProfId,
+      profissionalDesignadoId: profissionalDesignadoId || null,
       clienteId,
       status: 'agendado',
       observacoes: observacoesText,
@@ -712,7 +714,7 @@ export async function PUT(request: Request) {
     const _pr = Professional;
     const _a = Appointment;
     const body = await request.json();
-    const { id, status, wellness, profissionalId, observacoes, treinoExecutado } = body;
+    const { id, status, wellness, profissionalId, profissionalDesignadoId, observacoes, treinoExecutado } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing appointment ID' }, { status: 400 });
@@ -728,6 +730,12 @@ export async function PUT(request: Request) {
     // Suporte para atualizar profissionalId diretamente
     if (profissionalId !== undefined) {
       appointment.profissionalId = (profissionalId && profissionalId !== '') ? profissionalId : null;
+      updatedDirectly = true;
+    }
+
+    // Suporte para atualizar profissionalDesignadoId diretamente (organização visual na Agenda Geral)
+    if (profissionalDesignadoId !== undefined) {
+      appointment.profissionalDesignadoId = (profissionalDesignadoId && profissionalDesignadoId !== '') ? profissionalDesignadoId : null;
       updatedDirectly = true;
     }
 
@@ -756,6 +764,7 @@ export async function PUT(request: Request) {
     if (updatedDirectly && !status) {
       await appointment.save();
       await appointment.populate('profissionalId', 'nome email especialidade');
+      await appointment.populate('profissionalDesignadoId', 'nome email especialidade');
       return NextResponse.json({ success: true, data: appointment });
     }
 
@@ -871,6 +880,7 @@ export async function PUT(request: Request) {
     }
 
     await appointment.populate('profissionalId', 'nome email especialidade');
+    await appointment.populate('profissionalDesignadoId', 'nome email especialidade');
     return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

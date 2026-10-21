@@ -226,7 +226,8 @@ async function generateAppointmentsForFixedSchedules(
             servico: pair.schedule.servico || 'Treino Monitorado',
             consumeCredito: true,
             tipoCredito: 'academia',
-            profissionalId: profId || null,
+            profissionalId: resolvedTipo === 'academia' ? null : profId,
+            profissionalDesignadoId: pair.schedule.profissionalDesignadoId || null,
             clienteId: pair.schedule.clienteId,
             status: 'agendado',
             origemHorarioFixo: true,
@@ -257,6 +258,7 @@ export async function GET(request: Request) {
     const schedules = await FixedSchedule.find({})
       .populate('clienteId')
       .populate('profissionalId')
+      .populate('profissionalDesignadoId')
       .sort({ 'clienteId.dadosPessoais.nome': 1, diaSemana: 1, horario: 1 });
 
     return NextResponse.json({ success: true, data: schedules });
@@ -269,7 +271,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, profissionalId, slots, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim, frequenciaRepeticao, intervaloSemanas, excecoes, syncAll } = body;
+    const { clienteId, profissionalId, profissionalDesignadoId, slots, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim, frequenciaRepeticao, intervaloSemanas, excecoes, syncAll } = body;
 
     // Sincronização em massa de todas as regras existentes
     if (syncAll) {
@@ -307,6 +309,7 @@ export async function POST(request: Request) {
         itemsToCreate.push({
           clienteId,
           profissionalId: profissionalId || null,
+          profissionalDesignadoId: profissionalDesignadoId || null,
           diaSemana: Number(slot.diaSemana),
           horario: slot.horario,
           servico,
@@ -321,6 +324,7 @@ export async function POST(request: Request) {
       itemsToCreate.push({
         clienteId,
         profissionalId: profissionalId || null,
+        profissionalDesignadoId: profissionalDesignadoId || null,
         diaSemana: Number(diaSemana),
         horario,
         servico,
@@ -349,7 +353,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, clienteId, oldProfessionalId, profissionalId, slots, diaSemana, horario, servico, dataInicio, dataFim, frequenciaRepeticao, intervaloSemanas, excecoes } = body;
+    const { id, clienteId, oldProfessionalId, profissionalId, profissionalDesignadoId, slots, diaSemana, horario, servico, dataInicio, dataFim, frequenciaRepeticao, intervaloSemanas, excecoes } = body;
 
     const todayStr = new Date().toISOString().split('T')[0];
     const resolvedFrequencia = frequenciaRepeticao || 'semanal';
@@ -381,6 +385,7 @@ export async function PUT(request: Request) {
         const itemsToCreate = slots.map(slot => ({
           clienteId,
           profissionalId: profissionalId !== undefined ? (profissionalId || null) : (oldProfessionalId || null),
+          profissionalDesignadoId: profissionalDesignadoId !== undefined ? (profissionalDesignadoId || null) : null,
           diaSemana: Number(slot.diaSemana),
           horario: slot.horario,
           servico: servico || 'Treino Monitorado',
@@ -418,6 +423,7 @@ export async function PUT(request: Request) {
       if (dataInicio) existing.dataInicio = dataInicio;
       if (dataFim !== undefined) existing.dataFim = dataFim || null;
       if (profissionalId !== undefined) existing.profissionalId = profissionalId || null;
+      if (profissionalDesignadoId !== undefined) existing.profissionalDesignadoId = profissionalDesignadoId || null;
       if (frequenciaRepeticao) existing.frequenciaRepeticao = frequenciaRepeticao;
       if (intervaloSemanas !== undefined) existing.intervaloSemanas = Math.max(1, Number(intervaloSemanas));
 
