@@ -1052,149 +1052,163 @@ export default function AgendaCompletaPanel({
                                        ? `⚡ Aluno Dynamus · ${hasObs ? `Obs: ${apt.observacoes}` : 'Clique para ver detalhes do agendamento'}` 
                                        : (hasObs ? `Clique para ver: ${apt.observacoes}` : 'Clique para ver detalhes do agendamento')
                                    }
-                                   style={{ 
-                                     display: 'inline-flex', 
-                                     alignItems: 'center', 
-                                     background: isDynamus 
-                                       ? 'rgba(6, 182, 212, 0.08)' 
-                                       : isFalta 
-                                         ? 'rgba(239, 68, 68, 0.08)' 
-                                         : 'var(--bg-secondary)', 
-                                     border: isDynamus 
-                                       ? '1.5px solid #22d3ee' 
-                                       : isFalta 
-                                         ? '1.5px solid #ef4444' 
-                                         : `1.5px solid ${sColors.text}`, 
-                                     borderRadius: '16px', 
-                                     padding: '3px 10px', 
-                                     gap: '6px',
-                                     boxShadow: isDynamus 
-                                       ? '0 0 10px rgba(34, 211, 238, 0.25), 0 2px 4px rgba(0,0,0,0.2)' 
-                                       : isFalta 
-                                         ? '0 0 8px rgba(239, 68, 68, 0.25), 0 2px 4px rgba(0,0,0,0.1)' 
-                                         : '0 2px 4px rgba(0,0,0,0.1)',
-                                     cursor: 'pointer',
-                                     touchAction: 'manipulation',
-                                     WebkitTapHighlightColor: 'transparent',
-                                     outline: 'none',
-                                     transition: 'all 0.15s ease',
-                                     textAlign: 'left'
-                                   }}
-                                 >
-                                   <span style={{ 
-                                     fontSize: '0.76rem', 
-                                     fontWeight: 700, 
-                                     color: isPresenca 
-                                       ? 'var(--color-success)' 
-                                       : isFalta 
-                                         ? 'var(--color-danger)' 
-                                         : 'var(--text-main)', 
-                                     pointerEvents: 'none' 
-                                   }}>
-                                     {shortName}
-                                   </span>
-                                   {isDynamus && (
-                                     <span 
-                                       style={{ 
-                                         fontSize: '0.62rem', 
-                                         fontWeight: 800, 
-                                         textTransform: 'uppercase', 
-                                         padding: '1px 6px', 
-                                         borderRadius: '8px', 
-                                         background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.28) 0%, rgba(14, 165, 233, 0.28) 100%)',
-                                         color: '#22d3ee',
-                                         border: '1px solid rgba(34, 211, 238, 0.5)',
-                                         letterSpacing: '0.4px',
-                                         display: 'inline-flex',
-                                         alignItems: 'center',
-                                         gap: '3px',
-                                         pointerEvents: 'none',
-                                         boxShadow: '0 1px 4px rgba(6, 182, 212, 0.2)'
-                                       }}
-                                     >
-                                       <i className="fa-solid fa-bolt" style={{ fontSize: '0.56rem' }}></i> DYNAMUS
-                                     </span>
-                                   )}
-                                   {apt.origemHorarioFixo && (
-                                     <span 
-                                       title="Horário Fixo Semanal Garantido"
-                                       style={{ 
-                                         fontSize: '0.62rem', 
-                                         fontWeight: 800, 
-                                         padding: '1px 5px', 
-                                         borderRadius: '8px', 
-                                         background: 'rgba(168, 85, 247, 0.18)', 
-                                         color: '#c084fc', 
-                                         border: '1px solid rgba(168, 85, 247, 0.4)', 
-                                         display: 'inline-flex', 
-                                         alignItems: 'center', 
-                                         gap: '2px',
-                                         pointerEvents: 'none'
-                                       }}
-                                     >
-                                       📌 Fixo
-                                     </span>
-                                   )}
-                                   <span 
-                                     style={{ 
-                                       fontSize: '0.64rem', 
-                                       fontWeight: 800, 
-                                       textTransform: 'uppercase', 
-                                       padding: '1px 6px', 
-                                       borderRadius: '10px', 
-                                       background: isFalta ? 'rgba(239, 68, 68, 0.2)' : sColors.bg,
-                                       color: isFalta ? '#ef4444' : sColors.text,
-                                       border: isFalta ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
-                                       letterSpacing: '0.3px',
-                                       pointerEvents: 'none'
-                                     }}
-                                   >
-                                     {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
-                                   </span>
-                                   {(() => {
-                                     const pShort = getProfShortName(apt.profissionalDesignadoId);
-                                     if (!pShort) return null;
-                                     return (
-                                       <span
-                                         style={{
-                                           fontSize: '0.64rem',
-                                           fontWeight: 700,
-                                           padding: '1px 6px',
-                                           borderRadius: '8px',
-                                           background: 'rgba(59, 130, 246, 0.12)',
-                                           color: '#3b82f6',
-                                           border: '1px solid rgba(59, 130, 246, 0.3)',
-                                           letterSpacing: '0.2px',
-                                           pointerEvents: 'none',
-                                           display: 'inline-flex',
-                                           alignItems: 'center'
-                                         }}
-                                       >
-                                         [Prof: {pShort}]
-                                       </span>
-                                     );
-                                   })()}
-                                   {hasObs && (
-                                      <span
-                                        style={{
-                                          background: 'rgba(245, 158, 11, 0.2)',
-                                          color: '#f59e0b',
-                                          border: '1px solid rgba(245, 158, 11, 0.4)',
-                                          fontSize: '0.7rem',
+                                    style={{ 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      background: isDynamus 
+                                        ? 'rgba(6, 182, 212, 0.08)' 
+                                        : isFalta 
+                                          ? 'rgba(239, 68, 68, 0.08)' 
+                                          : 'rgba(255, 255, 255, 0.035)', 
+                                      border: isDynamus 
+                                        ? '1px solid rgba(34, 211, 238, 0.45)' 
+                                        : isFalta 
+                                          ? '1px solid rgba(239, 68, 68, 0.45)' 
+                                          : `1px solid ${sColors.text}33`, 
+                                      backdropFilter: 'blur(10px)',
+                                      WebkitBackdropFilter: 'blur(10px)',
+                                      borderRadius: '18px', 
+                                      padding: '3px 10px', 
+                                      gap: '6px',
+                                      boxShadow: isDynamus 
+                                        ? '0 0 12px rgba(34, 211, 238, 0.2), 0 2px 4px rgba(0,0,0,0.2)' 
+                                        : isFalta 
+                                          ? '0 0 8px rgba(239, 68, 68, 0.2), 0 2px 4px rgba(0,0,0,0.1)' 
+                                          : `0 2px 6px rgba(0,0,0,0.25), inset 0 0 0 1px ${sColors.text}10`,
+                                      cursor: 'pointer',
+                                      touchAction: 'manipulation',
+                                      WebkitTapHighlightColor: 'transparent',
+                                      outline: 'none',
+                                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                                      textAlign: 'left'
+                                    }}
+                                  >
+                                    <span style={{ 
+                                      fontSize: '0.78rem', 
+                                      fontWeight: 650, 
+                                      color: isPresenca 
+                                        ? '#34d399' 
+                                        : isFalta 
+                                          ? '#f87171' 
+                                          : '#f8fafc', 
+                                      letterSpacing: '0.15px',
+                                      pointerEvents: 'none' 
+                                    }}>
+                                      {shortName}
+                                    </span>
+                                    {isDynamus && (
+                                      <span 
+                                        style={{ 
+                                          fontSize: '0.62rem', 
+                                          fontWeight: 800, 
+                                          textTransform: 'uppercase', 
+                                          padding: '1px 6px', 
+                                          borderRadius: '8px', 
+                                          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.28) 0%, rgba(14, 165, 233, 0.28) 100%)',
+                                          color: '#22d3ee',
+                                          border: '1px solid rgba(34, 211, 238, 0.5)',
+                                          letterSpacing: '0.4px',
                                           display: 'inline-flex',
                                           alignItems: 'center',
                                           gap: '3px',
-                                          padding: '1px 6px',
-                                          borderRadius: '8px',
-                                          marginLeft: '2px',
-                                          fontWeight: 800,
+                                          pointerEvents: 'none',
+                                          boxShadow: '0 1px 4px rgba(6, 182, 212, 0.2)'
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-bolt" style={{ fontSize: '0.56rem' }}></i> DYNAMUS
+                                      </span>
+                                    )}
+                                    {apt.origemHorarioFixo && (
+                                      <span 
+                                        title="Horário Fixo Semanal Garantido"
+                                        style={{ 
+                                          fontSize: '0.62rem', 
+                                          fontWeight: 750, 
+                                          padding: '1.5px 6px', 
+                                          borderRadius: '7px', 
+                                          background: 'rgba(168, 85, 247, 0.12)', 
+                                          color: '#d8b4fe', 
+                                          border: '1px solid rgba(168, 85, 247, 0.28)', 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          gap: '3px',
                                           pointerEvents: 'none'
                                         }}
                                       >
-                                        <i className="fa-solid fa-note-sticky"></i> Obs
+                                        📌 Fixo
                                       </span>
                                     )}
-                                 </button>
+                                    <span 
+                                      style={{ 
+                                        fontSize: '0.62rem', 
+                                        fontWeight: 800, 
+                                        textTransform: 'uppercase', 
+                                        padding: '2px 7px', 
+                                        borderRadius: '7px', 
+                                        background: isFalta ? 'rgba(239, 68, 68, 0.2)' : sColors.bg,
+                                        color: isFalta ? '#ef4444' : sColors.text,
+                                        border: isFalta ? '1px solid rgba(239, 68, 68, 0.4)' : `1px solid ${sColors.text}35`,
+                                        letterSpacing: '0.4px',
+                                        pointerEvents: 'none'
+                                      }}
+                                    >
+                                      {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
+                                    </span>
+                                    {(() => {
+                                      const pShort = getProfShortName(apt.profissionalDesignadoId);
+                                      if (!pShort) return null;
+                                      return (
+                                        <span
+                                          style={{
+                                            fontSize: '0.64rem',
+                                            fontWeight: 600,
+                                            padding: '1.5px 7px',
+                                            borderRadius: '7px',
+                                            background: 'rgba(59, 130, 246, 0.08)',
+                                            color: '#93c5fd',
+                                            border: '1px solid rgba(59, 130, 246, 0.22)',
+                                            letterSpacing: '0.2px',
+                                            pointerEvents: 'none',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4.5px'
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              width: '4px',
+                                              height: '4px',
+                                              borderRadius: '50%',
+                                              background: '#60a5fa',
+                                              boxShadow: '0 0 6px rgba(96, 165, 250, 0.6)',
+                                              display: 'inline-block'
+                                            }}
+                                          />
+                                          Prof. {pShort}
+                                        </span>
+                                      );
+                                    })()}
+                                    {hasObs && (
+                                       <span
+                                         style={{
+                                           background: 'rgba(245, 158, 11, 0.12)',
+                                           color: '#fbbf24',
+                                           border: '1px solid rgba(245, 158, 11, 0.28)',
+                                           fontSize: '0.65rem',
+                                           display: 'inline-flex',
+                                           alignItems: 'center',
+                                           gap: '3px',
+                                           padding: '1.5px 6px',
+                                           borderRadius: '7px',
+                                           marginLeft: '1px',
+                                           fontWeight: 700,
+                                           pointerEvents: 'none'
+                                         }}
+                                       >
+                                         <i className="fa-solid fa-note-sticky" style={{ fontSize: '0.58rem' }}></i> Obs
+                                       </span>
+                                     )}
+                                  </button>
                                );
                              })
                           )}

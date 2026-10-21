@@ -1040,17 +1040,28 @@ export default function HorariosFixosPanel({
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
+                                gap: '4.5px',
                                 marginLeft: '6px',
-                                background: 'rgba(59, 130, 246, 0.12)',
-                                color: '#3b82f6',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                background: 'rgba(59, 130, 246, 0.08)',
+                                color: '#93c5fd',
+                                border: '1px solid rgba(59, 130, 246, 0.22)',
                                 padding: '2px 8px',
-                                borderRadius: '8px',
-                                fontSize: '0.74rem',
-                                fontWeight: 700
+                                borderRadius: '7px',
+                                fontSize: '0.72rem',
+                                fontWeight: 600
                               }}
                             >
-                              [Prof: {name}]
+                              <span
+                                style={{
+                                  width: '4px',
+                                  height: '4px',
+                                  borderRadius: '50%',
+                                  background: '#60a5fa',
+                                  boxShadow: '0 0 6px rgba(96, 165, 250, 0.6)',
+                                  display: 'inline-block'
+                                }}
+                              />
+                              Prof. {name}
                             </span>
                           );
                         })()}
