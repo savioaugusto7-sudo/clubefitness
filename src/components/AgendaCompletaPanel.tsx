@@ -1122,20 +1122,14 @@ export default function AgendaCompletaPanel({
                                       <span 
                                         title="Horário Fixo Semanal Garantido"
                                         style={{ 
-                                          fontSize: '0.62rem', 
-                                          fontWeight: 750, 
-                                          padding: '1.5px 6px', 
-                                          borderRadius: '7px', 
-                                          background: 'rgba(168, 85, 247, 0.12)', 
-                                          color: '#d8b4fe', 
-                                          border: '1px solid rgba(168, 85, 247, 0.28)', 
+                                          fontSize: '0.68rem', 
+                                          lineHeight: 1,
                                           display: 'inline-flex', 
                                           alignItems: 'center', 
-                                          gap: '3px',
                                           pointerEvents: 'none'
                                         }}
                                       >
-                                        📌 Fixo
+                                        📌
                                       </span>
                                     )}
                                     <span 
