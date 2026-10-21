@@ -22,6 +22,7 @@ const ProposalSchema = new Schema({
   isMinor: { type: Boolean, default: false },
   permitir10xBoleto: { type: Boolean, default: false },
   maxParcelasBoleto: { type: Number, default: null },
+  clausulaTratamentoIntensivo: { type: Schema.Types.Mixed, default: null },
 
   status: { type: String, default: 'pendente' },
   abertoEm: { type: Date, default: null }, // Sempre armazena a ÚLTIMA visualização

@@ -647,7 +647,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 escopo: ex.dropSet.escopo || 'ultima_serie',
                 drops: Array.isArray(ex.dropSet.drops) ? ex.dropSet.drops.map((d: any) => Number(d) || 0) : []
               } : undefined,
-              unilateral: ex.unilateral !== undefined ? Boolean(ex.unilateral) : isUnilateralExercise(exName || 'Exercício')
+              unilateral: ex.unilateral === true || isUnilateralExercise(exName || 'Exercício')
             };
           });
           setWorkoutItems(items);
@@ -849,7 +849,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             escopo: ex.dropSet.escopo || 'ultima_serie',
             drops: Array.isArray(ex.dropSet.drops) ? ex.dropSet.drops.map((d: any) => Number(d) || 0) : []
           } : undefined,
-          unilateral: ex.unilateral !== undefined ? Boolean(ex.unilateral) : isUnilateralExercise(exName || 'Exercício')
+          unilateral: ex.unilateral === true || isUnilateralExercise(exName || 'Exercício')
         };
       });
       setWorkoutItems(items);
@@ -1221,7 +1221,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       combinaGrupo: ex.combinaGrupo || '',
       dropSet: ex.dropSet || { tipo: 'none', escopo: 'ultima_serie', drops: [] },
       historicoCargas: ex.historicoCargas || [],
-      unilateral: ex.unilateral !== undefined ? Boolean(ex.unilateral) : isUnilateralExercise(typeof ex.exercicioId === 'object' ? (ex.exercicioId?.nome || 'Exercício') : (ex.exercicioId || ex.nome || 'Exercício'))
+      unilateral: ex.unilateral === true || isUnilateralExercise(typeof ex.exercicioId === 'object' ? (ex.exercicioId?.nome || 'Exercício') : (ex.exercicioId || ex.nome || 'Exercício'))
     }));
 
     setWorkoutItems(formatted);

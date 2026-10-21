@@ -124,6 +124,9 @@ export interface ContractData {
   criarRecorrenciaMensal?: boolean;
   recorrenciaMeses?: number;
 
+  // Cláusula adicional de tratamento intensivo inicial
+  clausulaTratamentoIntensivo?: boolean | any;
+
   // Menor de idade / Responsável Legal
   isMinor?: boolean;
   beneficiarioNome?: string;
@@ -144,6 +147,7 @@ function renderClausulaPagamento(options: {
   formaVigencia: string;
   formaPag: string;
   diaVenc: number;
+  dataPrimeiroVencFormatada?: string;
   numClausula?: string;
   prefix?: string;
 }): string {
@@ -165,20 +169,39 @@ function renderClausulaPagamento(options: {
     `;
   }
 
+  const primVencTexto = options.dataPrimeiroVencFormatada
+    ? `com o <strong>primeiro vencimento em ${options.dataPrimeiroVencFormatada}</strong>`
+    : `com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês`;
+
+  const primVencCurto = options.dataPrimeiroVencFormatada || `${options.diaVenc}`;
+
+  const condicaoTexto = options.parcelasCount === 1
+    ? `a ser quitado em <strong>parcela única</strong> no valor de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, por meio de <strong>${options.formaPag}</strong>, com vencimento em <strong>${primVencCurto}</strong>.`
+    : options.isRecorrente && options.isMensalSemVinculo
+      ? `será pago o valor mensal de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong> por meio de recorrência mensal via <strong>${options.formaPag}</strong>, ${primVencTexto} e as mensalidades subsequentes com vencimento até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
+      : options.isRecorrente
+        ? `será pago o valor total de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(options.recorrenciaMeses || options.parcelasCount)}</strong> mensalidades consecutivas no valor de <strong>R$ ${options.valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorParcela)})</strong> cada, por meio de <strong>${options.formaPag}</strong>, ${primVencTexto} e as demais parcelas com vencimento até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
+        : `será pago o valor total de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(options.parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${options.valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorParcela)})</strong> cada, por meio de <strong>${options.formaPag}</strong>, ${primVencTexto} e as demais parcelas com vencimento até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês subsequente.`;
+
   return `
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${num} - DO PAGAMENTO</h3>
+    
+    <div style="margin: 12px 0 14px 0; padding: 10px 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt; line-height: 1.5;">
+      <p style="font-size: 9.5pt; font-weight: bold; margin-bottom: 4px;"><strong>Quadro Resumo das Condições Financeiras:</strong></p>
+      <p style="font-size: 9pt; margin-bottom: 2px;">• <strong>Plano / Periodicidade:</strong> ${options.formaVigencia}</p>
+      <p style="font-size: 9pt; margin-bottom: 2px;">• <strong>Valor Total Contratado:</strong> R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</p>
+      <p style="font-size: 9pt; margin-bottom: 2px;">• <strong>Condição de Pagamento:</strong> ${options.parcelasCount === 1 ? '1x (À vista)' : `${options.parcelasCount}x de R$ ${options.valorParcela.toFixed(2).replace('.', ',')}`}</p>
+      <p style="font-size: 9pt; margin-bottom: 2px;">• <strong>Forma de Pagamento:</strong> ${options.formaPag}</p>
+      <p style="font-size: 9pt; margin-bottom: 2px;">• <strong>Data do 1º Vencimento:</strong> <strong style="color: #0f172a;">${primVencCurto}</strong>${options.parcelasCount > 1 ? ` (demais parcelas todo dia ${options.diaVenc} de cada mês)` : ''}</p>
+    </div>
+
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      ${pfx}.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme condições comerciais e valor acordados entre as partes no ato da adesão${options.descVal > 0 ? `, aplicado desconto informado na cláusula ${pfx}.5` : ''}:
-      ${
-        options.isRecorrente && options.isMensalSemVinculo
-          ? `será pago o valor mensal de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong> por meio de recorrência mensal via <strong>${options.formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
-          : options.isRecorrente
-            ? `será pago o valor total de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(options.recorrenciaMeses || options.parcelasCount)}</strong> mensalidades consecutivas no valor de <strong>R$ ${options.valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorParcela)})</strong> cada, por meio de <strong>${options.formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
-            : `será pago o valor total de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(options.parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${options.valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorParcela)})</strong> cada, por meio de <strong>${options.formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
-      }
+      ${pfx}.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme condições comerciais e valor acordados entre as partes no ato da adesão${options.descVal > 0 ? `, aplicado desconto informado na cláusula ${pfx}.5` : ''}: ${condicaoTexto}
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.2. O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.</p>
-    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.3. O pagamento será realizado na forma <strong>${options.formaVigencia}</strong>, por meio de <strong>${options.formaPag}</strong>, com vencimento todo dia <strong>${options.diaVenc}</strong> de cada mês.</p>
+    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+      ${pfx}.3. O pagamento será realizado na forma <strong>${options.formaVigencia}</strong>, por meio de <strong>${options.formaPag}</strong>, com o <strong>primeiro vencimento em ${primVencCurto}</strong>${options.parcelasCount > 1 ? ` e as parcelas subsequentes com vencimento todo dia <strong>${options.diaVenc}</strong> de cada mês subsequente` : ''}.
+    </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.</p>
     ${options.descVal > 0 ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.5. Fica concedido ao CONTRATANTE um desconto de <strong>${options.descontoTexto}</strong> sobre o valor de referência do plano contratado, conforme negociação entre as partes. O desconto foi aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.</p>` : ''}
   `;
@@ -247,6 +270,7 @@ export function generateContractTemplate(data: ContractData): string {
   // Prioritize first installment due date / explicit due day over contract termination date
   const datePrimeiroVenc = data.dataPrimeiroVencimento || data.dataVencimento || todayStr;
   const diaVenc = data.diaVencimento || (datePrimeiroVenc.split('-')[2] ? parseInt(datePrimeiroVenc.split('-')[2], 10) : 5);
+  const dataPrimeiroVencFormatada = fmtDate(datePrimeiroVenc);
 
   const formaPag = (() => {
     const fp = (data.formaPagamento || '').toLowerCase().trim();
@@ -360,6 +384,28 @@ export function generateContractTemplate(data: ContractData): string {
     const nextNum = rescisaoClauses.length + 1;
     rescisaoClauses.push(`7.${nextNum}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor total do contrato, a título de cláusula penal.`);
 
+    const hasTratamentoIntensivo = Boolean(data.clausulaTratamentoIntensivo);
+    const clausulaTratamentoIntensivoHtml = hasTratamentoIntensivo ? `
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">
+        CLÁUSULA OITAVA – DO TRATAMENTO INTENSIVO INICIAL E DA RESCISÃO ANTECIPADA
+      </h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        8.1. Será concedido ao CONTRATANTE tratamento intensivo durante os 2 (dois) primeiros meses de vigência do plano anual. Em caso de rescisão antecipada do contrato, o valor referente aos dois primeiros meses será recalculado com base no valor de tabela de R$ 4.000,00 por mês, totalizando R$ 8.000,00.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        8.2. Do montante recalculado, serão descontados os valores de R$ 850,00 já pagos por parcela mensal, totalizando R$ 1.700,00 em descontos. Dessa forma, será acrescido o valor de R$ 6.300,00 ao montante da rescisão previsto neste contrato, referente à diferença entre o valor de tabela do tratamento intensivo e os valores pagos nos dois primeiros meses.
+      </p>
+    ` : '';
+
+    const numCongelamento = hasTratamentoIntensivo ? 'NONA' : 'OITAVA';
+    const pfxCongelamento = hasTratamentoIntensivo ? '9' : '8';
+    const numResp = hasTratamentoIntensivo ? (isAnual ? 'DÉCIMA' : 'NONA') : (isAnual ? 'NONA' : 'OITAVA');
+    const pfxResp = hasTratamentoIntensivo ? (isAnual ? '10' : '9') : (isAnual ? '9' : '8');
+    const numDados = hasTratamentoIntensivo ? (isAnual ? 'DÉCIMA PRIMEIRA' : 'DÉCIMA') : (isAnual ? 'DÉCIMA' : 'NONA');
+    const pfxDados = hasTratamentoIntensivo ? (isAnual ? '11' : '10') : (isAnual ? '10' : '9');
+    const numForo = hasTratamentoIntensivo ? (isAnual ? 'DÉCIMA SEGUNDA' : 'DÉCIMA PRIMEIRA') : (isAnual ? 'DÉCIMA PRIMEIRA' : 'DÉCIMA');
+    const pfxForo = hasTratamentoIntensivo ? (isAnual ? '12' : '11') : (isAnual ? '11' : '10');
+
     let monitoradoHtml = `
       <h2 style="font-size: 13pt; font-weight: bold; margin: 10px 0 20px 0; text-transform: uppercase; text-align: center;">TERMO DE ADESÃO A PLANO CLUBE FITNESS MONITORADO</h2>
 
@@ -438,6 +484,7 @@ export function generateContractTemplate(data: ContractData): string {
         formaVigencia,
         formaPag,
         diaVenc,
+        dataPrimeiroVencFormatada,
         numClausula: 'QUARTA',
         prefix: '4'
       })}
@@ -468,36 +515,38 @@ export function generateContractTemplate(data: ContractData): string {
         </p>
       `).join('')}
 
+      ${clausulaTratamentoIntensivoHtml}
+
       ${
         isAnual
           ? `
-            <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA OITAVA - DO CONGELAMENTO DO PLANO</h3>
+            <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${numCongelamento} - DO CONGELAMENTO DO PLANO</h3>
             <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-              8.1. Fica assegurado ao(à) CONTRATANTE o direito de solicitar o congelamento (suspensão temporária) do plano pelo período de 30 (trinta) dias, a ser usufruído dentro do prazo de vigência de 12 (doze) meses, contados a partir da assinatura do contrato.
+              ${pfxCongelamento}.1. Fica assegurado ao(à) CONTRATANTE o direito de solicitar o congelamento (suspensão temporária) do plano pelo período de 30 (trinta) dias, a ser usufruído dentro do prazo de vigência de 12 (doze) meses, contados a partir da assinatura do contrato.
             </p>
             <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-              8.1.1. O período de congelamento do contrato poderá ser utilizado de forma fracionada, em contagem semanal, desde que o total dos períodos de congelamento não ultrapasse o limite previsto em cláusula 8.1.
+              ${pfxCongelamento}.1.1. O período de congelamento do contrato poderá ser utilizado de forma fracionada, em contagem semanal, desde que o total dos períodos de congelamento não ultrapasse o limite previsto em cláusula ${pfxCongelamento}.1.
             </p>
           `
           : ''
       }
 
-      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${isAnual ? 'NONA' : 'OITAVA'} - DA RESPONSABILIDADE</h3>
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${numResp} - DA RESPONSABILIDADE</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        ${isAnual ? '9' : '8'}.1. A CONTRATADA não se responsabiliza por lesões ou danos decorrentes do não cumprimento das orientações profissionais por parte do(a) CONTRATANTE ou da omissão de informações relevantes sobre seu estado de saúde.
+        ${pfxResp}.1. A CONTRATADA não se responsabiliza por lesões ou danos decorrentes do não cumprimento das orientações profissionais por parte do(a) CONTRATANTE ou da omissão de informações relevantes sobre seu estado de saúde.
       </p>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        ${isAnual ? '9' : '8'}.2. A responsabilidade da CONTRATADA limita-se à prestação dos serviços nos termos aqui descritos, não garantindo resultados específicos, que podem variar conforme a condição e a resposta individual de cada CONTRATANTE.
-      </p>
-
-      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${isAnual ? 'DÉCIMA' : 'NONA'} - DA PROTEÇÃO DE DADOS</h3>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        ${isAnual ? '10' : '9'}.1. O(A) CONTRATANTE autoriza a CONTRATADA a coletar, armazenar e tratar seus dados pessoais e de saúde estritamente para os fins de execução deste contrato e prestação dos serviços, em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados).
+        ${pfxResp}.2. A responsabilidade da CONTRATADA limita-se à prestação dos serviços nos termos aqui descritos, não garantindo resultados específicos, que podem variar conforme a condição e a resposta individual de cada CONTRATANTE.
       </p>
 
-      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${isAnual ? 'DÉCIMA PRIMEIRA' : 'DÉCIMA'} - DO FORO</h3>
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${numDados} - DA PROTEÇÃO DE DADOS</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        ${isAnual ? '11' : '10'}.1. Fica eleito o foro da Comarca de Belo Horizonte para dirimir quaisquer controvérsias oriundas do presente contrato, com renúncia a qualquer outro, por mais privilegiado que seja.
+        ${pfxDados}.1. O(A) CONTRATANTE autoriza a CONTRATADA a coletar, armazenar e tratar seus dados pessoais e de saúde estritamente para os fins de execução deste contrato e prestação dos serviços, em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados).
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${numForo} - DO FORO</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfxForo}.1. Fica eleito o foro da Comarca de Belo Horizonte para dirimir quaisquer controvérsias oriundas do presente contrato, com renúncia a qualquer outro, por mais privilegiado que seja.
       </p>
 
       <p style="font-size: 9.5pt; margin-top: 20px; margin-bottom: 20px; line-height: 1.4; text-align: justify;">
@@ -620,6 +669,7 @@ export function generateContractTemplate(data: ContractData): string {
         formaVigencia: formaVigenciaTrat,
         formaPag,
         diaVenc,
+        dataPrimeiroVencFormatada,
         numClausula: 'QUARTA',
         prefix: '4'
       })}
@@ -757,6 +807,7 @@ export function generateContractTemplate(data: ContractData): string {
         formaVigencia: formaVigenciaProt,
         formaPag,
         diaVenc,
+        dataPrimeiroVencFormatada,
         numClausula: 'QUARTA',
         prefix: '4'
       })}
@@ -883,6 +934,7 @@ export function generateContractTemplate(data: ContractData): string {
       formaVigencia: isAnual ? 'Anual' : 'Mensal',
       formaPag,
       diaVenc,
+      dataPrimeiroVencFormatada,
       numClausula: 'IV',
       prefix: '4'
     })}
