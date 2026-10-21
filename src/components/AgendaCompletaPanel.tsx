@@ -280,8 +280,13 @@ export default function AgendaCompletaPanel({
   const [quickBookingProfId, setQuickBookingProfId] = useState('');
   const [submittingQuickBooking, setSubmittingQuickBooking] = useState(false);
 
-  // Carregar agendamentos futuros do aluno
-  const handleLoadFutureAppointments = async (clientId: string) => {
+  // Carregar agendamentos futuros do aluno (estritamente posteriores ao agendamento inspecionado)
+  const handleLoadFutureAppointments = async (
+    clientId: string,
+    currentAptId?: string,
+    currentData?: string,
+    currentHorario?: string
+  ) => {
     if (!clientId) return;
     setLoadingFutureApts(true);
     try {
@@ -289,8 +294,21 @@ export default function AgendaCompletaPanel({
       const res = await fetch(`/api/appointments?clientId=${clientId}&startDate=${today}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
+        const targetAptId = currentAptId || inspectApt?._id;
+        const targetData = currentData || inspectApt?.data || selectedDate || today;
+        const targetHorario = currentHorario || inspectApt?.horario || '00:00';
+
         const active = json.data
-          .filter((a: any) => a.status !== 'cancelado')
+          .filter((a: any) => {
+            // 1. Desconsiderar agendamentos cancelados
+            if (a.status === 'cancelado') return false;
+            // 2. Não pode ser o próprio agendamento atual que está sendo inspecionado
+            if (targetAptId && String(a._id) === String(targetAptId)) return false;
+            // 3. Estritamente posterior à data e horário inspecionados
+            if (a.data > targetData) return true;
+            if (a.data === targetData && (a.horario || '') > targetHorario) return true;
+            return false;
+          })
           .sort((a: any, b: any) => {
             if (a.data === b.data) return (a.horario || '').localeCompare(b.horario || '');
             return (a.data || '').localeCompare(b.data || '');
@@ -339,7 +357,7 @@ export default function AgendaCompletaPanel({
       const json = await res.json();
       if (json.success) {
         setIsQuickBooking(false);
-        await handleLoadFutureAppointments(cId);
+        await handleLoadFutureAppointments(cId, inspectApt?._id, inspectApt?.data || selectedDate, inspectApt?.horario);
         if (quickBookingDate === selectedDate) {
           fetchSlotsAndConfigs();
         }
@@ -366,7 +384,7 @@ export default function AgendaCompletaPanel({
       const json = await res.json();
       if (json.success) {
         const cId = inspectApt?.clienteId?._id || inspectApt?.clienteId;
-        if (cId) handleLoadFutureAppointments(cId);
+        if (cId) handleLoadFutureAppointments(cId, inspectApt?._id, inspectApt?.data || selectedDate, inspectApt?.horario);
         fetchSlotsAndConfigs();
         showFeedback('Agendamento desmarcado com sucesso.', 'success');
       } else {
@@ -1166,7 +1184,7 @@ export default function AgendaCompletaPanel({
                                       setIsQuickBooking(false);
                                       setQuickBookingDate(selectedDate || new Date().toISOString().split('T')[0]);
                                       const cId = apt.clienteId?._id || apt.clienteId;
-                                      if (cId) handleLoadFutureAppointments(cId);
+                                      if (cId) handleLoadFutureAppointments(cId, apt._id, apt.data || selectedDate, apt.horario);
                                    }}
                                    title={
                                      isDynamus 
@@ -1668,7 +1686,7 @@ export default function AgendaCompletaPanel({
                                 setIsQuickBooking(false);
                                 setQuickBookingDate(selectedDate || new Date().toISOString().split('T')[0]);
                                 const cId = apt.clienteId?._id || apt.clienteId;
-                                if (cId) handleLoadFutureAppointments(cId);
+                                if (cId) handleLoadFutureAppointments(cId, apt._id, apt.data || selectedDate, apt.horario);
                               }}
                             >
                               <i className="fa-solid fa-calendar-days"></i>
@@ -2485,7 +2503,7 @@ export default function AgendaCompletaPanel({
                           Próximos Agendamentos do Aluno
                         </div>
                         <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                          Sessões e treinos programados a partir de hoje ({new Date().toLocaleDateString('pt-BR')})
+                          Sessões e treinos posteriores a este agendamento
                         </div>
                       </div>
 
@@ -2684,7 +2702,7 @@ export default function AgendaCompletaPanel({
                           Nenhum agendamento futuro
                         </div>
                         <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '16px', maxWidth: '320px', margin: '0 auto 16px' }}>
-                          Não constam outras sessões agendadas para este aluno a partir de hoje.
+                          Não constam outras sessões agendadas para este aluno a partir deste horário.
                         </div>
                         {!isQuickBooking && (
                           <button
@@ -2722,16 +2740,15 @@ export default function AgendaCompletaPanel({
                         paddingRight: '4px'
                       }}>
                         {clientFutureApts.map((apt: any) => {
-                          const isSameAsInspected = apt._id === inspectApt._id;
-                          const sColor = getServiceColor(apt.servico);
+                                                    const sColor = getServiceColor(apt.servico);
                           const profName = getProfShortName(apt.profissionalDesignadoId || apt.profissionalId);
 
                           return (
                             <div
                               key={apt._id}
                               style={{
-                                background: isSameAsInspected ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                                border: isSameAsInspected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-color)',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                border: '1px solid var(--border-color)',
                                 borderRadius: '10px',
                                 padding: '10px 12px',
                                 display: 'flex',
@@ -2780,18 +2797,7 @@ export default function AgendaCompletaPanel({
                                       📌 Fixo
                                     </span>
                                   )}
-                                  {isSameAsInspected && (
-                                    <span style={{
-                                      fontSize: '0.65rem',
-                                      fontWeight: 700,
-                                      padding: '2px 6px',
-                                      borderRadius: '5px',
-                                      background: 'rgba(56, 189, 248, 0.2)',
-                                      color: '#38bdf8'
-                                    }}>
-                                      Sessão Atual
-                                    </span>
-                                  )}
+                                  
                                 </div>
 
                                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
