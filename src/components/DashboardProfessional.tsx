@@ -7530,6 +7530,7 @@ goniometria: {
           userRole="professional"
           professionalId={professionalId}
           userName={currentProf?.nome || (session?.user as any)?.nome || session?.user?.name || ''}
+          isColetivo={isColetivo}
           onOpenEmergencyFinalization={handleOpenEmergencyFinalization}
         />
       )}

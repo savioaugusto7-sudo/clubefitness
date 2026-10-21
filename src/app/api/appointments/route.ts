@@ -723,11 +723,20 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Appointment not found' }, { status: 404 });
     }
 
+    let updatedDirectly = false;
+
+    // Suporte para atualizar profissionalId diretamente
+    if (profissionalId !== undefined) {
+      appointment.profissionalId = (profissionalId && profissionalId !== '') ? profissionalId : null;
+      updatedDirectly = true;
+    }
+
     // Suporte para atualizar observações diretamente
     if (observacoes !== undefined) {
       const obsTrimmed = observacoes?.trim() || '';
       appointment.observacoes = obsTrimmed;
       appointment.observacaoDataHora = obsTrimmed ? new Date() : null;
+      updatedDirectly = true;
     }
 
     // Suporte para atualizar treinoExecutado
@@ -741,14 +750,12 @@ export async function PUT(request: Request) {
         dataHora: treinoExecutado.dataHora ? new Date(treinoExecutado.dataHora) : new Date(),
         registradoPor: treinoExecutado.registradoPor || profissionalId || null
       } : null;
-      if (!status) {
-        await appointment.save();
-        return NextResponse.json({ success: true, data: appointment });
-      }
+      updatedDirectly = true;
     }
 
-    if (observacoes !== undefined && !status) {
+    if (updatedDirectly && !status) {
       await appointment.save();
+      await appointment.populate('profissionalId', 'nome email especialidade');
       return NextResponse.json({ success: true, data: appointment });
     }
 
@@ -863,6 +870,7 @@ export async function PUT(request: Request) {
       }
     }
 
+    await appointment.populate('profissionalId', 'nome email especialidade');
     return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

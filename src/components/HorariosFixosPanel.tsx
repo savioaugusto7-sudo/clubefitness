@@ -142,6 +142,7 @@ export default function HorariosFixosPanel({
 
   const [modalClient, setModalClient] = useState('');
   const [modalProf, setModalProf] = useState('');
+  const [hasCustomProf, setHasCustomProf] = useState(false);
   const [modalService, setModalService] = useState('Treino Monitorado');
   const [modalStartDate, setModalStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [modalDurationType, setModalDurationType] = useState<'indeterminado' | 'manual'>('indeterminado');
@@ -390,6 +391,7 @@ export default function HorariosFixosPanel({
     setEditingGroup(null);
     setModalClient('');
     setModalProf('');
+    setHasCustomProf(false);
     setModalService('Treino Monitorado');
     setModalStartDate(new Date().toISOString().split('T')[0]);
     setModalDurationType('indeterminado');
@@ -420,7 +422,9 @@ export default function HorariosFixosPanel({
   const handleOpenEditModal = (group: any) => {
     setEditingGroup(group);
     setModalClient(group.client?._id || group.client || '');
-    setModalProf(group.professional?._id || group.professional || '');
+    const curProfId = group.professional?._id || group.professional || '';
+    setModalProf(curProfId);
+    setHasCustomProf(Boolean(curProfId));
     setModalService(group.servico || 'Treino Monitorado');
     setModalStartDate(group.dataInicio || new Date().toISOString().split('T')[0]);
     setExceptionsMap({});
@@ -1438,36 +1442,71 @@ export default function HorariosFixosPanel({
                   />
                 </div>
 
-                {/* Seleção da Agenda / Profissional Responsável */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                    Agenda / Profissional Responsável
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={modalProf}
-                    onChange={e => {
-                      const pId = e.target.value;
-                      setModalProf(pId);
-                      if (pId) {
-                        setModalService('Atendimento Individual');
-                      } else {
-                        setModalService('Treino Monitorado');
-                      }
+                {/* Opção Colapsada: Determinar profissional para este agendamento fixo? */}
+                <div
+                  style={{
+                    background: 'var(--bg-card, rgba(255, 255, 255, 0.03))',
+                    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}
+                >
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.86rem',
+                      userSelect: 'none',
+                      margin: 0,
+                      color: 'var(--text-main, #ffffff)'
                     }}
                   >
-                    <option value="">🏋️ Treino Monitorado / Geral (Academia)</option>
-                    {professionals
-                      .filter(p => {
-                        const name = (p.nome || '').toLowerCase();
-                        return name.includes('guilherme') || name.includes('albert') || (p.especialidade || '').toLowerCase().includes('fisio');
-                      })
-                      .map(p => (
-                        <option key={p._id} value={p._id}>
-                          🩺 {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
-                        </option>
-                      ))}
-                  </select>
+                    <input
+                      type="checkbox"
+                      checked={hasCustomProf}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setHasCustomProf(checked);
+                        if (!checked) {
+                          setModalProf('');
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                    />
+                    <span>Determinar profissional para este agendamento fixo?</span>
+                  </label>
+
+                  {hasCustomProf && (
+                    <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: '6px', display: 'block', color: 'var(--text-muted)' }}>
+                        Selecione o Profissional Responsável:
+                      </label>
+                      <select
+                        className="select-custom"
+                        value={modalProf}
+                        onChange={e => setModalProf(e.target.value)}
+                        style={{ width: '100%' }}
+                      >
+                        <option value="">Selecione um profissional...</option>
+                        {professionals
+                          .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                          .map(p => (
+                            <option key={p._id} value={p._id}>
+                              {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', display: 'block', marginTop: '4px' }}>
+                        O profissional será exibido como referência operacional e poderá ser editado pontualmente na Agenda Geral.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Serviço e Data de Início */}
@@ -1481,23 +1520,17 @@ export default function HorariosFixosPanel({
                       value={modalService}
                       onChange={e => setModalService(e.target.value)}
                     >
-                      {modalProf ? (
-                        <>
-                          <option value="Atendimento Individual">Atendimento Individual</option>
-                          <option value="Consulta">Consulta</option>
-                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                          <option value="Avaliação Física">Avaliação Física</option>
-                          <option value="Teste de Força">Teste de Força</option>
-                          <option value="Quiropraxia">Quiropraxia</option>
-                          <option value="Terapia Manual">Terapia Manual</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Treino Monitorado">Treino Monitorado</option>
-                          <option value="Treino Livre">Treino Livre</option>
-                          <option value="Atendimento Individual">Atendimento Individual</option>
-                        </>
-                      )}
+                      <option value="Treino Monitorado">Treino Monitorado</option>
+                      <option value="Treino Livre">Treino Livre</option>
+                      <option value="Atendimento Individual">Atendimento Individual</option>
+                      <option value="Consulta">Consulta</option>
+                      <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                      <option value="Avaliação Física">Avaliação Física</option>
+                      <option value="Teste de Força">Teste de Força</option>
+                      <option value="Quiropraxia">Quiropraxia</option>
+                      <option value="Terapia Manual">Terapia Manual</option>
+                      <option value="Massagem">Massagem</option>
+                      <option value="Recovery">Recovery</option>
                     </select>
                   </div>
 

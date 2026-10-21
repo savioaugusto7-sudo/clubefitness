@@ -226,7 +226,7 @@ async function generateAppointmentsForFixedSchedules(
             servico: pair.schedule.servico || 'Treino Monitorado',
             consumeCredito: true,
             tipoCredito: 'academia',
-            profissionalId: resolvedTipo === 'academia' ? null : profId,
+            profissionalId: profId || null,
             clienteId: pair.schedule.clienteId,
             status: 'agendado',
             origemHorarioFixo: true,

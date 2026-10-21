@@ -114,6 +114,9 @@ interface ProfessionalInfo {
   nome: string;
   especialidade: string;
   registro: string;
+  userId?: any;
+  pin?: string;
+  status?: string;
   googleTokens?: {
     accessToken?: string;
     refreshToken?: string;
@@ -147,6 +150,7 @@ interface AgendaCompletaPanelProps {
   userRole?: 'admin' | 'receptionist' | 'professional' | 'client';
   professionalId?: string;
   userName?: string;
+  isColetivo?: boolean;
   onOpenEmergencyFinalization?: (apt: any) => void;
 }
 
@@ -156,8 +160,10 @@ export default function AgendaCompletaPanel({
   userRole,
   professionalId,
   userName,
+  isColetivo: isColetivoProp,
   onOpenEmergencyFinalization
 }: AgendaCompletaPanelProps) {
+  const isColetivo = isColetivoProp ?? ((userName || '').toLowerCase().includes('coletivo'));
   // Aba selecionada: 'academia' | 'dr_albert' | 'dr_guilherme' | 'consultorio' | professionalId
   const [activeTab, setActiveTab] = useState<string>(() => {
     const isGuilherme = (userName || '').toLowerCase().includes('guilherme') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('guilherme');
@@ -237,37 +243,195 @@ export default function AgendaCompletaPanel({
     return `${formattedDate} (${capitalizedDay})`;
   };
 
-  // Salvar observação clínica diretamente no agendamento
-  const handleSaveObservation = async () => {
-    if (!inspectApt) return;
-    setSavingObs(true);
+  // Helpers para Profissional Designado
+  const getProfShortName = (profField: any) => {
+    if (!profField) return '';
+    if (typeof profField === 'object' && profField.nome) {
+      return profField.nome.split(' ')[0];
+    }
+    const pid = typeof profField === 'object' ? (profField._id || profField.userId) : profField;
+    const found = professionals.find(p => String(p._id) === String(pid) || String(p.userId) === String(pid));
+    return found?.nome ? found.nome.split(' ')[0] : '';
+  };
+
+  const getProfFullName = (profField: any) => {
+    if (!profField) return 'Não atribuído';
+    if (typeof profField === 'object' && profField.nome) {
+      return profField.nome;
+    }
+    const pid = typeof profField === 'object' ? (profField._id || profField.userId) : profField;
+    const found = professionals.find(p => String(p._id) === String(pid) || String(p.userId) === String(pid));
+    return found?.nome || 'Não atribuído';
+  };
+
+  // States para Designação de Profissional em inspectApt
+  const [isEditingProf, setIsEditingProf] = useState(false);
+  const [editProfId, setEditProfId] = useState('');
+  const [savingProf, setSavingProf] = useState(false);
+
+  // States para Autenticação / Auditoria via PIN no Computador Coletivo
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinProfId, setPinProfId] = useState('');
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinPendingAction, setPinPendingAction] = useState<{
+    actionName: string;
+    clientId: string | null;
+    actionDetails: string;
+    callback: (executorProfId: string) => Promise<void> | void;
+  } | null>(null);
+
+  const logActivity = async (
+    profId: string,
+    isCollective: boolean,
+    actionName: string,
+    clientId: string | null,
+    actionDetails: string
+  ) => {
     try {
-      const res = await fetch('/api/appointments', {
-        method: 'PUT',
+      await fetch('/api/admin/activity-logs', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: inspectApt._id,
-          observacoes: editObsText
+          profissionalId: profId || null,
+          clienteId: clientId || null,
+          acao: actionName,
+          detalhes: actionDetails,
+          origem: isCollective ? 'Computador Coletivo' : 'Acesso Direto'
         })
       });
-      const data = await res.json();
-      if (data.success) {
-        showFeedback('Observação clínica atualizada com sucesso!', 'success');
-        setInspectApt((prev: any) => prev ? {
-          ...prev,
-          observacoes: editObsText.trim(),
-          observacaoDataHora: editObsText.trim() ? new Date().toISOString() : null
-        } : null);
-        setIsEditingObs(false);
-        fetchSlotsAndConfigs();
-      } else {
-        showFeedback(data.error || 'Erro ao salvar observação.', 'danger');
-      }
-    } catch (e: any) {
-      showFeedback('Erro de conexão: ' + e.message, 'danger');
-    } finally {
-      setSavingObs(false);
+    } catch (err) {
+      console.error('Falha ao registrar log de atividade:', err);
     }
+  };
+
+  const executeWithPinProtection = (
+    actionName: string,
+    clientId: string | null,
+    actionDetails: string,
+    callback: (executorProfId: string) => Promise<void> | void
+  ) => {
+    if (isColetivo) {
+      const validProfs = professionals.filter(p => !p.nome?.toLowerCase().includes('coletivo') && (p as any).status !== 'inativo');
+      setPinProfId(validProfs[0]?._id || '');
+      setPinValue('');
+      setPinError('');
+      setPinPendingAction({ actionName, clientId, actionDetails, callback });
+      setShowPinModal(true);
+    } else {
+      const profId = professionalId || '';
+      callback(profId);
+      logActivity(profId, false, actionName, clientId, actionDetails);
+    }
+  };
+
+  const handlePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const prof = professionals.find(p => p._id === pinProfId);
+    if (!prof) {
+      setPinError('Selecione um profissional.');
+      return;
+    }
+    const expectedPin = ((prof as any).pin || '1234').trim();
+    if (expectedPin === pinValue.trim()) {
+      setShowPinModal(false);
+      if (pinPendingAction) {
+        await pinPendingAction.callback(prof._id);
+        await logActivity(prof._id, true, pinPendingAction.actionName, pinPendingAction.clientId, pinPendingAction.actionDetails);
+        setPinPendingAction(null);
+      }
+    } else {
+      setPinError('PIN incorreto. Tente novamente.');
+    }
+  };
+
+  // Salvar profissional designado pontualmente para esta sessão
+  const handleSaveProfessional = () => {
+    if (!inspectApt) return;
+    const oldProfName = getProfFullName(inspectApt.profissionalId);
+    const newProfObj = professionals.find(p => p._id === editProfId);
+    const newProfName = newProfObj ? newProfObj.nome : 'Nenhum / Removido';
+    const cName = inspectApt.clienteId?.dadosPessoais?.nome || 'Aluno';
+    const details = `Horário: ${inspectApt.horario} | Data: ${inspectApt.data || selectedDate} | Aluno: ${cName} | De: ${oldProfName} -> Para: ${newProfName}`;
+
+    executeWithPinProtection(
+      'Alterou Profissional Designado',
+      inspectApt.clienteId?._id || inspectApt.clienteId || null,
+      details,
+      async () => {
+        setSavingProf(true);
+        try {
+          const res = await fetch('/api/appointments', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: inspectApt._id,
+              profissionalId: editProfId || null
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showFeedback('Profissional designado atualizado com sucesso!', 'success');
+            const updatedProf = editProfId ? (newProfObj || { _id: editProfId, nome: newProfName }) : null;
+            setInspectApt((prev: any) => prev ? {
+              ...prev,
+              profissionalId: updatedProf
+            } : null);
+            setIsEditingProf(false);
+            fetchSlotsAndConfigs();
+          } else {
+            showFeedback(data.error || 'Erro ao atualizar profissional.', 'danger');
+          }
+        } catch (e: any) {
+          showFeedback('Erro de conexão: ' + e.message, 'danger');
+        } finally {
+          setSavingProf(false);
+        }
+      }
+    );
+  };
+
+  // Salvar observação clínica diretamente no agendamento com proteção de PIN no coletivo
+  const handleSaveObservation = () => {
+    if (!inspectApt) return;
+    const cName = inspectApt.clienteId?.dadosPessoais?.nome || 'Aluno';
+    const details = `Horário: ${inspectApt.horario} | Data: ${inspectApt.data || selectedDate} | Aluno: ${cName} | Nova Obs: ${editObsText.trim()}`;
+
+    executeWithPinProtection(
+      'Atualizou Observação Clínica',
+      inspectApt.clienteId?._id || inspectApt.clienteId || null,
+      details,
+      async () => {
+        setSavingObs(true);
+        try {
+          const res = await fetch('/api/appointments', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: inspectApt._id,
+              observacoes: editObsText
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showFeedback('Observação clínica atualizada com sucesso!', 'success');
+            setInspectApt((prev: any) => prev ? {
+              ...prev,
+              observacoes: editObsText.trim(),
+              observacaoDataHora: editObsText.trim() ? new Date().toISOString() : null
+            } : null);
+            setIsEditingObs(false);
+            fetchSlotsAndConfigs();
+          } else {
+            showFeedback(data.error || 'Erro ao salvar observação.', 'danger');
+          }
+        } catch (e: any) {
+          showFeedback('Erro de conexão: ' + e.message, 'danger');
+        } finally {
+          setSavingObs(false);
+        }
+      }
+    );
   };
 
   // Notificação temporária
@@ -545,30 +709,45 @@ export default function AgendaCompletaPanel({
     }
   };
 
-  const handleRemoveAppointment = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir permanentemente este agendamento?')) return;
-    try {
-      const res = await fetch(`/api/appointments?id=${id}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (data.success) {
-        showFeedback('Agendamento excluído com sucesso!', 'success');
-        if (selectedSlot) {
-          const updatedApts = selectedSlot.appointments.filter(a => a._id !== id);
-          setSelectedSlot({
-            ...selectedSlot,
-            appointments: updatedApts,
-            vagasOcupadas: Math.max(0, selectedSlot.vagasOcupadas - 1)
+  const handleRemoveAppointment = (id: string) => {
+    const targetApt = selectedSlot?.appointments.find(a => a._id === id) || inspectApt;
+    const clientName = targetApt?.clienteId?.dadosPessoais?.nome || 'Aluno';
+    const details = `Horário: ${targetApt?.horario || ''} | Data: ${targetApt?.data || selectedDate} | Aluno: ${clientName} | Serviço: ${targetApt?.servico || ''}`;
+
+    if (!confirm(`Tem certeza que deseja excluir o agendamento de ${clientName}?`)) return;
+
+    executeWithPinProtection(
+      'Excluiu Agendamento na Grade',
+      targetApt?.clienteId?._id || targetApt?.clienteId || null,
+      details,
+      async () => {
+        try {
+          const res = await fetch(`/api/appointments?id=${id}`, {
+            method: 'DELETE'
           });
+          const data = await res.json();
+          if (data.success) {
+            showFeedback('Agendamento excluído com sucesso!', 'success');
+            if (selectedSlot) {
+              const updatedApts = selectedSlot.appointments.filter(a => a._id !== id);
+              setSelectedSlot({
+                ...selectedSlot,
+                appointments: updatedApts,
+                vagasOcupadas: Math.max(0, selectedSlot.vagasOcupadas - 1)
+              });
+            }
+            if (inspectApt?._id === id) {
+              setInspectApt(null);
+            }
+            fetchSlotsAndConfigs();
+          } else {
+            showFeedback(data.error || 'Erro ao excluir agendamento', 'danger');
+          }
+        } catch (e) {
+          showFeedback('Erro de rede ao excluir.', 'danger');
         }
-        fetchSlotsAndConfigs();
-      } else {
-        showFeedback(data.error || 'Erro ao excluir agendamento', 'danger');
       }
-    } catch (e) {
-      showFeedback('Erro de rede ao excluir.', 'danger');
-    }
+    );
   };
 
   const handleManualBook = async (remanejarDeAptId?: string) => {
@@ -603,9 +782,7 @@ export default function AgendaCompletaPanel({
       const pGuilherme = professionals.find(p => p.nome.toLowerCase().includes('guilherme'));
       defaultProfId = pGuilherme?._id || '';
     }
-    if (!defaultProfId) {
-      defaultProfId = professionals[0]?._id || '6668ab030303030303030302';
-    }
+    const resolvedProfId = manualProfId || defaultProfId || null;
 
     const payload: any = {
       data: selectedDate,
@@ -613,7 +790,7 @@ export default function AgendaCompletaPanel({
       tipo: selectedSlot?.tipo || activeTab,
       servico: manualService,
       clienteId: targetClientId,
-      profissionalId: defaultProfId,
+      profissionalId: resolvedProfId,
       bypassRestrictions: true
     };
 
@@ -631,12 +808,13 @@ export default function AgendaCompletaPanel({
       if (data.success) {
         showFeedback(remanejarDeAptId ? 'Horário remanejado com sucesso!' : 'Cliente agendado com sucesso!', 'success');
         setManualClientId('');
+        setManualProfId('');
         setClientSearchText('');
         setBookingError('');
         
         const newApt = data.data;
         const c = clients.find(cl => cl._id === targetClientId);
-        const p = professionals.find(pr => pr._id === defaultProfId);
+        const p = resolvedProfId ? professionals.find(pr => pr._id === resolvedProfId) : null;
         newApt.clienteId = c;
         newApt.profissionalId = p;
 
@@ -865,6 +1043,9 @@ export default function AgendaCompletaPanel({
                                      setInspectApt(apt);
                                      setEditObsText(apt.observacoes || '');
                                      setIsEditingObs(false);
+                                     const curPid = apt.profissionalId?._id || apt.profissionalId || '';
+                                     setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
+                                     setIsEditingProf(false);
                                    }}
                                    title={
                                      isDynamus 
@@ -970,6 +1151,29 @@ export default function AgendaCompletaPanel({
                                    >
                                      {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
                                    </span>
+                                   {(() => {
+                                     const pShort = getProfShortName(apt.profissionalId);
+                                     if (!pShort) return null;
+                                     return (
+                                       <span
+                                         style={{
+                                           fontSize: '0.64rem',
+                                           fontWeight: 700,
+                                           padding: '1px 6px',
+                                           borderRadius: '8px',
+                                           background: 'rgba(59, 130, 246, 0.12)',
+                                           color: '#3b82f6',
+                                           border: '1px solid rgba(59, 130, 246, 0.3)',
+                                           letterSpacing: '0.2px',
+                                           pointerEvents: 'none',
+                                           display: 'inline-flex',
+                                           alignItems: 'center'
+                                         }}
+                                       >
+                                         [Prof: {pShort}]
+                                       </span>
+                                     );
+                                   })()}
                                    {hasObs && (
                                       <span
                                         style={{
@@ -1294,7 +1498,7 @@ export default function AgendaCompletaPanel({
                               CPF: {apt.clienteId?.dadosPessoais?.cpf || '—'} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
                             </div>
                             <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                              Profissional: <strong style={{ color: 'var(--color-primary)' }}>{apt.profissionalId?.dadosPessoais?.nome || 'Equipe'}</strong> · Serviço: <strong>{apt.servico}</strong>
+                              Profissional: <strong style={{ color: 'var(--color-primary)' }}>{getProfFullName(apt.profissionalId)}</strong> · Serviço: <strong>{apt.servico}</strong>
                             </div>
                             {apt.observacoes && (
                               <div style={{
@@ -1443,6 +1647,27 @@ export default function AgendaCompletaPanel({
                             <option value="Atendimento Individual">Atendimento Individual</option>
                           </>
                         )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                        Profissional Designado (Opcional)
+                      </label>
+                      <select
+                        className="select-custom"
+                        value={manualProfId}
+                        onChange={e => setManualProfId(e.target.value)}
+                        style={{ width: '100%', padding: '10px' }}
+                      >
+                        <option value="">Nenhum / Não atribuído</option>
+                        {professionals
+                          .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                          .map(p => (
+                            <option key={p._id} value={p._id}>
+                              {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                            </option>
+                          ))}
                       </select>
                     </div>
 
@@ -1656,6 +1881,123 @@ export default function AgendaCompletaPanel({
                   )}
                 </div>
 
+                {/* Bloco de Profissional Designado (Designação Operacional) */}
+                <div style={{ background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '14px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontWeight: 800, fontSize: '0.88rem' }}>
+                      <i className="fa-solid fa-user-check"></i> Profissional Designado
+                    </div>
+                    {!isEditingProf && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingProf(true);
+                          const curPid = inspectApt.profissionalId?._id || inspectApt.profissionalId || '';
+                          setEditProfId(typeof curPid === 'object' ? curPid._id || '' : curPid);
+                        }}
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          border: '1px solid rgba(59, 130, 246, 0.35)',
+                          color: '#60a5fa',
+                          borderRadius: '8px',
+                          padding: '4px 12px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i> {inspectApt.profissionalId ? 'Alterar' : 'Designar'}
+                      </button>
+                    )}
+                  </div>
+
+                  {isEditingProf ? (
+                    <div>
+                      <select
+                        className="select-custom"
+                        value={editProfId}
+                        onChange={e => setEditProfId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: '#080b11',
+                          color: 'var(--text-main)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        <option value="">Nenhum / Não atribuído</option>
+                        {professionals
+                          .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                          .map(p => (
+                            <option key={p._id} value={p._id}>
+                              {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingProf(false)}
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-muted)',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingProf}
+                          onClick={handleSaveProfessional}
+                          style={{
+                            background: '#3b82f6',
+                            border: 'none',
+                            color: '#fff',
+                            padding: '8px 18px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          {savingProf ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                          Salvar Profissional
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.92rem', color: '#ffffff', fontWeight: 600 }}>
+                      {inspectApt.profissionalId ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#93c5fd' }}>{getProfFullName(inspectApt.profissionalId)}</span>
+                          {inspectApt.origemHorarioFixo && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                              (origem: horário fixo)
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic', fontWeight: 400 }}>
+                          Nenhum profissional determinado para este agendamento.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Bloco de Observação Clínica com Timestamp */}
                 <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px', padding: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -1863,17 +2205,166 @@ export default function AgendaCompletaPanel({
                 </div>
               </div>
 
-              <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '8px 14px' }}
+                  title="Excluir este agendamento"
+                  onClick={() => handleRemoveAppointment(inspectApt._id)}
+                >
+                  <i className="fa-solid fa-trash-can"></i> Excluir Agendamento
+                </button>
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => { setInspectApt(null); setIsEditingObs(false); }}
+                  onClick={() => { setInspectApt(null); setIsEditingObs(false); setIsEditingProf(false); }}
                   style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '0.85rem' }}
                 >
                   Fechar
                 </button>
               </div>
 
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* MODAL: Autenticação de PIN para Computador Coletivo */}
+      {showPinModal && (
+        <ModalPortal>
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0, 0, 0, 0.75)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 999999,
+              backdropFilter: 'blur(4px)'
+            }}
+            onClick={() => setShowPinModal(false)}
+          >
+            <div
+              className="modal-content"
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: '420px',
+                width: '90%',
+                background: '#0e131f',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                className="modal-header"
+                style={{
+                  background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                  color: '#fff',
+                  padding: '16px 20px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+                }}
+              >
+                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-shield-halved" style={{ color: '#3b82f6' }}></i>
+                  Computador Coletivo • Confirmação
+                </h4>
+                <button
+                  className="modal-close"
+                  onClick={() => setShowPinModal(false)}
+                  style={{ color: '#94a3b8', background: 'transparent', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handlePinSubmit} style={{ margin: 0, padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px', padding: '10px 14px', fontSize: '0.8rem', color: '#93c5fd' }}>
+                  Ação: <strong>{pinPendingAction?.actionName || 'Operação na Agenda'}</strong>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Identifique-se com seu PIN para auditoria e rastreabilidade desta alteração.
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                    Quem é você? (Profissional)
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={pinProfId}
+                    onChange={e => {
+                      setPinProfId(e.target.value);
+                      setPinError('');
+                    }}
+                    style={{ width: '100%', padding: '10px 12px' }}
+                    required
+                  >
+                    {professionals
+                      .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                      .map(p => (
+                        <option key={p._id} value={p._id}>
+                          {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                    Seu PIN (4 dígitos numéricos)
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    inputMode="numeric"
+                    className="form-control"
+                    placeholder="••••"
+                    value={pinValue}
+                    onChange={e => {
+                      setPinValue(e.target.value);
+                      setPinError('');
+                    }}
+                    autoFocus
+                    style={{ width: '100%', textAlign: 'center', fontSize: '1.4rem', letterSpacing: '8px', padding: '10px' }}
+                    required
+                  />
+                </div>
+
+                {pinError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-circle-exclamation"></i> {pinError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowPinModal(false)}
+                    style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '0.84rem' }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ padding: '8px 20px', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 700 }}
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </ModalPortal>
