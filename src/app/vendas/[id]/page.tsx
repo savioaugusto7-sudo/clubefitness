@@ -6,6 +6,7 @@ import { generateContractTemplate } from '@/utils/contractTemplate';
 import { getCardRateForInstallment } from '@/utils/paymentRates';
 import { isMinorFromBirthDate } from '@/utils/dateUtils';
 import { calculateContractEndDate } from '@/utils/contractValidity';
+import { downloadContractSummaryPDF } from '@/utils/pdfGenerator';
 
 export default function VendaPage({ params }: { params: any }) {
   const router = useRouter();
@@ -682,11 +683,34 @@ export default function VendaPage({ params }: { params: any }) {
         <form onSubmit={handleProceedToContractReview}>
           {/* 1. Proposta Comercial */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
-            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '15px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-solid fa-file-invoice-dollar"></i> Proposta Comercial Negociada
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '15px' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-file-invoice-dollar"></i> Proposta Comercial Negociada
+              </h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => downloadContractSummaryPDF(proposal.clientId, proposal, null)}
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  borderColor: 'rgba(56, 189, 248, 0.35)',
+                  color: '#38bdf8',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+                title="Baixar PDF de Resumo Oficial do Plano com todos os benefícios inclusos"
+              >
+                <i className="fa-solid fa-file-pdf"></i> Baixar Resumo Oficial (PDF)
+              </button>
+            </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
               <div>
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Plano</span>
                 <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0' }}>{proposal.planoNome}</p>
@@ -695,6 +719,15 @@ export default function VendaPage({ params }: { params: any }) {
                     ? 'Mensal Recorrente' 
                     : `Vigência: ${proposal.duracao === 'semana' ? `${proposal.vigenciaQtd} semana(s)` : proposal.duracao === 'mensal' ? `${proposal.vigenciaQtd} mês(es)` : `${proposal.vigenciaQtd} ano(s)`}`
                   }
+                </small>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Treino Monitorado</span>
+                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0', color: '#38bdf8' }}>
+                  {proposal.frequencia || 2}× por semana
+                </p>
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block', marginTop: '2px' }}>
+                  Supervisão profissional direta
                 </small>
               </div>
               <div>
@@ -716,6 +749,27 @@ export default function VendaPage({ params }: { params: any }) {
                     (R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês no usufruto)
                   </small>
                 )}
+              </div>
+            </div>
+
+            {/* Grid de Benefícios Inclusos */}
+            <div style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '16px' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '10px' }}>
+                <i className="fa-solid fa-gift" style={{ color: '#38bdf8', marginRight: '6px' }}></i> Benefícios Inclusos no Seu Plano
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '0.85rem' }}>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <strong style={{ color: '#fff', display: 'block' }}>● Treino Livre Flexibilidade</strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Até {Math.max(0, 5 - (proposal.frequencia || 2))} sessões adicionais/semana</span>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <strong style={{ color: '#fff', display: 'block' }}>● Aulas Coletivas Dynamus</strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Yoga, Artes Marciais & Treino Funcional</span>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <strong style={{ color: '#fff', display: 'block' }}>● Frequência Total Flexível</strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Acesso de segunda a sexta para treinos</span>
+                </div>
               </div>
             </div>
           </div>

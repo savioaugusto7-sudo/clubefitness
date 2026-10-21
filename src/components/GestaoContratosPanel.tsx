@@ -4769,68 +4769,94 @@ export default function GestaoContratosPanel({
                                 </button>
                               )}
 
-                              {/* 2. Linha de Ações Secundárias Simétricas (3 botões) */}
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                              {/* 2. Linha de Ações Secundárias Simétricas (4 botões) */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px' }}>
                                 <button
                                   type="button"
                                   onClick={() => handleManualActivateClient(c, latestProposal)}
                                   style={{
-                                    padding: '8px 6px',
+                                    padding: '8px 4px',
                                     borderRadius: '8px',
                                     border: '1px solid rgba(16, 185, 129, 0.4)',
                                     background: 'rgba(16, 185, 129, 0.15)',
                                     color: '#34d399',
                                     fontWeight: 700,
-                                    fontSize: '0.74rem',
+                                    fontSize: '0.72rem',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '4px'
+                                    gap: '3px'
                                   }}
                                   title="Validar fechamento manual e ativar o aluno como Contrato Vigente"
                                 >
-                                  <i className="fa-solid fa-circle-check"></i> Fechar Manual
+                                  <i className="fa-solid fa-circle-check"></i> Fechar
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const pId = latestProposal?.planoId?._id || latestProposal?.planoId || com.planoId?._id || com.planoId;
+                                    const pPlan = plans.find(p => p._id === pId || p.nome === latestProposal?.planoNome) || plan;
+                                    downloadContractSummaryPDF(c, latestProposal, pPlan);
+                                  }}
+                                  style={{
+                                    padding: '8px 4px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                                    background: 'rgba(56, 189, 248, 0.12)',
+                                    color: '#38bdf8',
+                                    fontWeight: 700,
+                                    fontSize: '0.72rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '3px'
+                                  }}
+                                  title="Baixar PDF de Resumo do Plano desta proposta negociada"
+                                >
+                                  <i className="fa-solid fa-file-pdf"></i> Resumo
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleSelectClient(c)}
                                   style={{
-                                    padding: '8px 6px',
+                                    padding: '8px 4px',
                                     borderRadius: '8px',
                                     border: '1px solid rgba(255, 255, 255, 0.12)',
                                     background: 'rgba(255, 255, 255, 0.06)',
                                     color: '#f1f5f9',
                                     fontWeight: 700,
-                                    fontSize: '0.74rem',
+                                    fontSize: '0.72rem',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '4px'
+                                    gap: '3px'
                                   }}
                                   title="Abrir o workspace completo do aluno"
                                 >
-                                  <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i> Workspace
+                                  <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i> Espaço
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleCancelProposal(c, latestProposal)}
                                   style={{
-                                    padding: '8px 6px',
+                                    padding: '8px 4px',
                                     borderRadius: '8px',
                                     border: '1px solid rgba(239, 68, 68, 0.4)',
                                     background: 'rgba(239, 68, 68, 0.12)',
                                     color: '#f87171',
                                     fontWeight: 700,
-                                    fontSize: '0.74rem',
+                                    fontSize: '0.72rem',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '4px'
+                                    gap: '3px'
                                   }}
                                   title="Descartar esta proposta pendente"
                                 >
@@ -6479,9 +6505,12 @@ export default function GestaoContratosPanel({
                   alert('Selecione um cliente para gerar o resumo do plano.');
                   return;
                 }
-                const plan = plans.find(p => p._id === dcPlano);
-                const activeContract = contracts.find(c => c.status === 'ativo' || c.status === 'vigente') || contracts[0];
-                downloadContractSummaryPDF(selectedClient, activeContract, plan);
+                const activeContract = contracts.find(c => c.status === 'ativo' || c.status === 'vigente') || (contracts.length > 0 && contracts[0].status === 'assinado' ? contracts[0] : null);
+                const currentProp = activeProposal || allProposalsMap[selectedClient._id] || null;
+                const targetDoc = activeContract || currentProp || contracts[0] || null;
+                const planIdStr = targetDoc?.planoId?._id || targetDoc?.planoId || dcPlano;
+                const plan = plans.find(p => p._id === planIdStr || p.nome === targetDoc?.planoNome) || plans.find(p => p._id === dcPlano);
+                downloadContractSummaryPDF(selectedClient, targetDoc, plan, currentProp);
               }}
             >
               <i className="fa-solid fa-file-invoice"></i> Baixar Resumo do Plano (Boas-Vindas)
@@ -6828,7 +6857,7 @@ export default function GestaoContratosPanel({
                 style={{ background: '#25D366', borderColor: '#25D366', color: '#fff', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: '4px', fontWeight: 'bold' }}
                 onClick={() => {
                   const clientName = selectedClient?.dadosPessoais?.nome ? ` *${selectedClient.dadosPessoais.nome}*` : '';
-                  const planName = plans.find(p => p._id === dcPlano)?.nome || '';
+                  const planName = activeProposal?.planoNome || plans.find(p => p._id === (activeProposal?.planoId || dcPlano))?.nome || '';
                   const phone = (selectedClient?.dadosPessoais?.telefone || '').replace(/\D/g, '');
                   const message = 
                     `🏋️‍♂️ *Olá${clientName}! Tudo bem?*\n\n` +
@@ -6844,6 +6873,38 @@ export default function GestaoContratosPanel({
                 }}
               >
                 <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar via WhatsApp
+              </button>
+
+              {/* Botão Baixar Resumo Oficial do Plano (PDF) */}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(14, 165, 233, 0.15) 100%)',
+                  borderColor: 'rgba(56, 189, 248, 0.4)',
+                  color: '#38bdf8',
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  marginTop: '8px',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  padding: '10px 14px'
+                }}
+                title="Baixar PDF com o Resumo Oficial do Plano para enviar junto ao link"
+                onClick={() => {
+                  if (!selectedClient && !activeProposal) {
+                    alert('Dados da proposta não encontrados.');
+                    return;
+                  }
+                  const planId = activeProposal?.planoId?._id || activeProposal?.planoId || dcPlano;
+                  const plan = plans.find(p => p._id === planId || p.nome === activeProposal?.planoNome);
+                  downloadContractSummaryPDF(selectedClient, activeProposal, plan);
+                }}
+              >
+                <i className="fa-solid fa-file-pdf"></i> Baixar Resumo Oficial do Plano (PDF)
               </button>
             </div>
 

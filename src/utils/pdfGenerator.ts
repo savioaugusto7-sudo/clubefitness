@@ -5419,9 +5419,9 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
 // ==========================================================
 // PDF — RESUMO OFICIAL DO PLANO & BENEFÍCIOS (CONFIRMAÇÃO DE MATRÍCULA)
 // ==========================================================
-export function downloadContractSummaryPDF(client: any, contract?: any, plan?: any) {
-  if (!client && !contract) {
-    alert('Dados do cliente ou contrato não encontrados.');
+export function downloadContractSummaryPDF(client: any, contractOrProposal?: any, plan?: any, fallbackProposal?: any) {
+  if (!client && !contractOrProposal && !fallbackProposal) {
+    alert('Dados do cliente ou da proposta/contrato não encontrados.');
     return;
   }
 
@@ -5431,13 +5431,36 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
     return;
   }
 
-  const nomeAluno = client?.dadosPessoais?.nome || client?.nome || contract?.assinaturaNome || 'Aluno';
-  const planoNome = contract?.planoNome || plan?.nome || client?.dadosComerciais?.plano || 'Clube Fitness – Monitorado';
-  const planoTipo = contract?.planoTipo || plan?.tipo || client?.dadosComerciais?.duracao || 'Anual';
+  // Resolver documento fonte: Contrato, Proposta ou Fallback
+  const doc = contractOrProposal || fallbackProposal || client?.activeProposal || null;
+  const isContratoAtivo = doc?.status === 'ativo' || doc?.status === 'assinado' || doc?.clicksignStatus === 'assinado';
+
+  // Sanitizador estrito: nunca permitir "Captação", "Lead" ou estados de funil como nome do plano
+  const isInvalidPlanName = (name?: string) => {
+    if (!name) return true;
+    const n = name.trim().toLowerCase();
+    return n.includes('captação') || n.includes('captacao') || n === 'lead' || n === 'aguardando ativação' || n === 'novo lead';
+  };
+
+  const rawPlanoNome = 
+    doc?.planoNome ||
+    (!isInvalidPlanName(plan?.nome) ? plan?.nome : null) ||
+    (!isInvalidPlanName(client?.dadosComerciais?.planoNome) ? client?.dadosComerciais?.planoNome : null) ||
+    (!isInvalidPlanName(client?.dadosComerciais?.plano) ? client?.dadosComerciais?.plano : null) ||
+    'Clube Fitness – Monitorado';
+
+  const planoNome = isInvalidPlanName(rawPlanoNome) ? 'Clube Fitness – Monitorado' : rawPlanoNome;
+
+  const nomeAluno = 
+    client?.dadosPessoais?.nome || 
+    client?.nome || 
+    doc?.dadosPreenchidos?.nome ||
+    doc?.assinaturaNome || 
+    'Aluno';
 
   // Frequência semanal
   const freq = Number(
-    contract?.frequencia ||
+    doc?.frequencia ||
     client?.dadosComerciais?.frequenciaSemanal ||
     client?.dadosComerciais?.frequencia ||
     client?.frequenciaSemanal ||
@@ -5450,7 +5473,8 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
 
   // Créditos de Massagem
   const credMassagem = Number(
-    contract?.creditosMassagemPorPlano ??
+    doc?.creditosMassagemPorPlano ??
+    doc?.creditosMassagem ??
     client?.creditosMassagemTotal ??
     client?.dadosComerciais?.creditosMassagem ??
     0
@@ -5459,24 +5483,68 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
 
   // Créditos de Emergência
   const credEmergencia = Number(
-    contract?.creditosEmergenciaPorPlano ??
+    doc?.creditosEmergenciaPorPlano ??
+    doc?.creditosEmergencia ??
     client?.creditosEmergenciaTotal ??
     client?.dadosComerciais?.creditosEmergencia ??
     0
   );
   const temEmergencia = credEmergencia > 0;
 
-  // Vigência e Datas
-  const dataInicioRaw = contract?.dataInicio || client?.dadosComerciais?.dataInicio || new Date().toISOString().split('T')[0];
-  const vigMeses = Number(
-    contract?.vigenciaMeses ||
-    (planoTipo.toLowerCase().includes('anual') ? 12 : planoTipo.toLowerCase().includes('semestral') ? 6 : 1)
-  );
+  // Duração e Vigência
+  const rawDuracao = String(
+    doc?.duracao || 
+    doc?.planoTipo || 
+    plan?.tipo || 
+    client?.dadosComerciais?.duracao || 
+    'anual'
+  ).toLowerCase();
 
-  let dataFimRaw = contract?.dataFim || client?.dadosComerciais?.dataFim;
+  const isAnual = rawDuracao.includes('anual') || planoNome.toLowerCase().includes('anual');
+  const isSemestral = rawDuracao.includes('semestral') || planoNome.toLowerCase().includes('semestral');
+  const isTrimestral = rawDuracao.includes('trimestral') || planoNome.toLowerCase().includes('trimestral');
+  const isSemanal = rawDuracao.includes('semana');
+
+  let vigMeses = Number(doc?.vigenciaMeses || 0);
+  if (!vigMeses) {
+    if (isAnual) {
+      vigMeses = (Number(doc?.vigenciaQtd) || 1) >= 12 ? Number(doc?.vigenciaQtd) : (Number(doc?.vigenciaQtd) || 1) * 12;
+    } else if (isSemestral) {
+      vigMeses = 6;
+    } else if (isTrimestral) {
+      vigMeses = 3;
+    } else if (isSemanal) {
+      vigMeses = 1;
+    } else {
+      vigMeses = Number(doc?.vigenciaQtd) || Number(client?.dadosComerciais?.vigenciaQtd) || 1;
+    }
+  }
+
+  // Duração & Formato formatada
+  let duracaoFormatada = 'Anual • 1 Ano';
+  if (isAnual || vigMeses >= 12) {
+    duracaoFormatada = 'Anual • 1 Ano';
+  } else if (isSemestral || vigMeses >= 6) {
+    duracaoFormatada = 'Semestral • 6 Meses';
+  } else if (isTrimestral || vigMeses >= 3) {
+    duracaoFormatada = 'Trimestral • 3 Meses';
+  } else if (isSemanal) {
+    const semQtd = Number(doc?.vigenciaQtd) || 1;
+    duracaoFormatada = `${semQtd} Semana${semQtd > 1 ? 's' : ''}`;
+  } else {
+    duracaoFormatada = `${vigMeses} Mês${vigMeses > 1 ? 'es' : ''}`;
+  }
+
+  // Datas de Início e Fim
+  const dataInicioRaw = doc?.dataInicio || client?.dadosComerciais?.dataInicio || new Date().toISOString().split('T')[0];
+  let dataFimRaw = doc?.dataFim || client?.dadosComerciais?.dataFim;
   if (!dataFimRaw) {
     const dt = new Date(dataInicioRaw + 'T00:00:00');
-    dt.setMonth(dt.getMonth() + vigMeses);
+    if (isSemanal) {
+      dt.setDate(dt.getDate() + ((Number(doc?.vigenciaQtd) || 1) * 7));
+    } else {
+      dt.setMonth(dt.getMonth() + vigMeses);
+    }
     dataFimRaw = dt.toISOString().split('T')[0];
   }
 
@@ -5486,16 +5554,22 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
   const anoInicio = dataInicioRaw ? dataInicioRaw.split('-')[0] : String(new Date().getFullYear());
   const anoFim = dataFimRaw ? dataFimRaw.split('-')[0] : String(new Date().getFullYear() + 1);
 
-  // Duração & Formato formatada
-  let duracaoFormatada = 'Anual • 1 Ano';
-  if (vigMeses >= 12 || planoTipo.toLowerCase().includes('anual')) {
-    duracaoFormatada = 'Anual • 1 Ano';
-  } else if (vigMeses >= 6 || planoTipo.toLowerCase().includes('semestral')) {
-    duracaoFormatada = 'Semestral • 6 Meses';
-  } else if (vigMeses >= 3 || planoTipo.toLowerCase().includes('trimestral')) {
-    duracaoFormatada = 'Trimestral • 3 Meses';
-  } else {
-    duracaoFormatada = `${vigMeses} Mês${vigMeses > 1 ? 'es' : ''}`;
+  // Informações Financeiras Acordadas
+  const valorTotalNum = Number(doc?.valorFinalRecalculado || doc?.valorAcordado || doc?.valorTotal || doc?.valorUnitario || client?.dadosComerciais?.valorTotal || 0);
+  const formaPag = doc?.formaPagamentoEscolhida || doc?.formaPagamento || client?.dadosComerciais?.formaPagamento || '';
+  const parcelasNum = Number(doc?.parcelasEscolhidas || doc?.parcelas || (isAnual && formaPag === 'cartao' ? 12 : 1));
+  const valorParcela = parcelasNum > 0 && valorTotalNum > 0 ? (valorTotalNum / parcelasNum) : valorTotalNum;
+
+  const temFinanceiro = valorTotalNum > 0;
+  let formaPagTexto = 'Condições acordadas na contratação';
+  if (formaPag === 'cartao' || formaPag === 'credit_card') {
+    formaPagTexto = parcelasNum > 1 ? `Cartão de Crédito (${parcelasNum}x de R$ ${valorParcela.toFixed(2).replace('.', ',')})` : 'Cartão de Crédito à vista';
+  } else if (formaPag === 'boleto') {
+    formaPagTexto = parcelasNum > 1 ? `Boleto Bancário (${parcelasNum}x de R$ ${valorParcela.toFixed(2).replace('.', ',')})` : 'Boleto Bancário à vista';
+  } else if (formaPag === 'pix') {
+    formaPagTexto = 'Pix (À vista)';
+  } else if (formaPag) {
+    formaPagTexto = formaPag;
   }
 
   const PAGE_W = 794;
@@ -5527,8 +5601,8 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
           Treinamento Especializado, Saúde & Bem-Estar
         </p>
       </div>
-      <div style="background: #090d16; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;">
-        PLANO ATIVO
+      <div style="background: ${isContratoAtivo ? '#090d16' : '#1e3a8a'}; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;">
+        ${isContratoAtivo ? 'PLANO ATIVO' : 'PROPOSTA COMERCIAL'}
       </div>
     </div>
 
@@ -5553,7 +5627,7 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
     </div>
 
     <!-- 3 Metrics Cards -->
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px;">
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
         <div style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
           DURAÇÃO & FORMATO
@@ -5562,7 +5636,7 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
           ${duracaoFormatada}
         </div>
         <div style="font-size: 9.5px; font-weight: 500; color: #64748b;">
-          Contrato regular de ${vigMeses} meses
+          ${isAnual || vigMeses >= 12 ? 'Contrato regular de 12 meses' : `Contrato regular de ${vigMeses} meses`}
         </div>
       </div>
 
@@ -5590,6 +5664,28 @@ export function downloadContractSummaryPDF(client: any, contract?: any, plan?: a
         </div>
       </div>
     </div>
+
+    ${temFinanceiro ? `
+    <!-- Card de Condições Financeiras Acordadas -->
+    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 11px 16px; background: #f8fafc; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+          CONDIÇÕES DE PAGAMENTO ACORDADAS
+        </div>
+        <div style="font-size: 12.5px; font-weight: 800; color: #0f172a; margin-top: 2px;">
+          ${formaPagTexto}
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+          INVESTIMENTO TOTAL
+        </div>
+        <div style="font-size: 15px; font-weight: 900; color: #000000; margin-top: 2px;">
+          R$ ${valorTotalNum.toFixed(2).replace('.', ',')}
+        </div>
+      </div>
+    </div>
+    ` : ''}
 
     <!-- Seção de Benefícios -->
     <div style="font-size: 12px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
