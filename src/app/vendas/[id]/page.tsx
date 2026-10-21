@@ -45,8 +45,9 @@ export default function VendaPage({ params }: { params: any }) {
   const [respTelefone, setRespTelefone] = useState('');
 
   // Form States - Pagamento (Boleto / Pix ou Cartão de Crédito)
-  const [formaPagamento, setFormaPagamento] = useState<'boleto' | 'cartao'>('boleto');
-  const [parcelas, setParcelas] = useState(1);
+  const isApenasCartaoInit = id === '6ad8f13637a508193f23591e';
+  const [formaPagamento, setFormaPagamento] = useState<'boleto' | 'cartao'>(isApenasCartaoInit ? 'cartao' : 'boleto');
+  const [parcelas, setParcelas] = useState(isApenasCartaoInit ? 12 : 1);
   const [dataVencimento, setDataVencimento] = useState('');
 
   // Validation errors
@@ -62,14 +63,20 @@ export default function VendaPage({ params }: { params: any }) {
           const isMinorCalc = Boolean(prop.isMinor || isMinorFromBirthDate(prop.clientId?.dadosPessoais?.dataNascimento || prop.clientId?.dadosPessoais?.nascimento));
           setProposal({ ...prop, isMinor: isMinorCalc });
           
-          // Calcular parcelamento inicial sugerido para Boleto / Pix
-          const isAnualProp = prop.duracao === 'anual' || (prop.planoTipo && prop.planoTipo.toLowerCase().includes('anual')) || (prop.vigenciaQtd || 1) >= 12;
-          const isSemanalProp = prop.duracao === 'semana';
-          const isRecorrenteProp = Boolean(prop.criarRecorrenciaMensal);
-          const isSpecial10xProp = id === '6ad605bf79ad698a492bbad5' || Boolean(prop.permitir10xBoleto) || Number(prop.maxParcelasBoleto) === 10;
-          const mEq = isAnualProp ? 12 : isSemanalProp ? Math.max(1, Math.floor((prop.vigenciaQtd || 1) / 4)) : Math.max(1, prop.vigenciaQtd || 1);
-          const defaultBoletoInstallments = isRecorrenteProp ? 1 : (isAnualProp || isSpecial10xProp) ? 10 : Math.min(10, mEq);
-          setParcelas(defaultBoletoInstallments);
+          // Calcular parcelamento inicial sugerido
+          const isApenasCartaoProp = id === '6ad8f13637a508193f23591e' || Boolean(prop.apenasCartao);
+          if (isApenasCartaoProp) {
+            setFormaPagamento('cartao');
+            setParcelas(12);
+          } else {
+            const isAnualProp = prop.duracao === 'anual' || (prop.planoTipo && prop.planoTipo.toLowerCase().includes('anual')) || (prop.vigenciaQtd || 1) >= 12;
+            const isSemanalProp = prop.duracao === 'semana';
+            const isRecorrenteProp = Boolean(prop.criarRecorrenciaMensal);
+            const isSpecial10xProp = id === '6ad605bf79ad698a492bbad5' || Boolean(prop.permitir10xBoleto) || Number(prop.maxParcelasBoleto) === 10;
+            const mEq = isAnualProp ? 12 : isSemanalProp ? Math.max(1, Math.floor((prop.vigenciaQtd || 1) / 4)) : Math.max(1, prop.vigenciaQtd || 1);
+            const defaultBoletoInstallments = isRecorrenteProp ? 1 : (isAnualProp || isSpecial10xProp) ? 10 : Math.min(10, mEq);
+            setParcelas(defaultBoletoInstallments);
+          }
 
           // Prefill with client personal data if already exists
           const pes = prop.clientId?.dadosPessoais || {};
@@ -249,6 +256,8 @@ export default function VendaPage({ params }: { params: any }) {
 
   // Condição especial: exclusivamente para o link da proposta 6ad605bf79ad698a492bbad5 ou se configurado na proposta
   const isSpecial10xBoleto = id === '6ad605bf79ad698a492bbad5' || Boolean(proposal?.permitir10xBoleto) || Number(proposal?.maxParcelasBoleto) === 10;
+  // Link do Lúcio ou proposta configurada como apenas cartão
+  const isApenasCartao = id === '6ad8f13637a508193f23591e' || Boolean(proposal?.apenasCartao);
 
   // Máximo de parcelas para Boleto / Pix (Plano Anual: estritamente 10x)
   const maxInstallmentsBoleto = (() => {
@@ -267,20 +276,22 @@ export default function VendaPage({ params }: { params: any }) {
 
   const maxInstallments = formaPagamento === 'cartao' ? maxInstallmentsCartao : maxInstallmentsBoleto;
 
-  // Opções de parcelas permitidas (Regra Anual: estritamente 10x no boleto ou 12x no cartão)
+  // Opções de parcelas permitidas (Regra Anual: estritamente 10x no boleto ou 12x no cartão; apenas cartão: 12x)
   const availableInstallments = (() => {
+    if (isApenasCartao) return [12];
     if (isAnual) {
       return formaPagamento === 'cartao' ? [12] : [10];
     }
     return Array.from({ length: maxInstallments }, (_, i) => i + 1);
   })();
 
-  const currentInstallments = isAnual
+  const currentInstallments = isApenasCartao ? 12 : (isAnual
     ? (formaPagamento === 'cartao' ? 12 : 10)
-    : Math.max(1, Math.min(parcelas, maxInstallments));
+    : Math.max(1, Math.min(parcelas, maxInstallments)));
 
+  // Para o link do Lúcio especificamente, taxa de cartão é 0% para manter 12x de R$ 850,00 cravados
   const cardRate = formaPagamento === 'cartao' 
-    ? (isAnual ? 0.05 : getCardRateForInstallment(currentInstallments)) 
+    ? (isApenasCartao ? 0 : (isAnual ? 0.05 : getCardRateForInstallment(currentInstallments))) 
     : 0;
   const finalPrice = formaPagamento === 'cartao' ? Number((basePrice * (1 + cardRate)).toFixed(2)) : basePrice;
   const valorParcelaAtual = Number((finalPrice / currentInstallments).toFixed(2));
@@ -289,11 +300,12 @@ export default function VendaPage({ params }: { params: any }) {
   const valorParcelaMaxBoleto = Number((basePrice / maxInstallmentsBoleto).toFixed(2));
   const valorMensalEquivalenteAnual = isAnual ? Number((basePrice / 12).toFixed(2)) : null;
 
-  const cardRateMax = isAnual ? 0.05 : getCardRateForInstallment(maxInstallmentsCartao);
+  const cardRateMax = isApenasCartao ? 0 : (isAnual ? 0.05 : getCardRateForInstallment(maxInstallmentsCartao));
   const finalPriceMaxCartao = Number((basePrice * (1 + cardRateMax)).toFixed(2));
   const valorParcelaMaxCartao = Number((finalPriceMaxCartao / maxInstallmentsCartao).toFixed(2));
 
   const handlePaymentChange = (type: 'boleto' | 'cartao') => {
+    if (isApenasCartao) return;
     setFormaPagamento(type);
     if (isAnual) {
       setParcelas(type === 'cartao' ? 12 : 10);
@@ -848,66 +860,68 @@ export default function VendaPage({ params }: { params: any }) {
             </h3>
 
             {/* Cards de Apresentação e Escolha: Boleto / Pix vs Cartão de Crédito */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '25px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isApenasCartao ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '25px' }}>
               
-              {/* Card 1: Boleto / Pix */}
-              <div
-                onClick={() => handlePaymentChange('boleto')}
-                style={{
-                  background: formaPagamento === 'boleto' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
-                  border: `2px solid ${formaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                  borderRadius: '12px',
-                  padding: '20px',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                        <i className="fa-solid fa-barcode fa-lg"></i>
+              {/* Card 1: Boleto / Pix (Oculto se for apenas cartão) */}
+              {!isApenasCartao && (
+                <div
+                  onClick={() => handlePaymentChange('boleto')}
+                  style={{
+                    background: formaPagamento === 'boleto' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                    border: `2px solid ${formaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                    borderRadius: '12px',
+                    padding: '20px',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                          <i className="fa-solid fa-barcode fa-lg"></i>
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '1.05rem', color: '#fff', display: 'block' }}>Boleto / Pix</strong>
+                          <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Sem juros no parcelamento</small>
+                        </div>
                       </div>
-                      <div>
-                        <strong style={{ fontSize: '1.05rem', color: '#fff', display: 'block' }}>Boleto / Pix</strong>
-                        <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Sem juros no parcelamento</small>
+                      <input 
+                        type="radio" 
+                        name="formaPagamentoRadio" 
+                        checked={formaPagamento === 'boleto'} 
+                        onChange={() => handlePaymentChange('boleto')} 
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)', cursor: 'pointer' }} 
+                      />
+                    </div>
+
+                    {/* Valor da Parcela e Total */}
+                    <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        {isAnual ? '10x de' : (maxInstallmentsBoleto > 1 ? `Até ${maxInstallmentsBoleto}x de` : 'À vista (1x) de')}
+                      </div>
+                      <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--color-primary)', margin: '2px 0' }}>
+                        R$ {valorParcelaMaxBoleto.toFixed(2).replace('.', ',')}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>
+                        Valor Total: <strong style={{ color: '#fff' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</strong>
                       </div>
                     </div>
-                    <input 
-                      type="radio" 
-                      name="formaPagamentoRadio" 
-                      checked={formaPagamento === 'boleto'} 
-                      onChange={() => handlePaymentChange('boleto')} 
-                      style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)', cursor: 'pointer' }} 
-                    />
-                  </div>
 
-                  {/* Valor da Parcela e Total */}
-                  <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                      {isAnual ? '10x de' : (maxInstallmentsBoleto > 1 ? `Até ${maxInstallmentsBoleto}x de` : 'À vista (1x) de')}
-                    </div>
-                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--color-primary)', margin: '2px 0' }}>
-                      R$ {valorParcelaMaxBoleto.toFixed(2).replace('.', ',')}
-                    </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>
-                      Valor Total: <strong style={{ color: '#fff' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</strong>
-                    </div>
+                    {/* Destaque no plano anual: Valor referente ao mês de acesso */}
+                    {valorMensalEquivalenteAnual !== null && (
+                      <div style={{ marginTop: '10px', padding: '9px 12px', background: 'rgba(234, 179, 8, 0.12)', border: '1px solid rgba(234, 179, 8, 0.35)', borderRadius: '6px', fontSize: '0.82rem', color: '#fde047', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <i className="fa-solid fa-fire" style={{ color: '#eab308' }}></i>
+                        <span>Equivalente a <strong style={{ color: '#fff' }}>R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês</strong> nos 12 meses de acesso</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Destaque no plano anual: Valor referente ao mês de acesso */}
-                  {valorMensalEquivalenteAnual !== null && (
-                    <div style={{ marginTop: '10px', padding: '9px 12px', background: 'rgba(234, 179, 8, 0.12)', border: '1px solid rgba(234, 179, 8, 0.35)', borderRadius: '6px', fontSize: '0.82rem', color: '#fde047', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-fire" style={{ color: '#eab308' }}></i>
-                      <span>Equivalente a <strong style={{ color: '#fff' }}>R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês</strong> nos 12 meses de acesso</span>
-                    </div>
-                  )}
                 </div>
-              </div>
+              )}
 
               {/* Card 2: Cartão de Crédito */}
               <div
@@ -917,7 +931,7 @@ export default function VendaPage({ params }: { params: any }) {
                   border: `2px solid ${formaPagamento === 'cartao' ? '#3b82f6' : 'var(--border-color)'}`,
                   borderRadius: '12px',
                   padding: '20px',
-                  cursor: 'pointer',
+                  cursor: isApenasCartao ? 'default' : 'pointer',
                   position: 'relative',
                   transition: 'all 0.2s ease',
                   display: 'flex',
@@ -933,16 +947,18 @@ export default function VendaPage({ params }: { params: any }) {
                       </div>
                       <div>
                         <strong style={{ fontSize: '1.05rem', color: '#fff', display: 'block' }}>Cartão de Crédito</strong>
-                        <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Parcelamento flexível</small>
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{isApenasCartao ? 'Opção exclusiva contratada' : 'Parcelamento flexível'}</small>
                       </div>
                     </div>
-                    <input 
-                      type="radio" 
-                      name="formaPagamentoRadio" 
-                      checked={formaPagamento === 'cartao'} 
-                      onChange={() => handlePaymentChange('cartao')} 
-                      style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }} 
-                    />
+                    {!isApenasCartao && (
+                      <input 
+                        type="radio" 
+                        name="formaPagamentoRadio" 
+                        checked={formaPagamento === 'cartao'} 
+                        onChange={() => handlePaymentChange('cartao')} 
+                        style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }} 
+                      />
+                    )}
                   </div>
 
                   {/* Valor da Parcela e Total */}
@@ -998,9 +1014,11 @@ export default function VendaPage({ params }: { params: any }) {
                           Condição Exclusiva do Plano Anual
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                          {formaPagamento === 'cartao' 
-                            ? '12x no cartão de crédito com taxa especial de 5%' 
-                            : '10x no boleto bancário / Pix sem juros'}
+                          {isApenasCartao 
+                            ? '12x no cartão de crédito de R$ 850,00/mês' 
+                            : (formaPagamento === 'cartao' 
+                              ? '12x no cartão de crédito com taxa especial de 5%' 
+                              : '10x no boleto bancário / Pix sem juros')}
                         </div>
                       </div>
                     </div>
