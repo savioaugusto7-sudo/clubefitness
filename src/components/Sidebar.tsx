@@ -105,7 +105,8 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'dashboard', label: 'Agenda Completa', icon: 'fa-calendar-alt' },
         { id: 'agendamento_prof', label: 'Agendar Aluno', icon: 'fa-calendar-plus' },
         { id: 'clientes', label: 'Clientes Vinculados', icon: 'fa-user-friends' },
-        { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' }
+        { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' },
+        { id: 'trancamentos_prof', label: 'Lançar Trancamento', icon: 'fa-snowflake' }
       ]
     },
     {

@@ -53,6 +53,7 @@ interface AlunosPanelProps {
   strengthTests: any[];
   onOpenDossier: (client: Client) => void;
   onOpenWorkout: (client: Client) => void;
+  onOpenTrancamento?: (client: Client) => void;
 }
 
 export default function AlunosPanel({
@@ -63,7 +64,8 @@ export default function AlunosPanel({
   assessments,
   strengthTests,
   onOpenDossier,
-  onOpenWorkout
+  onOpenWorkout,
+  onOpenTrancamento
 }: AlunosPanelProps) {
   // Filtros
   const [filterScope, setFilterScope] = useState<'todos' | 'meus'>('todos');
@@ -1128,6 +1130,17 @@ export default function AlunosPanel({
                     >
                       <i className="fa-solid fa-dumbbell"></i> Treino
                     </button>
+                    {onOpenTrancamento && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', fontWeight: 750, borderRadius: '10px', fontSize: '0.82rem', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}
+                        onClick={() => onOpenTrancamento(c)}
+                        title="Lançar trancamento de plano"
+                      >
+                        <i className="fa-solid fa-snowflake"></i> Trancar
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1334,6 +1347,17 @@ export default function AlunosPanel({
                             >
                               <i className="fa-solid fa-dumbbell"></i> Treino
                             </button>
+                            {onOpenTrancamento && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '5px 10px', fontSize: '0.78rem', borderRadius: '8px', fontWeight: 700, borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}
+                                onClick={() => onOpenTrancamento(c)}
+                                title="Lançar trancamento de plano"
+                              >
+                                <i className="fa-solid fa-snowflake"></i> Trancar
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

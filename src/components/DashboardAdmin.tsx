@@ -7458,7 +7458,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       {activeContracts.map((contract: any) => {
                         const contratoTrancs = trancByContract[contract._id] || [];
                         const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
-                        const semanasRestantes = Math.max(0, 4 - semanasUsadas);
+                        const cEndStr = contract.dataFim || contract.dataTermino;
+                        const cEndD = cEndStr ? new Date((cEndStr.includes('/') ? cEndStr.split('/').reverse().join('-') : cEndStr) + 'T23:59:59') : null;
+                        const diasRestVig = (cEndD && !isNaN(cEndD.getTime()) && cEndD > new Date())
+                          ? Math.floor((cEndD.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                          : 0;
+                        const semanasRestantes = Math.max(0, Math.floor(diasRestVig / 7));
                         const creditosCongelados = contratoTrancs.reduce((s: number, t: any) => s + t.creditosTrancados, 0);
                         
                         // Busca o aluno nos dados completos para garantir o nome correto
@@ -7474,7 +7479,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             </td>
                             <td>
                               <span className="badge" style={{ background: semanasUsadas > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)', color: semanasUsadas > 0 ? 'var(--color-warning)' : 'var(--text-muted)', padding: '2px 8px', borderRadius: '4px' }}>
-                                {semanasUsadas} / 4
+                                {semanasUsadas} sem. usadas
                               </span>
                             </td>
                             <td>
@@ -7527,14 +7532,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               const selectedClient = clients.find((cl: any) => cl._id === (selectedContract?.clientId?._id || selectedContract?.clientId));
               const selectedClientName = selectedClient?.dadosPessoais?.nome || selectedContract?.clientId?.dadosPessoais?.nome || selectedContract?.nomeCliente || '';
               
-              const contratoTrancs = adminTrancContractId ? (trancByContract[adminTrancContractId] || []) : [];
-              const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
-              const semanasDisponiveis = Math.max(0, 4 - semanasUsadas);
-              
-              const frequencia = Number(selectedContract?.frequencia || selectedClient?.dadosComerciais?.frequencia || selectedClient?.frequencia || 0);
-              const frequenciaValida = !isNaN(frequencia) && frequencia > 0;
-              const creditosCongelados = frequenciaValida ? adminTrancSemanas * frequencia : 0;
-
               // Helper de Normalização de Data para ISO (YYYY-MM-DD)
               const toISO = (dateStr: string | undefined): string => {
                 if (!dateStr) return '';
@@ -7547,6 +7544,21 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 if (dateStr.includes('T')) return dateStr.split('T')[0];
                 return dateStr;
               };
+
+              const contratoTrancs = adminTrancContractId ? (trancByContract[adminTrancContractId] || []) : [];
+              const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
+              const cEndForWeeks = toISO(selectedContract?.dataFim || selectedContract?.dataTermino || selectedClient?.dadosComerciais?.vencimento);
+              const baseDateForWeeks = adminTrancDataInicio ? toISO(adminTrancDataInicio) : new Date().toISOString().slice(0, 10);
+              const startD = new Date(baseDateForWeeks + 'T00:00:00');
+              const endD = cEndForWeeks ? new Date(cEndForWeeks + 'T23:59:59') : null;
+              const diasRestVig = (endD && !isNaN(startD.getTime()) && !isNaN(endD.getTime()) && startD < endD)
+                ? Math.floor((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24))
+                : 0;
+              const semanasDisponiveis = Math.max(1, Math.floor(diasRestVig / 7));
+              
+              const frequencia = Number(selectedContract?.frequencia || selectedClient?.dadosComerciais?.frequencia || selectedClient?.frequencia || 0);
+              const frequenciaValida = !isNaN(frequencia) && frequencia > 0;
+              const creditosCongelados = frequenciaValida ? adminTrancSemanas * frequencia : 0;
 
               // Meses restantes de vigência
               const getRemainingMonths = () => {
@@ -7865,11 +7877,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             </div>
                             <div>
                               <span style={{ color: '#64748b', display: 'block' }}>Semanas Usadas:</span>
-                              <strong style={{ color: semanasUsadas > 0 ? '#f59e0b' : '#10b981' }}>{semanasUsadas} / 4 semanas</strong>
+                              <strong style={{ color: semanasUsadas > 0 ? '#f59e0b' : '#10b981' }}>{semanasUsadas} sem. usadas</strong>
                             </div>
                             <div>
-                              <span style={{ color: '#64748b', display: 'block' }}>Disponível:</span>
-                              <strong style={{ color: semanasDisponiveis > 0 ? '#10b981' : '#ef4444' }}>{semanasDisponiveis} semanas</strong>
+                              <span style={{ color: '#64748b', display: 'block' }}>Vigência Restante:</span>
+                              <strong style={{ color: semanasDisponiveis > 0 ? '#10b981' : '#ef4444' }}>{semanasDisponiveis} sem. disponíveis</strong>
                             </div>
                           </div>
                         </div>
@@ -7883,7 +7895,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       ) : selectedContract && semanasDisponiveis === 0 ? (
                         <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#fca5a5', padding: '16px', borderRadius: '10px', textAlign: 'center', fontSize: '0.85rem' }}>
                           <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
-                          Este contrato já atingiu o limite regulamentar de <strong>4 semanas de trancamento</strong>. Não é permitido efetuar novos congelamentos.
+                          Este contrato não possui vigência restante suficiente para novos trancamentos.
                         </div>
                       ) : selectedContract ? (
                         <>
@@ -7918,9 +7930,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                 }}
                                 style={{ width: '100%', padding: '9px 12px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', color: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem' }}
                               >
-                                {Array.from({ length: semanasDisponiveis }, (_, i) => i + 1).map(n => (
+                                {Array.from({ length: Math.min(24, Math.max(1, semanasDisponiveis)) }, (_, i) => i + 1).map(n => (
                                   <option key={n} value={n} style={{ background: '#0f172a' }}>
-                                    {n} {n === 1 ? 'semana' : 'semanas'}
+                                    {n} {n === 1 ? 'semana' : 'semanas'} {n > 4 ? '(Mais de 4 sem. — Vigência)' : ''}
                                   </option>
                                 ))}
                               </select>

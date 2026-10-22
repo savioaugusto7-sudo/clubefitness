@@ -27,6 +27,7 @@ import HorariosFixosPanel from './HorariosFixosPanel';
 import DossieAlunoModal from './DossieAlunoModal';
 import RegistroPontoPanel from './RegistroPontoPanel';
 import PerfilSegurancaProfissionalPanel from './PerfilSegurancaProfissionalPanel';
+import TrancamentoPanel from './TrancamentoPanel';
 import WorkoutEvolutionModal from './WorkoutEvolutionModal';
 import { FastTextarea, FastInput } from './FastFormField';
 import AssessmentCompareSelectorModal, { PreviousAssessmentOption } from './AssessmentCompareSelectorModal';
@@ -203,6 +204,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [filtroAgendaResumo, setFiltroAgendaResumo] = useState<'todos' | 'academia' | 'dr_albert' | 'dr_guilherme'>('todos');
   const [bdayScopeFilter, setBdayScopeFilter] = useState<'ativos' | 'todos'>('ativos');
   const [bdayCardCollapsed, setBdayCardCollapsed] = useState(false);
+  const [showTrancamentoModal, setShowTrancamentoModal] = useState(false);
+  const [modalTrancamentoClientId, setModalTrancamentoClientId] = useState<string | null>(null);
 
   // PIN verification states
   const [showPinModal, setShowPinModal] = useState(false);
@@ -7565,6 +7568,10 @@ goniometria: {
             logReadActivity('Visualizou Dossiê do Aluno', c._id, c.dadosPessoais?.nome || '');
           }}
           onOpenWorkout={(c: any) => handleOpenWorkoutEditor(c)}
+          onOpenTrancamento={(c: any) => {
+            setModalTrancamentoClientId(c._id);
+            setShowTrancamentoModal(true);
+          }}
         />
       )}
 
@@ -10948,8 +10955,19 @@ goniometria: {
         />
       )}
 
+      {/* LANÇAMENTO DE TRANCAMENTO */}
+      {activeTab === 'trancamentos_prof' && (
+        <TrancamentoPanel
+          clients={clients}
+          professionals={professionals}
+          professionalId={professionalId}
+          isColetivo={isColetivo}
+          onExecuteAction={executeAction}
+        />
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino', 'alterar_senha'].includes(activeTab) && (
+      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino', 'alterar_senha', 'trancamentos_prof'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -17023,6 +17041,22 @@ goniometria: {
           strengthTests={strengthTests}
           onOpenWorkoutEditor={handleOpenWorkoutEditor}
           isAdmin={isAdmin}
+        />
+      )}
+      {/* Modal de Trancamento de Plano */}
+      {showTrancamentoModal && (
+        <TrancamentoPanel
+          clients={clients}
+          professionals={professionals}
+          professionalId={professionalId}
+          isColetivo={isColetivo}
+          onExecuteAction={executeAction}
+          preSelectedClientId={modalTrancamentoClientId}
+          isModal={true}
+          onClose={() => {
+            setShowTrancamentoModal(false);
+            setModalTrancamentoClientId(null);
+          }}
         />
       )}
       {/* 🔐 PIN Verification Modal */}

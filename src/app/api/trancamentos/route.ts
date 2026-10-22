@@ -4,7 +4,21 @@ import Trancamento from '@/models/Trancamento';
 import Client from '@/models/Client';
 import Contract from '@/models/Contract';
 
+import ActivityLog from '@/models/ActivityLog';
+
 export const maxDuration = 30;
+
+const toISO = (dateStr: string | undefined): string => {
+  if (!dateStr) return '';
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+  if (dateStr.includes('T')) return dateStr.split('T')[0];
+  return dateStr;
+};
 
 export async function GET(request: Request) {
   try {
@@ -24,6 +38,7 @@ export async function GET(request: Request) {
     const trancamentos = await Trancamento.find(query)
       .populate('clientId')
       .populate('contractId')
+      .populate('profissionalId')
       .sort({ createdAt: -1 });
 
     return NextResponse.json({ success: true, data: trancamentos });
@@ -36,7 +51,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clientId, contractId, dataInicio, semanas, redistribuicao } = body;
+    const { clientId, contractId, dataInicio, semanas, redistribuicao, profissionalId, origem } = body;
 
     if (!clientId || !contractId || !dataInicio || !semanas || !redistribuicao) {
       return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes.' }, { status: 400 });
@@ -74,15 +89,59 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 3. Check total weeks frozen so far for this contract
-    const existing = await Trancamento.find({ contractId });
-    const totalSemanasAnteriores = existing.reduce((sum: number, item: any) => sum + item.semanas, 0);
+    // 3. Validação de Vigência e flexibilização de semanas (> 4 permitido desde que dentro da vigência)
+    const contractEndISO = toISO(contract.dataFim || contract.dataTermino || com.vencimento);
+    const trancStartISO = toISO(dataInicio);
 
-    if (totalSemanasAnteriores + Number(semanas) > 4) {
+    if (!contractEndISO) {
       return NextResponse.json({
         success: false,
-        error: `Você já trancou ${totalSemanasAnteriores} semanas. Não é permitido exceder o limite de 4 semanas por contrato.`
+        error: 'O contrato não possui data de término definida para validação da vigência.'
       }, { status: 400 });
+    }
+
+    const startDate = new Date(trancStartISO + 'T00:00:00');
+    const endDate = new Date(contractEndISO + 'T23:59:59');
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return NextResponse.json({
+        success: false,
+        error: 'Data de início do trancamento ou término do contrato inválida.'
+      }, { status: 400 });
+    }
+
+    if (startDate > endDate) {
+      return NextResponse.json({
+        success: false,
+        error: `A data de início do trancamento (${trancStartISO}) não pode ser posterior ao término da vigência do contrato (${contractEndISO}).`
+      }, { status: 400 });
+    }
+
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diasRestantesVigencia = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    const semanasRestantesVigencia = Math.floor(diasRestantesVigencia / 7);
+
+    if (Number(semanas) > semanasRestantesVigencia) {
+      return NextResponse.json({
+        success: false,
+        error: `A quantidade de semanas selecionada (${semanas}) ultrapassa a vigência restante do contrato (${semanasRestantesVigencia} semanas até ${contractEndISO}).`
+      }, { status: 400 });
+    }
+
+    // Validar que todas as redistribuições ocorrem estritamente dentro da vigência do contrato
+    const mesFimContrato = contractEndISO.slice(0, 7);
+    const mesInicioTranc = trancStartISO.slice(0, 7);
+
+    for (const r of redistribuicao) {
+      const qtd = Number(r.creditos || 0);
+      if (qtd > 0) {
+        if (r.mesAno < mesInicioTranc || r.mesAno > mesFimContrato) {
+          return NextResponse.json({
+            success: false,
+            error: `O mês ${r.mesAno} está fora da vigência válida (${mesInicioTranc} até ${mesFimContrato}). Todas as reposições devem ser repostas dentro da vigência do contrato.`
+          }, { status: 400 });
+        }
+      }
     }
 
     const creditosTrancados = Number(semanas) * frequencia;
@@ -92,7 +151,7 @@ export async function POST(request: Request) {
     if (sumRedistribuicao !== creditosTrancados) {
       return NextResponse.json({
         success: false,
-        error: `A soma dos créditos redistribuídos (${sumRedistribuicao}) deve ser igual ao total de créditos trancados (${creditosTrancados}).`
+        error: `A soma dos créditos redistribuídos (${sumRedistribuicao}) deve ser exatamente igual ao total de créditos trancados (${creditosTrancados}).`
       }, { status: 400 });
     }
 
@@ -100,13 +159,31 @@ export async function POST(request: Request) {
     const trancamento = await Trancamento.create({
       clientId,
       contractId,
-      dataInicio,
+      dataInicio: trancStartISO,
       semanas: Number(semanas),
       creditosTrancados,
-      redistribuicao
+      redistribuicao,
+      profissionalId: profissionalId || null,
+      origem: origem === 'Computador Coletivo' ? 'Computador Coletivo' : 'Acesso Direto'
     });
 
-    // 6. Update current month's credits in database if credits are redistributed to current month
+    // 6. Auditoria de atividade se informado profissional executor
+    if (profissionalId) {
+      try {
+        const clientName = client?.dadosPessoais?.nome || contract.nomeCliente || 'Aluno';
+        await ActivityLog.create({
+          profissionalId,
+          clienteId,
+          acao: 'Lançou Trancamento de Plano',
+          detalhes: `Trancou ${semanas} semana(s) (${creditosTrancados} créditos) para ${clientName} a partir de ${trancStartISO}, redistribuídos até ${mesFimContrato}.`,
+          origem: origem === 'Computador Coletivo' ? 'Computador Coletivo' : 'Acesso Direto'
+        });
+      } catch (logErr) {
+        console.error('Falha ao registrar ActivityLog de trancamento:', logErr);
+      }
+    }
+
+    // 7. Update current month's credits in database if credits are redistributed to current month
     if (client) {
       const currentMonthStr = new Date().toISOString().slice(0, 7); // e.g. "2026-06"
       const currentAlloc = redistribuicao.find((r: any) => r.mesAno === currentMonthStr);

@@ -10,7 +10,9 @@ const TrancamentoSchema = new Schema({
     mesAno: { type: String, required: true }, // Formato: YYYY-MM
     creditos: { type: Number, required: true }
   }],
-  dataSolicitacao: { type: Date, default: Date.now }
+  dataSolicitacao: { type: Date, default: Date.now },
+  profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null },
+  origem: { type: String, default: 'Direto' }
 }, { timestamps: true });
 
 export default models.Trancamento || model('Trancamento', TrancamentoSchema);
