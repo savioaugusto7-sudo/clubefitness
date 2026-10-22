@@ -943,14 +943,137 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asMaigneRealizou, setAsMaigneRealizou] = useState('nao');
 
   // Y-Test structured states
+  // Helper de média das 3 tentativas do Y-Test
+  const calcYTrialMean = (t1?: number | string, t2?: number | string, t3?: number | string): number | '' => {
+    const vals = [t1, t2, t3]
+      .map(v => (v !== '' && v !== undefined && v !== null && !isNaN(Number(v))) ? Number(v) : null)
+      .filter((v): v is number => v !== null && v > 0);
+    if (vals.length === 0) return '';
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return Number((sum / vals.length).toFixed(1));
+  };
+
   const [asYLenD, setAsYLenD] = useState<number | ''>('');
   const [asYLenE, setAsYLenE] = useState<number | ''>('');
+
+  const [asYAntD1, setAsYAntD1] = useState<number | ''>('');
+  const [asYAntD2, setAsYAntD2] = useState<number | ''>('');
+  const [asYAntD3, setAsYAntD3] = useState<number | ''>('');
   const [asYAntD, setAsYAntD] = useState<number | ''>('');
-  const [asYAntE, setAsYAntE] = useState<number | ''>('');
+
+  const [asYPMD1, setAsYPMD1] = useState<number | ''>('');
+  const [asYPMD2, setAsYPMD2] = useState<number | ''>('');
+  const [asYPMD3, setAsYPMD3] = useState<number | ''>('');
   const [asYPMD, setAsYPMD] = useState<number | ''>('');
-  const [asYPME, setAsYPME] = useState<number | ''>('');
+
+  const [asYPLD1, setAsYPLD1] = useState<number | ''>('');
+  const [asYPLD2, setAsYPLD2] = useState<number | ''>('');
+  const [asYPLD3, setAsYPLD3] = useState<number | ''>('');
   const [asYPLD, setAsYPLD] = useState<number | ''>('');
+
+  const [asYAntE1, setAsYAntE1] = useState<number | ''>('');
+  const [asYAntE2, setAsYAntE2] = useState<number | ''>('');
+  const [asYAntE3, setAsYAntE3] = useState<number | ''>('');
+  const [asYAntE, setAsYAntE] = useState<number | ''>('');
+
+  const [asYPME1, setAsYPME1] = useState<number | ''>('');
+  const [asYPME2, setAsYPME2] = useState<number | ''>('');
+  const [asYPME3, setAsYPME3] = useState<number | ''>('');
+  const [asYPME, setAsYPME] = useState<number | ''>('');
+
+  const [asYPLE1, setAsYPLE1] = useState<number | ''>('');
+  const [asYPLE2, setAsYPLE2] = useState<number | ''>('');
+  const [asYPLE3, setAsYPLE3] = useState<number | ''>('');
   const [asYPLE, setAsYPLE] = useState<number | ''>('');
+
+  const renderYDirectionTrials = (
+    title: string,
+    t1: number | '',
+    setT1: (v: number | '') => void,
+    t2: number | '',
+    setT2: (v: number | '') => void,
+    t3: number | '',
+    setT3: (v: number | '') => void,
+    media: number | '',
+    setMedia: (v: number | '') => void
+  ) => {
+    const handleTChange = (idx: 1 | 2 | 3, valStr: string) => {
+      const val = valStr === '' ? '' : Number(valStr);
+      const newT1 = idx === 1 ? val : t1;
+      const newT2 = idx === 2 ? val : t2;
+      const newT3 = idx === 3 ? val : t3;
+      if (idx === 1) setT1(val);
+      if (idx === 2) setT2(val);
+      if (idx === 3) setT3(val);
+      const m = calcYTrialMean(newT1, newT2, newT3);
+      setMedia(m);
+    };
+
+    const hasMedia = media !== '' && Number(media) > 0;
+
+    return (
+      <div style={{
+        marginBottom: '10px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '8px',
+        padding: '8px 10px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)' }}>{title}</span>
+          <span style={{
+            fontSize: '0.70rem',
+            fontWeight: 800,
+            padding: '2px 8px',
+            borderRadius: '6px',
+            background: hasMedia ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+            color: hasMedia ? '#10b981' : 'var(--text-dim)',
+            border: `1px solid ${hasMedia ? 'rgba(16, 185, 129, 0.3)' : 'transparent'}`
+          }}>
+            {hasMedia ? `⚡ Média: ${media} cm` : 'Média: —'}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+          <div>
+            <input
+              type="number"
+              step="0.1"
+              className="form-control form-control-sm"
+              placeholder="T1 (cm)"
+              value={t1}
+              onChange={e => handleTChange(1, e.target.value)}
+              style={{ textAlign: 'center', fontSize: '0.75rem', padding: '4px 6px' }}
+              title="Tentativa 1 (cm)"
+            />
+          </div>
+          <div>
+            <input
+              type="number"
+              step="0.1"
+              className="form-control form-control-sm"
+              placeholder="T2 (cm)"
+              value={t2}
+              onChange={e => handleTChange(2, e.target.value)}
+              style={{ textAlign: 'center', fontSize: '0.75rem', padding: '4px 6px' }}
+              title="Tentativa 2 (cm)"
+            />
+          </div>
+          <div>
+            <input
+              type="number"
+              step="0.1"
+              className="form-control form-control-sm"
+              placeholder="T3 (cm)"
+              value={t3}
+              onChange={e => handleTChange(3, e.target.value)}
+              style={{ textAlign: 'center', fontSize: '0.75rem', padding: '4px 6px' }}
+              title="Tentativa 3 (cm)"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Step Down structured states
   const [asSdPelvicaD, setAsSdPelvicaD] = useState<number | ''>('');
@@ -1041,6 +1164,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setAsTermografiaRealizou('nao');
     setAsTermografia('');
     setAsYTestRealizou('nao');
+    setAsYLenD(''); setAsYLenE('');
+    setAsYAntD(''); setAsYAntD1(''); setAsYAntD2(''); setAsYAntD3('');
+    setAsYPMD(''); setAsYPMD1(''); setAsYPMD2(''); setAsYPMD3('');
+    setAsYPLD(''); setAsYPLD1(''); setAsYPLD2(''); setAsYPLD3('');
+    setAsYAntE(''); setAsYAntE1(''); setAsYAntE2(''); setAsYAntE3('');
+    setAsYPME(''); setAsYPME1(''); setAsYPME2(''); setAsYPME3('');
+    setAsYPLE(''); setAsYPLE1(''); setAsYPLE2(''); setAsYPLE3('');
     setAsStepDownRealizou('nao');
     setAsMaigneRealizou('nao');
   };
@@ -1081,6 +1211,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setRepExamesList([]);
     setRepDeRealizou('nao');
     setRepMaigneRealizou('nao');
+    setYRealizou('nao');
+    setYLenD(0); setYLenE(0);
+    setYAntD(0); setYAntD1(''); setYAntD2(''); setYAntD3('');
+    setYPMD(0); setYPMD1(''); setYPMD2(''); setYPMD3('');
+    setYPLD(0); setYPLD1(''); setYPLD2(''); setYPLD3('');
+    setYAntE(0); setYAntE1(''); setYAntE2(''); setYAntE3('');
+    setYPME(0); setYPME1(''); setYPME2(''); setYPME3('');
+    setYPLE(0); setYPLE1(''); setYPLE2(''); setYPLE3('');
   };
 
   const handleCloseSt = () => {
@@ -1464,15 +1602,40 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [mRotEEVA, setMRotEEVA] = useState(0);
 
   // Y-Test
+  // Y-Test structured states & 3 tentativas (Direita / Esquerda)
   const [yRealizou, setYRealizou] = useState('nao');
-  const [yAntD, setYAntD] = useState(0);
-  const [yAntE, setYAntE] = useState(0);
-  const [yPMD, setYPMD] = useState(0);
-  const [yPME, setYPME] = useState(0);
-  const [yPLD, setYPLD] = useState(0);
-  const [yPLE, setYPLE] = useState(0);
-  const [yLenD, setYLenD] = useState(0);
-  const [yLenE, setYLenE] = useState(0);
+  const [yLenD, setYLenD] = useState<number | ''>(0);
+  const [yLenE, setYLenE] = useState<number | ''>(0);
+
+  const [yAntD1, setYAntD1] = useState<number | ''>('');
+  const [yAntD2, setYAntD2] = useState<number | ''>('');
+  const [yAntD3, setYAntD3] = useState<number | ''>('');
+  const [yAntD, setYAntD] = useState<number | ''>(0);
+
+  const [yPMD1, setYPMD1] = useState<number | ''>('');
+  const [yPMD2, setYPMD2] = useState<number | ''>('');
+  const [yPMD3, setYPMD3] = useState<number | ''>('');
+  const [yPMD, setYPMD] = useState<number | ''>(0);
+
+  const [yPLD1, setYPLD1] = useState<number | ''>('');
+  const [yPLD2, setYPLD2] = useState<number | ''>('');
+  const [yPLD3, setYPLD3] = useState<number | ''>('');
+  const [yPLD, setYPLD] = useState<number | ''>(0);
+
+  const [yAntE1, setYAntE1] = useState<number | ''>('');
+  const [yAntE2, setYAntE2] = useState<number | ''>('');
+  const [yAntE3, setYAntE3] = useState<number | ''>('');
+  const [yAntE, setYAntE] = useState<number | ''>(0);
+
+  const [yPME1, setYPME1] = useState<number | ''>('');
+  const [yPME2, setYPME2] = useState<number | ''>('');
+  const [yPME3, setYPME3] = useState<number | ''>('');
+  const [yPME, setYPME] = useState<number | ''>(0);
+
+  const [yPLE1, setYPLE1] = useState<number | ''>('');
+  const [yPLE2, setYPLE2] = useState<number | ''>('');
+  const [yPLE3, setYPLE3] = useState<number | ''>('');
+  const [yPLE, setYPLE] = useState<number | ''>(0);
 
   // Step Down
   const [sdRealizou, setSdRealizou] = useState('nao');
@@ -1678,13 +1841,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou,
         repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA,
         mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou,
-        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE,
+        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE,
+        yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3,
+        yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3,
+        sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE,
         repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE,
         savedAt: new Date().toISOString()
       };
       localStorage.setItem('draft_report', JSON.stringify(data));
     }
-  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3, yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
 
   useEffect(() => {
     if (showStModal && stClient) {
@@ -2069,6 +2235,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
                 setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
                 setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
+                setYAntD1(p.yAntD1 || ''); setYAntD2(p.yAntD2 || ''); setYAntD3(p.yAntD3 || '');
+                setYPMD1(p.yPMD1 || ''); setYPMD2(p.yPMD2 || ''); setYPMD3(p.yPMD3 || '');
+                setYPLD1(p.yPLD1 || ''); setYPLD2(p.yPLD2 || ''); setYPLD3(p.yPLD3 || '');
+                setYAntE1(p.yAntE1 || ''); setYAntE2(p.yAntE2 || ''); setYAntE3(p.yAntE3 || '');
+                setYPME1(p.yPME1 || ''); setYPME2(p.yPME2 || ''); setYPME3(p.yPME3 || '');
+                setYPLE1(p.yPLE1 || ''); setYPLE2(p.yPLE2 || ''); setYPLE3(p.yPLE3 || '');
                 setSdRealizou(p.sdRealizou || 'nao');
                 setSdPelvicaD(p.sdPelvicaD !== undefined ? p.sdPelvicaD : (p.sdPelvica || 0));
                 setSdPelvicaE(p.sdPelvicaE !== undefined ? p.sdPelvicaE : (p.sdPelvica || 0));
@@ -2742,11 +2914,29 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               setAsYLenD(parsed.direita?.comprimentoMembro ?? '');
               setAsYLenE(parsed.esquerda?.comprimentoMembro ?? '');
               setAsYAntD(parsed.direita?.anterior ?? '');
-              setAsYAntE(parsed.esquerda?.anterior ?? '');
+              const antDT = parsed.direita?.anteriorTentativas || (parsed.direita?.anterior ? [parsed.direita.anterior, '', ''] : ['', '', '']);
+              setAsYAntD1(antDT[0] ?? ''); setAsYAntD2(antDT[1] ?? ''); setAsYAntD3(antDT[2] ?? '');
+
               setAsYPMD(parsed.direita?.posteromedial ?? '');
-              setAsYPME(parsed.esquerda?.posteromedial ?? '');
+              const pmDT = parsed.direita?.posteromedialTentativas || (parsed.direita?.posteromedial ? [parsed.direita.posteromedial, '', ''] : ['', '', '']);
+              setAsYPMD1(pmDT[0] ?? ''); setAsYPMD2(pmDT[1] ?? ''); setAsYPMD3(pmDT[2] ?? '');
+
               setAsYPLD(parsed.direita?.posterolateral ?? '');
+              const plDT = parsed.direita?.posterolateralTentativas || (parsed.direita?.posterolateral ? [parsed.direita.posterolateral, '', ''] : ['', '', '']);
+              setAsYPLD1(plDT[0] ?? ''); setAsYPLD2(plDT[1] ?? ''); setAsYPLD3(plDT[2] ?? '');
+
+              setAsYAntE(parsed.esquerda?.anterior ?? '');
+              const antET = parsed.esquerda?.anteriorTentativas || (parsed.esquerda?.anterior ? [parsed.esquerda.anterior, '', ''] : ['', '', '']);
+              setAsYAntE1(antET[0] ?? ''); setAsYAntE2(antET[1] ?? ''); setAsYAntE3(antET[2] ?? '');
+
+              setAsYPME(parsed.esquerda?.posteromedial ?? '');
+              const pmET = parsed.esquerda?.posteromedialTentativas || (parsed.esquerda?.posteromedial ? [parsed.esquerda.posteromedial, '', ''] : ['', '', '']);
+              setAsYPME1(pmET[0] ?? ''); setAsYPME2(pmET[1] ?? ''); setAsYPME3(pmET[2] ?? '');
+
               setAsYPLE(parsed.esquerda?.posterolateral ?? '');
+              const plET = parsed.esquerda?.posterolateralTentativas || (parsed.esquerda?.posterolateral ? [parsed.esquerda.posterolateral, '', ''] : ['', '', '']);
+              setAsYPLE1(plET[0] ?? ''); setAsYPLE2(plET[1] ?? ''); setAsYPLE3(plET[2] ?? '');
+
               setAsYTest('');
             } catch (err) {
               console.error(err);
@@ -2755,9 +2945,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             setAsYTest(yVal);
             setAsYTestRealizou(yVal && yVal.trim() !== '' ? 'sim' : 'nao');
             setAsYLenD(''); setAsYLenE('');
-            setAsYAntD(''); setAsYAntE('');
-            setAsYPMD(''); setAsYPME('');
-            setAsYPLD(''); setAsYPLE('');
+            setAsYAntD(''); setAsYAntD1(''); setAsYAntD2(''); setAsYAntD3('');
+            setAsYPMD(''); setAsYPMD1(''); setAsYPMD2(''); setAsYPMD3('');
+            setAsYPLD(''); setAsYPLD1(''); setAsYPLD2(''); setAsYPLD3('');
+            setAsYAntE(''); setAsYAntE1(''); setAsYAntE2(''); setAsYAntE3('');
+            setAsYPME(''); setAsYPME1(''); setAsYPME2(''); setAsYPME3('');
+            setAsYPLE(''); setAsYPLE1(''); setAsYPLE2(''); setAsYPLE3('');
           }
 
           const sdVal = latest.dadosMedidos.testesEspeciais.stepDown || '';
@@ -3550,11 +3743,27 @@ goniometria: {
             thomasRetofemoralE: asThomasRetofemoralEStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
             termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
             yTest: asYTestRealizou === 'sim'
-              ? (asYLenD !== '' || asYAntD !== ''
+              ? (asYLenD !== '' || asYAntD !== '' || asYAntD1 !== ''
                   ? JSON.stringify({
                       realizou: 'sim',
-                      direita: { comprimentoMembro: Number(asYLenD) || 0, anterior: Number(asYAntD) || 0, posteromedial: Number(asYPMD) || 0, posterolateral: Number(asYPLD) || 0 },
-                      esquerda: { comprimentoMembro: Number(asYLenE) || 0, anterior: Number(asYAntE) || 0, posteromedial: Number(asYPME) || 0, posterolateral: Number(asYPLE) || 0 }
+                      direita: {
+                        comprimentoMembro: Number(asYLenD) || 0,
+                        anterior: Number(asYAntD) || 0,
+                        anteriorTentativas: [asYAntD1, asYAntD2, asYAntD3].map(v => Number(v) || 0),
+                        posteromedial: Number(asYPMD) || 0,
+                        posteromedialTentativas: [asYPMD1, asYPMD2, asYPMD3].map(v => Number(v) || 0),
+                        posterolateral: Number(asYPLD) || 0,
+                        posterolateralTentativas: [asYPLD1, asYPLD2, asYPLD3].map(v => Number(v) || 0)
+                      },
+                      esquerda: {
+                        comprimentoMembro: Number(asYLenE) || 0,
+                        anterior: Number(asYAntE) || 0,
+                        anteriorTentativas: [asYAntE1, asYAntE2, asYAntE3].map(v => Number(v) || 0),
+                        posteromedial: Number(asYPME) || 0,
+                        posteromedialTentativas: [asYPME1, asYPME2, asYPME3].map(v => Number(v) || 0),
+                        posterolateral: Number(asYPLE) || 0,
+                        posterolateralTentativas: [asYPLE1, asYPLE2, asYPLE3].map(v => Number(v) || 0)
+                      }
                     })
                   : asYTest)
               : '',
@@ -3952,6 +4161,20 @@ goniometria: {
           setYAntD(yd.direita?.anterior || 0); setYAntE(yd.esquerda?.anterior || 0);
           setYPMD(yd.direita?.posteromedial || 0); setYPME(yd.esquerda?.posteromedial || 0);
           setYPLD(yd.direita?.posterolateral || 0); setYPLE(yd.esquerda?.posterolateral || 0);
+
+          const antDT = yd.direita?.anteriorTentativas || [yd.direita?.anterior ?? '', '', ''];
+          setYAntD1(antDT[0] ?? ''); setYAntD2(antDT[1] ?? ''); setYAntD3(antDT[2] ?? '');
+          const pmDT = yd.direita?.posteromedialTentativas || [yd.direita?.posteromedial ?? '', '', ''];
+          setYPMD1(pmDT[0] ?? ''); setYPMD2(pmDT[1] ?? ''); setYPMD3(pmDT[2] ?? '');
+          const plDT = yd.direita?.posterolateralTentativas || [yd.direita?.posterolateral ?? '', '', ''];
+          setYPLD1(plDT[0] ?? ''); setYPLD2(plDT[1] ?? ''); setYPLD3(plDT[2] ?? '');
+
+          const antET = yd.esquerda?.anteriorTentativas || [yd.esquerda?.anterior ?? '', '', ''];
+          setYAntE1(antET[0] ?? ''); setYAntE2(antET[1] ?? ''); setYAntE3(antET[2] ?? '');
+          const pmET = yd.esquerda?.posteromedialTentativas || [yd.esquerda?.posteromedial ?? '', '', ''];
+          setYPME1(pmET[0] ?? ''); setYPME2(pmET[1] ?? ''); setYPME3(pmET[2] ?? '');
+          const plET = yd.esquerda?.posterolateralTentativas || [yd.esquerda?.posterolateral ?? '', '', ''];
+          setYPLE1(plET[0] ?? ''); setYPLE2(plET[1] ?? ''); setYPLE3(plET[2] ?? '');
         }
       } catch { /* legacy */ }
     }
@@ -4049,8 +4272,24 @@ goniometria: {
         payload.testesOrtopedicos = {
           yTeste: {
             realizou: yRealizou,
-            direita: { anterior: Number(yAntD), posteromedial: Number(yPMD), posterolateral: Number(yPLD), comprimentoMembro: Number(yLenD) },
-            esquerda: { anterior: Number(yAntE), posteromedial: Number(yPME), posterolateral: Number(yPLE), comprimentoMembro: Number(yLenE) }
+            direita: {
+              anterior: Number(yAntD) || 0,
+              anteriorTentativas: [yAntD1, yAntD2, yAntD3].map(v => Number(v) || 0),
+              posteromedial: Number(yPMD) || 0,
+              posteromedialTentativas: [yPMD1, yPMD2, yPMD3].map(v => Number(v) || 0),
+              posterolateral: Number(yPLD) || 0,
+              posterolateralTentativas: [yPLD1, yPLD2, yPLD3].map(v => Number(v) || 0),
+              comprimentoMembro: Number(yLenD) || 0
+            },
+            esquerda: {
+              anterior: Number(yAntE) || 0,
+              anteriorTentativas: [yAntE1, yAntE2, yAntE3].map(v => Number(v) || 0),
+              posteromedial: Number(yPME) || 0,
+              posteromedialTentativas: [yPME1, yPME2, yPME3].map(v => Number(v) || 0),
+              posterolateral: Number(yPLE) || 0,
+              posterolateralTentativas: [yPLE1, yPLE2, yPLE3].map(v => Number(v) || 0),
+              comprimentoMembro: Number(yLenE) || 0
+            }
           },
           estrelaMaigne: {
             realizou: repMaigneRealizou,
@@ -4150,6 +4389,13 @@ goniometria: {
             setRepDeDorAbd('nao');
             setRepMaigneRealizou('nao');
             setYRealizou('nao');
+            setYLenD(0); setYLenE(0);
+            setYAntD(0); setYAntD1(''); setYAntD2(''); setYAntD3('');
+            setYPMD(0); setYPMD1(''); setYPMD2(''); setYPMD3('');
+            setYPLD(0); setYPLD1(''); setYPLD2(''); setYPLD3('');
+            setYAntE(0); setYAntE1(''); setYAntE2(''); setYAntE3('');
+            setYPME(0); setYPME1(''); setYPME2(''); setYPME3('');
+            setYPLE(0); setYPLE1(''); setYPLE2(''); setYPLE3('');
             setSdRealizou('nao');
             setTThomasIliopsoasDStatus('Negativo');
             setTThomasIliopsoasEStatus('Negativo');
@@ -12593,36 +12839,28 @@ goniometria: {
                         </div>
                         {asYTestRealizou === 'sim' && (
                           <div>
-                            <div className="resp-grid-1-1">
+                            <div className="resp-grid-1-1" style={{ marginBottom: '12px', gap: '16px' }}>
                               {/* Membro Direito */}
-                              <div>
-                                <h6 style={{ color: 'var(--color-secondary)', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 700 }}>Membro Direito</h6>
-                                {([
-                                  { label: 'Comprimento do Membro (cm)', val: asYLenD, set: setAsYLenD },
-                                  { label: 'Alcance Anterior (cm)', val: asYAntD, set: setAsYAntD },
-                                  { label: 'Alcance Posteromedial (cm)', val: asYPMD, set: setAsYPMD },
-                                  { label: 'Alcance Posterolateral (cm)', val: asYPLD, set: setAsYPLD },
-                                ] as const).map(({ label, val, set }) => (
-                                  <div key={label} style={{ marginBottom: '6px' }}>
-                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>{label}</label>
-                                    <input type="number" className="form-control form-control-sm" value={val} onChange={e => (set as any)(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
-                                  </div>
-                                ))}
+                              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.85rem' }}>Membro Direito</strong>
+                                <div style={{ marginBottom: '8px' }}>
+                                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '3px' }}>Comprimento do Membro (cm)</label>
+                                  <input type="number" step="0.1" className="form-control form-control-sm" value={asYLenD || ''} onChange={e => setAsYLenD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 85" />
+                                </div>
+                                {renderYDirectionTrials('Alcance Anterior (cm)', asYAntD1, setAsYAntD1, asYAntD2, setAsYAntD2, asYAntD3, setAsYAntD3, asYAntD, setAsYAntD)}
+                                {renderYDirectionTrials('Alcance Posteromedial (PM) (cm)', asYPMD1, setAsYPMD1, asYPMD2, setAsYPMD2, asYPMD3, setAsYPMD3, asYPMD, setAsYPMD)}
+                                {renderYDirectionTrials('Alcance Posterolateral (PL) (cm)', asYPLD1, setAsYPLD1, asYPLD2, setAsYPLD2, asYPLD3, setAsYPLD3, asYPLD, setAsYPLD)}
                               </div>
                               {/* Membro Esquerdo */}
-                              <div>
-                                <h6 style={{ color: 'var(--color-secondary)', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 700 }}>Membro Esquerdo</h6>
-                                {([
-                                  { label: 'Comprimento do Membro (cm)', val: asYLenE, set: setAsYLenE },
-                                  { label: 'Alcance Anterior (cm)', val: asYAntE, set: setAsYAntE },
-                                  { label: 'Alcance Posteromedial (cm)', val: asYPME, set: setAsYPME },
-                                  { label: 'Alcance Posterolateral (cm)', val: asYPLE, set: setAsYPLE },
-                                ] as const).map(({ label, val, set }) => (
-                                  <div key={label} style={{ marginBottom: '6px' }}>
-                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>{label}</label>
-                                    <input type="number" className="form-control form-control-sm" value={val} onChange={e => (set as any)(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
-                                  </div>
-                                ))}
+                              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.85rem' }}>Membro Esquerdo</strong>
+                                <div style={{ marginBottom: '8px' }}>
+                                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '3px' }}>Comprimento do Membro (cm)</label>
+                                  <input type="number" step="0.1" className="form-control form-control-sm" value={asYLenE || ''} onChange={e => setAsYLenE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 85" />
+                                </div>
+                                {renderYDirectionTrials('Alcance Anterior (cm)', asYAntE1, setAsYAntE1, asYAntE2, setAsYAntE2, asYAntE3, setAsYAntE3, asYAntE, setAsYAntE)}
+                                {renderYDirectionTrials('Alcance Posteromedial (PM) (cm)', asYPME1, setAsYPME1, asYPME2, setAsYPME2, asYPME3, setAsYPME3, asYPME, setAsYPME)}
+                                {renderYDirectionTrials('Alcance Posterolateral (PL) (cm)', asYPLE1, setAsYPLE1, asYPLE2, setAsYPLE2, asYPLE3, setAsYPLE3, asYPLE, setAsYPLE)}
                               </div>
                             </div>
 
@@ -15182,24 +15420,26 @@ goniometria: {
 
                       {yRealizou === 'sim' && (
                         <div>
-                          <div className="resp-grid-1-1" style={{ marginBottom: '12px' }}>
-                            <div>
-                              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.8rem' }}>Membro Direito</strong>
-                              <div className="resp-grid-1-1" style={{ fontSize: '0.75rem' }}>
-                                <div>Comprimento (cm)<input type="number" className="form-control form-control-sm" value={yLenD || ''} onChange={e => setYLenD(Number(e.target.value))} /></div>
-                                <div>Anterior (cm)<input type="number" className="form-control form-control-sm" value={yAntD || ''} onChange={e => setYAntD(Number(e.target.value))} /></div>
-                                <div>PM (cm)<input type="number" className="form-control form-control-sm" value={yPMD || ''} onChange={e => setYPMD(Number(e.target.value))} /></div>
-                                <div>PL (cm)<input type="number" className="form-control form-control-sm" value={yPLD || ''} onChange={e => setYPLD(Number(e.target.value))} /></div>
+                          <div className="resp-grid-1-1" style={{ marginBottom: '12px', gap: '16px' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.85rem' }}>Membro Direito</strong>
+                              <div style={{ marginBottom: '8px' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '3px' }}>Comprimento do Membro (cm)</label>
+                                <input type="number" step="0.1" className="form-control form-control-sm" value={yLenD || ''} onChange={e => setYLenD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 85" />
                               </div>
+                              {renderYDirectionTrials('Anterior (cm)', yAntD1, setYAntD1, yAntD2, setYAntD2, yAntD3, setYAntD3, yAntD, setYAntD)}
+                              {renderYDirectionTrials('Póstero-Medial (PM) (cm)', yPMD1, setYPMD1, yPMD2, setYPMD2, yPMD3, setYPMD3, yPMD, setYPMD)}
+                              {renderYDirectionTrials('Póstero-Lateral (PL) (cm)', yPLD1, setYPLD1, yPLD2, setYPLD2, yPLD3, setYPLD3, yPLD, setYPLD)}
                             </div>
-                            <div>
-                              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.8rem' }}>Membro Esquerdo</strong>
-                              <div className="resp-grid-1-1" style={{ fontSize: '0.75rem' }}>
-                                <div>Comprimento (cm)<input type="number" className="form-control form-control-sm" value={yLenE || ''} onChange={e => setYLenE(Number(e.target.value))} /></div>
-                                <div>Anterior (cm)<input type="number" className="form-control form-control-sm" value={yAntE || ''} onChange={e => setYAntE(Number(e.target.value))} /></div>
-                                <div>PM (cm)<input type="number" className="form-control form-control-sm" value={yPME || ''} onChange={e => setYPME(Number(e.target.value))} /></div>
-                                <div>PL (cm)<input type="number" className="form-control form-control-sm" value={yPLE || ''} onChange={e => setYPLE(Number(e.target.value))} /></div>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.85rem' }}>Membro Esquerdo</strong>
+                              <div style={{ marginBottom: '8px' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '3px' }}>Comprimento do Membro (cm)</label>
+                                <input type="number" step="0.1" className="form-control form-control-sm" value={yLenE || ''} onChange={e => setYLenE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 85" />
                               </div>
+                              {renderYDirectionTrials('Anterior (cm)', yAntE1, setYAntE1, yAntE2, setYAntE2, yAntE3, setYAntE3, yAntE, setYAntE)}
+                              {renderYDirectionTrials('Póstero-Medial (PM) (cm)', yPME1, setYPME1, yPME2, setYPME2, yPME3, setYPME3, yPME, setYPME)}
+                              {renderYDirectionTrials('Póstero-Lateral (PL) (cm)', yPLE1, setYPLE1, yPLE2, setYPLE2, yPLE3, setYPLE3, yPLE, setYPLE)}
                             </div>
                           </div>
 

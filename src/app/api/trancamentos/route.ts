@@ -173,7 +173,7 @@ export async function POST(request: Request) {
         const clientName = client?.dadosPessoais?.nome || contract.nomeCliente || 'Aluno';
         await ActivityLog.create({
           profissionalId,
-          clienteId,
+          clienteId: clientId,
           acao: 'Lançou Trancamento de Plano',
           detalhes: `Trancou ${semanas} semana(s) (${creditosTrancados} créditos) para ${clientName} a partir de ${trancStartISO}, redistribuídos até ${mesFimContrato}.`,
           origem: origem === 'Computador Coletivo' ? 'Computador Coletivo' : 'Acesso Direto'
