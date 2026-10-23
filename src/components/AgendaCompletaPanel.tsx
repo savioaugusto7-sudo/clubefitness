@@ -1197,6 +1197,17 @@ export default function AgendaCompletaPanel({
                             </span>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                               {slot.vagasOcupadas} / {slot.capacidade} vagas
+                              {(() => {
+                                const trancadosCount = (slot.appointments || []).filter((a: any) => a.isTrancado).length;
+                                if (trancadosCount > 0) {
+                                  return (
+                                    <span style={{ color: '#fbbf24', fontSize: '0.70rem', marginLeft: '6px', fontWeight: 600 }}>
+                                      ({trancadosCount} {trancadosCount === 1 ? 'vaga liberada 🔒' : 'vagas liberadas 🔒'})
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </div>
                         </div>

@@ -3,6 +3,8 @@ import dbConnect from '@/utils/dbConnect';
 import Appointment from '@/models/Appointment';
 import AgendaConfig from '@/models/AgendaConfig';
 import Professional from '@/models/Professional';
+import Trancamento from '@/models/Trancamento';
+import { computeTrancamentoDates } from '@/app/api/trancamentos/route';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -282,7 +284,26 @@ export async function GET(request: Request) {
         aptsFilter.profissionalId = profissionalId;
       }
 
-      const allApts = await Appointment.find(aptsFilter);
+      const allApts = await Appointment.find(aptsFilter).lean();
+
+      // Enriquecer com trancamentos dinâmicos ativos para a data
+      const activeTrancs = await Trancamento.find({
+        dataInicio: { $lte: data }
+      }).lean();
+
+      for (const apt of allApts as any[]) {
+        const cId = String(apt.clienteId?._id || apt.clienteId || '');
+        const matchingTranc = activeTrancs.find((t: any) => {
+          const tCid = String(t.clientId?._id || t.clientId || t.clienteId || '');
+          if (tCid !== cId) return false;
+          const { dataFimISO } = computeTrancamentoDates(t.dataInicio, t.dataFim || t.semanas, t.dataFim);
+          return data >= t.dataInicio && data <= dataFimISO;
+        });
+        if (matchingTranc) {
+          apt.isTrancado = true;
+        }
+      }
+
       const availableSlots: string[] = [];
 
       for (const horario of grade) {

@@ -4,6 +4,8 @@ import Appointment from '@/models/Appointment';
 import AgendaConfig from '@/models/AgendaConfig';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
+import Trancamento from '@/models/Trancamento';
+import { computeTrancamentoDates } from '@/app/api/trancamentos/route';
 
 export const maxDuration = 30;
 
@@ -145,6 +147,30 @@ export async function GET(request: Request) {
       })
         .populate({ path: 'profissionalId', strictPopulate: false })
         .lean();
+
+      // 2.1 Cruzamento com Trancamentos vigentes para as datas avaliadas
+      if (dateStrings.length > 0) {
+        const maxDate = dateStrings[dateStrings.length - 1];
+        const multiTrancs = await Trancamento.find({
+          dataInicio: { $lte: maxDate }
+        }).lean();
+
+        for (const apt of appointments as any[]) {
+          const cId = String(apt.clienteId?._id || apt.clienteId || '');
+          const matchingTranc = multiTrancs.find((t: any) => {
+            const tCid = String(t.clientId?._id || t.clientId || t.clienteId || '');
+            if (tCid !== cId) return false;
+            const { dataFimISO } = computeTrancamentoDates(t.dataInicio, t.dataFim || t.semanas, t.dataFim);
+            return apt.data >= t.dataInicio && apt.data <= dataFimISO;
+          });
+
+          if (matchingTranc || apt.isTrancado) {
+            apt.isTrancado = true;
+            apt.consumeCredito = false;
+            apt.tipoCredito = 'nenhum';
+          }
+        }
+      }
 
       const configs = await AgendaConfig.find({
         $and: [
@@ -450,7 +476,7 @@ export async function GET(request: Request) {
 
     const resolvedSlots = resolveSlots(tipoFiltro, defaultSlots);
 
-    // 3. Buscar agendamentos existentes da data e popular
+    // 3. Buscar agendamentos existentes da data e popular com .lean()
     const appointments = await Appointment.find({
       data: date,
       status: { $ne: 'cancelado' }
@@ -460,7 +486,50 @@ export async function GET(request: Request) {
         strictPopulate: false,
         populate: { path: 'dadosComerciais.planoId', select: 'nome tipo', strictPopulate: false }
       })
-      .populate({ path: 'profissionalId', strictPopulate: false });
+      .populate({ path: 'profissionalId', strictPopulate: false })
+      .lean();
+
+    // 3.1 Cruzamento dinâmico em tempo real com Trancamentos vigentes para a data
+    const trancamentosAtivos = await Trancamento.find({
+      dataInicio: { $lte: date }
+    }).lean();
+
+    const trancadosNaDataMap = new Map<string, any>();
+    for (const t of trancamentosAtivos) {
+      const { dataFimISO, dataRetornoISO, semanas } = computeTrancamentoDates(
+        t.dataInicio,
+        t.dataFim || t.semanas,
+        t.dataFim
+      );
+      if (date >= t.dataInicio && date <= dataFimISO) {
+        const cId = String(t.clientId?._id || t.clientId || t.clienteId || '');
+        if (cId) {
+          trancadosNaDataMap.set(cId, {
+            trancamentoId: t._id,
+            dataFimISO,
+            dataRetornoISO,
+            semanas: Number(t.semanas || semanas)
+          });
+        }
+      }
+    }
+
+    // Enriquecer cada agendamento com o status de trancamento em tempo real
+    for (const apt of appointments as any[]) {
+      const cId = String(apt.clienteId?._id || apt.clienteId || '');
+      const tranc = trancadosNaDataMap.get(cId);
+      if (tranc || apt.isTrancado) {
+        apt.isTrancado = true;
+        apt.consumeCredito = false;
+        apt.tipoCredito = 'nenhum';
+        if (tranc) {
+          apt.trancamentoId = tranc.trancamentoId;
+          apt.trancamentoEncerramento = tranc.dataFimISO;
+          apt.trancamentoRetorno = tranc.dataRetornoISO;
+          apt.trancamentoSemanas = tranc.semanas;
+        }
+      }
+    }
 
     const rawResult = resolvedSlots.map(slot => {
       const slotsApts = appointments.filter(apt => {

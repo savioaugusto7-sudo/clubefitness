@@ -37,7 +37,10 @@ export default function TrancamentoPanel({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dataInicio, setDataInicio] = useState<string>('');
-  const [semanas, setSemanas] = useState<number>(1);
+  const [dataFim, setDataFim] = useState<string>('');
+  const [creditosManual, setCreditosManual] = useState<number | null>(null);
+  const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
+  const [loadingFixedSchedules, setLoadingFixedSchedules] = useState(false);
   const [redistribuicao, setRedistribuicao] = useState<Record<string, number>>({});
   
   const [submitting, setSubmitting] = useState(false);
@@ -174,29 +177,158 @@ export default function TrancamentoPanel({
     return toISO(selectedContract.dataFim || selectedContract.dataTermino || selectedClient?.dadosComerciais?.vencimento);
   }, [selectedContract, selectedClient]);
 
-  // Cálculo dinâmico do limite máximo de semanas baseado na vigência restante
-  const maxSemanasDisponiveis = useMemo(() => {
-    if (!selectedContract || !contractEndISO) return 0;
-    
-    // Se a data de início estiver preenchida, calcula a partir dela; senão a partir de hoje
-    const baseDateStr = dataInicio ? toISO(dataInicio) : new Date().toISOString().slice(0, 10);
-    const startDate = new Date(baseDateStr + 'T00:00:00');
-    const endDate = new Date(contractEndISO + 'T23:59:59');
+  // Carrega horários fixos do cliente para auditoria da grade
+  useEffect(() => {
+    if (!selectedClient?._id) {
+      setFixedSchedules([]);
+      return;
+    }
+    setLoadingFixedSchedules(true);
+    fetch(`/api/fixed-schedules?clienteId=${selectedClient._id}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json?.success && Array.isArray(json.data)) {
+          setFixedSchedules(json.data);
+        } else {
+          setFixedSchedules([]);
+        }
+      })
+      .catch(err => {
+        console.error('Erro ao carregar horários fixos do cliente:', err);
+        setFixedSchedules([]);
+      })
+      .finally(() => setLoadingFixedSchedules(false));
+  }, [selectedClient]);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate >= endDate) {
-      return 0;
+  // Opção 3: Cálculo de dias, semanas e auditoria inteligente de créditos
+  const trancamentoCalculation = useMemo(() => {
+    if (!dataInicio || !dataFim) {
+      return {
+        diasTrancados: 0,
+        semanasEquiv: 0,
+        dataRetornoISO: '',
+        dataRetornoFormatted: '',
+        creditosSugeridos: 0,
+        detalheCalculo: '',
+        aulasAuditadas: [] as any[]
+      };
     }
 
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const dias = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-    const semanasRestantes = Math.floor(dias / 7);
+    const startISO = toISO(dataInicio);
+    const endISO = toISO(dataFim);
 
-    // Permite de 1 até o total de semanas restantes de vigência
-    return Math.max(1, semanasRestantes);
-  }, [selectedContract, contractEndISO, dataInicio]);
+    const [sy, sm, sd] = startISO.split('-').map(Number);
+    const [ey, em, ed] = endISO.split('-').map(Number);
 
-  // Créditos totais a congelar e redistribuir
-  const creditosCongelados = frequenciaValida ? semanas * frequencia : 0;
+    const dtStart = new Date(sy, sm - 1, sd, 12, 0, 0);
+    const dtEnd = new Date(ey, em - 1, ed, 12, 0, 0);
+
+    if (isNaN(dtStart.getTime()) || isNaN(dtEnd.getTime()) || dtStart > dtEnd) {
+      return {
+        diasTrancados: 0,
+        semanasEquiv: 0,
+        dataRetornoISO: '',
+        dataRetornoFormatted: '',
+        creditosSugeridos: 0,
+        detalheCalculo: 'Data inicial posterior à data final',
+        aulasAuditadas: [] as any[]
+      };
+    }
+
+    const diffMs = dtEnd.getTime() - dtStart.getTime();
+    const diasTrancados = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+    const semanasEquiv = Math.max(1, Math.round(diasTrancados / 7));
+
+    const dtRetorno = new Date(dtEnd);
+    dtRetorno.setDate(dtRetorno.getDate() + 1);
+    const retY = dtRetorno.getFullYear();
+    const retM = String(dtRetorno.getMonth() + 1).padStart(2, '0');
+    const retD = String(dtRetorno.getDate()).padStart(2, '0');
+    const dataRetornoISO = `${retY}-${retM}-${retD}`;
+    const dataRetornoFormatted = dtRetorno.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    // Auditoria de Horários Fixos na grade entre startISO e endISO
+    let aulasContadas = 0;
+    const aulasAuditadas: any[] = [];
+
+    if (fixedSchedules && fixedSchedules.length > 0) {
+      const cur = new Date(dtStart);
+      while (cur <= dtEnd) {
+        const curDayOfWeek = cur.getDay(); // 0 = Domingo, 1 = Segunda...
+        const curISO = cur.toISOString().slice(0, 10);
+
+        const schedsDoDia = fixedSchedules.filter((s: any) => {
+          if (Number(s.diaSemana) !== curDayOfWeek) return false;
+          if (s.dataInicio && s.dataInicio > curISO) return false;
+          if (s.dataFim && s.dataFim < curISO) return false;
+          return true;
+        });
+
+        for (const s of schedsDoDia) {
+          const serv = s.servico || 'Treino Monitorado';
+          const isLivre = serv.toLowerCase().includes('livre');
+          if (!isLivre) {
+            aulasContadas++;
+            aulasAuditadas.push({
+              data: curISO,
+              diaSemana: curDayOfWeek,
+              horario: s.horario,
+              servico: serv
+            });
+          }
+        }
+
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+
+    let creditosSugeridos = 0;
+    let detalheCalculo = '';
+
+    if (aulasContadas > 0) {
+      creditosSugeridos = aulasContadas;
+      detalheCalculo = `Auditadas ${aulasContadas} aula(s) de Treino Monitorado no período de ${diasTrancados} dias.`;
+    } else {
+      creditosSugeridos = Math.max(1, Math.round((diasTrancados / 7) * (frequencia || 1)));
+      detalheCalculo = `Baseado em ${diasTrancados} dias (~${(diasTrancados / 7).toFixed(1)} semanas) e frequência de ${frequencia || 1}x/semana do contrato.`;
+    }
+
+    return {
+      diasTrancados,
+      semanasEquiv,
+      dataRetornoISO,
+      dataRetornoFormatted,
+      creditosSugeridos,
+      detalheCalculo,
+      aulasAuditadas
+    };
+  }, [dataInicio, dataFim, fixedSchedules, frequencia]);
+
+  // Créditos totais a congelar e redistribuir (com suporte ao ajuste fino)
+  const creditosCongelados = useMemo(() => {
+    if (creditosManual !== null) return Math.max(0, creditosManual);
+    return trancamentoCalculation.creditosSugeridos || 0;
+  }, [creditosManual, trancamentoCalculation.creditosSugeridos]);
+
+  // Atalhos rápidos para período de trancamento
+  const handleApplyQuickPeriod = (dias: number | 'endOfMonth') => {
+    if (!dataInicio) return;
+    const startISO = toISO(dataInicio);
+    const [y, m, d] = startISO.split('-').map(Number);
+    const dt = new Date(y, m - 1, d, 12, 0, 0);
+
+    if (dias === 'endOfMonth') {
+      const lastDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0, 12, 0, 0);
+      const endISO = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+      setDataFim(endISO);
+    } else {
+      dt.setDate(dt.getDate() + dias - 1);
+      const endISO = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      setDataFim(endISO);
+    }
+    setCreditosManual(null);
+    setRedistribuicao({});
+  };
 
   // Meses restantes de vigência a partir de dataInicio
   const remainingMonths = useMemo(() => {
@@ -219,6 +351,27 @@ export default function TrancamentoPanel({
     }
     return months;
   }, [selectedContract, dataInicio, contractEndISO]);
+
+  // Auto-distribuição inteligente dos créditos entre os meses restantes
+  const handleAutoDistribute = () => {
+    if (creditosCongelados <= 0 || remainingMonths.length === 0) return;
+    const retMonth = trancamentoCalculation.dataRetornoISO ? trancamentoCalculation.dataRetornoISO.slice(0, 7) : remainingMonths[0].value;
+    const eligibleMonths = remainingMonths.filter(m => m.value >= retMonth);
+    const targetMonths = eligibleMonths.length > 0 ? eligibleMonths : remainingMonths;
+
+    const newRedist: Record<string, number> = {};
+    remainingMonths.forEach(m => { newRedist[m.value] = 0; });
+
+    let remaining = creditosCongelados;
+    let idx = 0;
+    while (remaining > 0) {
+      const monthKey = targetMonths[idx % targetMonths.length].value;
+      newRedist[monthKey] = (newRedist[monthKey] || 0) + 1;
+      remaining--;
+      idx++;
+    }
+    setRedistribuicao(newRedist);
+  };
 
   // Soma dos créditos atualmente redistribuídos
   const sumRedist = useMemo(() => {
@@ -245,12 +398,24 @@ export default function TrancamentoPanel({
       setErrorMsg('Informe a data de início do trancamento.');
       return;
     }
-    if (semanas < 1 || semanas > maxSemanasDisponiveis) {
-      setErrorMsg(`Quantidade de semanas inválida. Permitido até ${maxSemanasDisponiveis} semanas dentro da vigência deste contrato.`);
+    if (!dataFim) {
+      setErrorMsg('Informe a data de término do trancamento.');
+      return;
+    }
+    if (dataFim < dataInicio) {
+      setErrorMsg('A data de término não pode ser anterior à data de início.');
+      return;
+    }
+    if (contractEndISO && dataFim > contractEndISO) {
+      setErrorMsg(`A data de término (${dataFim}) não pode ultrapassar a vigência do contrato (${contractEndISO}).`);
+      return;
+    }
+    if (creditosCongelados <= 0) {
+      setErrorMsg('A quantidade de créditos a repor deve ser maior que zero.');
       return;
     }
     if (!isDistributionPerfect) {
-      setErrorMsg(`A soma redistribuída (${sumRedist}) deve ser exatamente igual ao total de ${creditosCongelados} créditos congelados.`);
+      setErrorMsg(`A soma redistribuída (${sumRedist}) deve ser exatamente igual ao total de ${creditosCongelados} créditos a repor.`);
       return;
     }
 
@@ -266,7 +431,9 @@ export default function TrancamentoPanel({
           clientId: selectedClient._id,
           contractId: selectedContract._id,
           dataInicio: toISO(dataInicio),
-          semanas: Number(semanas),
+          dataFim: toISO(dataFim),
+          semanas: trancamentoCalculation.semanasEquiv,
+          creditosTrancados: creditosCongelados,
           redistribuicao: redistList,
           profissionalId: executorProfId || professionalId || null,
           origem: isCollective ? 'Computador Coletivo' : 'Acesso Direto'
@@ -280,13 +447,14 @@ export default function TrancamentoPanel({
 
         const data = await res.json();
         if (data.success) {
-          setSuccessMsg(`Trancamento de ${semanas} semana(s) lançado com sucesso!`);
+          setSuccessMsg(`Trancamento de ${trancamentoCalculation.diasTrancados} dias (${creditosCongelados} créditos) lançado com sucesso!`);
           fetchContractsAndTrancamentos();
           // Reset form
           setSelectedContractId('');
           setSearchQuery('');
           setDataInicio('');
-          setSemanas(1);
+          setDataFim('');
+          setCreditosManual(null);
           setRedistribuicao({});
           if (onClose) {
             setTimeout(() => onClose(), 1500);
@@ -309,7 +477,7 @@ export default function TrancamentoPanel({
         (executorProfId, isColl) => {
           executeTrancamento(executorProfId, isColl);
         },
-        `Lançamento de trancamento de ${semanas} semana(s) para o aluno ${selectedClientName}`
+        `Lançamento de trancamento de ${trancamentoCalculation.diasTrancados} dias (${creditosCongelados} créditos) para o aluno ${selectedClientName}`
       );
     } else {
       executeTrancamento(professionalId || '', false);
@@ -629,8 +797,8 @@ export default function TrancamentoPanel({
             </div>
           ) : selectedContract ? (
             <>
-              {/* Seleção de Data e Quantidade de Semanas */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+              {/* Seleção de Período (Início e Término do Trancamento) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '12px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
                     Início do Trancamento *
@@ -640,6 +808,7 @@ export default function TrancamentoPanel({
                     value={dataInicio}
                     onChange={e => {
                       setDataInicio(e.target.value);
+                      setCreditosManual(null);
                       setRedistribuicao({});
                     }}
                     style={{
@@ -657,12 +826,16 @@ export default function TrancamentoPanel({
 
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
-                    Semanas a Trancar * (Permitido mais de 4 sem.)
+                    Término do Trancamento * (Último dia ausente)
                   </label>
-                  <select
-                    value={semanas}
+                  <input
+                    type="date"
+                    value={dataFim}
+                    min={dataInicio || undefined}
+                    max={contractEndISO || undefined}
                     onChange={e => {
-                      setSemanas(Number(e.target.value));
+                      setDataFim(e.target.value);
+                      setCreditosManual(null);
                       setRedistribuicao({});
                     }}
                     style={{
@@ -672,41 +845,241 @@ export default function TrancamentoPanel({
                       border: '1px solid rgba(255,255,255,0.12)',
                       color: '#f8fafc',
                       borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      outline: 'none'
+                      fontSize: '0.85rem'
                     }}
-                  >
-                    {Array.from({ length: Math.min(24, Math.max(1, maxSemanasDisponiveis)) }, (_, i) => i + 1).map(n => (
-                      <option key={n} value={n} style={{ background: '#0f172a' }}>
-                        {n} {n === 1 ? 'semana' : 'semanas'} {n > 4 ? '(Mais de 4 sem. — Dentro da Vigência)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    required
+                  />
                 </div>
               </div>
 
-              {/* Indicador de Créditos Congelados */}
-              <div style={{
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '18px'
-              }}>
-                <span style={{ fontSize: '0.84rem', color: '#fbbf24', fontWeight: 600 }}>
-                  <i className="fa-solid fa-coins" style={{ marginRight: '8px' }}></i>
-                  Créditos Congelados a Redistribuir ({semanas} sem. × {frequencia}x/sem.):
-                </span>
-                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fbbf24' }}>
-                  {creditosCongelados} créditos
-                </span>
-              </div>
+              {/* Botões Rápidos de Período */}
+              {dataInicio && (
+                <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8', marginRight: '4px' }}>
+                    Atalhos rápidos:
+                  </span>
+                  {[
+                    { label: '+1 Semana (7d)', dias: 7 },
+                    { label: '+2 Semanas (14d)', dias: 14 },
+                    { label: '+3 Semanas (21d)', dias: 21 },
+                    { label: '+4 Semanas (28d)', dias: 28 },
+                    { label: 'Até Fim do Mês', dias: 'endOfMonth' as const }
+                  ].map(btn => (
+                    <button
+                      key={btn.label}
+                      type="button"
+                      onClick={() => handleApplyQuickPeriod(btn.dias)}
+                      style={{
+                        padding: '4px 10px',
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        color: '#38bdf8',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 650,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Diagnóstico do Período e Retorno às Aulas */}
+              {dataInicio && dataFim && trancamentoCalculation.diasTrancados > 0 && (
+                <div style={{
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>Duração do Trancamento:</span>
+                    <strong style={{ fontSize: '0.90rem', color: '#f8fafc' }}>
+                      {trancamentoCalculation.diasTrancados} dias corridos
+                    </strong>
+                    <span style={{ fontSize: '0.70rem', color: '#38bdf8', marginLeft: '6px' }}>
+                      (~{trancamentoCalculation.semanasEquiv} {trancamentoCalculation.semanasEquiv === 1 ? 'semana' : 'semanas'})
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>Retorno Oficial às Aulas:</span>
+                    <strong style={{ fontSize: '0.90rem', color: '#10b981' }}>
+                      {trancamentoCalculation.dataRetornoFormatted}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>Vigência Restante do Contrato:</span>
+                    <strong style={{ fontSize: '0.90rem', color: '#cbd5e1' }}>
+                      {contractEndISO}
+                    </strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Opção 3: Auditoria Real da Grade & Ajuste Fino de Créditos a Repor */}
+              {dataInicio && dataFim && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  padding: '16px 20px',
+                  borderRadius: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1rem', color: '#fbbf24' }}>
+                          <i className="fa-solid fa-calculator"></i>
+                        </span>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                          Créditos a Repor (Opção 3 — Auditoria da Grade)
+                        </h4>
+                        <span style={{
+                          fontSize: '0.70rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          color: '#fbbf24',
+                          border: '1px solid rgba(245, 158, 11, 0.35)'
+                        }}>
+                          🎯 Sugestão: {trancamentoCalculation.creditosSugeridos} cr.
+                        </span>
+                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: '#cbd5e1' }}>
+                        {loadingFixedSchedules ? (
+                          <span><i className="fa-solid fa-spinner fa-spin"></i> Auditando horários fixos do aluno...</span>
+                        ) : (
+                          trancamentoCalculation.detalheCalculo
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Botão de Restaurar Sugestão Automática se o usuário ajustou manualmente */}
+                    {creditosManual !== null && creditosManual !== trancamentoCalculation.creditosSugeridos && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreditosManual(null);
+                          setRedistribuicao({});
+                        }}
+                        style={{
+                          background: 'rgba(255,255,255,0.08)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          color: '#cbd5e1',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <i className="fa-solid fa-rotate-left" style={{ marginRight: '4px' }}></i>
+                        Restaurar Sugestão ({trancamentoCalculation.creditosSugeridos})
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Controle de Ajuste Fino [ - ] [ INPUT ] [ + ] */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.06)'
+                  }}>
+                    <span style={{ fontSize: '0.80rem', color: '#cbd5e1', fontWeight: 600 }}>
+                      Quantidade Final de Créditos a Repor:
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const novo = Math.max(0, creditosCongelados - 1);
+                          setCreditosManual(novo);
+                          setRedistribuicao({});
+                        }}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                          color: '#fbbf24',
+                          fontWeight: 800,
+                          fontSize: '1rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Diminuir 1 crédito"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={creditosCongelados}
+                        onChange={e => {
+                          const v = Math.max(0, Number(e.target.value) || 0);
+                          setCreditosManual(v);
+                          setRedistribuicao({});
+                        }}
+                        style={{
+                          width: '65px',
+                          padding: '6px 0',
+                          textAlign: 'center',
+                          background: '#0f172a',
+                          border: '1px solid rgba(245, 158, 11, 0.5)',
+                          borderRadius: '6px',
+                          color: '#fbbf24',
+                          fontSize: '1.05rem',
+                          fontWeight: 800,
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const novo = creditosCongelados + 1;
+                          setCreditosManual(novo);
+                          setRedistribuicao({});
+                        }}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                          color: '#fbbf24',
+                          fontWeight: 800,
+                          fontSize: '1rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Aumentar 1 crédito"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Grade de Redistribuição Mensal de Créditos */}
-              {dataInicio && (
+              {dataInicio && dataFim && creditosCongelados > 0 && (
                 <div style={{
                   background: '#1e293b',
                   border: '1px solid rgba(255,255,255,0.08)',
@@ -714,13 +1087,36 @@ export default function TrancamentoPanel({
                   padding: '18px',
                   marginBottom: '20px'
                 }}>
-                  <div style={{ marginBottom: '14px' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.90rem', fontWeight: 700, color: '#f8fafc' }}>
-                      Redistribuição Mensal de Créditos (Dentro da Vigência)
-                    </h4>
-                    <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
-                      Distribua exatamente os <strong>{creditosCongelados} créditos</strong> entre os meses restantes antes do vencimento do contrato ({contractEndISO}):
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.90rem', fontWeight: 700, color: '#f8fafc' }}>
+                        Redistribuição Mensal de Créditos (Dentro da Vigência)
+                      </h4>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
+                        Distribua exatamente os <strong>{creditosCongelados} créditos</strong> entre os meses restantes antes do vencimento do contrato ({contractEndISO}):
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAutoDistribute}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.15) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        color: '#34d399',
+                        borderRadius: '6px',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                      title="Distribuir créditos uniformemente nos meses restantes"
+                    >
+                      <i className="fa-solid fa-wand-magic-sparkles"></i>
+                      ⚡ Distribuir Automaticamente
+                    </button>
                   </div>
 
                   {remainingMonths.length === 0 ? (
@@ -950,8 +1346,9 @@ export default function TrancamentoPanel({
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8' }}>
                   <th style={{ padding: '10px 8px' }}>Aluno</th>
-                  <th style={{ padding: '10px 8px' }}>Início</th>
-                  <th style={{ padding: '10px 8px' }}>Semanas</th>
+                  <th style={{ padding: '10px 8px' }}>Período Trancado</th>
+                  <th style={{ padding: '10px 8px' }}>Retorno</th>
+                  <th style={{ padding: '10px 8px' }}>Duração</th>
                   <th style={{ padding: '10px 8px' }}>Créditos</th>
                   <th style={{ padding: '10px 8px' }}>Redistribuição</th>
                   <th style={{ padding: '10px 8px' }}>Lançado por</th>
@@ -966,7 +1363,12 @@ export default function TrancamentoPanel({
                   return (
                     <tr key={t._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <td style={{ padding: '10px 8px', fontWeight: 650, color: '#f8fafc' }}>{cName}</td>
-                      <td style={{ padding: '10px 8px', color: '#cbd5e1' }}>{t.dataInicio}</td>
+                      <td style={{ padding: '10px 8px', color: '#cbd5e1' }}>
+                        <div>{t.dataInicio} → {t.dataFim || '—'}</div>
+                      </td>
+                      <td style={{ padding: '10px 8px', color: '#10b981', fontWeight: 600 }}>
+                        {t.dataRetorno || '—'}
+                      </td>
                       <td style={{ padding: '10px 8px' }}>
                         <span style={{
                           padding: '2px 6px',
@@ -975,7 +1377,7 @@ export default function TrancamentoPanel({
                           color: t.semanas > 4 ? '#38bdf8' : '#e2e8f0',
                           fontWeight: 700
                         }}>
-                          {t.semanas} sem.
+                          {t.diasTrancados ? `${t.diasTrancados} dias` : `${t.semanas} sem.`}
                         </span>
                       </td>
                       <td style={{ padding: '10px 8px', color: '#fbbf24', fontWeight: 700 }}>

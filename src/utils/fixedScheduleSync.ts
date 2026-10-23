@@ -118,24 +118,31 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
     allTrancamentos.forEach((t: any) => {
       const cId = String(t.clientId || t.clienteId || '');
       if (!cId || !t.dataInicio) return;
-      const [y, m, d] = String(t.dataInicio).split('-').map(Number);
-      const dtInicio = new Date(y, m - 1, d, 12, 0, 0);
-      const diasTrancados = Math.max(1, Number(t.semanas) || 1) * 7;
 
-      const dtFimTranc = new Date(dtInicio);
-      dtFimTranc.setDate(dtFimTranc.getDate() + diasTrancados - 1);
-      const endStr = `${dtFimTranc.getFullYear()}-${String(dtFimTranc.getMonth() + 1).padStart(2, '0')}-${String(dtFimTranc.getDate()).padStart(2, '0')}`;
+      let endStr = t.dataFim;
+      let retornoStr = t.dataRetorno;
+      let semanasNum = Number(t.semanas) || 1;
 
-      const dtRetorno = new Date(dtInicio);
-      dtRetorno.setDate(dtRetorno.getDate() + diasTrancados);
-      const retornoStr = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+      if (!endStr || !retornoStr) {
+        const [y, m, d] = String(t.dataInicio).split('-').map(Number);
+        const dtInicio = new Date(y, m - 1, d, 12, 0, 0);
+        const diasTrancados = Math.max(1, semanasNum) * 7;
+
+        const dtFimTranc = new Date(dtInicio);
+        dtFimTranc.setDate(dtFimTranc.getDate() + diasTrancados - 1);
+        endStr = `${dtFimTranc.getFullYear()}-${String(dtFimTranc.getMonth() + 1).padStart(2, '0')}-${String(dtFimTranc.getDate()).padStart(2, '0')}`;
+
+        const dtRetorno = new Date(dtInicio);
+        dtRetorno.setDate(dtRetorno.getDate() + diasTrancados);
+        retornoStr = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+      }
 
       const item = {
         trancamentoId: t._id,
         start: t.dataInicio,
         end: endStr,
         retorno: retornoStr,
-        semanas: Number(t.semanas) || 0
+        semanas: semanasNum
       };
 
       const existing = trancamentosByClient.get(cId) || [];

@@ -21,39 +21,61 @@ const toISO = (dateStr: string | undefined): string => {
   return dateStr;
 };
 
-export function computeTrancamentoDates(dataInicio: string, semanas: number) {
+export function computeTrancamentoDates(dataInicio: string, semanasOrDataFim: number | string, dataFimInput?: string) {
   const trancStartISO = toISO(dataInicio);
   const [y, m, d] = trancStartISO.split('-').map(Number);
   const dtInicio = new Date(y, m - 1, d, 12, 0, 0);
 
-  const diasTrancados = Math.max(1, Number(semanas) || 1) * 7;
+  let dataFimISO = '';
+  let dataRetornoISO = '';
+  let diasTrancados = 0;
+  let semanas = 0;
 
-  // Data de encerramento do trancamento (último dia trancado)
-  const dtFimTranc = new Date(dtInicio);
-  dtFimTranc.setDate(dtFimTranc.getDate() + diasTrancados - 1);
-  const dataFimISO = `${dtFimTranc.getFullYear()}-${String(dtFimTranc.getMonth() + 1).padStart(2, '0')}-${String(dtFimTranc.getDate()).padStart(2, '0')}`;
+  if (dataFimInput || (typeof semanasOrDataFim === 'string' && semanasOrDataFim.includes('-'))) {
+    const rawEnd = toISO(dataFimInput || (semanasOrDataFim as string));
+    dataFimISO = rawEnd;
+    const [ey, em, ed] = rawEnd.split('-').map(Number);
+    const dtFim = new Date(ey, em - 1, ed, 12, 0, 0);
 
-  // Data oficial de retorno das aulas normais
-  const dtRetorno = new Date(dtInicio);
-  dtRetorno.setDate(dtRetorno.getDate() + diasTrancados);
-  const dataRetornoISO = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+    const diffMs = dtFim.getTime() - dtInicio.getTime();
+    diasTrancados = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+    semanas = Math.max(1, Math.round(diasTrancados / 7));
+
+    const dtRetorno = new Date(dtFim);
+    dtRetorno.setDate(dtRetorno.getDate() + 1);
+    dataRetornoISO = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+  } else {
+    const numSemanas = Math.max(1, Number(semanasOrDataFim) || 1);
+    semanas = numSemanas;
+    diasTrancados = numSemanas * 7;
+
+    const dtFimTranc = new Date(dtInicio);
+    dtFimTranc.setDate(dtFimTranc.getDate() + diasTrancados - 1);
+    dataFimISO = `${dtFimTranc.getFullYear()}-${String(dtFimTranc.getMonth() + 1).padStart(2, '0')}-${String(dtFimTranc.getDate()).padStart(2, '0')}`;
+
+    const dtRetorno = new Date(dtInicio);
+    dtRetorno.setDate(dtRetorno.getDate() + diasTrancados);
+    dataRetornoISO = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+  }
 
   return {
     trancStartISO,
     dataFimISO,
     dataRetornoISO,
-    diasTrancados
+    diasTrancados,
+    semanas
   };
 }
 
 export async function syncAppointmentsForTrancamento(trancamento: any) {
   try {
     const clientId = trancamento.clientId?._id || trancamento.clientId;
-    if (!clientId || !trancamento.dataInicio || !trancamento.semanas) return 0;
+    if (!clientId || !trancamento.dataInicio) return 0;
 
-    const { trancStartISO, dataFimISO, dataRetornoISO } = computeTrancamentoDates(
+    const { trancStartISO, dataFimISO, dataRetornoISO, semanas } = computeTrancamentoDates(
       trancamento.dataInicio,
-      trancamento.semanas
+      trancamento.dataFim || trancamento.semanas,
+      trancamento.dataFim
     );
 
     const updateRes = await Appointment.updateMany(
@@ -68,7 +90,7 @@ export async function syncAppointmentsForTrancamento(trancamento: any) {
           trancamentoId: trancamento._id,
           trancamentoEncerramento: dataFimISO,
           trancamentoRetorno: dataRetornoISO,
-          trancamentoSemanas: Number(trancamento.semanas),
+          trancamentoSemanas: Number(trancamento.semanas || semanas),
           consumeCredito: false,
           tipoCredito: 'nenhum'
         }
@@ -118,9 +140,9 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clientId, contractId, dataInicio, semanas, redistribuicao, profissionalId, origem } = body;
+    const { clientId, contractId, dataInicio, dataFim, semanas, creditosTrancados: creditosInput, redistribuicao, profissionalId, origem } = body;
 
-    if (!clientId || !contractId || !dataInicio || !semanas || !redistribuicao) {
+    if (!clientId || !contractId || !dataInicio || (!semanas && !dataFim) || !redistribuicao) {
       return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     }
 
@@ -156,7 +178,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 3. Validação de Vigência e flexibilização de semanas (> 4 permitido desde que dentro da vigência)
+    // 3. Validação de Vigência e Cálculo de Datas
     const contractEndISO = toISO(contract.dataFim || contract.dataTermino || com.vencimento);
     const trancStartISO = toISO(dataInicio);
 
@@ -167,31 +189,35 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const startDate = new Date(trancStartISO + 'T00:00:00');
-    const endDate = new Date(contractEndISO + 'T23:59:59');
+    const {
+      dataFimISO,
+      dataRetornoISO,
+      diasTrancados,
+      semanas: semanasCalc
+    } = computeTrancamentoDates(dataInicio, dataFim || semanas, dataFim);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    const startDate = new Date(trancStartISO + 'T00:00:00');
+    const endDate = new Date(dataFimISO + 'T23:59:59');
+    const contractEndDate = new Date(contractEndISO + 'T23:59:59');
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || isNaN(contractEndDate.getTime())) {
       return NextResponse.json({
         success: false,
-        error: 'Data de início do trancamento ou término do contrato inválida.'
+        error: 'Data de início, término do trancamento ou vigência do contrato inválida.'
       }, { status: 400 });
     }
 
     if (startDate > endDate) {
       return NextResponse.json({
         success: false,
-        error: `A data de início do trancamento (${trancStartISO}) não pode ser posterior ao término da vigência do contrato (${contractEndISO}).`
+        error: `A data de início do trancamento (${trancStartISO}) não pode ser posterior à data de término (${dataFimISO}).`
       }, { status: 400 });
     }
 
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const diasRestantesVigencia = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-    const semanasRestantesVigencia = Math.floor(diasRestantesVigencia / 7);
-
-    if (Number(semanas) > semanasRestantesVigencia) {
+    if (endDate > contractEndDate) {
       return NextResponse.json({
         success: false,
-        error: `A quantidade de semanas selecionada (${semanas}) ultrapassa a vigência restante do contrato (${semanasRestantesVigencia} semanas até ${contractEndISO}).`
+        error: `A data final do trancamento (${dataFimISO}) ultrapassa o término da vigência do contrato (${contractEndISO}).`
       }, { status: 400 });
     }
 
@@ -211,14 +237,19 @@ export async function POST(request: Request) {
       }
     }
 
-    const creditosTrancados = Number(semanas) * frequencia;
+    // Cálculo dos créditos trancados: prioriza o valor ajustado/auditado (Opção 3) ou calcula semanas * frequencia
+    const finalSemanas = Number(semanas) || semanasCalc;
+    let creditosTrancados = finalSemanas * frequencia;
+    if (creditosInput !== undefined && creditosInput !== null && !isNaN(Number(creditosInput))) {
+      creditosTrancados = Number(creditosInput);
+    }
 
     // 4. Validate redistribution credits sum
     const sumRedistribuicao = redistribuicao.reduce((sum: number, r: any) => sum + Number(r.creditos || 0), 0);
     if (sumRedistribuicao !== creditosTrancados) {
       return NextResponse.json({
         success: false,
-        error: `A soma dos créditos redistribuídos (${sumRedistribuicao}) deve ser exatamente igual ao total de créditos trancados (${creditosTrancados}).`
+        error: `A soma dos créditos redistribuídos (${sumRedistribuicao}) deve ser exatamente igual ao total de créditos a repor (${creditosTrancados}).`
       }, { status: 400 });
     }
 
@@ -227,7 +258,10 @@ export async function POST(request: Request) {
       clientId,
       contractId,
       dataInicio: trancStartISO,
-      semanas: Number(semanas),
+      dataFim: dataFimISO,
+      dataRetorno: dataRetornoISO,
+      diasTrancados,
+      semanas: finalSemanas,
       creditosTrancados,
       redistribuicao,
       profissionalId: profissionalId || null,
@@ -245,7 +279,7 @@ export async function POST(request: Request) {
           profissionalId,
           clienteId: clientId,
           acao: 'Lançou Trancamento de Plano',
-          detalhes: `Trancou ${semanas} semana(s) (${creditosTrancados} créditos) para ${clientName} a partir de ${trancStartISO}, redistribuídos até ${mesFimContrato}.`,
+          detalhes: `Trancou de ${trancStartISO} a ${dataFimISO} (${diasTrancados} dias, ${creditosTrancados} créditos) para ${clientName}, retorno em ${dataRetornoISO}, redistribuídos até ${mesFimContrato}.`,
           origem: origem === 'Computador Coletivo' ? 'Computador Coletivo' : 'Acesso Direto'
         });
       } catch (logErr) {
