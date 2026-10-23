@@ -39,6 +39,11 @@ const AppointmentSchema = new Schema({
   status: { type: String, enum: ['agendado', 'presenca', 'cancelado', 'falta'], default: 'agendado' },
   origemHorarioFixo: { type: Boolean, default: false },
   fixedScheduleId: { type: Schema.Types.ObjectId, ref: 'FixedSchedule', default: null },
+  isTrancado: { type: Boolean, default: false },
+  trancamentoId: { type: Schema.Types.ObjectId, ref: 'Trancamento', default: null },
+  trancamentoEncerramento: { type: String, default: '' }, // Data do último dia de trancamento (YYYY-MM-DD)
+  trancamentoRetorno: { type: String, default: '' },      // Data do primeiro dia de retorno das aulas (YYYY-MM-DD)
+  trancamentoSemanas: { type: Number, default: 0 },
   observacoes: { type: String, default: '' },
   observacaoDataHora: { type: Date, default: null },
   finalizado: { type: Boolean, default: false },

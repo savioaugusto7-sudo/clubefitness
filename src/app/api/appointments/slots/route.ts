@@ -222,9 +222,11 @@ export async function GET(request: Request) {
 
         let ocupadas = 0;
         if (tipoFiltro === 'dr_albert' || tipoFiltro === 'dr_guilherme') {
-          ocupadas = slotsApts.length; // 1 paciente = 1 vaga
+          ocupadas = slotsApts.filter((apt: any) => !apt.isTrancado).length; // 1 paciente = 1 vaga (exceto trancado)
         } else {
           ocupadas = slotsApts.reduce((sum: number, apt: any) => {
+            // Agendamentos com plano trancado NÃO ocupam vaga (0 vagas, igual Treino Livre)
+            if (apt.isTrancado) return sum;
             const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
             return sum + cfg.vagasOcupadas;
           }, 0);
@@ -474,9 +476,11 @@ export async function GET(request: Request) {
       
       let totalVagasOcupadas = 0;
       if (slot.tipo === 'dr_albert' || slot.tipo === 'dr_guilherme') {
-        totalVagasOcupadas = slotsApts.length; // 1 paciente = 1 vaga
+        totalVagasOcupadas = slotsApts.filter(apt => !apt.isTrancado).length; // 1 paciente = 1 vaga (exceto trancado)
       } else {
         totalVagasOcupadas = slotsApts.reduce((sum, apt) => {
+          // Agendamentos com plano trancado NÃO ocupam vaga (0 vagas, igual Treino Livre)
+          if (apt.isTrancado) return sum;
           const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
           return sum + cfg.vagasOcupadas;
         }, 0);

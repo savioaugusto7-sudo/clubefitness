@@ -6490,6 +6490,11 @@ goniometria: {
                                     📌 Horário Fixo
                                   </span>
                                 )}
+                                {a.isTrancado && (
+                                  <span style={{ fontSize: '0.73rem', fontWeight: 800, color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    🔒 Plano Trancado
+                                  </span>
+                                )}
                               </div>
                             </div>
 

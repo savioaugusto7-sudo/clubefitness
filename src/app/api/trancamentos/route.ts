@@ -5,6 +5,7 @@ import Client from '@/models/Client';
 import Contract from '@/models/Contract';
 
 import ActivityLog from '@/models/ActivityLog';
+import Appointment from '@/models/Appointment';
 
 export const maxDuration = 30;
 
@@ -19,6 +20,67 @@ const toISO = (dateStr: string | undefined): string => {
   if (dateStr.includes('T')) return dateStr.split('T')[0];
   return dateStr;
 };
+
+export function computeTrancamentoDates(dataInicio: string, semanas: number) {
+  const trancStartISO = toISO(dataInicio);
+  const [y, m, d] = trancStartISO.split('-').map(Number);
+  const dtInicio = new Date(y, m - 1, d, 12, 0, 0);
+
+  const diasTrancados = Math.max(1, Number(semanas) || 1) * 7;
+
+  // Data de encerramento do trancamento (último dia trancado)
+  const dtFimTranc = new Date(dtInicio);
+  dtFimTranc.setDate(dtFimTranc.getDate() + diasTrancados - 1);
+  const dataFimISO = `${dtFimTranc.getFullYear()}-${String(dtFimTranc.getMonth() + 1).padStart(2, '0')}-${String(dtFimTranc.getDate()).padStart(2, '0')}`;
+
+  // Data oficial de retorno das aulas normais
+  const dtRetorno = new Date(dtInicio);
+  dtRetorno.setDate(dtRetorno.getDate() + diasTrancados);
+  const dataRetornoISO = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+
+  return {
+    trancStartISO,
+    dataFimISO,
+    dataRetornoISO,
+    diasTrancados
+  };
+}
+
+export async function syncAppointmentsForTrancamento(trancamento: any) {
+  try {
+    const clientId = trancamento.clientId?._id || trancamento.clientId;
+    if (!clientId || !trancamento.dataInicio || !trancamento.semanas) return 0;
+
+    const { trancStartISO, dataFimISO, dataRetornoISO } = computeTrancamentoDates(
+      trancamento.dataInicio,
+      trancamento.semanas
+    );
+
+    const updateRes = await Appointment.updateMany(
+      {
+        clienteId: clientId,
+        data: { $gte: trancStartISO, $lte: dataFimISO },
+        status: { $ne: 'cancelado' }
+      },
+      {
+        $set: {
+          isTrancado: true,
+          trancamentoId: trancamento._id,
+          trancamentoEncerramento: dataFimISO,
+          trancamentoRetorno: dataRetornoISO,
+          trancamentoSemanas: Number(trancamento.semanas),
+          consumeCredito: false,
+          tipoCredito: 'nenhum'
+        }
+      }
+    );
+
+    return updateRes.modifiedCount || 0;
+  } catch (err) {
+    console.error('Erro ao sincronizar agendamentos do trancamento:', err);
+    return 0;
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -40,6 +102,11 @@ export async function GET(request: Request) {
       .populate('contractId')
       .populate('profissionalId')
       .sort({ createdAt: -1 });
+
+    // Auto-sincronizar agendamentos dos trancamentos encontrados
+    for (const t of trancamentos) {
+      await syncAppointmentsForTrancamento(t);
+    }
 
     return NextResponse.json({ success: true, data: trancamentos });
   } catch (error: any) {
@@ -166,6 +233,9 @@ export async function POST(request: Request) {
       profissionalId: profissionalId || null,
       origem: origem === 'Computador Coletivo' ? 'Computador Coletivo' : 'Acesso Direto'
     });
+
+    // 5.1 Sincronizar agendamentos existentes do aluno: marcar como trancados (sem consumo de créditos e liberando vaga)
+    await syncAppointmentsForTrancamento(trancamento);
 
     // 6. Auditoria de atividade se informado profissional executor
     if (profissionalId) {

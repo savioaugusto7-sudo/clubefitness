@@ -1247,21 +1247,25 @@ export default function AgendaCompletaPanel({
                                         : isFalta 
                                           ? 'rgba(239, 68, 68, 0.08)' 
                                           : 'rgba(255, 255, 255, 0.035)', 
-                                      border: isDynamus 
-                                        ? '1px solid rgba(34, 211, 238, 0.45)' 
-                                        : isFalta 
-                                          ? '1px solid rgba(239, 68, 68, 0.45)' 
-                                          : `1px solid ${sColors.text}33`, 
+                                      border: apt.isTrancado
+                                        ? '1px solid rgba(245, 158, 11, 0.55)'
+                                        : isDynamus 
+                                          ? '1px solid rgba(34, 211, 238, 0.45)' 
+                                          : isFalta 
+                                            ? '1px solid rgba(239, 68, 68, 0.45)' 
+                                            : `1px solid ${sColors.text}33`, 
                                       backdropFilter: 'blur(10px)',
                                       WebkitBackdropFilter: 'blur(10px)',
                                       borderRadius: '18px', 
                                       padding: '3px 10px', 
                                       gap: '6px',
-                                      boxShadow: isDynamus 
-                                        ? '0 0 12px rgba(34, 211, 238, 0.2), 0 2px 4px rgba(0,0,0,0.2)' 
-                                        : isFalta 
-                                          ? '0 0 8px rgba(239, 68, 68, 0.2), 0 2px 4px rgba(0,0,0,0.1)' 
-                                          : `0 2px 6px rgba(0,0,0,0.25), inset 0 0 0 1px ${sColors.text}10`,
+                                      boxShadow: apt.isTrancado
+                                        ? '0 0 10px rgba(245, 158, 11, 0.25), 0 2px 4px rgba(0,0,0,0.2)'
+                                        : isDynamus 
+                                          ? '0 0 12px rgba(34, 211, 238, 0.2), 0 2px 4px rgba(0,0,0,0.2)' 
+                                          : isFalta 
+                                            ? '0 0 8px rgba(239, 68, 68, 0.2), 0 2px 4px rgba(0,0,0,0.1)' 
+                                            : `0 2px 6px rgba(0,0,0,0.25), inset 0 0 0 1px ${sColors.text}10`,
                                       cursor: 'pointer',
                                       touchAction: 'manipulation',
                                       WebkitTapHighlightColor: 'transparent',
@@ -1317,6 +1321,39 @@ export default function AgendaCompletaPanel({
                                         }}
                                       >
                                         📌
+                                      </span>
+                                    )}
+                                    {apt.isTrancado && (
+                                      <span 
+                                        title={`Plano Trancado até ${apt.trancamentoEncerramento ? formatSelectedDateWithDayOfWeek(apt.trancamentoEncerramento) : 'fim do período'} (Vaga mantida sem consumo de crédito e livre para outros alunos)`}
+                                        style={{ 
+                                          fontSize: '0.72rem', 
+                                          lineHeight: 1,
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          pointerEvents: 'none',
+                                          color: '#fbbf24'
+                                        }}
+                                      >
+                                        🔒
+                                      </span>
+                                    )}
+                                    {apt.isTrancado && (
+                                      <span
+                                        style={{
+                                          fontSize: '0.58rem',
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          padding: '1.5px 6px',
+                                          borderRadius: '6px',
+                                          background: 'rgba(245, 158, 11, 0.22)',
+                                          color: '#fbbf24',
+                                          border: '1px solid rgba(245, 158, 11, 0.45)',
+                                          letterSpacing: '0.4px',
+                                          pointerEvents: 'none'
+                                        }}
+                                      >
+                                        Trancado
                                       </span>
                                     )}
                                     <span 
@@ -1686,6 +1723,22 @@ export default function AgendaCompletaPanel({
                                   gap: '4px'
                                 }}>
                                   📌 Horário Fixo
+                                </span>
+                              )}
+                              {apt.isTrancado && (
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  fontWeight: 800,
+                                  padding: '2px 7px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(245, 158, 11, 0.2)',
+                                  color: '#fbbf24',
+                                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  🔒 Plano Trancado
                                 </span>
                               )}
                             </div>
@@ -2151,6 +2204,64 @@ export default function AgendaCompletaPanel({
               {/* Modal Body */}
               <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 
+                {/* Banner Executivo de Trancamento de Plano */}
+                {inspectApt.isTrancado && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.08) 100%)',
+                    border: '1px solid rgba(245, 158, 11, 0.45)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.12)'
+                  }}>
+                    <div style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'rgba(245, 158, 11, 0.22)',
+                      color: '#fbbf24',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.25rem',
+                      flexShrink: 0
+                    }}>
+                      🔒
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#fef08a' }}>
+                          Plano Trancado Temporariamente
+                        </span>
+                        {inspectApt.trancamentoSemanas > 0 && (
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            background: 'rgba(245, 158, 11, 0.25)',
+                            color: '#fbbf24',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(245, 158, 11, 0.4)'
+                          }}>
+                            {inspectApt.trancamentoSemanas} semana{inspectApt.trancamentoSemanas > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#fde68a', marginTop: '4px', lineHeight: 1.45 }}>
+                        Encerramento do Trancamento: <strong>{inspectApt.trancamentoEncerramento ? formatSelectedDateWithDayOfWeek(inspectApt.trancamentoEncerramento) : '—'}</strong>
+                        <br />
+                        Retorno Oficial das Aulas: <strong style={{ color: '#34d399' }}>{inspectApt.trancamentoRetorno ? formatSelectedDateWithDayOfWeek(inspectApt.trancamentoRetorno) : '—'}</strong>
+                        <br />
+                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
+                          Horário fixo garantido na grade • Sem consumo de créditos • Vaga temporariamente livre para outros alunos
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* ABA 1: Agendamento Atual */}
                 {inspectModalTab === 'atual' && (
                   <>
@@ -2185,6 +2296,22 @@ export default function AgendaCompletaPanel({
                             gap: '4px'
                           }}>
                             📌 Horário Fixo Semanal
+                          </span>
+                        )}
+                        {inspectApt.isTrancado && (
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(245, 158, 11, 0.2)',
+                            color: '#fbbf24',
+                            border: '1px solid rgba(245, 158, 11, 0.45)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            🔒 Plano Trancado
                           </span>
                         )}
                       </div>
@@ -2901,6 +3028,19 @@ export default function AgendaCompletaPanel({
                                       border: '1px solid rgba(168, 85, 247, 0.35)'
                                     }}>
                                       📌 Fixo
+                                    </span>
+                                  )}
+                                  {apt.isTrancado && (
+                                    <span style={{
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      padding: '2px 6px',
+                                      borderRadius: '5px',
+                                      background: 'rgba(245, 158, 11, 0.2)',
+                                      color: '#fbbf24',
+                                      border: '1px solid rgba(245, 158, 11, 0.45)'
+                                    }}>
+                                      🔒 Trancado (0 cr.)
                                     </span>
                                   )}
                                   

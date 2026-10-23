@@ -317,13 +317,14 @@ export async function GET(request: Request) {
         // Validação de vagas por tipo de serviço
         if (dayOfWeek === 6) {
           // Sábado: Massagem é 1 por horário (ou maxVagas personalizado)
-          if (aptsNoHorario.length >= maxVagas) continue;
+          const activeSatApts = aptsNoHorario.filter(a => !a.isTrancado);
+          if (activeSatApts.length >= maxVagas) continue;
           availableSlots.push(horario);
           continue;
         }
 
         if (resolvedTipo === 'academia') {
-          const gymApts = aptsNoHorario.filter(a => a.tipo === 'academia' || !a.tipo);
+          const gymApts = aptsNoHorario.filter(a => (a.tipo === 'academia' || !a.tipo) && !a.isTrancado);
           const vagasOcupadasNoHorario = gymApts.reduce((sum, apt) => {
             const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
             return sum + cfg.vagasOcupadas;
@@ -341,7 +342,7 @@ export async function GET(request: Request) {
           availableSlots.push(horario);
         } else {
           // Consultório (dr_albert / dr_guilherme)
-          const docApts = aptsNoHorario.filter(a => a.tipo === resolvedTipo);
+          const docApts = aptsNoHorario.filter(a => a.tipo === resolvedTipo && !a.isTrancado);
           if (docApts.length + servicoConfig.vagasOcupadas > maxVagas) continue;
           availableSlots.push(horario);
         }

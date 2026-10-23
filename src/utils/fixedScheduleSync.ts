@@ -5,6 +5,7 @@ import Payment from '@/models/Payment';
 import FixedSchedule from '@/models/FixedSchedule';
 import Professional from '@/models/Professional';
 import Appointment from '@/models/Appointment';
+import Trancamento from '@/models/Trancamento';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 
 function safeFormatYYYYMMDD(d: Date): string {
@@ -98,6 +99,50 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
     const profMap = new Map<string, any>();
     allProfs.forEach((p: any) => profMap.set(String(p._id), p));
 
+    // Buscar trancamentos ativos dos clientes avaliados para marcação automática
+    const allTrancamentos = await Trancamento.find({
+      $or: [
+        { clientId: { $in: [...idStrings, ...idObjects] } },
+        { clienteId: { $in: [...idStrings, ...idObjects] } }
+      ]
+    }).lean();
+
+    const trancamentosByClient = new Map<string, Array<{
+      trancamentoId: any;
+      start: string;
+      end: string;
+      retorno: string;
+      semanas: number;
+    }>>();
+
+    allTrancamentos.forEach((t: any) => {
+      const cId = String(t.clientId || t.clienteId || '');
+      if (!cId || !t.dataInicio) return;
+      const [y, m, d] = String(t.dataInicio).split('-').map(Number);
+      const dtInicio = new Date(y, m - 1, d, 12, 0, 0);
+      const diasTrancados = Math.max(1, Number(t.semanas) || 1) * 7;
+
+      const dtFimTranc = new Date(dtInicio);
+      dtFimTranc.setDate(dtFimTranc.getDate() + diasTrancados - 1);
+      const endStr = `${dtFimTranc.getFullYear()}-${String(dtFimTranc.getMonth() + 1).padStart(2, '0')}-${String(dtFimTranc.getDate()).padStart(2, '0')}`;
+
+      const dtRetorno = new Date(dtInicio);
+      dtRetorno.setDate(dtRetorno.getDate() + diasTrancados);
+      const retornoStr = `${dtRetorno.getFullYear()}-${String(dtRetorno.getMonth() + 1).padStart(2, '0')}-${String(dtRetorno.getDate()).padStart(2, '0')}`;
+
+      const item = {
+        trancamentoId: t._id,
+        start: t.dataInicio,
+        end: endStr,
+        retorno: retornoStr,
+        semanas: Number(t.semanas) || 0
+      };
+
+      const existing = trancamentosByClient.get(cId) || [];
+      existing.push(item);
+      trancamentosByClient.set(cId, existing);
+    });
+
     for (const pair of scheduleDatePairs) {
       const cIdStr = String(pair.schedule.clienteId?._id || pair.schedule.clienteId);
       const key = `${cIdStr}_${pair.dateStr}_${pair.schedule.horario}`;
@@ -126,19 +171,29 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
           resolvedTipo = 'academia';
         }
 
+        // Verificar se a data do agendamento cai dentro de período de trancamento do cliente
+        const clientTrancs = trancamentosByClient.get(cIdStr) || [];
+        const activeTranc = clientTrancs.find(t => pair.dateStr >= t.start && pair.dateStr <= t.end);
+        const isTrancado = Boolean(activeTranc);
+
         allAppointmentsToCreate.push({
           data: pair.dateStr,
           horario: pair.schedule.horario,
           tipo: resolvedTipo,
           servico: pair.schedule.servico || 'Treino Monitorado',
-          consumeCredito: true,
-          tipoCredito: 'academia',
+          consumeCredito: isTrancado ? false : true,
+          tipoCredito: isTrancado ? 'nenhum' : 'academia',
           profissionalId: resolvedTipo === 'academia' ? null : profId,
           profissionalDesignadoId: pair.schedule.profissionalDesignadoId || null,
           clienteId: pair.schedule.clienteId,
           status: 'agendado',
           origemHorarioFixo: true,
-          fixedScheduleId: pair.schedule._id
+          fixedScheduleId: pair.schedule._id,
+          isTrancado,
+          trancamentoId: activeTranc?.trancamentoId || null,
+          trancamentoEncerramento: activeTranc?.end || '',
+          trancamentoRetorno: activeTranc?.retorno || '',
+          trancamentoSemanas: activeTranc?.semanas || 0
         });
       }
     }

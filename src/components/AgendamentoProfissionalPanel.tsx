@@ -1098,7 +1098,7 @@ export default function AgendamentoProfissionalPanel({
                         <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px', fontWeight: 800 }}>
                           ⏰ {apt.horario}
                         </span>
-                        <span>{apt.servico} {apt.origemHorarioFixo ? '• Horário Fixo Semanal' : '• Agendado'}</span>
+                        <span>{apt.servico} {apt.isTrancado ? '• 🔒 Plano Trancado' : apt.origemHorarioFixo ? '• 📌 Horário Fixo Semanal' : '• Agendado'}</span>
                       </div>
                     ))}
                   </div>
