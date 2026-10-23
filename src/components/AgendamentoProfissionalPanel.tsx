@@ -209,14 +209,28 @@ export default function AgendamentoProfissionalPanel({
     return 'academia';
   });
 
+  // Etapa 3: Data (declarada antes para filtrar serviços de sábado)
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
+  const isSelectedDateSaturday = useMemo(() => {
+    return selectedDate ? new Date(selectedDate + 'T12:00:00').getDay() === 6 : false;
+  }, [selectedDate]);
+
   const servicosDisponiveisFiltrados = useMemo(() => {
     if (agendaTipo === 'dr_guilherme' || agendaTipo === 'dr_albert') {
       const allowed = ['Atendimento Individual', 'Consulta', 'Avaliação Fisioterápica', 'Avaliação Física', 'Teste de Força', 'Quiropraxia', 'Terapia Manual'];
       return SERVICOS_DISPONIVEIS.filter(s => allowed.includes(s.nome)).sort((a, b) => allowed.indexOf(a.nome) - allowed.indexOf(b.nome));
     }
+    // Sábado na academia: apenas Massagem
+    if (isSelectedDateSaturday) {
+      return SERVICOS_DISPONIVEIS.filter(s => s.nome === 'Massagem');
+    }
     const gymAllowed = ['Treino Monitorado', 'Treino Livre', 'Recovery', 'Massagem', 'Avaliação Física', 'Teste de Força', 'Avaliação Fisioterápica', 'Emergência', 'Terapia Manual'];
     return SERVICOS_DISPONIVEIS.filter(s => gymAllowed.includes(s.nome));
-  }, [agendaTipo]);
+  }, [agendaTipo, isSelectedDateSaturday]);
 
   // Etapa 1: Aluno
   const [searchStudent, setSearchStudent] = useState('');
@@ -226,6 +240,10 @@ export default function AgendamentoProfissionalPanel({
   const [selectedService, setSelectedService] = useState<ServiceOption>(() => {
     if (isGuilherme || isAlbert) {
       return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Atendimento Individual') || SERVICOS_DISPONIVEIS[0];
+    }
+    const todayIsSat = new Date().getDay() === 6;
+    if (todayIsSat) {
+      return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Massagem') || SERVICOS_DISPONIVEIS[0];
     }
     return SERVICOS_DISPONIVEIS[0];
   });
@@ -245,12 +263,6 @@ export default function AgendamentoProfissionalPanel({
       }
     }
   }, [agendaTipo, servicosDisponiveisFiltrados, selectedService.id]);
-
-  // Etapa 3: Data
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
 
   // Etapa 4: Horário
   const [selectedHour, setSelectedHour] = useState<string>('');
@@ -930,7 +942,12 @@ export default function AgendamentoProfissionalPanel({
             }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Regra de Vagas Aplicada:</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                {selectedService.nome === 'Avaliação Fisioterápica' ? (
+                {isSelectedDateSaturday && agendaTipo === 'academia' ? (
+                  <span style={{ color: '#fbbf24' }}>
+                    <i className="fa-solid fa-spa" style={{ marginRight: '6px' }}></i>
+                    Sábado: Atendimento <strong>exclusivo para Massagem</strong> (1 vaga por horário).
+                  </span>
+                ) : selectedService.nome === 'Avaliação Fisioterápica' ? (
                   Boolean(selectedClient?.dadosComerciais?.isConvenioDynamus || selectedClient?.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || selectedClient?.planoNome?.toLowerCase().includes('dynamus')) ? (
                     <span style={{ color: '#38bdf8' }}>
                       <i className="fa-solid fa-bolt" style={{ marginRight: '6px' }}></i>

@@ -1082,6 +1082,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asSdAducaoE, setAsSdAducaoE] = useState<number | ''>('');
   const [asSdValgoD, setAsSdValgoD] = useState<number | ''>('');
   const [asSdValgoE, setAsSdValgoE] = useState<number | ''>('');
+  const [asSdVaroD, setAsSdVaroD] = useState<number | ''>('');
+  const [asSdVaroE, setAsSdVaroE] = useState<number | ''>('');
   const [asSdPrpsD, setAsSdPrpsD] = useState<number | ''>('');
   const [asSdPrpsE, setAsSdPrpsE] = useState<number | ''>('');
 
@@ -1645,6 +1647,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [sdAducaoE, setSdAducaoE] = useState(0);
   const [sdValgoD, setSdValgoD] = useState(0);
   const [sdValgoE, setSdValgoE] = useState(0);
+  const [sdVaroD, setSdVaroD] = useState(0);
+  const [sdVaroE, setSdVaroE] = useState(0);
   const [sdPrpsD, setSdPrpsD] = useState(0);
   const [sdPrpsE, setSdPrpsE] = useState(0);
 
@@ -1824,12 +1828,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         asOberD, asOberE, asThomasIliopsoasDStatus, asThomasIliopsoasEStatus, asThomasRetofemoralDStatus, asThomasRetofemoralEStatus, asThomasIliopsoasD, asThomasIliopsoasE,
         asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou,
         asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE,
-        asStepDownRealizou, asSdPelvicaD, asSdPelvicaE, asSdAducaoD, asSdAducaoE, asSdValgoD, asSdValgoE, asSdPrpsD, asSdPrpsE, asMaigneRealizou, asMaigneData, asMaigne, asPostura,
+        asStepDownRealizou, asSdPelvicaD, asSdPelvicaE, asSdAducaoD, asSdAducaoE, asSdValgoD, asSdValgoE, asSdVaroD, asSdVaroE, asSdPrpsD, asSdPrpsE, asMaigneRealizou, asMaigneData, asMaigne, asPostura,
         savedAt: new Date().toISOString()
       };
       localStorage.setItem('draft_assessment', JSON.stringify(data));
     }
-  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasIliopsoasDStatus, asThomasIliopsoasEStatus, asThomasRetofemoralDStatus, asThomasRetofemoralEStatus, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvicaD, asSdPelvicaE, asSdAducaoD, asSdAducaoE, asSdValgoD, asSdValgoE, asSdPrpsD, asSdPrpsE, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
+  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasIliopsoasDStatus, asThomasIliopsoasEStatus, asThomasRetofemoralDStatus, asThomasRetofemoralEStatus, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvicaD, asSdPelvicaE, asSdAducaoD, asSdAducaoE, asSdValgoD, asSdValgoE, asSdVaroD, asSdVaroE, asSdPrpsD, asSdPrpsE, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
 
   useEffect(() => {
     if (showReportModal && repClient) {
@@ -1844,13 +1848,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE,
         yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3,
         yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3,
-        sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE,
+        sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE,
         repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE,
         savedAt: new Date().toISOString()
       };
       localStorage.setItem('draft_report', JSON.stringify(data));
     }
-  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3, yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3, yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
 
   useEffect(() => {
     if (showStModal && stClient) {
@@ -1922,6 +1926,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsSdAducaoE(p.asSdAducaoE !== undefined ? p.asSdAducaoE : (p.asSdAducao || ''));
         setAsSdValgoD(p.asSdValgoD !== undefined ? p.asSdValgoD : (p.asSdValgo || ''));
         setAsSdValgoE(p.asSdValgoE !== undefined ? p.asSdValgoE : (p.asSdValgo || ''));
+        setAsSdVaroD(p.asSdVaroD !== undefined ? p.asSdVaroD : (p.asSdVaro || ''));
+        setAsSdVaroE(p.asSdVaroE !== undefined ? p.asSdVaroE : (p.asSdVaro || ''));
         setAsSdPrpsD(p.asSdPrpsD !== undefined ? p.asSdPrpsD : (p.asSdPrps || ''));
         setAsSdPrpsE(p.asSdPrpsE !== undefined ? p.asSdPrpsE : (p.asSdPrps || ''));
         setAsMaigneRealizou(p.asMaigneRealizou || 'nao');
@@ -2248,6 +2254,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 setSdAducaoE(p.sdAducaoE !== undefined ? p.sdAducaoE : (p.sdAducao || 0));
                 setSdValgoD(p.sdValgoD !== undefined ? p.sdValgoD : (p.sdValgo || 0));
                 setSdValgoE(p.sdValgoE !== undefined ? p.sdValgoE : (p.sdValgo || 0));
+                setSdVaroD(p.sdVaroD !== undefined ? p.sdVaroD : (p.sdVaro || 0));
+                setSdVaroE(p.sdVaroE !== undefined ? p.sdVaroE : (p.sdVaro || 0));
                 setSdPrpsD(p.sdPrpsD !== undefined ? p.sdPrpsD : (p.sdPrps || 0));
                 setSdPrpsE(p.sdPrpsE !== undefined ? p.sdPrpsE : (p.sdPrps || 0));
                 if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
@@ -2964,6 +2972,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               setAsSdAducaoE(parsed.aducaoQuadrilE !== undefined ? parsed.aducaoQuadrilE : (parsed.aducaoQuadril ?? ''));
               setAsSdValgoD(parsed.valgoDinamicoJoelhoD !== undefined ? parsed.valgoDinamicoJoelhoD : (parsed.valgoDinamicoJoelho ?? ''));
               setAsSdValgoE(parsed.valgoDinamicoJoelhoE !== undefined ? parsed.valgoDinamicoJoelhoE : (parsed.valgoDinamicoJoelho ?? ''));
+              setAsSdVaroD(parsed.varoJoelhoD !== undefined ? parsed.varoJoelhoD : (parsed.varoJoelho ?? ''));
+              setAsSdVaroE(parsed.varoJoelhoE !== undefined ? parsed.varoJoelhoE : (parsed.varoJoelho ?? ''));
               setAsSdPrpsD(parsed.compExcentricoPrpsD !== undefined ? parsed.compExcentricoPrpsD : (parsed.compExcentricoPrps ?? ''));
               setAsSdPrpsE(parsed.compExcentricoPrpsE !== undefined ? parsed.compExcentricoPrpsE : (parsed.compExcentricoPrps ?? ''));
               setAsStepDown('');
@@ -2976,6 +2986,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             setAsSdPelvicaD(''); setAsSdPelvicaE('');
             setAsSdAducaoD(''); setAsSdAducaoE('');
             setAsSdValgoD(''); setAsSdValgoE('');
+            setAsSdVaroD(''); setAsSdVaroE('');
             setAsSdPrpsD(''); setAsSdPrpsE('');
           }
           const maigneVal = latest.dadosMedidos.testesEspeciais.maigne || '';
@@ -3129,6 +3140,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsSdPelvicaD(''); setAsSdPelvicaE('');
         setAsSdAducaoD(''); setAsSdAducaoE('');
         setAsSdValgoD(''); setAsSdValgoE('');
+        setAsSdVaroD(''); setAsSdVaroE('');
         setAsSdPrpsD(''); setAsSdPrpsE('');
         setAsMaigne('');
         setAsMaigneData({
@@ -3768,7 +3780,7 @@ goniometria: {
                   : asYTest)
               : '',
             stepDown: asStepDownRealizou === 'sim'
-              ? (asSdPelvicaD !== '' || asSdPelvicaE !== '' || asSdAducaoD !== '' || asSdAducaoE !== '' || asSdValgoD !== '' || asSdValgoE !== '' || asSdPrpsD !== '' || asSdPrpsE !== ''
+              ? (asSdPelvicaD !== '' || asSdPelvicaE !== '' || asSdAducaoD !== '' || asSdAducaoE !== '' || asSdValgoD !== '' || asSdValgoE !== '' || asSdVaroD !== '' || asSdVaroE !== '' || asSdPrpsD !== '' || asSdPrpsE !== ''
                   ? JSON.stringify({
                       realizou: 'sim',
                       quedaPelvicaD: Number(asSdPelvicaD) || 0,
@@ -3777,6 +3789,8 @@ goniometria: {
                       aducaoQuadrilE: Number(asSdAducaoE) || 0,
                       valgoDinamicoJoelhoD: Number(asSdValgoD) || 0,
                       valgoDinamicoJoelhoE: Number(asSdValgoE) || 0,
+                      varoJoelhoD: Number(asSdVaroD) || 0,
+                      varoJoelhoE: Number(asSdVaroE) || 0,
                       compExcentricoPrpsD: Number(asSdPrpsD) || 0,
                       compExcentricoPrpsE: Number(asSdPrpsE) || 0
                     })
@@ -4189,6 +4203,8 @@ goniometria: {
           setSdAducaoE(sd.aducaoQuadrilE !== undefined ? sd.aducaoQuadrilE : (sd.aducaoQuadril || 0));
           setSdValgoD(sd.valgoDinamicoJoelhoD !== undefined ? sd.valgoDinamicoJoelhoD : (sd.valgoDinamicoJoelho || 0));
           setSdValgoE(sd.valgoDinamicoJoelhoE !== undefined ? sd.valgoDinamicoJoelhoE : (sd.valgoDinamicoJoelho || 0));
+          setSdVaroD(sd.varoJoelhoD !== undefined ? sd.varoJoelhoD : (sd.varoJoelho || 0));
+          setSdVaroE(sd.varoJoelhoE !== undefined ? sd.varoJoelhoE : (sd.varoJoelho || 0));
           setSdPrpsD(sd.compExcentricoPrpsD !== undefined ? sd.compExcentricoPrpsD : (sd.compExcentricoPrps || 0));
           setSdPrpsE(sd.compExcentricoPrpsE !== undefined ? sd.compExcentricoPrpsE : (sd.compExcentricoPrps || 0));
         }
@@ -4308,6 +4324,8 @@ goniometria: {
             aducaoQuadrilE: Number(sdAducaoE),
             valgoDinamicoJoelhoD: Number(sdValgoD),
             valgoDinamicoJoelhoE: Number(sdValgoE),
+            varoJoelhoD: Number(sdVaroD),
+            varoJoelhoE: Number(sdVaroE),
             compExcentricoPrpsD: Number(sdPrpsD),
             compExcentricoPrpsE: Number(sdPrpsE)
           },
@@ -4411,6 +4429,8 @@ goniometria: {
             setSdAducaoE(0);
             setSdValgoD(0);
             setSdValgoE(0);
+            setSdVaroD(0);
+            setSdVaroE(0);
             setSdPrpsD(0);
             setSdPrpsE(0);
             setRepExercicios('');
@@ -12919,6 +12939,8 @@ goniometria: {
                                       if (prevSd.aducaoQuadrilE !== undefined) setAsSdAducaoE(prevSd.aducaoQuadrilE);
                                       if (prevSd.valgoDinamicoJoelhoD !== undefined) setAsSdValgoD(prevSd.valgoDinamicoJoelhoD);
                                       if (prevSd.valgoDinamicoJoelhoE !== undefined) setAsSdValgoE(prevSd.valgoDinamicoJoelhoE);
+                                      if (prevSd.varoJoelhoD !== undefined) setAsSdVaroD(prevSd.varoJoelhoD);
+                                      if (prevSd.varoJoelhoE !== undefined) setAsSdVaroE(prevSd.varoJoelhoE);
                                       if (prevSd.prpsD !== undefined) setAsSdPrpsD(prevSd.prpsD);
                                       if (prevSd.prpsE !== undefined) setAsSdPrpsE(prevSd.prpsE);
                                     }}
@@ -12975,6 +12997,18 @@ goniometria: {
                               </div>
 
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Varo Dinâmico Joelho<br/><span style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 600 }}>Ref: ≤ 5° (&gt;5° Risco Lesão)</span></div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdVaroD} onChange={e => setAsSdVaroD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 3" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdVaroE} onChange={e => setAsSdVaroE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 3" />
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico / PRPS<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: acima de 60°</span></div>
                                 <div>
                                   <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
@@ -12996,6 +13030,8 @@ goniometria: {
                                 aducaoE: asSdAducaoE,
                                 valgoD: asSdValgoD,
                                 valgoE: asSdValgoE,
+                                varoD: asSdVaroD,
+                                varoE: asSdVaroE,
                                 prpsD: asSdPrpsD,
                                 prpsE: asSdPrpsE,
                                 sexo: asSex
@@ -13012,7 +13048,9 @@ goniometria: {
                                 { label: 'Adução Quadril D', prevValue: psd.aducaoQuadrilD ?? psd.aducaoQuadril, currValue: asSdAducaoD, unit: '°', isLowerBetter: true },
                                 { label: 'Adução Quadril E', prevValue: psd.aducaoQuadrilE ?? psd.aducaoQuadril, currValue: asSdAducaoE, unit: '°', isLowerBetter: true },
                                 { label: 'Valgo Dinâmico D', prevValue: psd.valgoDinamicoJoelhoD ?? psd.valgoDinamicoJoelho, currValue: asSdValgoD, unit: '°', isLowerBetter: true },
-                                { label: 'Valgo Dinâmico E', prevValue: psd.valgoDinamicoJoelhoE ?? psd.valgoDinamicoJoelho, currValue: asSdValgoE, unit: '°', isLowerBetter: true }
+                                { label: 'Valgo Dinâmico E', prevValue: psd.valgoDinamicoJoelhoE ?? psd.valgoDinamicoJoelho, currValue: asSdValgoE, unit: '°', isLowerBetter: true },
+                                { label: 'Varo Dinâmico D', prevValue: psd.varoJoelhoD ?? psd.varoJoelho, currValue: asSdVaroD, unit: '°', isLowerBetter: true },
+                                { label: 'Varo Dinâmico E', prevValue: psd.varoJoelhoE ?? psd.varoJoelho, currValue: asSdVaroE, unit: '°', isLowerBetter: true }
                               ];
                               return (
                                 <div style={{ marginTop: '10px' }}>
@@ -15709,6 +15747,19 @@ goniometria: {
                               </div>
                             </div>
 
+                            {/* Item Varo Dinâmico */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Varo Dinâmico Joelho<br/><span style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 600 }}>Ref: ≤ 5° (&gt;5° Risco Lesão)</span></div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdVaroD || ''} onChange={e => setSdVaroD(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 3" />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdVaroE || ''} onChange={e => setSdVaroE(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 3" />
+                              </div>
+                            </div>
+
                             {/* Item 4 */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                               <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico / PRPS<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: acima de 60°</span></div>
@@ -15732,6 +15783,8 @@ goniometria: {
                               aducaoE: sdAducaoE,
                               valgoD: sdValgoD,
                               valgoE: sdValgoE,
+                              varoD: sdVaroD,
+                              varoE: sdVaroE,
                               prpsD: sdPrpsD,
                               prpsE: sdPrpsE,
                               sexo: clients.find(c => String(c._id) === String(repClient))?.dadosPessoais?.sexo || 'M'
@@ -15748,7 +15801,9 @@ goniometria: {
                               { label: 'Adução Quadril D', prevValue: psd.aducaoQuadrilD ?? psd.aducaoQuadril, currValue: sdAducaoD, unit: '°', isLowerBetter: true },
                               { label: 'Adução Quadril E', prevValue: psd.aducaoQuadrilE ?? psd.aducaoQuadril, currValue: sdAducaoE, unit: '°', isLowerBetter: true },
                               { label: 'Valgo Dinâmico D', prevValue: psd.valgoDinamicoJoelhoD ?? psd.valgoDinamicoJoelho, currValue: sdValgoD, unit: '°', isLowerBetter: true },
-                              { label: 'Valgo Dinâmico E', prevValue: psd.valgoDinamicoJoelhoE ?? psd.valgoDinamicoJoelho, currValue: sdValgoE, unit: '°', isLowerBetter: true }
+                              { label: 'Valgo Dinâmico E', prevValue: psd.valgoDinamicoJoelhoE ?? psd.valgoDinamicoJoelho, currValue: sdValgoE, unit: '°', isLowerBetter: true },
+                              { label: 'Varo Dinâmico D', prevValue: psd.varoJoelhoD ?? psd.varoJoelho, currValue: sdVaroD, unit: '°', isLowerBetter: true },
+                              { label: 'Varo Dinâmico E', prevValue: psd.varoJoelhoE ?? psd.varoJoelho, currValue: sdVaroE, unit: '°', isLowerBetter: true }
                             ];
                             return (
                               <div style={{ marginTop: '12px' }}>

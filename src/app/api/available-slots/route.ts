@@ -41,10 +41,6 @@ const DEFAULT_HOURS_SATURDAY_MASSAGEM = [
   '09:50', '10:40', '11:30', '12:25'
 ];
 
-const DEFAULT_HOURS_SATURDAY_OTHER = [
-  '08:00', '09:00', '10:00', '11:00', '12:00', '13:00'
-];
-
 const MAX_VAGAS_ACADEMIA = 6;
 const ANTECEDENCIA_MIN_H = 2;
 
@@ -53,13 +49,11 @@ function getDefaultGrade(dayOfWeek: number, servico: string, resolvedTipo: strin
     return []; // Domingo fechado por padrão (a menos que haja regra 'adicionar' na AgendaConfig)
   }
   if (dayOfWeek === 6) {
-    if (servico === 'Massagem') {
-      return [...DEFAULT_HOURS_SATURDAY_MASSAGEM];
-    }
     if (resolvedTipo === 'dr_albert' || resolvedTipo === 'dr_guilherme') {
       return []; // Médicos aos sábados somente com Horário Extra adicionado
     }
-    return [...DEFAULT_HOURS_SATURDAY_OTHER];
+    // Sábado na academia: APENAS Massagem existe, nos 4 horários oficiais (09:50, 10:40, 11:30, 12:25)
+    return [...DEFAULT_HOURS_SATURDAY_MASSAGEM];
   }
   if (resolvedTipo === 'dr_albert' || resolvedTipo === 'dr_guilherme') {
     return [...DEFAULT_HOURS_DOCTOR];
@@ -70,7 +64,7 @@ function getDefaultGrade(dayOfWeek: number, servico: string, resolvedTipo: strin
 function getBaseCapacity(dayOfWeek: number, servico: string, resolvedTipo: string): number {
   if (resolvedTipo === 'dr_guilherme') return 1;
   if (resolvedTipo === 'dr_albert') return 2;
-  if (dayOfWeek === 6 && servico === 'Massagem') return 1;
+  if (dayOfWeek === 6) return 1; // Sábado é estritamente 1 agendamento por horário
   return MAX_VAGAS_ACADEMIA;
 }
 
@@ -321,7 +315,7 @@ export async function GET(request: Request) {
         }
 
         // Validação de vagas por tipo de serviço
-        if (dayOfWeek === 6 && servico === 'Massagem') {
+        if (dayOfWeek === 6) {
           // Sábado: Massagem é 1 por horário (ou maxVagas personalizado)
           if (aptsNoHorario.length >= maxVagas) continue;
           availableSlots.push(horario);

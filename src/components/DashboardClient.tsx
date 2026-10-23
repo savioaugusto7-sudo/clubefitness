@@ -668,9 +668,11 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   // Fetch available slots when date and service are set
   useEffect(() => {
     if (!bookDate || !bookService) return;
+    const isSaturday = new Date(bookDate + 'T12:00:00').getDay() === 6;
+    const serviceToFetch = isSaturday ? 'Massagem' : bookService;
     setLoadingSlots(true);
     const clientParam = profileId ? `&clienteId=${profileId}` : '';
-    fetch(`/api/available-slots?data=${bookDate}&servico=${encodeURIComponent(bookService)}${clientParam}`)
+    fetch(`/api/available-slots?data=${bookDate}&servico=${encodeURIComponent(serviceToFetch)}${clientParam}`)
       .then(r => r.json())
       .then(d => { if (d.success) setAvailableSlots(d.data); })
       .catch(() => setAvailableSlots([]))
@@ -1103,6 +1105,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       </>
                     )}
                   </select>
+                  {bookDateIsSaturday && (
+                    <div style={{ marginTop: '8px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.78rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-spa"></i>
+                      <span><strong>Sábado:</strong> Atendimento exclusivo para Massagem Relaxante (1 vaga por horário).</span>
+                    </div>
+                  )}
                 </div>
 
               <div className="form-group" style={{ marginBottom: '24px' }}>
@@ -1126,8 +1134,14 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       type="button"
                       key={d.dateStr}
                       onClick={() => {
+                        const isSat = new Date(d.dateStr + 'T12:00:00').getDay() === 6;
                         setBookDate(d.dateStr);
                         setBookTime('');
+                        if (isSat) {
+                          setBookService('Massagem');
+                        } else if (bookService === 'Massagem') {
+                          setBookService(bookType === 'academia' ? 'Treino Monitorado' : 'Avaliação Fisioterápica');
+                        }
                       }}
                       style={{
                         flex: '0 0 72px',

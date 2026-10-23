@@ -271,6 +271,37 @@ export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 
     return map[k] || { D: 0, E: 0, max: 0 };
   };
 
+  // 2.0 Assimetrias Bilaterais Direita vs Esquerda (> 10%)
+  const bilateralGroups: Record<string, { articulacao: string; movimento: string; D: number; E: number }> = {};
+  testesList.forEach(t => {
+    const key = `${t.articulacao}_${t.movimento}`.toLowerCase().trim();
+    if (!bilateralGroups[key]) {
+      bilateralGroups[key] = { articulacao: t.articulacao, movimento: t.movimento, D: 0, E: 0 };
+    }
+    const fN = Number(t.forcaN) || (Number(t.valorObtido) * (t.unidade === 'kgf' ? 9.80665 : 1)) || 0;
+    if (t.lado === 'Direito') bilateralGroups[key].D = fN;
+    if (t.lado === 'Esquerdo') bilateralGroups[key].E = fN;
+  });
+
+  Object.values(bilateralGroups).forEach(bg => {
+    if (bg.D > 0 && bg.E > 0) {
+      const minV = Math.min(bg.D, bg.E);
+      const maxV = Math.max(bg.D, bg.E);
+      const deficit = maxV > 0 ? ((maxV - minV) / maxV) * 100 : 0;
+      if (deficit > 10) {
+        alerts.push({
+          tipo: deficit > 15 ? 'critico' : 'atencao',
+          titulo: `Assimetria Bilateral em ${bg.articulacao} - ${bg.movimento} (> 10%)`,
+          articulacao: bg.articulacao,
+          valorCalculado: `${deficit.toFixed(1)}%`,
+          referenciaIdeal: '≤ 10%',
+          descricao: `Diferença de ${deficit.toFixed(1)}% entre lado direito (${bg.D.toFixed(1)} N) e esquerdo (${bg.E.toFixed(1)} N).`,
+          riscoClinico: 'Sobrecarga mecânica assimétrica e compensação postural em cadeia cinética fechada.'
+        });
+      }
+    }
+  });
+
   // 2.1 Razão Adutor / Abdutor de Quadril
   const adutores = getForca('Quadril', 'Adução');
   const abdutores = getForca('Quadril', 'Abdução');
@@ -689,6 +720,8 @@ export function calculateStepDownAnalysis(data: {
   aducaoE?: number | string;
   valgoD?: number | string;
   valgoE?: number | string;
+  varoD?: number | string;
+  varoE?: number | string;
   prpsD?: number | string;
   prpsE?: number | string;
   sexo?: string;
@@ -700,6 +733,8 @@ export function calculateStepDownAnalysis(data: {
   const aducaoE = toNum(data.aducaoE);
   const valgoD = toNum(data.valgoD);
   const valgoE = toNum(data.valgoE);
+  const varoD = toNum(data.varoD);
+  const varoE = toNum(data.varoE);
   const prpsD = toNum(data.prpsD);
   const prpsE = toNum(data.prpsE);
   const isFeminino = (data.sexo || '').trim().toUpperCase().startsWith('F');
@@ -792,6 +827,34 @@ export function calculateStepDownAnalysis(data: {
       referenciaIdeal: `≤ ${valgoLimit}° (${isFeminino ? 'Feminino' : 'Masculino'})`,
       descricao: `Valgo de joelho de ${valgoE}° durante a descida excêntrica.`,
       riscoClinico: 'Forte correlação com Síndrome da Dor Patelofemoral (SDPF), estresse de LCA e menisco lateral.'
+    });
+  }
+
+  // 3.1 Varo de Joelho (Ref: até 5° | Acima de 5°: RISCO DE LESÃO)
+  if (varoD !== null && varoD > 5) {
+    scoreD += 1;
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'RISCO DE LESÃO: Varo de Joelho Excessivo no Step Down (> 5°)',
+      articulacao: 'Joelho',
+      lado: 'Direito',
+      valorCalculado: `${varoD}°`,
+      referenciaIdeal: '≤ 5°',
+      descricao: `Varo de joelho de ${varoD}° durante a descida unipodal direita.`,
+      riscoClinico: 'RISCO DE LESÃO: Sobrecarga acentuada no compartimento femorotibial medial, cisalhamento no menisco medial e estresse no ligamento colateral lateral (LCL).'
+    });
+  }
+  if (varoE !== null && varoE > 5) {
+    scoreE += 1;
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'RISCO DE LESÃO: Varo de Joelho Excessivo no Step Down (> 5°)',
+      articulacao: 'Joelho',
+      lado: 'Esquerdo',
+      valorCalculado: `${varoE}°`,
+      referenciaIdeal: '≤ 5°',
+      descricao: `Varo de joelho de ${varoE}° durante a descida unipodal esquerda.`,
+      riscoClinico: 'RISCO DE LESÃO: Sobrecarga acentuada no compartimento femorotibial medial, cisalhamento no menisco medial e estresse no ligamento colateral lateral (LCL).'
     });
   }
 

@@ -813,11 +813,14 @@ export async function downloadReportPDF(report: any) {
       const vjE = sdVal.valgoDinamicoJoelhoE !== undefined ? sdVal.valgoDinamicoJoelhoE : (sdVal.valgoDinamicoJoelho || 0);
       const prpsD = sdVal.compExcentricoPrpsD !== undefined ? sdVal.compExcentricoPrpsD : (sdVal.compExcentricoPrps || 0);
       const prpsE = sdVal.compExcentricoPrpsE !== undefined ? sdVal.compExcentricoPrpsE : (sdVal.compExcentricoPrps || 0);
+      const varoD = sdVal.varoJoelhoD !== undefined ? sdVal.varoJoelhoD : (sdVal.varoD !== undefined ? sdVal.varoD : (sdVal.varoJoelho || 0));
+      const varoE = sdVal.varoJoelhoE !== undefined ? sdVal.varoJoelhoE : (sdVal.varoE !== undefined ? sdVal.varoE : (sdVal.varoJoelho || 0));
 
       if (qpD > 5 || qpE > 5) rFactors.push('Queda Pélvica (>5°)');
       if (aqD > 10 || aqE > 10) rFactors.push('Adução de Quadril (>10°)');
       const limit = sex === 'M' ? 10 : 15;
       if (vjD > limit || vjE > limit) rFactors.push(`Valgo Dinâmico (D: ${vjD}°, E: ${vjE}° > ${limit}°)`);
+      if (varoD > 5 || varoE > 5) rFactors.push(`RISCO DE LESÃO: Varo Joelho (D: ${varoD}°, E: ${varoE}° > 5°)`);
       if ((prpsD > 0 && prpsD < 60) || (prpsE > 0 && prpsE < 60)) rFactors.push('Comp. Excêntrico reduzido (<60°)');
 
       stepDownHtml = `
@@ -845,6 +848,11 @@ export async function downloadReportPDF(report: any) {
                 <td style="font-size:7.5px; padding:2px;">Valgo Dinâmico Joelho (Ref: M até 10° | F até 15°)</td>
                 <td style="text-align:center; font-size:7.5px; padding:2px; ${vjD > limit ? 'color:#ef4444; font-weight:bold;' : ''}">${vjD}°</td>
                 <td style="text-align:center; font-size:7.5px; padding:2px; ${vjE > limit ? 'color:#ef4444; font-weight:bold;' : ''}">${vjE}°</td>
+              </tr>
+              <tr style="border-bottom:1px dashed #e2e8f0;">
+                <td style="font-size:7.5px; padding:2px;">Varo de Joelho (Ref: até 5°)</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${varoD > 5 ? 'color:#ef4444; font-weight:bold;' : ''}">${varoD}°${varoD > 5 ? ' ⚠️' : ''}</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${varoE > 5 ? 'color:#ef4444; font-weight:bold;' : ''}">${varoE}°${varoE > 5 ? ' ⚠️' : ''}</td>
               </tr>
               <tr>
                 <td style="font-size:7.5px; padding:2px;">Excêntrico/PRPS (Ref: acima de 60°)</td>
@@ -1773,10 +1781,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     const vjE = stepDownObj.valgoDinamicoJoelhoE !== undefined ? stepDownObj.valgoDinamicoJoelhoE : (stepDownObj.valgoDinamicoJoelho || 0);
     const prpsD = stepDownObj.compExcentricoPrpsD !== undefined ? stepDownObj.compExcentricoPrpsD : (stepDownObj.compExcentricoPrps || 0);
     const prpsE = stepDownObj.compExcentricoPrpsE !== undefined ? stepDownObj.compExcentricoPrpsE : (stepDownObj.compExcentricoPrps || 0);
+    const varoD = stepDownObj.varoJoelhoD !== undefined ? stepDownObj.varoJoelhoD : (stepDownObj.varoD !== undefined ? stepDownObj.varoD : (stepDownObj.varoJoelho || 0));
+    const varoE = stepDownObj.varoJoelhoE !== undefined ? stepDownObj.varoJoelhoE : (stepDownObj.varoE !== undefined ? stepDownObj.varoE : (stepDownObj.varoJoelho || 0));
 
     if (qpD > 5 || qpE > 5) risks.push('Queda Pélvica &gt;5°');
     if (aqD > 10 || aqE > 10) risks.push('Adução &gt;10°');
     if (vjD > valLim || vjE > valLim) risks.push(`Valgo &gt;${valLim}°`);
+    if (varoD > 5 || varoE > 5) risks.push(`RISCO DE LESÃO: Varo &gt;5°`);
     if ((prpsD > 0 && prpsD < 60) || (prpsE > 0 && prpsE < 60)) risks.push('PRPS &lt;60°');
 
     const riskColor = risks.length > 0 ? '#ef4444' : '#10b981';
@@ -1790,13 +1801,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     <tr>
       <td style="padding:3px 0; vertical-align: top; font-size:7px;">Step Down D (cm/°)</td>
       <td colSpan="2" style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
-        QP:${qpD}° AQ:${aqD}° VJ:${vjD}° PRPS:${prpsD}°
+        QP:${qpD}° AQ:${aqD}° ${vjD > 0 ? `VJ:${vjD}° ` : ''}${varoD > 0 ? `VARO:${varoD}° ` : ''}PRPS:${prpsD}°
       </td>
     </tr>
     <tr>
       <td style="padding:3px 0; vertical-align: top; font-size:7px;">Step Down E (cm/°)</td>
       <td colSpan="2" style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
-        QP:${qpE}° AQ:${aqE}° VJ:${vjE}° PRPS:${prpsE}°
+        QP:${qpE}° AQ:${aqE}° ${vjE > 0 ? `VJ:${vjE}° ` : ''}${varoE > 0 ? `VARO:${varoE}° ` : ''}PRPS:${prpsE}°
       </td>
     </tr>`;
   } else if (stepDownLegacyStr) {
@@ -4317,11 +4328,11 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       }
     }
 
-    // 7. Assimetrias Bilaterais Críticas (>15%)
+    // 7. Assimetrias Bilaterais Críticas (>10%)
     (st.comparativos || []).forEach((c: any) => {
-      if (c.deficit > 15) {
+      if (c.deficit > 10) {
         riscosOrtopedicos.push({
-          titulo: `Assimetria em ${c.articulacao} - ${c.movimento} (> 15%)`,
+          titulo: `Assimetria em ${c.articulacao} - ${c.movimento} (> 10%)`,
           valorPill: `${c.deficit.toFixed(1)}%`,
           detalheProporcao: `Lado direito: ${c.valorD?.toFixed(1)} N vs Lado esquerdo: ${c.valorE?.toFixed(1)} N (Déficit: ${c.deficit?.toFixed(1)}%)`,
           riscoClinico: 'Sobrecarga mecânica assimétrica e compensação postural em cadeia cinética fechada.'
@@ -4409,12 +4420,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           <td>${c.movimento}</td>
           <td style="text-align:right; font-weight:600;">${c.valorD?.toFixed(1)} N</td>
           <td style="text-align:right; font-weight:600;">${c.valorE?.toFixed(1)} N</td>
-          <td style="text-align:right; font-weight:700; color:${c.deficit > 15 ? '#b91c1c' : '#1e293b'}">${c.deficit?.toFixed(1)}%</td>
+          <td style="text-align:right; font-weight:700; color:${c.deficit > 10 ? '#b91c1c' : '#1e293b'}">${c.deficit?.toFixed(1)}%</td>
           <td style="text-align:right; width: 90px;">
             <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
-              <span style="font-weight: 700; color: ${c.simetria < 85 ? '#b91c1c' : '#15803d'}; font-size: 8px;">${c.simetria?.toFixed(1)}%</span>
+              <span style="font-weight: 700; color: ${c.simetria < 90 ? '#b91c1c' : '#15803d'}; font-size: 8px;">${c.simetria?.toFixed(1)}%</span>
               <div style="width: 35px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                <div style="width: ${simetriaVal}%; height: 100%; background: ${c.simetria >= 85 ? '#10b981' : '#ef4444'};"></div>
+                <div style="width: ${simetriaVal}%; height: 100%; background: ${c.simetria >= 90 ? '#10b981' : '#ef4444'};"></div>
               </div>
             </div>
           </td>
@@ -4658,7 +4669,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           ${st.comparativos && st.comparativos.length > 0 ? `
             <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 10px;">
               <div class="section-card" style="margin-bottom: 0;">
-                <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
+                <div class="section-card-title">Análise de Simetria e Déficit Lateral (Direita / Esquerda)</div>
                 <div class="section-card-content" style="padding:0;">
                   <table class="table-data">
                     <thead>

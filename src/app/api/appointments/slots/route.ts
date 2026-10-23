@@ -23,7 +23,8 @@ const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number }> = {
   'Quiropraxia':              { vagasOcupadas: 1 }
 };
 
-function getCapacidadeBase(tipo: string): number {
+function getCapacidadeBase(tipo: string, dayOfWeek?: number): number {
+  if (dayOfWeek === 6 && (tipo === 'academia' || !tipo)) return 1;
   if (tipo === 'dr_albert') return 2;
   if (tipo === 'dr_guilherme') return 1;
   return 6; // Academia / Geral
@@ -436,7 +437,7 @@ export async function GET(request: Request) {
 
       return slots.map(horario => {
         const activeRule = getActiveRule(horario);
-        let capacidade = getCapacidadeBase(tipo);
+        let capacidade = getCapacidadeBase(tipo, dayOfWeek);
         if (activeRule && activeRule.acao === 'alterar_capacidade' && activeRule.capacidadePersonalizada !== null) {
           capacidade = activeRule.capacidadePersonalizada;
         }

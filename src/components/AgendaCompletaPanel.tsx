@@ -279,6 +279,41 @@ export default function AgendaCompletaPanel({
   const [quickBookingServico, setQuickBookingServico] = useState('Treino Monitorado');
   const [quickBookingProfId, setQuickBookingProfId] = useState('');
   const [submittingQuickBooking, setSubmittingQuickBooking] = useState(false);
+  const [quickBookingAvailableSlots, setQuickBookingAvailableSlots] = useState<string[]>([]);
+  const [loadingQuickBookingSlots, setLoadingQuickBookingSlots] = useState(false);
+
+  // Sincronizar horários e serviços quando a data selecionada for Sábado
+  useEffect(() => {
+    if (!quickBookingDate) return;
+    const isSat = new Date(quickBookingDate + 'T12:00:00').getDay() === 6;
+    const saturdaySlots = ['09:50', '10:40', '11:30', '12:25'];
+    if (isSat) {
+      if (quickBookingServico !== 'Massagem') {
+        setQuickBookingServico('Massagem');
+      }
+      if (!saturdaySlots.includes(quickBookingHorario)) {
+        setQuickBookingHorario('09:50');
+      }
+    } else {
+      if (quickBookingServico === 'Massagem') {
+        setQuickBookingServico('Treino Monitorado');
+      }
+    }
+
+    const srv = isSat ? 'Massagem' : quickBookingServico;
+    setLoadingQuickBookingSlots(true);
+    fetch(`/api/available-slots?data=${quickBookingDate}&servico=${encodeURIComponent(srv)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && Array.isArray(json.data)) {
+          setQuickBookingAvailableSlots(json.data);
+        } else {
+          setQuickBookingAvailableSlots([]);
+        }
+      })
+      .catch(() => setQuickBookingAvailableSlots([]))
+      .finally(() => setLoadingQuickBookingSlots(false));
+  }, [quickBookingDate, quickBookingServico]);
 
   // Carregar agendamentos futuros do aluno (estritamente posteriores ao agendamento inspecionado)
   const handleLoadFutureAppointments = async (
@@ -331,6 +366,19 @@ export default function AgendaCompletaPanel({
     if (!cId || !quickBookingDate || !quickBookingHorario || !quickBookingServico) {
       alert('Preencha a data, horário e serviço para agendar.');
       return;
+    }
+
+    const isSat = quickBookingDate ? new Date(quickBookingDate + 'T12:00:00').getDay() === 6 : false;
+    const saturdaySlots = ['09:50', '10:40', '11:30', '12:25'];
+    if (isSat) {
+      if (!saturdaySlots.includes(quickBookingHorario)) {
+        alert('Aos sábados, os horários oficiais de massagem são: 09:50, 10:40, 11:30 e 12:25.');
+        return;
+      }
+      if (quickBookingAvailableSlots.length > 0 && !quickBookingAvailableSlots.includes(quickBookingHorario)) {
+        alert('Este horário de sábado já está ocupado. Sábado possui capacidade estrita de apenas 1 vaga por horário.');
+        return;
+      }
     }
 
     setSubmittingQuickBooking(true);
@@ -1794,12 +1842,7 @@ export default function AgendaCompletaPanel({
                             <option value="Terapia Manual">Terapia Manual</option>
                           </>
                         ) : selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
-                          <>
-                            <option value="Massagem">Massagem</option>
-                            <option value="Treino Monitorado">Treino Monitorado</option>
-                            <option value="Treino Livre">Treino Livre</option>
-                            <option value="Recovery">Recovery</option>
-                          </>
+                          <option value="Massagem">Massagem (Exclusivo)</option>
                         ) : (
                           <>
                             <option value="Treino Monitorado">Treino Monitorado</option>
@@ -2562,6 +2605,24 @@ export default function AgendaCompletaPanel({
                           </button>
                         </div>
 
+                        {/* Alerta de Sábado */}
+                        {quickBookingDate && new Date(quickBookingDate + 'T12:00:00').getDay() === 6 && (
+                          <div style={{
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            fontSize: '0.78rem',
+                            color: '#fbbf24',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <i className="fa-solid fa-spa"></i>
+                            <span><strong>Sábado:</strong> Atendimento exclusivo para Massagem Relaxante (1 vaga por horário).</span>
+                          </div>
+                        )}
+
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                           <div>
                             <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
@@ -2572,7 +2633,17 @@ export default function AgendaCompletaPanel({
                               className="form-control"
                               value={quickBookingDate}
                               min={new Date().toISOString().split('T')[0]}
-                              onChange={e => setQuickBookingDate(e.target.value)}
+                              onChange={e => {
+                                const newDate = e.target.value;
+                                setQuickBookingDate(newDate);
+                                const isSat = newDate ? new Date(newDate + 'T12:00:00').getDay() === 6 : false;
+                                if (isSat) {
+                                  setQuickBookingServico('Massagem');
+                                  setQuickBookingHorario('09:50');
+                                } else if (quickBookingServico === 'Massagem') {
+                                  setQuickBookingServico('Treino Monitorado');
+                                }
+                              }}
                               style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
                             />
                           </div>
@@ -2581,38 +2652,73 @@ export default function AgendaCompletaPanel({
                             <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
                               Horário *
                             </label>
-                            <select
-                              className="select-custom"
-                              value={quickBookingHorario}
-                              onChange={e => setQuickBookingHorario(e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
-                            >
-                              {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(h => (
-                                <option key={h} value={h}>{h}</option>
-                              ))}
-                            </select>
+                            {(() => {
+                              const isSat = quickBookingDate ? new Date(quickBookingDate + 'T12:00:00').getDay() === 6 : false;
+                              const saturdaySlots = ['09:50', '10:40', '11:30', '12:25'];
+                              const weekdaySlots = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+                              return (
+                                <select
+                                  className="select-custom"
+                                  value={quickBookingHorario}
+                                  onChange={e => setQuickBookingHorario(e.target.value)}
+                                  style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                                >
+                                  {isSat ? (
+                                    saturdaySlots.map(h => {
+                                      const isFree = quickBookingAvailableSlots.length === 0 || quickBookingAvailableSlots.includes(h);
+                                      return (
+                                        <option key={h} value={h} disabled={!isFree && quickBookingAvailableSlots.length > 0}>
+                                          {h} {quickBookingAvailableSlots.length > 0 ? (isFree ? '(1 vaga livre)' : '(Esgotado - 1/1 ocupada)') : ''}
+                                        </option>
+                                      );
+                                    })
+                                  ) : (
+                                    weekdaySlots.map(h => (
+                                      <option key={h} value={h}>{h}</option>
+                                    ))
+                                  )}
+                                </select>
+                              );
+                            })()}
                           </div>
 
                           <div>
                             <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: 600 }}>
                               Serviço *
                             </label>
-                            <select
-                              className="select-custom"
-                              value={quickBookingServico}
-                              onChange={e => setQuickBookingServico(e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
-                            >
-                              <option value="Treino Monitorado">Treino Monitorado</option>
-                              <option value="Treino Livre">Treino Livre</option>
-                              <option value="Recovery">Recovery</option>
-                              <option value="Massagem">Massagem</option>
-                              <option value="Avaliação Física">Avaliação Física</option>
-                              <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                              <option value="Atendimento Individual">Atendimento Individual</option>
-                              <option value="Consulta">Consulta</option>
-                              <option value="Terapia Manual">Terapia Manual</option>
-                            </select>
+                            {(() => {
+                              const isSat = quickBookingDate ? new Date(quickBookingDate + 'T12:00:00').getDay() === 6 : false;
+                              if (isSat) {
+                                return (
+                                  <select
+                                    className="select-custom"
+                                    value="Massagem"
+                                    disabled
+                                    style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '8px' }}
+                                  >
+                                    <option value="Massagem">Massagem (Exclusivo Sábado)</option>
+                                  </select>
+                                );
+                              }
+                              return (
+                                <select
+                                  className="select-custom"
+                                  value={quickBookingServico}
+                                  onChange={e => setQuickBookingServico(e.target.value)}
+                                  style={{ width: '100%', padding: '8px 10px', fontSize: '0.82rem', background: '#080b11', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                                >
+                                  <option value="Treino Monitorado">Treino Monitorado</option>
+                                  <option value="Treino Livre">Treino Livre</option>
+                                  <option value="Recovery">Recovery</option>
+                                  <option value="Massagem">Massagem</option>
+                                  <option value="Avaliação Física">Avaliação Física</option>
+                                  <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                                  <option value="Atendimento Individual">Atendimento Individual</option>
+                                  <option value="Consulta">Consulta</option>
+                                  <option value="Terapia Manual">Terapia Manual</option>
+                                </select>
+                              );
+                            })()}
                           </div>
 
                           <div>

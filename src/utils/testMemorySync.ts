@@ -158,6 +158,8 @@ export async function syncPhysicalAssessmentTests(assessmentDoc: any) {
           aducaoE: sdData.aducaoQuadrilE ?? sdData.aducaoQuadril,
           valgoD: sdData.valgoDinamicoJoelhoD ?? sdData.valgoDinamicoJoelho,
           valgoE: sdData.valgoDinamicoJoelhoE ?? sdData.valgoDinamicoJoelho,
+          varoD: sdData.varoJoelhoD ?? sdData.varoJoelho,
+          varoE: sdData.varoJoelhoE ?? sdData.varoJoelho,
           prpsD: sdData.compExcentricoPrpsD ?? sdData.compExcentricoPrps,
           prpsE: sdData.compExcentricoPrpsE ?? sdData.compExcentricoPrps
         });
@@ -340,6 +342,8 @@ export async function syncPhysioReportTests(reportDoc: any) {
         aducaoE: sd.aducaoQuadrilE,
         valgoD: sd.valgoDinamicoJoelhoD,
         valgoE: sd.valgoDinamicoJoelhoE,
+        varoD: sd.varoJoelhoD,
+        varoE: sd.varoJoelhoE,
         prpsD: sd.compExcentricoPrpsD,
         prpsE: sd.compExcentricoPrpsE
       });
