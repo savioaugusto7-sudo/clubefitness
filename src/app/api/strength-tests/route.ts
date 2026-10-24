@@ -17,11 +17,54 @@ export async function GET(request: Request) {
     const paramClientId = searchParams.get('clientId');
     const id = searchParams.get('id');
 
-    // Single full document by ID (with all detailed test results & PDF data)
+    // Single full document by ID (with all detailed test results & PDF data + previous test comparison)
     if (id) {
-      const fullDoc = await StrengthTest.findById(id).lean().maxTimeMS(12000);
+      const fullDoc: any = await StrengthTest.findById(id).lean().maxTimeMS(12000);
+      if (!fullDoc) {
+        return NextResponse.json({ success: false, data: null, previousTest: null }, { status: 404 });
+      }
+
+      // Automatically search for the immediately preceding strength test for this client
+      let previousTest: any = null;
+      if (fullDoc.clienteId) {
+        const clientQuery = {
+          $or: [
+            { clienteId: fullDoc.clienteId },
+            ...(mongoose.Types.ObjectId.isValid(String(fullDoc.clienteId))
+              ? [{ clienteId: new mongoose.Types.ObjectId(String(fullDoc.clienteId)) }]
+              : [])
+          ]
+        };
+
+        // 1. Try finding a test strictly prior in date or creation
+        if (fullDoc.data) {
+          previousTest = await StrengthTest.findOne({
+            ...clientQuery,
+            _id: { $ne: fullDoc._id },
+            $or: [
+              { data: { $lt: fullDoc.data } },
+              { data: fullDoc.data, createdAt: { $lt: fullDoc.createdAt } }
+            ]
+          })
+            .sort({ data: -1, createdAt: -1 })
+            .lean()
+            .maxTimeMS(10000);
+        }
+
+        // 2. Fallback: if no strictly prior test found, find any other test for this client
+        if (!previousTest) {
+          previousTest = await StrengthTest.findOne({
+            ...clientQuery,
+            _id: { $ne: fullDoc._id }
+          })
+            .sort({ data: -1, createdAt: -1 })
+            .lean()
+            .maxTimeMS(10000);
+        }
+      }
+
       return NextResponse.json(
-        { success: true, data: fullDoc },
+        { success: true, data: fullDoc, previousTest },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
       );
     }

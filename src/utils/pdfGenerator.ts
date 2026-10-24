@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
-import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
+import { calculateGoniometryAlerts, calculateStrengthTestAlerts, calculateStrengthEvolutionComparison } from '@/utils/biomechanicsEngine';
 import { getStrengthAtlasKey, getDynamicStrengthAtlasBase64, renderStrengthAtlasFooterHtml, extractActiveJoints } from '@/utils/strengthAtlas';
 import { formatDateSafeBR } from '@/utils/dateFormatter';
 
@@ -3865,9 +3865,34 @@ async function getAnatomyAtlasBase64(): Promise<{ anterior: string; posterior: s
   return { anterior, posterior };
 }
 
-export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
+export async function downloadStrengthTestPDF(st: any, client: any, prof: any, previousStInput?: any) {
   const html2pdf = (window as any).html2pdf;
   if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
+
+  let prevSt: any = previousStInput || st?.previousTest || null;
+
+  // Se não foi fornecido e temos o _id, recuperar teste completo e teste anterior da API
+  if (st?._id && typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/strength-tests?id=${st._id}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success) {
+        if (json.data) {
+          st = {
+            ...json.data,
+            ...st,
+            testesRealizados: (json.data.testesRealizados?.length ? json.data.testesRealizados : st.testesRealizados) || [],
+            comparativos: (json.data.comparativos?.length ? json.data.comparativos : st.comparativos) || []
+          };
+        }
+        if (!prevSt && json.previousTest) {
+          prevSt = json.previousTest;
+        }
+      }
+    } catch (fetchErr) {
+      console.warn('Fallback fetch previous test in downloadStrengthTestPDF:', fetchErr);
+    }
+  }
 
   const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
   const nome = client?.dadosPessoais?.nome || 'Aluno';
@@ -3877,6 +3902,16 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const peso = st.pesoCliente || client?.dadosMedidos?.peso || '-';
 
   const isNew = st.testesRealizados && st.testesRealizados.length > 0;
+
+  // Processar evolução comparativa (quando houver 2 ou mais testes)
+  const evolution = calculateStrengthEvolutionComparison(
+    st,
+    prevSt,
+    Number(peso) || Number(client?.dadosMedidos?.peso) || 70,
+    prevSt?.pesoCliente
+  );
+  const hasComparison = Boolean(evolution.hasPrevious && evolution.items.length > 0);
+  const totalPages = hasComparison ? 3 : 2;
 
   // Extrair o conjunto de articulações testadas e a chave combinatória (63 combinações)
   const testedJoints = extractActiveJoints(st.testesRealizados || [], st.comparativos || []);
@@ -4546,6 +4581,239 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
          </div>`
       : '';
 
+    // HTML da Página de Evolução Longitudinal (Renderizada QUANDO HOUVER 2 ou mais testes)
+    const evolutionPageHtml = hasComparison ? `
+      <!-- ================= PÁGINA 2: PAINEL CIENTÍFICO DE EVOLUÇÃO LONGITUDINAL ================= -->
+      <div class="pdf-page" style="page-break-after: always; min-height: 1120px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <!-- Header Clínico de Evolução -->
+          <div class="grid-header" style="padding-bottom: 8px; margin-bottom: 10px;">
+            <div class="logo-box">
+              ${logoBase64 
+                ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
+                : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
+              }
+              <div>
+                <strong style="font-size: 13px; color: #0f172a; font-family: 'Outfit', sans-serif;">CLUBE FITNESS FISIO &nbsp;•&nbsp; LAUDO CIENTÍFICO DE EVOLUÇÃO LONGITUDINAL</strong>
+                <p style="font-size: 8px; color: #64748b; margin: 0;">Paciente: <strong>${nome}</strong> &nbsp;|&nbsp; Intervalo: <strong>${fmtDate(evolution.dataAnterior || '')} ➔ ${fmtDate(evolution.dataAtual)}</strong> ${evolution.diasIntervalo ? `(${evolution.diasIntervalo} dias)` : ''}</p>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span class="metric-badge badge-green" style="font-size: 7.5px; padding: 2px 8px; border-radius: 999px;">
+                ✓ Comparativo Ativo (≥ 2 Testes)
+              </span>
+              <div style="font-size: 7.5px; color: #64748b; margin-top: 2px;">
+                Peso: ${evolution.pesoAnterior ? `${evolution.pesoAnterior} kg ➔ ` : ''}<strong>${evolution.pesoAtual} kg</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cards de KPIs Científicos -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px;">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 8px;">
+              <div style="font-size: 7px; font-weight: 700; color: #166534; text-transform: uppercase;">Pico de Evolução</div>
+              <div style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: #15803d; line-height: 1.1; margin: 2px 0;">
+                ${evolution.kpis.maiorGanhoPct > 0 ? `+${evolution.kpis.maiorGanhoPct}%` : 'Estável'}
+              </div>
+              <div style="font-size: 7px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${evolution.kpis.maiorGanhoNome}">
+                ${evolution.kpis.maiorGanhoNome || 'Força mantida'}
+              </div>
+            </div>
+
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 6px 8px;">
+              <div style="font-size: 7px; font-weight: 700; color: #075985; text-transform: uppercase;">Ganho Médio de Força</div>
+              <div style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: #0284c7; line-height: 1.1; margin: 2px 0;">
+                ${evolution.kpis.mediaGanhoPct > 0 ? `+${evolution.kpis.mediaGanhoPct}%` : `${evolution.kpis.mediaGanhoPct}%`}
+              </div>
+              <div style="font-size: 7px; color: #475569;">
+                ${evolution.kpis.totalMelhoras} de ${evolution.kpis.totalMovimentosAvaliados} movimentos em alta
+              </div>
+            </div>
+
+            <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 6px 8px;">
+              <div style="font-size: 7px; font-weight: 700; color: #6b21a8; text-transform: uppercase;">Simetria Bilateral Média</div>
+              <div style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: #7e22ce; line-height: 1.1; margin: 2px 0;">
+                ${evolution.kpis.simetriaMediaAtual}%
+              </div>
+              <div style="font-size: 7px; color: #475569;">
+                ${evolution.kpis.simetriaMediaAnt !== null ? `Ant: ${evolution.kpis.simetriaMediaAnt}% (${(evolution.kpis.simetriaMediaAtual - evolution.kpis.simetriaMediaAnt) >= 0 ? '+' : ''}${(evolution.kpis.simetriaMediaAtual - evolution.kpis.simetriaMediaAnt).toFixed(1)} p.p.)` : 'Equilíbrio preservado'}
+              </div>
+            </div>
+
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 6px 8px;">
+              <div style="font-size: 7px; font-weight: 700; color: #065f46; text-transform: uppercase;">Proteção Articular</div>
+              <div style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: #059669; line-height: 1.1; margin: 2px 0;">
+                ${evolution.kpis.alertasMitigadosCount > 0 ? `${evolution.kpis.alertasMitigadosCount} Alertas` : 'Estabilizado'}
+              </div>
+              <div style="font-size: 7px; color: #475569;">
+                ${evolution.kpis.alertasMitigadosCount > 0 ? 'Riscos ortopédicos mitigados' : 'Sem novos riscos detectados'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabela Comparativa de Força Muscular -->
+          <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 10px;">
+            <div class="section-card" style="margin-bottom: 0;">
+              <div class="section-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Evolução de Força Isométrica (Teste Anterior vs Teste Atual)</span>
+                <span style="font-size:7px; font-weight:600; opacity:0.9;">Δ = Variação Líquida</span>
+              </div>
+              <div class="section-card-content" style="padding:0;">
+                <table class="table-data">
+                  <thead>
+                    <tr>
+                      <th>Articulação / Movimento</th>
+                      <th style="text-align:center;">Lado</th>
+                      <th style="text-align:right;">Anterior (N)</th>
+                      <th style="text-align:right;">Atual (N)</th>
+                      <th style="text-align:right;">Δ Força (N)</th>
+                      <th style="text-align:right;">Δ kgf</th>
+                      <th style="text-align:right;">Evolução (%)</th>
+                      <th style="text-align:center;">Transição Funcional</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${evolution.items.map(it => {
+                      const hasPrev = it.forcaAntN !== null;
+                      const isGain = (it.deltaPct || 0) > 2;
+                      const isLoss = (it.deltaPct || 0) < -2;
+                      const badgeBg = isGain ? '#dcfce7' : (isLoss ? '#fee2e2' : '#f1f5f9');
+                      const badgeColor = isGain ? '#15803d' : (isLoss ? '#b91c1c' : '#475569');
+                      const deltaSign = (it.deltaN || 0) > 0 ? '+' : '';
+
+                      return `
+                        <tr style="${isGain ? 'background-color:#f0fdf4;' : ''}">
+                          <td><strong>${it.articulacao}</strong> - ${it.movimento}</td>
+                          <td style="text-align:center;">${it.lado}</td>
+                          <td style="text-align:right; color:#64748b;">${hasPrev ? `${it.forcaAntN?.toFixed(1)} N` : '—'}</td>
+                          <td style="text-align:right; font-weight:700; color:#0f172a;">${it.forcaAtualN.toFixed(1)} N</td>
+                          <td style="text-align:right; font-weight:600; color:${isGain ? '#15803d' : (isLoss ? '#b91c1c' : '#64748b')};">
+                            ${hasPrev ? `${deltaSign}${it.deltaN?.toFixed(1)} N` : '—'}
+                          </td>
+                          <td style="text-align:right; font-size:7.5px; color:#64748b;">
+                            ${hasPrev ? `${deltaSign}${it.deltaKgf?.toFixed(1)} kgf` : `${it.forcaAtualKgf.toFixed(1)} kgf`}
+                          </td>
+                          <td style="text-align:right;">
+                            ${hasPrev && it.deltaPct !== null ? `
+                              <span style="display:inline-block; padding:1.5px 5px; border-radius:3px; font-weight:800; font-size:8px; background:${badgeBg}; color:${badgeColor}; border:1px solid ${isGain ? '#86efac' : (isLoss ? '#fca5a5' : '#cbd5e1')};">
+                                ${it.deltaPct > 0 ? '+' : ''}${it.deltaPct.toFixed(1)}% ${isGain ? '🚀' : ''}
+                              </span>
+                            ` : '<span style="color:#94a3b8; font-size:7.5px;">1º Teste</span>'}
+                          </td>
+                          <td style="text-align:center; font-size:7.5px;">
+                            ${it.classificacaoAnt && it.classificacaoAnt !== it.classificacaoAtual 
+                              ? `<span style="color:#64748b;">${it.classificacaoAnt}</span> <strong style="color:#0284c7;">➔</strong> <strong style="color:#0f172a;">${it.classificacaoAtual}</strong>`
+                              : `<span style="color:#475569;">${it.classificacaoAtual || 'Normal'}</span>`
+                            }
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabela de Evolução da Simetria Bilateral -->
+          ${evolution.symmetries.length > 0 ? `
+            <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 10px;">
+              <div class="section-card" style="margin-bottom: 0;">
+                <div class="section-card-title">Evolução do Equilíbrio e Simetria Bilateral (Direita vs Esquerda)</div>
+                <div class="section-card-content" style="padding:0;">
+                  <table class="table-data">
+                    <thead>
+                      <tr>
+                        <th>Articulação / Movimento</th>
+                        <th style="text-align:right;">Simetria Anterior</th>
+                        <th style="text-align:right;">Simetria Atual</th>
+                        <th style="text-align:right;">Variação Líquida</th>
+                        <th style="text-align:right; width: 110px;">Equilíbrio Articular</th>
+                        <th style="text-align:center;">Classificação de Risco</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${evolution.symmetries.map(s => {
+                        const hasPrev = s.simetriaAnt !== null;
+                        const delta = s.deltaSimetria || 0;
+                        const deltaSign = delta > 0 ? '+' : '';
+                        const isGain = delta > 0.5;
+                        const simVal = Math.min(100, Math.max(0, s.simetriaAtual));
+
+                        let badgeClass = 'badge-green';
+                        if (s.status === 'aceitavel') badgeClass = 'badge-blue';
+                        else if (s.status === 'atencao') badgeClass = 'badge-orange';
+                        else if (s.status === 'assimetria') badgeClass = 'badge-red';
+
+                        return `
+                          <tr>
+                            <td><strong>${s.articulacao}</strong> - ${s.movimento}</td>
+                            <td style="text-align:right; color:#64748b;">${hasPrev ? `${s.simetriaAnt?.toFixed(1)}%` : '—'}</td>
+                            <td style="text-align:right; font-weight:700; color:#0f172a;">${s.simetriaAtual.toFixed(1)}%</td>
+                            <td style="text-align:right; font-weight:700; color:${isGain ? '#15803d' : (delta < -0.5 ? '#b91c1c' : '#64748b')};">
+                              ${hasPrev ? `${deltaSign}${delta.toFixed(1)} p.p.` : '—'}
+                            </td>
+                            <td style="text-align:right;">
+                              <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
+                                <span style="font-weight: 700; font-size: 7.5px; color:${s.simetriaAtual >= 90 ? '#15803d' : '#b91c1c'};">${s.simetriaAtual.toFixed(1)}%</span>
+                                <div style="width: 32px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                  <div style="width: ${simVal}%; height: 100%; background: ${s.simetriaAtual >= 90 ? '#10b981' : '#ef4444'};"></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style="text-align:center;">
+                              <span class="metric-badge ${badgeClass}">${s.classificacaoAtual || (s.simetriaAtual >= 90 ? 'Excelente' : 'Atenção')}</span>
+                            </td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Comparativo das Razões Cinesiológicas -->
+          ${evolution.ratios.length > 0 ? `
+            <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 6px;">
+              <div class="section-card" style="margin-bottom: 0;">
+                <div class="section-card-title">Evolução das Razões Biomecânicas Articulares (Antes vs Depois)</div>
+                <div class="section-card-content" style="padding: 6px 8px;">
+                  <div style="display: grid; grid-template-columns: repeat(${Math.min(evolution.ratios.length, 3)}, 1fr); gap: 6px;">
+                    ${evolution.ratios.map(r => `
+                      <div class="ratio-card" style="padding: 6px 8px;">
+                        <div class="ratio-card-header">
+                          <span class="ratio-card-title" style="font-size: 7.5px;">${r.nome}</span>
+                          <span class="metric-badge ${r.badgeClass}" style="font-size: 7px;">${r.status}</span>
+                        </div>
+                        <div class="ratio-card-body" style="margin-top: 3px;">
+                          <div>
+                            <span style="font-size: 7.5px; color: #64748b;">Ant: <strong>${r.valorAnt || '—'}</strong></span>
+                            <div class="ratio-val" style="font-size: 11.5px; color: #0f172a;">${r.valorAtual}</div>
+                          </div>
+                          <div style="text-align: right;">
+                            <div style="font-size: 7px; color: #64748b;">Ref: ${r.referencia}</div>
+                            ${r.delta ? `<span style="font-weight: 800; font-size: 7.5px; color: #15803d;">Δ ${r.delta}</span>` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Footer Página 2 -->
+        <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+          <span>Clube Fitness Fisio &nbsp;|&nbsp; Laudo Científico de Evolução Longitudinal</span>
+          <strong>Página 2 de ${totalPages}</strong>
+        </div>
+      </div>
+    ` : '';
+
     pdfContainer.innerHTML = `
       ${pdfStyles}
       <!-- ================= PÁGINA 1: SÍNTESE, ATLAS ANATÔMICO & TESTES ================= -->
@@ -4641,11 +4909,14 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         <!-- Footer Página 1 -->
         <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
           <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
-          <strong>Página 1 de 2</strong>
+          <strong>Página 1 de ${totalPages}</strong>
         </div>
       </div>
 
-      <!-- ================= PÁGINA 2: SIMETRIA, RISCOS, RAZÕES & INTERPRETAÇÃO ================= -->
+      <!-- ================= PÁGINA 2: PAINEL CIENTÍFICO DE EVOLUÇÃO LONGITUDINAL (QUANDO HOUVER 2 OU MAIS TESTES) ================= -->
+      ${evolutionPageHtml}
+
+      <!-- ================= PÁGINA FINAL (${totalPages}): SIMETRIA, RISCOS, RAZÕES & INTERPRETAÇÃO ================= -->
       <div class="pdf-page" style="min-height: 1120px; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <!-- Mini Header Clínico de Continuação -->
@@ -4714,10 +4985,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           ${renderProfessionalSignatureHtml(prof)}
         </div>
 
-        <!-- Footer Página 2 -->
+        <!-- Footer Página Final -->
         <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
           <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
-          <strong>Página 2 de 2</strong>
+          <strong>Página ${totalPages} de ${totalPages}</strong>
         </div>
       </div>
     `;

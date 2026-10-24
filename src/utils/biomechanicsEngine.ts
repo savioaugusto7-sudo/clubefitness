@@ -1246,3 +1246,349 @@ export function calculateIntegratedCrossDisciplinaryAlerts(params: {
   return alerts;
 }
 
+/**
+ * 10. MOTOR DE EVOLUÇÃO TEMPORAL & COMPARATIVO CIENTÍFICO DE FORÇA
+ * Cruza o teste atual com o teste anterior para extrair deltas de força, ganho percentual,
+ * evolução de simetria bilateral e transição funcional entre ciclos de avaliação.
+ */
+export interface StrengthEvolutionItem {
+  articulacao: string;
+  movimento: string;
+  lado: string;
+  forcaAntN: number | null;
+  forcaAntKgf: number | null;
+  forcaAtualN: number;
+  forcaAtualKgf: number;
+  deltaN: number | null;
+  deltaKgf: number | null;
+  deltaPct: number | null;
+  classificacaoAnt?: string;
+  classificacaoAtual?: string;
+  pcPercentAnt?: number | null;
+  pcPercentAtual?: number | null;
+  status: 'melhora' | 'estavel' | 'regressao' | 'novo';
+}
+
+export interface SymmetryEvolutionItem {
+  articulacao: string;
+  movimento: string;
+  simetriaAnt: number | null;
+  simetriaAtual: number;
+  deficitAnt: number | null;
+  deficitAtual: number;
+  deltaSimetria: number | null;
+  classificacaoAnt?: string;
+  classificacaoAtual?: string;
+  status: 'excelente' | 'aceitavel' | 'atencao' | 'assimetria';
+}
+
+export interface RatioEvolutionItem {
+  nome: string;
+  articulacao: string;
+  referencia: string;
+  valorAnt: string | null;
+  valorAtual: string;
+  delta: string | null;
+  status: 'EQUILIBRADO' | 'ATENÇÃO' | 'RISCO CRÍTICO';
+  badgeClass: string;
+}
+
+export interface StrengthEvolutionReport {
+  hasPrevious: boolean;
+  dataAnterior?: string;
+  dataAtual: string;
+  diasIntervalo?: number;
+  pesoAnterior?: number;
+  pesoAtual: number;
+  items: StrengthEvolutionItem[];
+  symmetries: SymmetryEvolutionItem[];
+  ratios: RatioEvolutionItem[];
+  kpis: {
+    maiorGanhoPct: number;
+    maiorGanhoNome: string;
+    mediaGanhoPct: number;
+    simetriaMediaAtual: number;
+    simetriaMediaAnt: number | null;
+    totalMovimentosAvaliados: number;
+    totalMelhoras: number;
+    alertasMitigadosCount: number;
+  };
+}
+
+function normalizeKey(str: string): string {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeSide(side: string): string {
+  const s = String(side || '').toLowerCase().trim();
+  if (s.startsWith('d')) return 'Direito';
+  if (s.startsWith('e')) return 'Esquerdo';
+  return side;
+}
+
+export function calculateStrengthEvolutionComparison(
+  currSt: any,
+  prevSt: any,
+  clientWeightCurrent?: number,
+  clientWeightPrevious?: number
+): StrengthEvolutionReport {
+  const dataAtual = currSt?.data || (currSt?.createdAt ? String(currSt.createdAt).split('T')[0] : '');
+  const dataAnterior = prevSt?.data || (prevSt?.createdAt ? String(prevSt.createdAt).split('T')[0] : '');
+  
+  const pesoAtual = Number(currSt?.pesoCliente || clientWeightCurrent || 70);
+  const pesoAnterior = prevSt ? Number(prevSt?.pesoCliente || clientWeightPrevious || pesoAtual) : undefined;
+
+  let diasIntervalo: number | undefined = undefined;
+  if (dataAtual && dataAnterior) {
+    try {
+      const d1 = new Date(dataAtual);
+      const d2 = new Date(dataAnterior);
+      const diffMs = Math.abs(d1.getTime() - d2.getTime());
+      diasIntervalo = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    } catch {
+      diasIntervalo = undefined;
+    }
+  }
+
+  // Extrair lista de testes atuais
+  const currTests: any[] = currSt?.testesRealizados || [];
+  const prevTests: any[] = prevSt?.testesRealizados || [];
+
+  const hasPrevious = Boolean(prevSt && (prevTests.length > 0 || (prevSt.exercicios && prevSt.exercicios.length > 0)));
+
+  // Mapear testes anteriores por chave: articulacao + movimento + lado
+  const prevMap: Record<string, any> = {};
+  prevTests.forEach(t => {
+    const k = `${normalizeKey(t.articulacao)}_${normalizeKey(t.movimento)}_${normalizeSide(t.lado)}`;
+    prevMap[k] = t;
+  });
+
+  const items: StrengthEvolutionItem[] = [];
+  let sumGainsPct = 0;
+  let countGainsPct = 0;
+  let maiorGanhoPct = 0;
+  let maiorGanhoNome = '';
+  let totalMelhoras = 0;
+
+  currTests.forEach(curr => {
+    const k = `${normalizeKey(curr.articulacao)}_${normalizeKey(curr.movimento)}_${normalizeSide(curr.lado)}`;
+    const prev = prevMap[k];
+
+    const forcaAtualN = Number(curr.forcaN ?? curr.valorObtido ?? 0);
+    const forcaAtualKgf = Number((forcaAtualN / 9.80665).toFixed(1));
+
+    let forcaAntN: number | null = null;
+    let forcaAntKgf: number | null = null;
+    let deltaN: number | null = null;
+    let deltaKgf: number | null = null;
+    let deltaPct: number | null = null;
+    let status: 'melhora' | 'estavel' | 'regressao' | 'novo' = 'novo';
+
+    if (prev) {
+      forcaAntN = Number(prev.forcaN ?? prev.valorObtido ?? 0);
+      forcaAntKgf = Number((forcaAntN / 9.80665).toFixed(1));
+      deltaN = Number((forcaAtualN - forcaAntN).toFixed(1));
+      deltaKgf = Number((forcaAtualKgf - forcaAntKgf).toFixed(1));
+
+      if (forcaAntN > 0) {
+        deltaPct = Number(((deltaN / forcaAntN) * 100).toFixed(1));
+        sumGainsPct += deltaPct;
+        countGainsPct++;
+
+        if (deltaPct > maiorGanhoPct) {
+          maiorGanhoPct = deltaPct;
+          maiorGanhoNome = `${curr.articulacao} - ${curr.movimento} (${curr.lado})`;
+        }
+
+        if (deltaPct > 2.0) {
+          status = 'melhora';
+          totalMelhoras++;
+        } else if (deltaPct < -2.0) {
+          status = 'regressao';
+        } else {
+          status = 'estavel';
+        }
+      } else {
+        status = forcaAtualN > 0 ? 'melhora' : 'estavel';
+      }
+    }
+
+    items.push({
+      articulacao: curr.articulacao,
+      movimento: curr.movimento,
+      lado: curr.lado,
+      forcaAntN,
+      forcaAntKgf,
+      forcaAtualN,
+      forcaAtualKgf,
+      deltaN,
+      deltaKgf,
+      deltaPct,
+      classificacaoAnt: prev?.classificacao,
+      classificacaoAtual: curr.classificacao,
+      pcPercentAnt: prev?.pcPercent,
+      pcPercentAtual: curr.pcPercent,
+      status
+    });
+  });
+
+  // Mapear Simetrias Bilaterais
+  const currComps: any[] = currSt?.comparativos || [];
+  const prevComps: any[] = prevSt?.comparativos || [];
+  const prevCompMap: Record<string, any> = {};
+
+  prevComps.forEach(c => {
+    const k = `${normalizeKey(c.articulacao)}_${normalizeKey(c.movimento)}`;
+    prevCompMap[k] = c;
+  });
+
+  const symmetries: SymmetryEvolutionItem[] = [];
+  let sumSimAtual = 0;
+  let sumSimAnt = 0;
+  let countSimAnt = 0;
+
+  currComps.forEach(currC => {
+    const k = `${normalizeKey(currC.articulacao)}_${normalizeKey(currC.movimento)}`;
+    const prevC = prevCompMap[k];
+
+    const simetriaAtual = Number(Number(currC.simetria ?? 100).toFixed(1));
+    const deficitAtual = Number(Number(currC.deficit ?? 0).toFixed(1));
+    sumSimAtual += simetriaAtual;
+
+    let simetriaAnt: number | null = null;
+    let deficitAnt: number | null = null;
+    let deltaSimetria: number | null = null;
+
+    if (prevC) {
+      simetriaAnt = Number(Number(prevC.simetria ?? 100).toFixed(1));
+      deficitAnt = Number(Number(prevC.deficit ?? 0).toFixed(1));
+      deltaSimetria = Number((simetriaAtual - simetriaAnt).toFixed(1));
+      sumSimAnt += simetriaAnt;
+      countSimAnt++;
+    }
+
+    let status: 'excelente' | 'aceitavel' | 'atencao' | 'assimetria' = 'excelente';
+    if (simetriaAtual < 85) status = 'assimetria';
+    else if (simetriaAtual < 90) status = 'atencao';
+    else if (simetriaAtual < 95) status = 'aceitavel';
+
+    symmetries.push({
+      articulacao: currC.articulacao,
+      movimento: currC.movimento,
+      simetriaAnt,
+      simetriaAtual,
+      deficitAnt,
+      deficitAtual,
+      deltaSimetria,
+      classificacaoAnt: prevC?.classificacaoSimetria,
+      classificacaoAtual: currC.classificacaoSimetria,
+      status
+    });
+  });
+
+  // Cálculo de Razões Biomecânicas (Atual vs Anterior)
+  const getAvgForce = (tests: any[], art: string, mov: string): number => {
+    const d = tests.find(t => normalizeKey(t.articulacao) === normalizeKey(art) && normalizeKey(t.movimento) === normalizeKey(mov) && normalizeSide(t.lado) === 'Direito');
+    const e = tests.find(t => normalizeKey(t.articulacao) === normalizeKey(art) && normalizeKey(t.movimento) === normalizeKey(mov) && normalizeSide(t.lado) === 'Esquerdo');
+    const vD = Number(d?.forcaN ?? d?.valorObtido ?? 0);
+    const vE = Number(e?.forcaN ?? e?.valorObtido ?? 0);
+    if (vD > 0 && vE > 0) return (vD + vE) / 2;
+    return vD || vE || 0;
+  };
+
+  const ratios: RatioEvolutionItem[] = [];
+
+  // Razão I:Q (Joelho)
+  const extJCurr = getAvgForce(currTests, 'Joelho', 'Extensão');
+  const flexJCurr = getAvgForce(currTests, 'Joelho', 'Flexão');
+  const extJPrev = getAvgForce(prevTests, 'Joelho', 'Extensão');
+  const flexJPrev = getAvgForce(prevTests, 'Joelho', 'Flexão');
+
+  if (extJCurr > 0 && flexJCurr > 0) {
+    const iqCurr = (flexJCurr / extJCurr) * 100;
+    const iqPrev = extJPrev > 0 && flexJPrev > 0 ? (flexJPrev / extJPrev) * 100 : null;
+    const isCrit = iqCurr < 60;
+    const isAlt = iqCurr < 65 || iqCurr > 80;
+    ratios.push({
+      nome: 'Razão I:Q (Isquiotibiais / Quadríceps)',
+      articulacao: 'Joelho',
+      referencia: '60% a 75%',
+      valorAnt: iqPrev !== null ? `${iqPrev.toFixed(1)}%` : null,
+      valorAtual: `${iqCurr.toFixed(1)}%`,
+      delta: iqPrev !== null ? `${(iqCurr - iqPrev) >= 0 ? '+' : ''}${(iqCurr - iqPrev).toFixed(1)}%` : null,
+      status: isCrit ? 'RISCO CRÍTICO' : (isAlt ? 'ATENÇÃO' : 'EQUILIBRADO'),
+      badgeClass: isCrit ? 'badge-red' : (isAlt ? 'badge-orange' : 'badge-green')
+    });
+  }
+
+  // Razão Adutor / Abdutor (Quadril)
+  const abdQCurr = getAvgForce(currTests, 'Quadril', 'Abdução');
+  const addQCurr = getAvgForce(currTests, 'Quadril', 'Adução');
+  const abdQPrev = getAvgForce(prevTests, 'Quadril', 'Abdução');
+  const addQPrev = getAvgForce(prevTests, 'Quadril', 'Adução');
+
+  if (abdQCurr > 0 && addQCurr > 0) {
+    const ratioCurr = addQCurr / abdQCurr;
+    const ratioPrev = abdQPrev > 0 && addQPrev > 0 ? addQPrev / abdQPrev : null;
+    const isCrit = ratioCurr > 1.15 || ratioCurr < 0.80;
+    ratios.push({
+      nome: 'Razão Adutor / Abdutor',
+      articulacao: 'Quadril',
+      referencia: '0.80 a 1.15',
+      valorAnt: ratioPrev !== null ? ratioPrev.toFixed(2) : null,
+      valorAtual: ratioCurr.toFixed(2),
+      delta: ratioPrev !== null ? `${(ratioCurr - ratioPrev) >= 0 ? '+' : ''}${(ratioCurr - ratioPrev).toFixed(2)}` : null,
+      status: isCrit ? 'RISCO CRÍTICO' : 'EQUILIBRADO',
+      badgeClass: isCrit ? 'badge-red' : 'badge-green'
+    });
+  }
+
+  // Glúteo Médio Relativo (%PC)
+  if (abdQCurr > 0 && pesoAtual > 0) {
+    const gmPcCurr = (abdQCurr / 9.80665 / pesoAtual) * 100;
+    const gmPcPrev = abdQPrev > 0 && pesoAnterior && pesoAnterior > 0 ? (abdQPrev / 9.80665 / pesoAnterior) * 100 : null;
+    const isLow = gmPcCurr < 20;
+    ratios.push({
+      nome: 'Glúteo Médio Relativo (%PC)',
+      articulacao: 'Quadril',
+      referencia: '≥ 20% PC',
+      valorAnt: gmPcPrev !== null ? `${gmPcPrev.toFixed(1)}% PC` : null,
+      valorAtual: `${gmPcCurr.toFixed(1)}% PC`,
+      delta: gmPcPrev !== null ? `${(gmPcCurr - gmPcPrev) >= 0 ? '+' : ''}${(gmPcCurr - gmPcPrev).toFixed(1)}%` : null,
+      status: isLow ? 'ATENÇÃO' : 'EQUILIBRADO',
+      badgeClass: isLow ? 'badge-orange' : 'badge-green'
+    });
+  }
+
+  // Alertas mitigados
+  const alertsCurr = calculateStrengthTestAlerts(currTests, pesoAtual, 'M');
+  const alertsPrev = hasPrevious ? calculateStrengthTestAlerts(prevTests, pesoAnterior || pesoAtual, 'M') : [];
+  const alertasMitigadosCount = Math.max(0, alertsPrev.length - alertsCurr.length);
+
+  return {
+    hasPrevious,
+    dataAnterior,
+    dataAtual,
+    diasIntervalo,
+    pesoAnterior,
+    pesoAtual,
+    items,
+    symmetries,
+    ratios,
+    kpis: {
+      maiorGanhoPct,
+      maiorGanhoNome,
+      mediaGanhoPct: countGainsPct > 0 ? Number((sumGainsPct / countGainsPct).toFixed(1)) : 0,
+      simetriaMediaAtual: currComps.length > 0 ? Number((sumSimAtual / currComps.length).toFixed(1)) : 100,
+      simetriaMediaAnt: countSimAnt > 0 ? Number((sumSimAnt / countSimAnt).toFixed(1)) : null,
+      totalMovimentosAvaliados: currTests.length,
+      totalMelhoras,
+      alertasMitigadosCount
+    }
+  };
+}
+

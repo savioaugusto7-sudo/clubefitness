@@ -10919,6 +10919,9 @@ goniometria: {
                                     const json = await res.json();
                                     if (json?.success && json.data) {
                                       fullSt = json.data;
+                                      if (json.previousTest) {
+                                        fullSt.previousTest = json.previousTest;
+                                      }
                                     }
                                   } catch (fetchErr) {
                                     console.warn('Fallback to local strength test object:', fetchErr);
@@ -10935,7 +10938,7 @@ goniometria: {
                                     fullSt.profissionalId = matchedProf;
                                   }
 
-                                  await downloadStrengthTestPDF(fullSt, fullSt.clienteId || matchedClient || st.clienteId, fullSt.profissionalId || matchedProf || st.profissionalId);
+                                  await downloadStrengthTestPDF(fullSt, fullSt.clienteId || matchedClient || st.clienteId, fullSt.profissionalId || matchedProf || st.profissionalId, fullSt.previousTest);
                                 } catch (err) {
                                   console.error('Error generating strength test PDF:', err);
                                 } finally {
