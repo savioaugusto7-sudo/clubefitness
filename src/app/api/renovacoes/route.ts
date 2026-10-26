@@ -207,6 +207,13 @@ export async function PUT(request: Request) {
       id === '6adf7ba94815c0ab1b676a1c'
     );
 
+    const isDueDateLocked = Boolean(
+      renewal.vencimentoFixo ||
+      renewal._id?.toString() === '6adf7ba94815c0ab1b676a1c' ||
+      id === '6adf7ba94815c0ab1b676a1c'
+    );
+    const finalDataPrimeiroVencimento = isDueDateLocked ? '2026-11-09' : dataPrimeiroVencimento;
+
     if (formaPagamento === 'cartao') {
       valorFinalTotal = Math.round(renewal.valorReajustado * 1.05 * 100) / 100;
       maxParc = 12;
@@ -233,7 +240,7 @@ export async function PUT(request: Request) {
     const valorParcela = Math.round((valorFinalTotal / numParcelas) * 100) / 100;
 
     // 3. Atualizar dados comerciais com o novo ciclo anual
-    const diaVenc = Number(dataPrimeiroVencimento.split('-')[2]) || 10;
+    const diaVenc = Number(finalDataPrimeiroVencimento.split('-')[2]) || 10;
     
     if (!client.dadosComerciais) {
       client.dadosComerciais = {};
@@ -282,7 +289,7 @@ export async function PUT(request: Request) {
       planPreco: valorFinalTotal,
       creditosMensais: renewal.creditosMensais,
       dataInicio: renewal.dataInicioRenovacao,
-      dataVencimento: dataPrimeiroVencimento,
+      dataVencimento: finalDataPrimeiroVencimento,
       formaPagamento,
       parcelas: numParcelas,
       vigenciaQtd: 12,
@@ -333,7 +340,7 @@ export async function PUT(request: Request) {
       valorLiquido: valorFinalTotal,
       formaPagamento,
       parcelas: numParcelas,
-      dataPrimeiroVencimento,
+      dataPrimeiroVencimento: finalDataPrimeiroVencimento,
       diaVencimento: diaVenc,
       dataInicio: renewal.dataInicioRenovacao,
       dataFim: renewal.dataFimCalculada,
@@ -353,7 +360,7 @@ export async function PUT(request: Request) {
 
     // 7. Atualizar a proposta de renovação
     renewal.status = 'aceita';
-    renewal.dataPrimeiroVencimento = dataPrimeiroVencimento;
+    renewal.dataPrimeiroVencimento = finalDataPrimeiroVencimento;
     renewal.formaPagamento = formaPagamento;
     renewal.parcelas = numParcelas;
     renewal.clicksignDocKey = clicksignDocKey;

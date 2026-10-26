@@ -49,7 +49,15 @@ export default function RenovacaoPage({ params }: { params: any }) {
             ren._id === '6adf7ba94815c0ab1b676a1c'
           );
 
-          if (ren.dataPrimeiroVencimento) {
+          const isDueDateLocked = Boolean(
+            ren.vencimentoFixo ||
+            id === '6adf7ba94815c0ab1b676a1c' ||
+            ren._id === '6adf7ba94815c0ab1b676a1c'
+          );
+
+          if (isDueDateLocked) {
+            setDataPrimeiroVencimento('2026-11-09');
+          } else if (ren.dataPrimeiroVencimento) {
             setDataPrimeiroVencimento(ren.dataPrimeiroVencimento);
           } else if (isSpecial12x) {
             setDataPrimeiroVencimento('2026-11-09');
@@ -90,6 +98,12 @@ export default function RenovacaoPage({ params }: { params: any }) {
   const is12xBoletoAllowed = Boolean(
     renewal?.permitir12xBoleto || 
     renewal?.maxParcelasBoleto === 12 || 
+    id === '6adf7ba94815c0ab1b676a1c' ||
+    renewal?._id === '6adf7ba94815c0ab1b676a1c'
+  );
+
+  const isDueDateLocked = Boolean(
+    renewal?.vencimentoFixo || 
     id === '6adf7ba94815c0ab1b676a1c' ||
     renewal?._id === '6adf7ba94815c0ab1b676a1c'
   );
@@ -141,9 +155,11 @@ export default function RenovacaoPage({ params }: { params: any }) {
     }
   };
 
+  const effectiveDueDate = isDueDateLocked ? '2026-11-09' : dataPrimeiroVencimento;
+
   const handleProceedToContractReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dataPrimeiroVencimento) {
+    if (!effectiveDueDate) {
       alert('Por favor, selecione a data do primeiro pagamento.');
       return;
     }
@@ -168,7 +184,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
       planPreco: currentTotal,
       creditosMensais: renewal.creditosMensais,
       dataInicio: renewal.dataInicioRenovacao,
-      dataVencimento: dataPrimeiroVencimento,
+      dataVencimento: effectiveDueDate,
       formaPagamento,
       parcelas: currentInstallments,
       vigenciaQtd: 12,
@@ -195,7 +211,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: renewal._id,
-          dataPrimeiroVencimento,
+          dataPrimeiroVencimento: effectiveDueDate,
           formaPagamento,
           parcelas: currentInstallments,
           dadosPreenchidos: {
@@ -420,31 +436,87 @@ export default function RenovacaoPage({ params }: { params: any }) {
               </div>
             </div>
 
-            {/* Escolha da Data do 1º Pagamento (Próximos 30 dias) */}
+            {/* Escolha da Data do 1º Pagamento (Próximos 30 dias) ou Fixada */}
             <div style={{ ...cardStyle, padding: '24px', marginBottom: '20px' }}>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)' }}></i>
-                Data do Primeiro Pagamento
-              </h3>
-              <p style={{ margin: '0 0 14px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Escolha a melhor data para o vencimento da sua primeira mensalidade (em até 30 dias a partir do início do novo ciclo):
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  min={minVencDate} 
-                  max={maxVencDate} 
-                  value={dataPrimeiroVencimento} 
-                  onChange={e => setDataPrimeiroVencimento(e.target.value)} 
-                  required 
-                  style={{ padding: '12px 14px', fontSize: '1rem', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '10px', color: '#fff', outline: 'none' }} 
-                />
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Período disponível para escolha: <strong>{dataInicioFormatada}</strong> até <strong>{maxVencDate ? new Date(maxVencDate + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</strong>.
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)' }}></i>
+                  Data do Primeiro Pagamento
+                </h3>
+                {isDueDateLocked && (
+                  <span style={{ 
+                    background: 'rgba(99, 102, 241, 0.15)', 
+                    color: '#818cf8', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    padding: '4px 10px', 
+                    borderRadius: '20px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '5px',
+                    border: '1px solid rgba(99, 102, 241, 0.3)'
+                  }}>
+                    <i className="fa-solid fa-lock" style={{ fontSize: '0.7rem' }}></i> Vencimento Fixado
+                  </span>
+                )}
               </div>
+
+              {isDueDateLocked ? (
+                <div>
+                  <p style={{ margin: '0 0 14px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    A data do seu primeiro vencimento foi mantida para continuidade do seu ciclo habitual de faturamento:
+                  </p>
+                  
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.08) 100%)', 
+                    border: '1px solid rgba(99, 102, 241, 0.3)', 
+                    borderRadius: '12px', 
+                    padding: '16px 18px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem' }}>
+                        <i className="fa-solid fa-calendar-check"></i>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>1º Vencimento Oficial</div>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>09/11/2026</div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-circle-check"></i> Ciclo Mantido (Todo dia 09)
+                    </span>
+                  </div>
+
+                  <input type="hidden" name="dataPrimeiroVencimento" value="2026-11-09" />
+                </div>
+              ) : (
+                <>
+                  <p style={{ margin: '0 0 14px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Escolha a melhor data para o vencimento da sua primeira mensalidade (em até 30 dias a partir do início do novo ciclo):
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <input 
+                      type="date" 
+                      className="form-control" 
+                      min={minVencDate} 
+                      max={maxVencDate} 
+                      value={dataPrimeiroVencimento} 
+                      onChange={e => setDataPrimeiroVencimento(e.target.value)} 
+                      required 
+                      style={{ padding: '12px 14px', fontSize: '1rem', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '10px', color: '#fff', outline: 'none' }} 
+                    />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Período disponível para escolha: <strong>{dataInicioFormatada}</strong> até <strong>{maxVencDate ? new Date(maxVencDate + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</strong>.
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Forma de Pagamento com Regras Específicas */}

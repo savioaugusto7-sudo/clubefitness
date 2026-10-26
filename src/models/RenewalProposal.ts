@@ -26,6 +26,7 @@ const RenewalProposalSchema = new Schema({
   parcelas: { type: Number, default: 1 },
   permitir12xBoleto: { type: Boolean, default: false },
   maxParcelasBoleto: { type: Number, default: 10 },
+  vencimentoFixo: { type: Boolean, default: false },
   
   // Status e Visualização
   status: { type: String, default: 'pendente' },
