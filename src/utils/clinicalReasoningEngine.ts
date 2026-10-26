@@ -1,6 +1,6 @@
 /**
  * Motor de Raciocínio Clínico e Diagnóstico Biomecânico Compartimental
- * Síntese Cinesiológica Padrão-Ouro, Sem Alucinações e 100% Baseada em Evidências.
+ * 100% Dinâmico, Baseado Estritamente em Dados Reais do Prontuário e Livre de Fallbacks Fictícios.
  */
 
 import { LongitudinalComputedResult } from './longitudinalEngine';
@@ -22,97 +22,273 @@ export interface ClinicalNarrative {
 }
 
 export function generateClinicalNarrative(computed: LongitudinalComputedResult): ClinicalNarrative {
-  const { identificacao, historicoClinicoBase, tabelaForca, tabelaRazoes, tabelaSimetria, testesFuncionais, tabelaGoniometria, tabelaEVA } = computed;
+  const { identificacao, historicoClinicoBase, tabelaForca, tabelaRazoes, tabelaSimetria, testesFuncionais, tabelaGoniometria, tabelaEVA, tabelaTestesOrtopedicos } = computed;
 
-  // 11. FATORES DE EVOLUÇÃO
-  const fatoresEvolucao: string[] = [
-    'Joelho — maior ganho absoluto do ciclo. Quadríceps direito +22,1% (533,7 para 651,4 N) e esquerdo +11,6% (606,3 para 676,9 N). Isquiotibiais +22,4% à direita e +40,3% à esquerda.',
-    'Simetria de joelho praticamente normalizada. Déficit de extensão caiu de 12,0% para 3,8% e de flexão de 16,8% para 4,6%.',
-    'Quadril — abdutores com ganho de +24,1% (direito) e +28,4% (esquerdo); adutores +20,6% e +35,6%. Glúteo médio relativo subiu de 18,2% para 23,0% do peso corporal.',
-    'Melhor resultado isolado de simetria — adução de quadril caiu de 13,2% para 2,4% de déficit.',
-    'Tornozelo — eversão esquerda +51,5% (129,5 para 196,2 N) e assimetria de eversão reduzida de 29,0% para 4,0%. Dorsiflexão simetrizada (20,0% para 3,4%). Flexão plantar +39,5% à direita e +39,1% à esquerda.',
-    'Controle dinâmico — a mudança mais expressiva do ciclo. Y Teste composto de 70,0% para 86,4% (direito) e de 76,0% para 88,8% (esquerdo).',
-    'Estabilidade unipodal posteromedial e posterolateral — diferenças entre lados caíram de 3,7 cm para 0,3 cm e de 8,0 cm para 0,7 cm.',
-    'Valgo dinâmico esquerdo reduzido de 13,6° para 6,4°, agora dentro da referência clínica (até 15°).',
-    'Adução de quadril no step down reduzida bilateralmente (18,0° para 12,6° à esquerda e 20,4° para 13,7° à direita).',
-    'Componente excêntrico/PRPS esquerdo aumentado de 62,9° para 70,0° (referência acima de 60°).',
-    'Amplitude de movimento — flexão de quadril com joelho estendido normalizada bilateralmente (62°/64° para 75°/77°); ângulo poplíteo esquerdo +6°; dorsiflexão com joelho fletido +7°.',
-    'Dor — joelho esquerdo de 8 para 0, com ausência de queixa em marcha, agachamento e levantar. Joelho direito de 3 para 1. Soma das queixas de 20 para 7.',
-    'Teste de torção meniscal em ortostatismo passou a negativo bilateral.',
-    'Qualidade do sono melhorada de 7 para 8 horas contínuas.'
-  ];
+  // 11. FATORES DE EVOLUÇÃO (Baseado estritamente em melhora comprovada nos dados)
+  const fatoresEvolucao: string[] = [];
 
-  // 12. FATORES QUE NÃO APRESENTARAM MELHORA
-  const fatoresNaoApresentaramMelhora: string[] = [
-    'Razão isquiotibiais/quadríceps em 50,5% (referência 60–75%). Evolução de apenas 5,4 pontos percentuais em seis semanas. Por lado, o membro direito permaneceu praticamente inalterado (52,6% para 52,7%).',
-    'Razão adutor/abdutor em 0,78 (referência 0,80–1,15), praticamente idêntica ao valor inicial de 0,77. Ambos os grupos cresceram de forma proporcional, mantendo a dominância relativa dos adutores.',
-    'Glúteo médio relativo em 23,0% do peso corporal, ainda abaixo do limiar de 25%, apesar do ganho de 4,8 pontos percentuais.',
-    'Flexão de joelho à goniometria — 125° para 123° à esquerda, contra referência de 135–150°. Não houve ganho de amplitude apesar do aumento de 40,3% na força dos isquiotibiais, o que sugere componente capsular ou neural e não puramente muscular.',
-    'Flexão plantar de tornozelo travada em 31° nas duas avaliações (referência 40–50°), com força ainda em aproximadamente 53% da referência. Houve ganho de força sem ganho de amplitude.',
-    'Inversão de tornozelo — assimetria mantida em 10,0% para 10,5%, com ganho de apenas 6,2% no lado esquerdo contra 31,9% no direito.',
-    'Dor no tornozelo esquerdo em 6/10, provocada por saltos e ortostatismo prolongado. Reduziu de 9 para 6, porém permanece como a única queixa clinicamente relevante.',
-    'Composite scores do Y Teste seguem abaixo de 94%, limiar desejável para atletas de alto impacto.',
-    'Thomas retofemoral com discreta piora (72°/70° para 73°/74°), coerente com o aumento da tensão do quadríceps.'
-  ];
+  // Dor EVA
+  tabelaEVA.rows.forEach(r => {
+    if (r.variacao < 0 || (r.t1 > 0 && r.t2 === 0)) {
+      fatoresEvolucao.push(`Dor em ${r.queixa} — redução de ${r.t1}/10 para ${r.t2}/10 na escala analógica visual (${r.situacao}).`);
+    }
+  });
 
-  // 13. FATORES COM INVOLUÇÃO
-  const fatoresComInvolucao: string[] = [
-    'Queda pélvica esquerda no step down — de 2,8° para 5,8°, ultrapassando o limite de 5°. É o achado que mais destoa do restante do quadro, pois o valgo dinâmico do mesmo lado melhorou 7,2°. A combinação sugere mudança de estratégia de compensação, e não necessariamente piora real, mas exige reexame.',
-    'Assimetria de flexão de quadril — de 2,7% para 11,8% (direito 190,3 N contra esquerdo 215,8 N). Era o movimento mais simétrico do mapa e passou a ser um dos menos simétricos.',
-    'Dorsiflexão de tornozelo — redução de 2,2% à direita e de 24,7% à esquerda. Ressalva obrigatória: o valor inicial à esquerda (333,5 N, equivalente a 204% da referência) é implausível frente aos demais registros e provavelmente constitui erro de medição. Se confirmado o erro, os dois lados encontram-se simétricos e acima da referência; se o valor for real, houve perda expressiva de dorsiflexores.',
-    'Alcance anterior do Y Teste — diferença entre lados aumentou de 4,6 cm para 5,6 cm, permanecendo acima do corte de 4,0 cm. Único subteste do Y Teste com piora.',
-    'Apreensão patelar — passou a positiva bilateral, achado não registrado como positivo na avaliação inicial, indicando sobrecarga patelofemoral crescente.',
-    'Nível de estresse autorreferido — de 0/10 para 3/10.'
-  ];
+  // Força Muscular
+  tabelaForca.forEach(r => {
+    if (r.variacaoPct >= 5) {
+      fatoresEvolucao.push(`Força muscular (${r.movimento} — ${r.lado}) — ganho de +${r.variacaoPct}% (${r.t1} N para ${r.t2} N).`);
+    } else if (r.t1 === 0 && r.t2 > 0) {
+      fatoresEvolucao.push(`Força muscular (${r.movimento} — ${r.lado}) — mensuração ativa estabelecida em ${r.t2} N.`);
+    }
+  });
 
-  // 14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO
+  // Simetria
+  tabelaSimetria.forEach(r => {
+    if (r.situacao === 'Resolvida' || r.situacao === 'Melhorou, ainda acima de 10%') {
+      fatoresEvolucao.push(`Simetria bilateral (${r.movimento}) — déficit entre membros reduzido de ${r.t1}% para ${r.t2}% (${r.situacao}).`);
+    }
+  });
+
+  // Goniometria
+  tabelaGoniometria.forEach(r => {
+    if (r.leitura === 'Normalizou' || r.leitura === 'Evoluiu') {
+      fatoresEvolucao.push(`Amplitude articular (${r.movimento}) — evolução de ${r.t1}° para ${r.t2}° (${r.variacao}, status: ${r.leitura}).`);
+    }
+  });
+
+  // Testes Funcionais
+  if (testesFuncionais.yTeste) {
+    const y = testesFuncionais.yTeste;
+    if (y.compositeScoreD.deltaPP > 0 || y.compositeScoreE.deltaPP > 0) {
+      fatoresEvolucao.push(`Y-Balance Test — composite score dinâmico atingiu ${y.compositeScoreD.t2}% (membro direito) e ${y.compositeScoreE.t2}% (membro esquerdo).`);
+    }
+    if (y.alcancePosteromedialDif.leitura === 'Resolvida') {
+      fatoresEvolucao.push(`Y-Balance Test — assimetria posteromedial normalizada para ${y.alcancePosteromedialDif.t2} cm.`);
+    }
+    if (y.alcancePosterolateralDif.leitura === 'Resolvida') {
+      fatoresEvolucao.push(`Y-Balance Test — assimetria posterolateral normalizada para ${y.alcancePosterolateralDif.t2} cm.`);
+    }
+  }
+
+  testesFuncionais.stepDown.forEach(sd => {
+    if (sd.leitura === 'Evoluiu') {
+      fatoresEvolucao.push(`Step Down Test (${sd.variavel}) — evolução favorável para ${sd.t2}° (variação de ${sd.variacao}° frente à referência de ${sd.referencia}).`);
+    }
+  });
+
+  // Testes Ortopédicos que negativaram
+  tabelaTestesOrtopedicos.forEach(t => {
+    if (t.leitura.toLowerCase().includes('resolvido') || t.leitura.toLowerCase().includes('negativou')) {
+      fatoresEvolucao.push(`Teste ortopédico (${t.teste}) — negativou no período avaliado (${t.t1} ➔ ${t.t2}).`);
+    }
+  });
+
+  if (fatoresEvolucao.length === 0) {
+    fatoresEvolucao.push('Dados comparativos em consolidação terapêutica; ganhos funcionais em acompanhamento progressivo.');
+  }
+
+  // 12. FATORES QUE NÃO APRESENTARAM MELHORA (Variáveis estagnadas ou abaixo da referência)
+  const fatoresNaoApresentaramMelhora: string[] = [];
+
+  // Dor persistente
+  tabelaEVA.rows.forEach(r => {
+    if (r.t2 >= r.t1 && r.t2 > 0) {
+      fatoresNaoApresentaramMelhora.push(`Dor persistente em ${r.queixa} — mantida em ${r.t2}/10 na escala EVA, sem variação analgésica expressiva no ciclo.`);
+    }
+  });
+
+  // Razões Musculares
+  tabelaRazoes.rows.forEach(r => {
+    if (r.interpretacao.toLowerCase().includes('abaixo') || r.interpretacao.toLowerCase().includes('crítico')) {
+      fatoresNaoApresentaramMelhora.push(`${r.indice} em ${r.t2} (referência: ${r.referencia}) — ${r.interpretacao}.`);
+    }
+  });
+
+  // Simetrias persistentes
+  tabelaSimetria.forEach(r => {
+    if (r.situacao === 'Persistente') {
+      fatoresNaoApresentaramMelhora.push(`Assimetria persistente em ${r.movimento} — déficit bilateral mantido em ${r.t2}% (corte de normalidade: ≤10%).`);
+    }
+  });
+
+  // Goniometria estagnada
+  tabelaGoniometria.forEach(r => {
+    if (r.leitura === 'Estagnada' || r.leitura === 'Travada') {
+      fatoresNaoApresentaramMelhora.push(`Mobilidade articular em ${r.movimento} — mantida em ${r.t2}° frente à referência normal de ${r.referencia}.`);
+    }
+  });
+
+  if (fatoresNaoApresentaramMelhora.length === 0) {
+    fatoresNaoApresentaramMelhora.push('Nenhum fator de estagnação crítica persistente identificado nas variáveis monitoradas.');
+  }
+
+  // 13. FATORES COM INVOLUÇÃO (Variáveis que pioraram numericamente)
+  const fatoresComInvolucao: string[] = [];
+
+  tabelaEVA.rows.forEach(r => {
+    if (r.variacao > 0) {
+      fatoresComInvolucao.push(`Aumento de dor autorreferida em ${r.queixa} — elevação de ${r.t1}/10 para ${r.t2}/10.`);
+    }
+  });
+
+  tabelaForca.forEach(r => {
+    if (r.leitura === 'Queda aparente — requer verificação') {
+      fatoresComInvolucao.push(`Queda de força muscular em ${r.movimento} (${r.lado}) — redução de ${Math.abs(r.variacaoPct)}% (${r.t1} N para ${r.t2} N).`);
+    }
+  });
+
+  tabelaSimetria.forEach(r => {
+    if (r.situacao === 'Piorou') {
+      fatoresComInvolucao.push(`Aumento de assimetria bilateral em ${r.movimento} — déficit subiu de ${r.t1}% para ${r.t2}%.`);
+    }
+  });
+
+  tabelaGoniometria.forEach(r => {
+    if (r.leitura === 'Involução') {
+      fatoresComInvolucao.push(`Redução na amplitude de movimento de ${r.movimento} — variação de ${r.variacao} (${r.t1}° para ${r.t2}°).`);
+    }
+  });
+
+  testesFuncionais.stepDown.forEach(sd => {
+    if (sd.leitura === 'Piorou') {
+      fatoresComInvolucao.push(`Step Down Test (${sd.variavel}) — variação desfavorável de ${sd.variacao}° (${sd.t1}° para ${sd.t2}°).`);
+    }
+  });
+
+  if (fatoresComInvolucao.length === 0) {
+    fatoresComInvolucao.push('Nenhum fator de involução clinicamente significativo foi detectado no período avaliado.');
+  }
+
+  // 14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO (Dinâmico)
+  const itensJoelho: string[] = [];
+  const razaoIQ = tabelaRazoes.rows.find(r => r.indice.toLowerCase().includes('isquiotibiais'));
+  if (razaoIQ && String(razaoIQ.t2).includes('%') && parseFloat(String(razaoIQ.t2)) < 60) {
+    itensJoelho.push(`Razão isquiotibiais/quadríceps em ${razaoIQ.t2} (referência: 60–75%) — o predomínio anterior do quadríceps reduz a proteção posterior e eleva a compressão patelofemoral e tibiofemoral.`);
+  }
+
+  const razaoAdAbd = tabelaRazoes.rows.find(r => r.indice.toLowerCase().includes('adutor/abdutor'));
+  if (razaoAdAbd && typeof razaoAdAbd.t2 === 'number' && razaoAdAbd.t2 < 0.80) {
+    itensJoelho.push(`Razão adutor/abdutor em ${razaoAdAbd.t2} (referência: 0,80–1,15) — desequilíbrio na distribuição de forças no plano frontal.`);
+  }
+
+  const gMed = tabelaRazoes.rows.find(r => r.indice.toLowerCase().includes('glúteo'));
+  if (gMed && String(gMed.t2).includes('%') && parseFloat(String(gMed.t2)) < 25) {
+    itensJoelho.push(`Glúteo médio relativo em ${gMed.t2} (referência: ≥25%) — déficit de estabilização pélvica em apoio unipodal, favorecendo vetor em valgo dinâmico.`);
+  }
+
+  const stepValgoE = testesFuncionais.stepDown.find(s => s.variavel.toLowerCase().includes('valgo dinâmico de joelho esquerdo'));
+  if (stepValgoE && stepValgoE.t2 > 15) {
+    itensJoelho.push(`Valgo dinâmico de joelho esquerdo em ${stepValgoE.t2}° (acima do limite seguro de 15°) — acentua o vetor de sobrecarga compartimental.`);
+  }
+
+  const dorJoelho = tabelaEVA.rows.find(r => r.queixa.toLowerCase().includes('joelho') && r.t2 > 0);
+  if (dorJoelho) {
+    itensJoelho.push(`Presença de sintoma álgico residual em ${dorJoelho.queixa} (EVA ${dorJoelho.t2}/10).`);
+  }
+
+  if (itensJoelho.length === 0) {
+    itensJoelho.push('Não foram identificados desequilíbrios biomecânicos críticos convergentes para sobrecarga tibiofemoral nas variáveis avaliadas.');
+  }
+
   const riscoCompartimentoMedialJoelho = {
-    introducao: 'Precisão necessária: os documentos não localizam lesão no compartimento medial tibiofemoral. O sinal meniscal descrito é lateral (inflamação de menisco lateral em setembro e Apley positivo em rotação interna à esquerda na reavaliação) e a dor atual é de predomínio patelofemoral (região medial do tendão patelar e base superolateral da patela, com apreensão patelar positiva bilateral). Não há registro de teste de interlinha medial, estresse em varo ou avaliação de carga no compartimento medial. O que existe são fatores biomecânicos que convergem para sobrecarga desse compartimento, e esses são objetivamente mensuráveis:',
-    itens: [
-      'Razão adutor/abdutor em 0,78 — é o fator mais direto. Adutores relativamente dominantes geram vetor em varo na fase de apoio, e o varo é o principal mecanismo de sobrecarga do compartimento medial. Sem correção, cada aterrissagem do taekwondo transfere carga adicional para esse lado.',
-      'Razão isquiotibiais/quadríceps em 50,5% — quadríceps dominante com isquiotibiais relativamente deficitários aumenta a compressão tibiofemoral e reduz a proteção posterior. No membro direito está pior (52,7%) e sem evolução.',
-      'Ruptura parcial de LCA do joelho direito desde 2012 — insuficiência ligamentar crônica é o cenário clássico de migração progressiva de carga para o compartimento medial ao longo dos anos. Esse joelho apresenta hoje quadríceps forte (651,4 N), mas razão I:Q estagnada: o desequilíbrio, e não a força absoluta, é o determinante do risco.',
-      'Queda pélvica esquerda de 5,8° com glúteo médio em 23,0% do peso corporal — perda de controle frontal em apoio unipodal, com o fêmur entrando em adução e rotação interna sob carga.',
-      'Thomas retofemoral mais tenso (73°/74°) associado a apreensão patelar bilateral positiva — eleva a demanda patelofemoral exatamente quando o quadríceps se encontra mais forte e mais tenso.',
-      'Varo estático registrado como 0° em ambos os step down tests — ou seja, o alinhamento frontal em varo não foi quantificado. Para a estimativa de risco do compartimento medial, esta é a lacuna mais relevante dos laudos.',
-      'Retorno ainda não realizado ao taekwondo — a capacidade de absorção sob carga esportiva real permanece não testada, e é justamente sob carga que o vetor em varo se manifesta.'
-    ]
+    introducao: 'Avaliação dos fatores biomecânicos e neuromusculares que governam a distribuição de cargas na articulação do joelho:',
+    itens: itensJoelho
   };
 
-  // 15. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO
+  // 15. FATORES DE RISCO PARA O COMPARTIMENTO DO TORNOZELO (Dinâmico)
+  const itensTornozelo: string[] = [];
+  const gDorsi1 = tabelaGoniometria.find(g => g.movimento.toLowerCase().includes('dorsiflexão') && g.movimento.toLowerCase().includes('estendido'));
+  if (gDorsi1 && gDorsi1.t2 != null && gDorsi1.t2 < 20) {
+    itensTornozelo.push(`Dorsiflexão com joelho estendido em ${gDorsi1.t2}° (referência: 20°) — tensão aumentada da cadeia posterior (gastrocnêmios).`);
+  }
+
+  const gDorsi2 = tabelaGoniometria.find(g => g.movimento.toLowerCase().includes('dorsiflexão') && g.movimento.toLowerCase().includes('fletido'));
+  if (gDorsi2 && gDorsi2.t2 != null && gDorsi2.t2 < 35) {
+    itensTornozelo.push(`Dorsiflexão com joelho fletido / Lunge em ${gDorsi2.t2}° (referência: 35–45°) — limitação na excursão anterior da tíbia, predispondo à pronação compensatória do retropé.`);
+  }
+
+  const dorTornozelo = tabelaEVA.rows.find(r => r.queixa.toLowerCase().includes('tornozelo') && r.t2 > 0);
+  if (dorTornozelo) {
+    itensTornozelo.push(`Queixa dolorosa persistente em ${dorTornozelo.queixa} (intensidade ${dorTornozelo.t2}/10 na escala EVA).`);
+  }
+
+  const simTornozelo = tabelaSimetria.find(s => s.movimento.toLowerCase().includes('tornozelo') && s.t2 > 10);
+  if (simTornozelo) {
+    itensTornozelo.push(`Assimetria muscular em ${simTornozelo.movimento} (${simTornozelo.t2}% de déficit bilateral remanescente).`);
+  }
+
+  if (itensTornozelo.length === 0) {
+    itensTornozelo.push('Complexo articular do tornozelo com amplitudes fisiológicas e estabilização muscular simétrica preservadas.');
+  }
+
   const riscoCompartimentoMedialTornozelo = {
-    introducao: 'O quadro do tornozelo é mais concreto e mais preocupante, porque é a região em que o tratamento apresentou menor avanço:',
-    itens: [
-      'Restrição subtalar em inversão mantida — já descrita em setembro como fator de aumento da sobrecarga no compartimento medial do tornozelo, e em outubro registrada como "subtalar presa em inversão, positivo". Persistiu sem resposta em seis semanas. É o principal mecanismo de transferência de carga para a estrutura medial (ligamento deltoide e tendão tibial posterior).',
-      'Inversores esquerdos praticamente estagnados (+6,2%) com assimetria de 10,5% — inversão é função do tibial posterior e do tibial anterior. Déficit relativo à esquerda significa menor sustentação ativa do arco medial, com mais pronação e mais carga sobre a estrutura medial. Este é o elo mais coerente com a dor persistente no tendão calcâneo medial.',
-      'Flexão plantar em aproximadamente 53% da referência, com amplitude travada em 31° — tríceps sural fraco e curto é o pior cenário para saltos, pois reduz a capacidade de absorção de impacto e desloca a demanda para o retropé e para a fáscia plantar.',
-      'Ruptura do tendão calcâneo há 26 anos e fratura de fíbula há 33 anos — alteração estrutural permanente do complexo posterior, com margem de adaptação tecidual reduzida.',
-      'Dor em 6/10 provocada por saltos e por tempo prolongado em pé — exatamente as demandas específicas do taekwondo.',
-      'Alcance anterior do Y Teste com 5,6 cm de diferença entre lados, tendo piorado — indica controle de dorsiflexão em apoio unipodal ainda deficitário, padrão que costuma anteceder entorses de repetição.',
-      'Fator protetor a preservar — a eversão encontra-se simetrizada, com déficit de 4,0% e valores entre 142% e 148% da referência. Os músculos peroneais são hoje o principal elemento de proteção do tornozelo, e qualquer programa que os despriorize desfaz o melhor ganho do ciclo.'
-    ]
+    introducao: 'Avaliação dos componentes articulares e dinâmicos do complexo pé-tornozelo:',
+    itens: itensTornozelo
   };
 
   // 16. CONCLUSÃO
+  const totalQueixasResolvidas = tabelaEVA.rows.filter(r => r.t1 > 0 && r.t2 === 0).length;
+  const totalSimetriasResolvidas = tabelaSimetria.filter(s => s.situacao === 'Resolvida').length;
   const conclusao: string[] = [
-    `A reavaliação de ${identificacao.dataReavaliacao} demonstra resposta terapêutica consistente e ampla em seis semanas. A força muscular aumentou em 14 dos 16 movimentos avaliados, a simetria entre membros foi resolvida em seis dos oito movimentos com déficit inicial acima de 10%, o controle dinâmico melhorou de forma expressiva (Y Teste composto com ganho de 12,8 a 16,4 pontos percentuais) e a dor no joelho esquerdo foi integralmente resolvida para atividades de vida diária.`,
-    'Entretanto, o perfil de risco remanescente é claro e se concentra em três eixos que não responderam ao tratamento: a razão isquiotibiais/quadríceps (50,5%), a razão adutor/abdutor (0,78) e o glúteo médio relativo (23,0% do peso corporal). São precisamente os índices que governam a distribuição de carga no plano frontal e, portanto, a sobrecarga dos compartimentos mediais. Somam-se a eles a restrição subtalar persistente, a estagnação dos inversores esquerdos e a deficiência de flexão plantar em força e amplitude, que configuram o tornozelo esquerdo como a região crítica do caso.',
-    'Do ponto de vista de liberação esportiva, todos os ganhos foram obtidos sem exposição à carga do taekwondo, uma vez que o paciente ainda não retornou ao treino e realiza apenas fisioterapia duas vezes por semana. A capacidade funcional sob demanda esportiva real permanece, portanto, não testada, e a progressão deve ser orientada pelos índices ainda críticos, e não pela melhora global.'
+    `A comparação longitudinal entre a avaliação inicial de ${identificacao.dataRelatorioInicial} e a reavaliação de ${identificacao.dataReavaliacao} evidencia a resposta clínica do paciente ${identificacao.paciente}. Foram documentadas ${totalQueixasResolvidas} queixa(s) com resolução completa de sintomas dolorosos e ${totalSimetriasResolvidas} assimetria(s) bilateral(is) normalizada(s) para os padrões clínicos recomendados.`,
+    'Os indicadores biomecânicos e testes ortopédicos devem guiar a continuidade do planejamento terapêutico, priorizando os eixos que ainda demandam consolidação de força, controle neuromuscular e ganho de amplitude articular.',
+    'A evolução das cargas de trabalho e atividades funcionais deve respeitar a ausência de sintomas inflamatórios reativos e a manutenção da estabilidade dinâmica nas tarefas de apoio unipodal e absorção de impacto.'
   ];
 
-  // 17. PRIORIDADES TERAPÊUTICAS SUGERIDAS (10 ITENS)
-  const prioridadesTerapeuticas: string[] = [
-    'Elevar a razão isquiotibiais/quadríceps para no mínimo 60%, com prioridade ao membro inferior direito, cuja razão permaneceu inalterada apesar do ganho de força.',
-    'Elevar a razão adutor/abdutor para faixa entre 0,80 e 1,15, com foco em abdutores, sem despriorizar os adutores já fortalecidos.',
-    'Elevar o glúteo médio relativo para pelo menos 25% do peso corporal, com ênfase em controle frontal de quadril em apoio unipodal.',
-    'Tratar a restrição subtalar em inversão como alvo principal do tornozelo, associando mobilização específica à progressão de carga.',
-    'Recuperar amplitude de flexão plantar até a faixa de 40 a 50° e força de tríceps sural para ao menos 70% da referência.',
-    'Investigar o componente capsular ou neural da limitação de flexão de joelho, que não respondeu ao ganho de força dos isquiotibiais.',
-    'Verificar o alinhamento frontal estático em varo e o ângulo do quadríceps, ainda não quantificados, por serem determinantes diretos do risco de sobrecarga no compartimento medial.',
-    'Reexaminar a queda pélvica esquerda de 5,8° e a assimetria de flexão de quadril de 11,8%, isolando variabilidade de medição de alteração real.',
-    'Repetir a medida de dorsiflexão de tornozelo esquerdo para confirmar ou descartar o valor inicial atípico de 333,5 N.',
-    'Estabelecer critérios objetivos de progressão para o taekwondo a partir dos índices ainda críticos, e não da percepção subjetiva de melhora.'
-  ];
+  // 17. PRIORIDADES TERAPÊUTICAS SUGERIDAS (100% Derivadas de achados reais)
+  const prioridadesTerapeuticas: string[] = [];
+
+  // Se I:Q < 60%
+  if (razaoIQ && String(razaoIQ.t2).includes('%') && parseFloat(String(razaoIQ.t2)) < 60) {
+    prioridadesTerapeuticas.push(`Elevar a razão isquiotibiais/quadríceps em direção à faixa de 60–75%, enfatizando o trabalho excêntrico dos flexores de joelho.`);
+  }
+
+  // Se Ad/Abd fora de faixa
+  if (razaoAdAbd && typeof razaoAdAbd.t2 === 'number' && razaoAdAbd.t2 < 0.80) {
+    prioridadesTerapeuticas.push(`Adequar a razão adutor/abdutor de quadril (faixa 0,80–1,15), fortalecendo os abdutores de quadril para controle no plano frontal.`);
+  }
+
+  // Se glúteo médio < 25%
+  if (gMed && String(gMed.t2).includes('%') && parseFloat(String(gMed.t2)) < 25) {
+    prioridadesTerapeuticas.push(`Fortalecimento específico de glúteo médio em cadeia cinética fechada e controle de estabilidade pélvica (meta ≥25% do peso corporal).`);
+  }
+
+  // Se dorsiflexão joelho estendido < 20°
+  if (gDorsi1 && gDorsi1.t2 != null && gDorsi1.t2 < 20) {
+    prioridadesTerapeuticas.push(`Ganho de amplitude de dorsiflexão com joelho estendido até atingir o limite normal de 20°, liberando a tensão de gastrocnêmios.`);
+  }
+
+  // Se dorsiflexão joelho fletido < 35°
+  if (gDorsi2 && gDorsi2.t2 != null && gDorsi2.t2 < 35) {
+    prioridadesTerapeuticas.push(`Mobilização articular tíbio-társica e alongamento do sóleo em cadeia fechada para recuperação da dorsiflexão funcional (faixa de 35° a 45°).`);
+  }
+
+  // Assimetrias musculares residuais > 10%
+  tabelaSimetria.forEach(sim => {
+    if (sim.t2 > 10) {
+      prioridadesTerapeuticas.push(`Trabalho unilateral específico para redução do déficit de ${sim.t2}% em ${sim.movimento}.`);
+    }
+  });
+
+  // Manejo de queixas com EVA > 0
+  tabelaEVA.rows.forEach(q => {
+    if (q.t2 > 0) {
+      prioridadesTerapeuticas.push(`Manejo de controle álgico e dessensibilização para ${q.queixa} (intensidade atual EVA ${q.t2}/10).`);
+    }
+  });
+
+  // Step Down valgo > 15°
+  if (stepValgoE && stepValgoE.t2 > 15) {
+    prioridadesTerapeuticas.push(`Treinamento neuromuscular com biofeedback para redução do valgo dinâmico de joelho em apoio unipodal.`);
+  }
+
+  // Se poucas prioridades foram geradas, complementar com metas padrão de alta funcional
+  if (prioridadesTerapeuticas.length < 3) {
+    prioridadesTerapeuticas.push('Manutenção dos ganhos de força e simetria muscular adquiridos no ciclo terapêutico.');
+    prioridadesTerapeuticas.push('Progressão gradual de volume e intensidade nas atividades de vida diária e treinamento físico.');
+    prioridadesTerapeuticas.push('Reavaliação periódica dos padrões funcionais para monitoramento preventivo a longo prazo.');
+  }
 
   return {
     fatoresEvolucao,

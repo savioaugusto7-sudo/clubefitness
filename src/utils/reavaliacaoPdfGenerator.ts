@@ -249,259 +249,308 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   <!-- 3. HISTÓRICO CLÍNICO DE BASE -->
   <div class="section-title">3. HISTÓRICO CLÍNICO DE BASE</div>
   <p>
-    Paciente de ${historicoClinicoBase.idade} anos, ${historicoClinicoBase.patologiasPregressas.toLowerCase()}, em uso de ${historicoClinicoBase.medicamentos}. ${historicoClinicoBase.historicoCirurgiasTraumas} ${historicoClinicoBase.demandaEsportiva} ${historicoClinicoBase.queixaInicialDiagnostico}
+    <strong>Idade:</strong> ${historicoClinicoBase.idade}. 
+    <strong>Histórico e Patologias:</strong> ${historicoClinicoBase.patologiasPregressas}. 
+    <strong>Medicamentos:</strong> ${historicoClinicoBase.medicamentos}. 
+    <strong>Cirurgias/Traumas:</strong> ${historicoClinicoBase.historicoCirurgiasTraumas}. 
+    <strong>Atividade/Demanda:</strong> ${historicoClinicoBase.demandaEsportiva}. 
+    <strong>Diagnóstico Inicial:</strong> ${historicoClinicoBase.queixaInicialDiagnostico}.
   </p>
 
   <!-- 4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10) -->
   <div class="section-title">4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Queixa</th>
-        <th class="text-center">${identificacao.dataRelatorioInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação</th>
-        <th>Situação</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tabelaEVA.rows.map(r => `
+  ${tabelaEVA.rows.length === 0 ? `
+    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
+      Sem queixas dolorosas ativas quantificadas em prontuário para o período avaliado.
+    </div>
+  ` : `
+    <table>
+      <thead>
         <tr>
-          <td class="font-bold">${r.queixa}</td>
-          <td class="text-center">${r.t1}</td>
-          <td class="text-center">${r.t2}</td>
-          <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : '#0f172a'}">${r.variacao > 0 ? `+${r.variacao}` : r.variacao}</td>
-          <td>${r.situacao}</td>
+          <th>Queixa</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Situação</th>
         </tr>
-      `).join('')}
-      <tr style="background:#f1f5f9; font-weight:700;">
-        <td>Soma das queixas</td>
-        <td class="text-center">${tabelaEVA.somaQueixasT1}</td>
-        <td class="text-center">${tabelaEVA.somaQueixasT2}</td>
-        <td class="text-center" style="color:#059669;">${tabelaEVA.deltaSoma > 0 ? `+${tabelaEVA.deltaSoma}` : tabelaEVA.deltaSoma}</td>
-        <td>Melhora global expressiva</td>
-      </tr>
-    </tbody>
-  </table>
-  <p style="font-size:9.5pt; color:#334155;"><strong>Observação:</strong> ${tabelaEVA.observacoesClinicas}</p>
+      </thead>
+      <tbody>
+        ${tabelaEVA.rows.map(r => `
+          <tr>
+            <td class="font-bold">${r.queixa}</td>
+            <td class="text-center">${r.t1}</td>
+            <td class="text-center">${r.t2}</td>
+            <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : '#0f172a'}">${r.variacao > 0 ? `+${r.variacao}` : r.variacao}</td>
+            <td>${r.situacao}</td>
+          </tr>
+        `).join('')}
+        <tr style="background:#f1f5f9; font-weight:700;">
+          <td>Soma das queixas</td>
+          <td class="text-center">${tabelaEVA.somaQueixasT1}</td>
+          <td class="text-center">${tabelaEVA.somaQueixasT2}</td>
+          <td class="text-center" style="color:#059669;">${tabelaEVA.deltaSoma > 0 ? `+${tabelaEVA.deltaSoma}` : tabelaEVA.deltaSoma}</td>
+          <td>${tabelaEVA.deltaSoma < 0 ? 'Melhora global' : (tabelaEVA.deltaSoma === 0 ? 'Estável' : 'Aumento de queixas')}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:9.5pt; color:#334155;"><strong>Observação:</strong> ${tabelaEVA.observacoesClinicas}</p>
+  `}
 
   <!-- 5. COMPARATIVO DE FORÇA MUSCULAR (NEWTONS) -->
   <div class="section-title">5. COMPARATIVO DE FORÇA MUSCULAR (newtons)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Movimento</th>
-        <th class="text-center">Lado</th>
-        <th class="text-center">${identificacao.dataForcaInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação (%)</th>
-        <th>Leitura</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tabelaForca.map(r => `
+  ${tabelaForca.length === 0 ? `
+    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
+      Dinamometria computadorizada não realizada neste ciclo avaliativo.
+    </div>
+  ` : `
+    <table>
+      <thead>
         <tr>
-          <td>${r.movimento}</td>
-          <td class="text-center">${r.lado}</td>
-          <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}</td>
-          <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}</td>
-          <td class="text-center font-bold" style="color:${r.variacaoPct >= 10 ? '#059669' : (r.variacaoPct < -5 ? '#dc2626' : '#0f172a')}">
-            ${r.variacaoPct > 0 ? `+${r.variacaoPct.toFixed(1).replace('.', ',')}%` : `${r.variacaoPct.toFixed(1).replace('.', ',')}%`}
-          </td>
-          <td>${r.leitura}</td>
+          <th>Movimento</th>
+          <th class="text-center">Lado</th>
+          <th class="text-center">${identificacao.dataForcaInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação (%)</th>
+          <th>Leitura</th>
         </tr>
-      `).join('')}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        ${tabelaForca.map(r => `
+          <tr>
+            <td>${r.movimento}</td>
+            <td class="text-center">${r.lado}</td>
+            <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}</td>
+            <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}</td>
+            <td class="text-center font-bold" style="color:${r.variacaoPct >= 10 ? '#059669' : (r.variacaoPct < -5 ? '#dc2626' : '#0f172a')}">
+              ${r.variacaoPct > 0 ? `+${r.variacaoPct.toFixed(1).replace('.', ',')}%` : `${r.variacaoPct.toFixed(1).replace('.', ',')}%`}
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `}
 
   <!-- 6. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS -->
   <div class="section-title">6. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Índice</th>
-        <th class="text-center">Referência</th>
-        <th class="text-center">${identificacao.dataForcaInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação</th>
-        <th>Interpretação</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tabelaRazoes.rows.map(r => `
+  ${tabelaRazoes.rows.length === 0 ? `
+    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
+      Índices de equilíbrio muscular dependem da mensuração de dinamometria (não realizada no ciclo).
+    </div>
+  ` : `
+    <table>
+      <thead>
         <tr>
-          <td class="font-bold">${r.indice}</td>
-          <td class="text-center">${r.referencia}</td>
-          <td class="text-center">${r.t1}</td>
-          <td class="text-center font-bold">${r.t2}</td>
-          <td class="text-center">${r.variacao}</td>
-          <td>${r.interpretacao}</td>
+          <th>Índice</th>
+          <th class="text-center">Referência</th>
+          <th class="text-center">${identificacao.dataForcaInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Interpretação</th>
         </tr>
-      `).join('')}
-    </tbody>
-  </table>
-  <p style="font-size:9.5pt; color:#334155;"><strong>Análise por lado da razão I:Q:</strong> ${tabelaRazoes.analisePorLadoIQ}</p>
+      </thead>
+      <tbody>
+        ${tabelaRazoes.rows.map(r => `
+          <tr>
+            <td class="font-bold">${r.indice}</td>
+            <td class="text-center">${r.referencia}</td>
+            <td class="text-center">${r.t1}</td>
+            <td class="text-center font-bold">${r.t2}</td>
+            <td class="text-center">${r.variacao}</td>
+            <td>${r.interpretacao}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <p style="font-size:9.5pt; color:#334155;"><strong>Análise da razão I:Q:</strong> ${tabelaRazoes.analisePorLadoIQ}</p>
+  `}
 
   <!-- 7. ANÁLISE DE SIMETRIA ENTRE MEMBROS -->
   <div class="section-title">7. ANÁLISE DE SIMETRIA ENTRE MEMBROS (déficit percentual)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Movimento</th>
-        <th class="text-center">${identificacao.dataForcaInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação</th>
-        <th>Situação</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tabelaSimetria.map(r => `
+  ${tabelaSimetria.length === 0 ? `
+    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
+      Análise de simetria dinamométrica não disponível para as mensurações atuais.
+    </div>
+  ` : `
+    <table>
+      <thead>
         <tr>
-          <td>${r.movimento}</td>
-          <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}%</td>
-          <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}%</td>
-          <td class="text-center font-bold" style="color:${r.variacaoPP < 0 ? '#059669' : '#dc2626'}">
-            ${r.variacaoPP > 0 ? `+${r.variacaoPP.toFixed(1).replace('.', ',')} p.p.` : `${r.variacaoPP.toFixed(1).replace('.', ',')} p.p.`}
-          </td>
-          <td>${r.situacao}</td>
+          <th>Movimento</th>
+          <th class="text-center">${identificacao.dataForcaInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Situação</th>
         </tr>
-      `).join('')}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        ${tabelaSimetria.map(r => `
+          <tr>
+            <td>${r.movimento}</td>
+            <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold" style="color:${r.variacaoPP < 0 ? '#059669' : '#dc2626'}">
+              ${r.variacaoPP > 0 ? `+${r.variacaoPP.toFixed(1).replace('.', ',')} p.p.` : `${r.variacaoPP.toFixed(1).replace('.', ',')} p.p.`}
+            </td>
+            <td>${r.situacao}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `}
 
   <!-- 8. TESTES FUNCIONAIS -->
   <div class="section-title">8. TESTES FUNCIONAIS</div>
 
   <div class="subsection-title">8.1 Y Teste (equilíbrio dinâmico)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Variável</th>
-        <th class="text-center">${identificacao.dataRelatorioInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação</th>
-        <th>Leitura</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Composite Score direito</td>
-        <td class="text-center">${testesFuncionais.yTeste.compositeScoreD.t1.toFixed(1).replace('.', ',')}%</td>
-        <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreD.t2.toFixed(1).replace('.', ',')}%</td>
-        <td class="text-center font-bold" style="color:#059669;">+${testesFuncionais.yTeste.compositeScoreD.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
-        <td>${testesFuncionais.yTeste.compositeScoreD.leitura}</td>
-      </tr>
-      <tr>
-        <td>Composite Score esquerdo</td>
-        <td class="text-center">${testesFuncionais.yTeste.compositeScoreE.t1.toFixed(1).replace('.', ',')}%</td>
-        <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreE.t2.toFixed(1).replace('.', ',')}%</td>
-        <td class="text-center font-bold" style="color:#059669;">+${testesFuncionais.yTeste.compositeScoreE.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
-        <td>${testesFuncionais.yTeste.compositeScoreE.leitura}</td>
-      </tr>
-      <tr>
-        <td>Alcance anterior (diferença entre lados)</td>
-        <td class="text-center">${testesFuncionais.yTeste.alcanceAnteriorDif.t1.toFixed(1).replace('.', ',')} cm</td>
-        <td class="text-center font-bold">${testesFuncionais.yTeste.alcanceAnteriorDif.t2.toFixed(1).replace('.', ',')} cm</td>
-        <td class="text-center font-bold" style="color:#dc2626;">+${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
-        <td>${testesFuncionais.yTeste.alcanceAnteriorDif.leitura}</td>
-      </tr>
-      <tr>
-        <td>Alcance posteromedial (diferença)</td>
-        <td class="text-center">${testesFuncionais.yTeste.alcancePosteromedialDif.t1.toFixed(1).replace('.', ',')} cm</td>
-        <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosteromedialDif.t2.toFixed(1).replace('.', ',')} cm</td>
-        <td class="text-center font-bold" style="color:#059669;">-${Math.abs(testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm).toFixed(1).replace('.', ',')} cm</td>
-        <td>${testesFuncionais.yTeste.alcancePosteromedialDif.leitura}</td>
-      </tr>
-      <tr>
-        <td>Alcance posterolateral (diferença)</td>
-        <td class="text-center">${testesFuncionais.yTeste.alcancePosterolateralDif.t1.toFixed(1).replace('.', ',')} cm</td>
-        <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosterolateralDif.t2.toFixed(1).replace('.', ',')} cm</td>
-        <td class="text-center font-bold" style="color:#059669;">-${Math.abs(testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm).toFixed(1).replace('.', ',')} cm</td>
-        <td>${testesFuncionais.yTeste.alcancePosterolateralDif.leitura}</td>
-      </tr>
-    </tbody>
-  </table>
-  <p style="font-size:9.5pt; color:#334155;">${testesFuncionais.yTeste.parecer}</p>
+  ${testesFuncionais.yTeste ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Variável</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Leitura</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Composite Score direito</td>
+          <td class="text-center">${testesFuncionais.yTeste.compositeScoreD.t1.toFixed(1).replace('.', ',')}%</td>
+          <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreD.t2.toFixed(1).replace('.', ',')}%</td>
+          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.compositeScoreD.deltaPP >= 0 ? '+' : ''}${testesFuncionais.yTeste.compositeScoreD.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
+          <td>${testesFuncionais.yTeste.compositeScoreD.leitura}</td>
+        </tr>
+        <tr>
+          <td>Composite Score esquerdo</td>
+          <td class="text-center">${testesFuncionais.yTeste.compositeScoreE.t1.toFixed(1).replace('.', ',')}%</td>
+          <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreE.t2.toFixed(1).replace('.', ',')}%</td>
+          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.compositeScoreE.deltaPP >= 0 ? '+' : ''}${testesFuncionais.yTeste.compositeScoreE.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
+          <td>${testesFuncionais.yTeste.compositeScoreE.leitura}</td>
+        </tr>
+        <tr>
+          <td>Alcance anterior (diferença entre lados)</td>
+          <td class="text-center">${testesFuncionais.yTeste.alcanceAnteriorDif.t1.toFixed(1).replace('.', ',')} cm</td>
+          <td class="text-center font-bold">${testesFuncionais.yTeste.alcanceAnteriorDif.t2.toFixed(1).replace('.', ',')} cm</td>
+          <td class="text-center font-bold" style="color:${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm <= 0 ? '#059669' : '#dc2626'}">${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
+          <td>${testesFuncionais.yTeste.alcanceAnteriorDif.leitura}</td>
+        </tr>
+        <tr>
+          <td>Alcance posteromedial (diferença)</td>
+          <td class="text-center">${testesFuncionais.yTeste.alcancePosteromedialDif.t1.toFixed(1).replace('.', ',')} cm</td>
+          <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosteromedialDif.t2.toFixed(1).replace('.', ',')} cm</td>
+          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
+          <td>${testesFuncionais.yTeste.alcancePosteromedialDif.leitura}</td>
+        </tr>
+        <tr>
+          <td>Alcance posterolateral (diferença)</td>
+          <td class="text-center">${testesFuncionais.yTeste.alcancePosterolateralDif.t1.toFixed(1).replace('.', ',')} cm</td>
+          <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosterolateralDif.t2.toFixed(1).replace('.', ',')} cm</td>
+          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
+          <td>${testesFuncionais.yTeste.alcancePosterolateralDif.leitura}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:9.5pt; color:#334155;">${testesFuncionais.yTeste.parecer}</p>
+  ` : `
+    <p style="font-size:9.5pt; color:#64748b; font-style:italic;">Y-Balance Test não mensurado neste ciclo avaliativo.</p>
+  `}
 
   <div class="subsection-title">8.2 Step Down Test (controle dinâmico)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Variável</th>
-        <th class="text-center">${identificacao.dataRelatorioInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação</th>
-        <th>Leitura</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${testesFuncionais.stepDown.map(r => `
+  ${testesFuncionais.stepDown.length > 0 ? `
+    <table>
+      <thead>
         <tr>
-          <td>${r.variavel}</td>
-          <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}°</td>
-          <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}°</td>
-          <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : (r.variavel.includes('Queda pélvica') ? '#dc2626' : '#059669')}">
-            ${r.variacao > 0 ? `+${r.variacao.toFixed(1).replace('.', ',')}°` : `${r.variacao.toFixed(1).replace('.', ',')}°`}
-          </td>
-          <td>${r.leitura}</td>
+          <th>Variável</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Leitura</th>
         </tr>
-      `).join('')}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        ${testesFuncionais.stepDown.map(r => `
+          <tr>
+            <td>${r.variavel}</td>
+            <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}°</td>
+            <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}°</td>
+            <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : (r.variavel.includes('Queda pélvica') ? '#dc2626' : '#059669')}">
+              ${r.variacao > 0 ? `+${r.variacao.toFixed(1).replace('.', ',')}°` : `${r.variacao.toFixed(1).replace('.', ',')}°`}
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : `
+    <p style="font-size:9.5pt; color:#64748b; font-style:italic;">Step Down Test não mensurado neste ciclo avaliativo.</p>
+  `}
 
   <!-- 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA) -->
   <div class="section-title">9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Movimento</th>
-        <th class="text-center">Referência</th>
-        <th class="text-center">${identificacao.dataRelatorioInicial}</th>
-        <th class="text-center">${identificacao.dataReavaliacao}</th>
-        <th class="text-center">Variação</th>
-        <th>Leitura</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tabelaGoniometria.map(r => `
+  ${tabelaGoniometria.length === 0 ? `
+    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
+      Goniometria articular não mensurada neste ciclo.
+    </div>
+  ` : `
+    <table>
+      <thead>
         <tr>
-          <td>${r.movimento}</td>
-          <td class="text-center">${r.referencia}</td>
-          <td class="text-center">${r.t1 !== null ? `${r.t1}°` : '—'}</td>
-          <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : '—'}</td>
-          <td class="text-center">${r.variacao}</td>
-          <td>${r.leitura}</td>
+          <th>Movimento</th>
+          <th class="text-center">Referência</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Leitura</th>
         </tr>
-      `).join('')}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        ${tabelaGoniometria.map(r => `
+          <tr>
+            <td>${r.movimento}</td>
+            <td class="text-center">${r.referencia}</td>
+            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : '—'}</td>
+            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : '—'}</td>
+            <td class="text-center">${r.variacao}</td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `}
 
   <!-- 10. TESTES ORTOPÉDICOS ESPECIAIS -->
   <div class="section-title">10. TESTES ORTOPÉDICOS ESPECIAIS — COMPARATIVO</div>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:35%;">Teste</th>
-        <th class="text-center" style="width:25%;">${identificacao.dataRelatorioInicial}</th>
-        <th class="text-center" style="width:25%;">${identificacao.dataReavaliacao}</th>
-        <th style="width:15%;">Leitura</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tabelaTestesOrtopedicos.map(r => `
+  ${tabelaTestesOrtopedicos.length === 0 ? `
+    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
+      Nenhum teste ortopédico especial registrado para comparação longitudinal.
+    </div>
+  ` : `
+    <table>
+      <thead>
         <tr>
-          <td class="font-bold">${r.teste}</td>
-          <td class="text-center">${r.t1}</td>
-          <td class="text-center">${r.t2}</td>
-          <td>${r.leitura}</td>
+          <th style="width:35%;">Teste</th>
+          <th class="text-center" style="width:25%;">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center" style="width:25%;">${identificacao.dataReavaliacao}</th>
+          <th style="width:15%;">Leitura</th>
         </tr>
-      `).join('')}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        ${tabelaTestesOrtopedicos.map(r => `
+          <tr>
+            <td class="font-bold">${r.teste}</td>
+            <td class="text-center">${r.t1}</td>
+            <td class="text-center">${r.t2}</td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `}
 
   <!-- 11. FATORES DE EVOLUÇÃO -->
   <div class="section-title">11. FATORES DE EVOLUÇÃO</div>
-  <p>O ciclo de ${identificacao.intervaloSemanas} semanas produziu ganho de força em praticamente todo o mapa muscular avaliado, com melhora simultânea de simetria e de controle dinâmico. Os destaques são:</p>
+  <p>A análise comparativa entre as avaliações documentou os seguintes destaques evolutivos:</p>
   <ul class="bullet-list">
     ${narrative.fatoresEvolucao.map(item => `<li>${item}</li>`).join('')}
   </ul>
@@ -548,11 +597,11 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     <div class="signature-container">
       <div class="signature-box">
         <div class="signature-line"></div>
-        <div class="signature-name">${identificacao.avaliadorInicial.split('—')[0].trim()}</div>
-        <div class="signature-role">Fisioterapia — ${identificacao.avaliadorInicial.split('—')[1]?.trim() || 'CREFITO'}</div>
+        <div class="signature-name">${identificacao.avaliadorReavaliacao.split('—')[0].trim()}</div>
+        <div class="signature-role">${identificacao.avaliadorReavaliacao.split('—')[1]?.trim() || 'Fisioterapia'}</div>
         <div class="signature-role">Clube Fitness Fisio — Fisioterapia, Quiropraxia e Fortalecimento</div>
         <div class="signature-note">
-          Reavaliação realizada em ${identificacao.dataReavaliacao} por ${identificacao.avaliadorReavaliacao}.
+          Avaliação inicial conduzida por ${identificacao.avaliadorInicial} (${identificacao.dataRelatorioInicial}).
         </div>
       </div>
     </div>

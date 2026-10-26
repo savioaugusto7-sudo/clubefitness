@@ -75,24 +75,42 @@ export async function GET(request: Request) {
     const prof1 = profMap.get(t1Report?.profissionalId?.toString());
     const prof2 = profMap.get(t2Report?.profissionalId?.toString());
 
-    const avaliadorT1 = {
-      nome: prof1?.nome || 'Guilherme José Graciano',
-      registroProfissional: prof1?.crefito || prof1?.registroProfissional || 'Registro 432168-F'
+    const formatAvaliador = (profDoc: any, reportDoc: any) => {
+      const nome = profDoc?.nome || reportDoc?.avaliadorNome || reportDoc?.profissionalNome || 'Profissional Fisioterapeuta';
+      const isEstagiario = Boolean(profDoc?.isEstagiario) || nome.toLowerCase().includes('estagi');
+      const rawReg = (profDoc?.registro || profDoc?.crefito || profDoc?.registroProfissional || '').trim();
+      const hasValidReg = rawReg && rawReg !== '-' && rawReg.toUpperCase() !== 'SEM REGISTRO';
+
+      let registroProfissional = '';
+      if (isEstagiario) {
+        registroProfissional = 'Estagiário(a) de Fisioterapia (Supervisão RT: Dr. Albert Nunes — CREFITO 4/350430-F)';
+      } else if (hasValidReg) {
+        registroProfissional = rawReg.toUpperCase().startsWith('CREFITO') ? rawReg : `CREFITO ${rawReg}`;
+      } else {
+        registroProfissional = 'CREFITO: A regularizar / Em emissão';
+      }
+
+      return {
+        nome: nome.trim(),
+        registroProfissional,
+        isEstagiario
+      };
     };
 
-    const avaliadorT2 = {
-      nome: prof2?.nome || 'Albert Nunes',
-      registroProfissional: prof2?.crefito || prof2?.registroProfissional || 'Registro 4/350430-F'
-    };
+    const avaliadorT1 = formatAvaliador(prof1, t1Report);
+    const avaliadorT2 = formatAvaliador(prof2, t2Report);
 
-    // 5. Executar Motor Matemático Longitudinal (100% Determinístico)
+    const clientAge = clientDoc.dadosPessoais?.idade || (clientDoc.dadosPessoais?.dataNascimento ? (new Date().getFullYear() - new Date(clientDoc.dadosPessoais.dataNascimento).getFullYear()) : undefined);
+    const clientWeight = Number(t1Strength?.pesoCliente || clientDoc.dadosClinicos?.peso || t2Strength?.pesoCliente || 0);
+
+    // 5. Executar Motor Matemático Longitudinal (100% Determinístico e Livre de Fallbacks Falsos)
     const computed = computeLongitudinalReassessment({
       client: {
         nome: clientDoc.dadosPessoais?.nome || 'Paciente',
-        idade: clientDoc.dadosPessoais?.idade || 45,
-        sexo: clientDoc.dadosPessoais?.sexo || 'M',
-        cpf: clientDoc.dadosPessoais?.cpf || '',
-        pesoKg: Number(t1Strength?.pesoCliente || clientDoc.dadosClinicos?.peso || 90)
+        idade: clientAge || 'Não informada',
+        sexo: clientDoc.dadosPessoais?.sexo || 'Não informado',
+        cpf: clientDoc.dadosPessoais?.cpf || 'Não informado',
+        pesoKg: clientWeight
       },
       t1Report,
       t2Report,
