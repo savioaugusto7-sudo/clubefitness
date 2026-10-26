@@ -391,10 +391,18 @@ export default function HorariosFixosPanel({
   const handleOpenNewModal = (prefillDay?: number, prefillTime?: string) => {
     setEditingGroup(null);
     setModalClient('');
-    setModalProf('');
+    if (agendaFilter === 'albert' && albertProf) {
+      setModalProf(albertProf._id);
+      setModalService('Atendimento Individual');
+    } else if (agendaFilter === 'guilherme' && guilhermeProf) {
+      setModalProf(guilhermeProf._id);
+      setModalService('Atendimento Individual');
+    } else {
+      setModalProf('');
+      setModalService('Treino Monitorado');
+    }
     setModalProfDesignado('');
     setHasCustomProf(false);
-    setModalService('Treino Monitorado');
     setModalStartDate(new Date().toISOString().split('T')[0]);
     setModalDurationType('indeterminado');
     setModalManualEndDate('');
@@ -1483,72 +1491,120 @@ export default function HorariosFixosPanel({
                   />
                 </div>
 
-                {/* Opção Colapsada: Determinar profissional para este agendamento fixo? */}
-                <div
-                  style={{
-                    background: 'var(--bg-card, rgba(255, 255, 255, 0.03))',
-                    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px'
-                  }}
-                >
-                  <label
+                {/* Seleção de Agenda de Destino */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Agenda de Destino <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                      Define a grade e capacidade do agendamento
+                    </span>
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={modalProf}
+                    onChange={e => {
+                      const pId = e.target.value;
+                      setModalProf(pId);
+                      if (pId) {
+                        const pObj = professionals.find(p => p._id === pId);
+                        const pName = (pObj?.nome || '').toLowerCase();
+                        if (pName.includes('albert') || pName.includes('guilherme') || (pObj?.especialidade || '').toLowerCase().includes('fisio')) {
+                          setModalService('Atendimento Individual');
+                        }
+                      } else {
+                        setModalService('Treino Monitorado');
+                      }
+                    }}
+                    style={{ width: '100%', fontWeight: 600 }}
+                  >
+                    <option value="">🏋️ Treino Monitorado / Geral (Academia - 6 vagas)</option>
+                    {professionals
+                      .filter(p => {
+                        const name = (p.nome || '').toLowerCase();
+                        return name.includes('albert') || name.includes('guilherme') || (p.especialidade || '').toLowerCase().includes('fisio');
+                      })
+                      .map(p => {
+                        const nameLower = (p.nome || '').toLowerCase();
+                        const isAlbert = nameLower.includes('albert');
+                        const isGuilherme = nameLower.includes('guilherme');
+                        const capText = isAlbert ? '2 vagas' : isGuilherme ? '1 vaga' : 'Consultório';
+                        return (
+                          <option key={p._id} value={p._id}>
+                            🩺 {p.nome} {p.especialidade ? `(${p.especialidade})` : ''} — {capText}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+
+                {/* Opção Colapsada: Determinar professor de referência para Treino Geral */}
+                {!modalProf && (
+                  <div
                     style={{
+                      background: 'var(--bg-card, rgba(255, 255, 255, 0.03))',
+                      border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.86rem',
-                      userSelect: 'none',
-                      margin: 0,
-                      color: 'var(--text-main, #ffffff)'
+                      flexDirection: 'column',
+                      gap: '10px'
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={hasCustomProf}
-                      onChange={e => {
-                        const checked = e.target.checked;
-                        setHasCustomProf(checked);
-                        if (!checked) {
-                          setModalProfDesignado('');
-                        }
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '0.86rem',
+                        userSelect: 'none',
+                        margin: 0,
+                        color: 'var(--text-main, #ffffff)'
                       }}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
-                    />
-                    <span>Determinar profissional para este agendamento fixo?</span>
-                  </label>
+                    >
+                      <input
+                        type="checkbox"
+                        checked={hasCustomProf}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setHasCustomProf(checked);
+                          if (!checked) {
+                            setModalProfDesignado('');
+                          }
+                        }}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                      />
+                      <span>Determinar professor de referência para este treino no salão?</span>
+                    </label>
 
-                  {hasCustomProf && (
-                    <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                      <label style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: '6px', display: 'block', color: 'var(--text-muted)' }}>
-                        Selecione o Profissional Responsável:
-                      </label>
-                      <select
-                        className="select-custom"
-                        value={modalProfDesignado}
-                        onChange={e => setModalProfDesignado(e.target.value)}
-                        style={{ width: '100%' }}
-                      >
-                        <option value="">Selecione um profissional...</option>
-                        {professionals
-                          .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
-                          .map(p => (
-                            <option key={p._id} value={p._id}>
-                              {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
-                            </option>
-                          ))}
-                      </select>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', display: 'block', marginTop: '4px' }}>
-                        O profissional será exibido como referência operacional e poderá ser editado pontualmente na Agenda Geral.
-                      </span>
-                    </div>
-                  )}
-                </div>
+                    {hasCustomProf && (
+                      <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                        <label style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: '6px', display: 'block', color: 'var(--text-muted)' }}>
+                          Selecione o Professor no Salão:
+                        </label>
+                        <select
+                          className="select-custom"
+                          value={modalProfDesignado}
+                          onChange={e => setModalProfDesignado(e.target.value)}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="">Selecione um profissional...</option>
+                          {professionals
+                            .filter(p => (p as any).status !== 'inativo' && !p.nome?.toLowerCase().includes('coletivo'))
+                            .map(p => (
+                              <option key={p._id} value={p._id}>
+                                {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                              </option>
+                            ))}
+                        </select>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', display: 'block', marginTop: '4px' }}>
+                          O professor será exibido como referência no card e poderá ser editado pontualmente na Agenda Geral.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Serviço e Data de Início */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1561,17 +1617,27 @@ export default function HorariosFixosPanel({
                       value={modalService}
                       onChange={e => setModalService(e.target.value)}
                     >
-                      <option value="Treino Monitorado">Treino Monitorado</option>
-                      <option value="Treino Livre">Treino Livre</option>
-                      <option value="Atendimento Individual">Atendimento Individual</option>
-                      <option value="Consulta">Consulta</option>
-                      <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                      <option value="Avaliação Física">Avaliação Física</option>
-                      <option value="Teste de Força">Teste de Força</option>
-                      <option value="Quiropraxia">Quiropraxia</option>
-                      <option value="Terapia Manual">Terapia Manual</option>
-                      <option value="Massagem">Massagem</option>
-                      <option value="Recovery">Recovery</option>
+                      {modalProf ? (
+                        <>
+                          <option value="Atendimento Individual">Atendimento Individual</option>
+                          <option value="Consulta">Consulta</option>
+                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                          <option value="Avaliação Física">Avaliação Física</option>
+                          <option value="Teste de Força">Teste de Força</option>
+                          <option value="Quiropraxia">Quiropraxia</option>
+                          <option value="Terapia Manual">Terapia Manual</option>
+                          <option value="Massagem">Massagem</option>
+                          <option value="Recovery">Recovery</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Treino Monitorado">Treino Monitorado</option>
+                          <option value="Treino Livre">Treino Livre</option>
+                          <option value="Atendimento Individual">Atendimento Individual</option>
+                          <option value="Recovery">Recovery</option>
+                          <option value="Massagem">Massagem</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
