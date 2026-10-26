@@ -171,6 +171,10 @@ export default function TrancamentoPanel({
     return trancsDesteContrato.reduce((acc, t) => acc + (Number(t.semanas) || 0), 0);
   }, [trancsDesteContrato]);
 
+  const maxSemanasDisponiveis = useMemo(() => {
+    return Math.max(0, 4 - semanasUsadasAnteriores);
+  }, [semanasUsadasAnteriores]);
+
   // Data final do contrato
   const contractEndISO = useMemo(() => {
     if (!selectedContract) return '';
@@ -691,7 +695,7 @@ export default function TrancamentoPanel({
                             setSearchQuery(`${name} — ${plan}`);
                             setDropdownOpen(false);
                             setDataInicio('');
-                            setSemanas(1);
+                            setDataFim('');
                             setRedistribuicao({});
                             setErrorMsg('');
                           }}

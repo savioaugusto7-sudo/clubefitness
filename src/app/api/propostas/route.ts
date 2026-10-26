@@ -404,6 +404,13 @@ export async function PUT(request: Request) {
         });
       } catch (cSignErr: any) {
         console.error('Erro Clicksign no link de vendas:', cSignErr);
+        try {
+          if (newContract && newContract._id) {
+            await Contract.findByIdAndDelete(newContract._id);
+          }
+        } catch (cleanupErr) {
+          console.warn('Erro ao limpar contrato órfão após falha na Clicksign:', cleanupErr);
+        }
         return NextResponse.json({
           success: false,
           error: `Dados salvos, mas ocorreu uma falha na Clicksign: ${cSignErr.message}`

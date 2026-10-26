@@ -431,12 +431,29 @@ export async function createClicksignDocument(
   };
   if (formattedCpf) signerBody.data.attributes.documentation = formattedCpf;
 
+  let signerData: any;
   const signerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
     method: 'POST',
     headers,
     body: JSON.stringify(signerBody)
   });
-  const signerData = await handleError(signerRes, 'Adicionar Signatário do Aluno (Grupo 2)');
+
+  if (!signerRes.ok) {
+    const errJson: any = await signerRes.json().catch(() => ({}));
+    console.warn('Clicksign: Tentativa com CPF do signatário falhou, tentando fallback com has_documentation: false:', JSON.stringify(errJson));
+    delete signerBody.data.attributes.documentation;
+    signerBody.data.attributes.has_documentation = false;
+
+    const fallbackRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(signerBody)
+    });
+    signerData = await handleError(fallbackRes, 'Adicionar Signatário do Aluno (Grupo 2 - Fallback)');
+  } else {
+    signerData = await signerRes.json();
+  }
+
   const signerId: string = signerData.data?.id;
   if (!signerId) throw new Error('Clicksign não retornou o ID do Signatário do Aluno.');
 
