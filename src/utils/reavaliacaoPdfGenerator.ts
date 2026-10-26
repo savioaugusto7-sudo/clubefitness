@@ -18,7 +18,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   <style>
     @page {
       size: A4 portrait;
-      margin: 16mm 14mm 16mm 14mm;
+      margin: 18mm 20mm 18mm 20mm;
     }
     *, *:before, *:after {
       box-sizing: border-box;
@@ -28,9 +28,18 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
       color: #0f172a;
       background: #ffffff;
       margin: 0;
-      padding: 0;
-      font-size: 10.5pt;
-      line-height: 1.45;
+      padding: 0 4mm;
+      font-size: 10pt;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .laudo-container {
+      width: 100%;
+      max-width: 170mm;
+      margin: 0 auto;
+      padding: 0 4mm;
+      box-sizing: border-box;
     }
     .header-laudo {
       text-align: center;
@@ -122,42 +131,72 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     .text-right { text-align: right; }
     .font-bold { font-weight: 700; }
     ul.bullet-list {
-      margin: 6px 0 12px 18px;
-      padding: 0;
+      margin: 8px 0 14px 22px;
+      padding: 0 4px 0 0;
       list-style-type: disc;
     }
     ul.bullet-list li {
-      margin-bottom: 6px;
+      margin-bottom: 7px;
       text-align: justify;
       font-size: 9.5pt;
+      line-height: 1.5;
     }
     ol.numbered-list {
-      margin: 6px 0 12px 20px;
-      padding: 0;
+      margin: 8px 0 14px 22px;
+      padding: 0 4px 0 0;
     }
     ol.numbered-list li {
-      margin-bottom: 6px;
+      margin-bottom: 7px;
       text-align: justify;
       font-size: 9.5pt;
+      line-height: 1.5;
     }
     .signature-section {
       margin-top: 40px;
       padding-top: 20px;
       page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .signature-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      margin: 30px 0 10px 0;
+    }
+    .signature-box {
+      text-align: center;
+      display: inline-block;
+      min-width: 320px;
+      max-width: 480px;
+      margin: 0 auto;
     }
     .signature-line {
-      width: 320px;
-      border-top: 1px solid #0f172a;
-      margin: 30px 0 6px 0;
+      width: 340px;
+      border-top: 1.5px solid #0f172a;
+      margin: 0 auto 10px auto;
     }
     .signature-name {
-      font-weight: 700;
-      font-size: 10pt;
+      font-weight: 800;
+      font-size: 11pt;
       color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      text-align: center;
     }
     .signature-role {
       font-size: 9pt;
       color: #475569;
+      font-weight: 500;
+      text-align: center;
+      margin-top: 2px;
+    }
+    .signature-note {
+      margin-top: 16px;
+      font-size: 8.5pt;
+      color: #64748b;
+      font-style: italic;
+      text-align: center;
     }
     .page-break {
       page-break-before: always;
@@ -165,6 +204,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   </style>
 </head>
 <body>
+  <div class="laudo-container">
 
   <!-- CABEÇALHO OFICIAL -->
   <div class="header-laudo">
@@ -505,15 +545,20 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   <!-- 18. ASSINATURA -->
   <div class="signature-section">
     <div class="section-title">18. ASSINATURA</div>
-    <div class="signature-line"></div>
-    <div class="signature-name">${identificacao.avaliadorInicial.split('—')[0].trim()}</div>
-    <div class="signature-role">Fisioterapia — ${identificacao.avaliadorInicial.split('—')[1]?.trim() || 'CREFITO'}</div>
-    <div class="signature-role">Clube Fitness Fisio — Fisioterapia, Quiropraxia e Fortalecimento</div>
-    <p style="margin-top:14px; font-size:9pt; color:#475569;">
-      Reavaliação realizada em ${identificacao.dataReavaliacao} por ${identificacao.avaliadorReavaliacao}.
-    </p>
+    <div class="signature-container">
+      <div class="signature-box">
+        <div class="signature-line"></div>
+        <div class="signature-name">${identificacao.avaliadorInicial.split('—')[0].trim()}</div>
+        <div class="signature-role">Fisioterapia — ${identificacao.avaliadorInicial.split('—')[1]?.trim() || 'CREFITO'}</div>
+        <div class="signature-role">Clube Fitness Fisio — Fisioterapia, Quiropraxia e Fortalecimento</div>
+        <div class="signature-note">
+          Reavaliação realizada em ${identificacao.dataReavaliacao} por ${identificacao.avaliadorReavaliacao}.
+        </div>
+      </div>
+    </div>
   </div>
 
+  </div> <!-- fim .laudo-container -->
 </body>
 </html>
   `.trim();
