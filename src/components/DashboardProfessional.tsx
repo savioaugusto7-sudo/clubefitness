@@ -4,8 +4,8 @@ import React, { useEffect, useState, useRef, useTransition, useMemo } from 'reac
 import { useSession } from 'next-auth/react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
-import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 import {
   calculateGoniometryAlerts,
   calculateStrengthTestAlerts,
@@ -29,6 +29,7 @@ import RegistroPontoPanel from './RegistroPontoPanel';
 import PerfilSegurancaProfissionalPanel from './PerfilSegurancaProfissionalPanel';
 import TrancamentoPanel from './TrancamentoPanel';
 import WorkoutEvolutionModal from './WorkoutEvolutionModal';
+import WorkoutBuilder from './WorkoutBuilder';
 import { FastTextarea, FastInput } from './FastFormField';
 import AssessmentCompareSelectorModal, { PreviousAssessmentOption } from './AssessmentCompareSelectorModal';
 import ComparisonPill, { ComparisonActiveBar } from './ComparisonPill';
@@ -4448,7 +4449,14 @@ goniometria: {
             fetchData();
             alert('Relatório fisioterápico criado com sucesso!');
             if (data.data) {
-              downloadReportPDF(data.data);
+              try {
+                const repRes = await fetch(`/api/reports?id=${data.data._id}`);
+                const repJson = await repRes.json();
+                const fullRep = (repJson.success && repJson.data) ? repJson.data : data.data;
+                downloadReportPDF(fullRep);
+              } catch {
+                downloadReportPDF(data.data);
+              }
             }
           } else {
             alert('Não foi possível salvar o relatório: ' + (data.error || 'Erro desconhecido.'));
@@ -9797,6 +9805,48 @@ goniometria: {
                                 </>
                               )}
                             </button>
+
+                            <button
+                              className="btn-secondary"
+                              title="Gerar Laudo de Reavaliação Fisioterapêutica (Comparativo Pré/Pós - 18 Seções)"
+                              style={{
+                                background: 'rgba(16, 185, 129, 0.12)',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                color: '#86efac',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                              disabled={generatingPdfId === `reav_${rep._id}`}
+                              onClick={async () => {
+                                const repCid = rep.clienteId?._id || rep.clienteId;
+                                setGeneratingPdfId(`reav_${rep._id}`);
+                                try {
+                                  const res = await fetch(`/api/reports/reavaliacao?clientId=${repCid}`);
+                                  const data = await res.json();
+                                  if (!data.success) {
+                                    alert(data.error || 'Não foi possível gerar a reavaliação.');
+                                    return;
+                                  }
+                                  downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
+                                } catch (err: any) {
+                                  console.error('Erro ao gerar reavaliação:', err);
+                                  alert('Erro ao processar laudo de reavaliação: ' + err.message);
+                                } finally {
+                                  setGeneratingPdfId(null);
+                                }
+                              }}
+                            >
+                              {generatingPdfId === `reav_${rep._id}` ? (
+                                <>
+                                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando Reavaliação...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa-solid fa-file-waveform"></i> Reavaliação Pré/Pós (PDF)
+                                </>
+                              )}
+                            </button>
                           </div>
                         </div>
                       );
@@ -12538,8 +12588,8 @@ goniometria: {
                               { label: 'Teste KFBO (Cabeça Fíbula)', ref: 'Dif ≤ 15 cm', keyD: 'kfboD', keyE: 'kfboE' },
                               { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
                               { label: 'Joelho - Poplíteo', ref: '155-160°', keyD: 'joelhoPopliteoD', keyE: 'joelhoPopliteoE' },
-                              { label: 'Tornozelo - Dorsi 1 (Lunge)', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
-                              { label: 'Tornozelo - Dorsi 2 (Joelho Est.)', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
+                              { label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
+                              { label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
                               { label: 'Tornozelo - F. Plantar', ref: '40-50°', keyD: 'tornozeloFlexaoPlantarD', keyE: 'tornozeloFlexaoPlantarE' },
                               { label: 'Ombro - Rotação Interna', ref: '80-90° (GIRD ≤20°)', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
                               { label: 'Ombro - Rotação Externa', ref: '80-100°', keyD: 'ombroRotExtD', keyE: 'ombroRotExtE' },
@@ -14918,8 +14968,8 @@ goniometria: {
                             { label: 'Teste KFBO (Cabeça Fíbula)', ref: 'Dif ≤ 15 cm', keyD: 'kfboD', keyE: 'kfboE' },
                             { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
                             { label: 'Joelho - Ângulo Poplíteo', ref: '155-160°', keyD: 'joelhoPopliteoD', keyE: 'joelhoPopliteoE' },
-                            { label: 'Tornozelo - Dorsi 1 (Lunge)', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
-                            { label: 'Tornozelo - Dorsi 2 (Joelho Est.)', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
+                            { label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
+                            { label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
                             { label: 'Tornozelo - Flexão Plantar', ref: '40-50°', keyD: 'tornozeloFlexaoPlantarD', keyE: 'tornozeloFlexaoPlantarE' },
                             { label: 'Ombro - Rotação Interna', ref: '80-90° (GIRD ≤20°)', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
                             { label: 'Ombro - Rotação Externa', ref: '80-100°', keyD: 'ombroRotExtD', keyE: 'ombroRotExtE' },

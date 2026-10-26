@@ -181,31 +181,58 @@ export function calculateGoniometryAlerts(gonio: any): BiomechanicAlert[] {
     }
   }
 
-  // 1.6 Tornozelo — Dorsiflexão (< 35° a 40°)
-  const dorsiD = getNum(gonio.tornozeloDorsi1D);
-  const dorsiE = getNum(gonio.tornozeloDorsi1E);
-  if (dorsiD > 0 && dorsiD < 35) {
+  // 1.6 Tornozelo — Dorsiflexão (Joelho Estendido < 20° e Joelho Fletido / Lunge < 35°)
+  const dorsi1D = getNum(gonio.tornozeloDorsi1D);
+  const dorsi1E = getNum(gonio.tornozeloDorsi1E);
+  if (dorsi1D > 0 && dorsi1D < 20) {
     alerts.push({
       tipo: 'atencao',
-      titulo: 'Déficit de Dorsiflexão (< 35°)',
+      titulo: 'Déficit de Dorsiflexão - Joelho Estendido (< 20°)',
       articulacao: 'Tornozelo',
       lado: 'Direito',
-      valorCalculado: `${dorsiD}°`,
-      referenciaIdeal: '35° - 45°',
-      descricao: `Dorsiflexão de ${dorsiD}° reduzida.`,
-      riscoClinico: 'Risco aumentado de tendinopatia patelar, tendinite de Aquiles e fascite plantar.'
+      valorCalculado: `${dorsi1D}°`,
+      referenciaIdeal: '20°',
+      descricao: `Dorsiflexão de ${dorsi1D}° com joelho estendido reduzida (tensão de gastrocnêmio).`,
+      riscoClinico: 'Risco aumentado de tendinopatia de Aquiles, fascite plantar e compensações em cadeia ascendente.'
     });
   }
-  if (dorsiE > 0 && dorsiE < 35) {
+  if (dorsi1E > 0 && dorsi1E < 20) {
     alerts.push({
       tipo: 'atencao',
-      titulo: 'Déficit de Dorsiflexão (< 35°)',
+      titulo: 'Déficit de Dorsiflexão - Joelho Estendido (< 20°)',
       articulacao: 'Tornozelo',
       lado: 'Esquerdo',
-      valorCalculado: `${dorsiE}°`,
+      valorCalculado: `${dorsi1E}°`,
+      referenciaIdeal: '20°',
+      descricao: `Dorsiflexão de ${dorsi1E}° com joelho estendido reduzida (tensão de gastrocnêmio).`,
+      riscoClinico: 'Risco aumentado de tendinopatia de Aquiles, fascite plantar e compensações em cadeia ascendente.'
+    });
+  }
+
+  const dorsi2D = getNum(gonio.tornozeloDorsi2D);
+  const dorsi2E = getNum(gonio.tornozeloDorsi2E);
+  if (dorsi2D > 0 && dorsi2D < 35) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Déficit de Dorsiflexão - Joelho Fletido / Lunge (< 35°)',
+      articulacao: 'Tornozelo',
+      lado: 'Direito',
+      valorCalculado: `${dorsi2D}°`,
       referenciaIdeal: '35° - 45°',
-      descricao: `Dorsiflexão de ${dorsiE}° reduzida.`,
-      riscoClinico: 'Risco aumentado de tendinopatia patelar, tendinite de Aquiles e fascite plantar.'
+      descricao: `Dorsiflexão de ${dorsi2D}° com joelho fletido reduzida (restrição tibiotársica / sóleo).`,
+      riscoClinico: 'Risco de valgo dinâmico compensatório no agachamento/salto e tendinopatia patelar.'
+    });
+  }
+  if (dorsi2E > 0 && dorsi2E < 35) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Déficit de Dorsiflexão - Joelho Fletido / Lunge (< 35°)',
+      articulacao: 'Tornozelo',
+      lado: 'Esquerdo',
+      valorCalculado: `${dorsi2E}°`,
+      referenciaIdeal: '35° - 45°',
+      descricao: `Dorsiflexão de ${dorsi2E}° com joelho fletido reduzida (restrição tibiotársica / sóleo).`,
+      riscoClinico: 'Risco de valgo dinâmico compensatório no agachamento/salto e tendinopatia patelar.'
     });
   }
 

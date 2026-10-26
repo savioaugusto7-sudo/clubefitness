@@ -38,13 +38,32 @@ export async function GET(request: Request) {
       if (!validId) {
         return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
       }
-      const fullDoc = await PhysioReport.findById(validId).lean().maxTimeMS(12000);
+      const fullDoc: any = await PhysioReport.findById(validId).lean().maxTimeMS(12000);
+      if (!fullDoc) {
+        return NextResponse.json({ success: false, error: 'Relatório não encontrado' }, { status: 404 });
+      }
+
+      // Buscar histórico longitudinal de relatórios deste cliente (sem imagens pesadas de termografia)
+      let history: any[] = [];
+      if (fullDoc.clienteId) {
+        const cIdStr = String(fullDoc.clienteId);
+        const cObjId = toValidObjectId(fullDoc.clienteId);
+        const clientQuery = cObjId ? { $or: [{ clienteId: cIdStr }, { clienteId: cObjId }] } : { clienteId: cIdStr };
+        history = await PhysioReport.find(clientQuery)
+          .select('-termografia -pdf_url -pdfName')
+          .sort({ data: 1, createdAt: 1 })
+          .lean()
+          .maxTimeMS(12000);
+      }
+      fullDoc.history = history;
+
       return NextResponse.json(
-        { success: true, data: fullDoc },
+        { success: true, data: fullDoc, history },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
       );
     }
 
+    const isFull = searchParams.get('full') === 'true';
     let query: any = {};
     if (paramClientId) {
       const objId = toValidObjectId(paramClientId);
@@ -52,9 +71,13 @@ export async function GET(request: Request) {
     }
 
     // Ultra-lightweight select projection: strictly what table needs, excluding heavy base64/termografia
+    const selectFields = isFull
+      ? '-termografia -pdf_url -pdfName'
+      : 'clienteId profissionalId data conteudo.queixaPrincipal conteudo.dorEscala pdfName createdAt';
+
     const reports = await PhysioReport.find(query)
-      .select('clienteId profissionalId data conteudo.queixaPrincipal conteudo.dorEscala pdfName createdAt')
-      .sort({ data: -1 })
+      .select(selectFields)
+      .sort({ data: isFull ? 1 : -1 })
       .lean()
       .maxTimeMS(12000);
 
