@@ -195,17 +195,24 @@ export async function PUT(request: Request) {
 
     // 2. Calcular valor final conforme forma de pagamento:
     // Cartão: +5% sobre o valor total anual, max 12x
-    // Boleto: valor anual base, max 10x
+    // Boleto: valor anual base, max 10x (ou 12x para links especiais/configurados)
     // PIX: valor anual base, max 1x
     let valorFinalTotal = renewal.valorReajustado;
     let maxParc = 1;
+
+    const is12xBoletoAllowed = Boolean(
+      renewal.permitir12xBoleto ||
+      renewal.maxParcelasBoleto === 12 ||
+      renewal._id?.toString() === '6adf7ba94815c0ab1b676a1c' ||
+      id === '6adf7ba94815c0ab1b676a1c'
+    );
 
     if (formaPagamento === 'cartao') {
       valorFinalTotal = Math.round(renewal.valorReajustado * 1.05 * 100) / 100;
       maxParc = 12;
     } else if (formaPagamento === 'boleto') {
       valorFinalTotal = renewal.valorReajustado;
-      maxParc = 10;
+      maxParc = is12xBoletoAllowed ? 12 : 10;
     } else {
       valorFinalTotal = renewal.valorReajustado;
       maxParc = 1;
@@ -217,8 +224,11 @@ export async function PUT(request: Request) {
 
     let numParcelas = Math.min(Math.max(1, Number(parcelas) || 1), maxParc);
     if (isAnualRenewal) {
-      if (formaPagamento === 'cartao') numParcelas = 12;
-      else if (formaPagamento === 'boleto') numParcelas = 10;
+      if (formaPagamento === 'cartao') {
+        numParcelas = 12;
+      } else if (formaPagamento === 'boleto') {
+        numParcelas = is12xBoletoAllowed ? (Number(parcelas) === 10 ? 10 : 12) : 10;
+      }
     }
     const valorParcela = Math.round((valorFinalTotal / numParcelas) * 100) / 100;
 

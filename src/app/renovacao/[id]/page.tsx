@@ -42,7 +42,18 @@ export default function RenovacaoPage({ params }: { params: any }) {
           setEmail(pes.email || '');
 
           // Sugerir primeira data de vencimento padrão (ex: 5 dias após o início ou início)
-          if (ren.dataInicioRenovacao) {
+          const isSpecial12x = Boolean(
+            ren.permitir12xBoleto || 
+            ren.maxParcelasBoleto === 12 || 
+            id === '6adf7ba94815c0ab1b676a1c' ||
+            ren._id === '6adf7ba94815c0ab1b676a1c'
+          );
+
+          if (ren.dataPrimeiroVencimento) {
+            setDataPrimeiroVencimento(ren.dataPrimeiroVencimento);
+          } else if (isSpecial12x) {
+            setDataPrimeiroVencimento('2026-11-09');
+          } else if (ren.dataInicioRenovacao) {
             const start = new Date(ren.dataInicioRenovacao + 'T12:00:00');
             start.setDate(start.getDate() + 5);
             setDataPrimeiroVencimento(start.toISOString().split('T')[0]);
@@ -54,7 +65,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
                             Boolean(ren.duracao === 'anual');
           if (isAnualRen) {
             setFormaPagamento('boleto');
-            setParcelas(10);
+            setParcelas(isSpecial12x ? 12 : 10);
           }
         } else {
           setErrorMsg(json.error || 'Link de renovação não encontrado.');
@@ -76,6 +87,13 @@ export default function RenovacaoPage({ params }: { params: any }) {
     return d.toISOString().split('T')[0];
   })() : '';
 
+  const is12xBoletoAllowed = Boolean(
+    renewal?.permitir12xBoleto || 
+    renewal?.maxParcelasBoleto === 12 || 
+    id === '6adf7ba94815c0ab1b676a1c' ||
+    renewal?._id === '6adf7ba94815c0ab1b676a1c'
+  );
+
   const isAnual = renewal?.planoTipo === 'Anual' || 
                   (renewal?.planoNome && renewal.planoNome.toLowerCase().includes('anual')) ||
                   Number(renewal?.vigenciaMeses) >= 12 ||
@@ -93,30 +111,31 @@ export default function RenovacaoPage({ params }: { params: any }) {
 
   const maxInstallments = (() => {
     if (formaPagamento === 'cartao') return 12;
-    if (formaPagamento === 'boleto') return 10;
+    if (formaPagamento === 'boleto') return is12xBoletoAllowed ? 12 : 10;
     return 1;
   })();
 
   const availableInstallments = (() => {
     if (isAnual) {
-      return formaPagamento === 'cartao' ? [12] : [10];
+      if (formaPagamento === 'cartao') return [12];
+      return [is12xBoletoAllowed ? 12 : 10];
     }
     return Array.from({ length: maxInstallments }, (_, i) => i + 1);
   })();
 
   const currentInstallments = isAnual
-    ? (formaPagamento === 'cartao' ? 12 : 10)
+    ? (formaPagamento === 'cartao' ? 12 : (is12xBoletoAllowed ? 12 : 10))
     : Math.min(parcelas, maxInstallments);
   const installmentValue = currentInstallments > 0 ? Math.round((currentTotal / currentInstallments) * 100) / 100 : 0;
 
   const handlePaymentChange = (type: 'pix' | 'boleto' | 'cartao') => {
     setFormaPagamento(type);
     if (isAnual) {
-      setParcelas(type === 'cartao' ? 12 : 10);
+      setParcelas(type === 'cartao' ? 12 : (is12xBoletoAllowed ? 12 : 10));
     } else if (type === 'pix') {
       setParcelas(1);
     } else if (type === 'boleto') {
-      setParcelas(Math.min(parcelas, 10));
+      setParcelas(Math.min(parcelas, is12xBoletoAllowed ? 12 : 10));
     } else if (type === 'cartao') {
       setParcelas(Math.min(parcelas, 12));
     }
@@ -439,9 +458,11 @@ export default function RenovacaoPage({ params }: { params: any }) {
                 {(isAnual ? [
                   { 
                     id: 'boleto', 
-                    label: 'Boleto / Pix (10x)', 
+                    label: is12xBoletoAllowed ? 'Boleto / Pix (12x)' : 'Boleto / Pix (10x)', 
                     icon: 'fa-barcode', 
-                    desc: `10x de R$ ${(baseValue / 10).toFixed(2).replace('.', ',')}`,
+                    desc: is12xBoletoAllowed 
+                      ? `12x de R$ ${(baseValue / 12).toFixed(2).replace('.', ',')}`
+                      : `10x de R$ ${(baseValue / 10).toFixed(2).replace('.', ',')}`,
                     equiv: valorMensalEquivalenteAnual ? `(equiv. a R$ ${valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês)` : null
                   },
                   { 
@@ -453,7 +474,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
                   }
                 ] : [
                   { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista', equiv: null },
-                  { id: 'boleto', label: 'Boleto (até 10x)', icon: 'fa-barcode', desc: 'Sem acréscimo', equiv: null },
+                  { id: 'boleto', label: `Boleto (até ${is12xBoletoAllowed ? 12 : 10}x)`, icon: 'fa-barcode', desc: 'Sem acréscimo', equiv: null },
                   { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: 'Parcelamento flexível', equiv: null }
                 ]).map(item => (
                   <button
@@ -528,7 +549,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
                         {formaPagamento === 'cartao' 
                           ? '12x no cartão de crédito com taxa especial de 5%' 
-                          : '10x no boleto bancário / Pix sem juros'}
+                          : `${is12xBoletoAllowed ? '12x' : '10x'} no boleto bancário / Pix sem juros`}
                       </div>
                     </div>
                   </div>

@@ -20,10 +20,12 @@ const RenewalProposalSchema = new Schema({
   vigenciaMeses: { type: Number, default: 12 },
   isExpired: { type: Boolean, default: false },
 
-  // Escolhas do aluno
+  // Escolhas do aluno e condições excepcionais
   dataPrimeiroVencimento: { type: String, default: '' },
   formaPagamento: { type: String, default: '' },
   parcelas: { type: Number, default: 1 },
+  permitir12xBoleto: { type: Boolean, default: false },
+  maxParcelasBoleto: { type: Number, default: 10 },
   
   // Status e Visualização
   status: { type: String, default: 'pendente' },
