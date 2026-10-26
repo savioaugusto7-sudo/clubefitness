@@ -189,13 +189,19 @@ const ClientSchema = new Schema({
   historicoContratos: { type: [HistoricoContratoSchema], default: () => [] },
   bloqueioCadastral: { type: BloqueioCadastralSchema, default: () => ({}) },
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null },
-  rotinaSemanal: { type: RotinaSemanalSchema, default: () => ({ dias: [] }) }
+  rotinaSemanal: { type: RotinaSemanalSchema, default: () => ({ dias: [] }) },
+  relatorioMensal: {
+    habilitado: { type: Boolean, default: false },
+    atualizadoEm: { type: Date, default: null },
+    atualizadoPor: { type: String, default: '' }
+  }
 }, { timestamps: true });
 
 ClientSchema.index({ userId: 1 });
 ClientSchema.index({ 'dadosComerciais.status': 1 });
 ClientSchema.index({ 'dadosPessoais.cpf': 1 });
 ClientSchema.index({ 'dadosPessoais.nome': 1 });
+ClientSchema.index({ 'relatorioMensal.habilitado': 1 });
 
 export default models.Client || model('Client', ClientSchema);
 

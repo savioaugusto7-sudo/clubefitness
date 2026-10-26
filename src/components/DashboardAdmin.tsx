@@ -25,6 +25,7 @@ import GestaoPontoAdminPanel from './GestaoPontoAdminPanel';
 import AgendaConfigPanel from './AgendaConfigPanel';
 import AdvertenciasAdminPanel from './AdvertenciasAdminPanel';
 import RotinaSemanalModal from './RotinaSemanalModal';
+import RelatoriosMensaisPanel from './RelatoriosMensaisPanel';
 
 
 export const normalizeText = (str: string) => {
@@ -4595,6 +4596,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       {/* 3b. View: Dados Clínicos */}
       {activeTab === 'dados_clinicos' && (
         <DadosClinicosPanel clients={clients} onUpdate={fetchData} />
+      )}
+
+      {/* 3c. View: Sinalização de Relatórios Mensais */}
+      {activeTab === 'relatorios_mensais' && (
+        <RelatoriosMensaisPanel />
       )}
 
       {/* 4. View: Usuários */}
