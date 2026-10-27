@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import AlunoCardList, { AlunoSummary } from './central-avaliacoes/AlunoCardList';
+import AlunoCardList, { AlunoSummary, FilterType, normalizeStr } from './central-avaliacoes/AlunoCardList';
 import AlunoEvolutionDashboard from './central-avaliacoes/AlunoEvolutionDashboard';
 import AlunoHistoryTimeline from './central-avaliacoes/AlunoHistoryTimeline';
 import AvulsoTestModal from './central-avaliacoes/AvulsoTestModal';
 import AlunoClinicalHeader from './central-avaliacoes/AlunoClinicalHeader';
+import AlunoDesktopNavigator from './central-avaliacoes/AlunoDesktopNavigator';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 
 interface CentralAvaliacoesPanelProps {
@@ -22,6 +23,32 @@ export default function CentralAvaliacoesPanel({
   const [alunos, setAlunos] = useState<AlunoSummary[]>([]);
   const [loadingAlunos, setLoadingAlunos] = useState(true);
   const [selectedAlunoId, setSelectedAlunoId] = useState<string | null>(null);
+
+  // 🌟 Layout Desktop: 'full' (Panorâmico 100%) vs 'split' (Dividido em 2 colunas)
+  const [desktopLayout, setDesktopLayout] = useState<'full' | 'split'>('full');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('central_desktop_layout');
+      if (saved === 'full' || saved === 'split') {
+        setDesktopLayout(saved);
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleToggleDesktopLayout = () => {
+    setDesktopLayout(prev => {
+      const next = prev === 'full' ? 'split' : 'full';
+      try {
+        localStorage.setItem('central_desktop_layout', next);
+      } catch (_) {}
+      return next;
+    });
+  };
+
+  // Filtros compartilhados para navegação rápida de alunos
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<FilterType>('todos');
 
   // Detecção de Viewport Mobile (<= 768px) para fluxo Master-Detail
   const [isMobile, setIsMobile] = useState(false);
@@ -195,6 +222,52 @@ export default function CentralAvaliacoesPanel({
     }
   };
 
+  const isReavaliacaoPendente = (a: AlunoSummary): boolean => {
+    if (!a.ultimaData || a.totalGeral === 0) return false;
+    const parts = a.ultimaData.split('-');
+    if (parts.length !== 3) return false;
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 45;
+  };
+
+  // Alunos filtrados para navegação rápida de desktop
+  const filteredAlunos = React.useMemo(() => {
+    const tokens = normalizeStr(searchTerm).split(/\s+/).filter(t => t.length > 0);
+
+    const matchStudent = (a: AlunoSummary): boolean => {
+      if (tokens.length === 0) return true;
+      const normNome = normalizeStr(a.nome);
+      const normCpf = normalizeStr(a.cpf);
+      const rawCpf = (a.cpf || '').replace(/\D/g, '');
+      const normPhone = normalizeStr(a.telefone);
+      const rawPhone = (a.telefone || '').replace(/\D/g, '');
+      const normEmail = normalizeStr(a.email);
+
+      return tokens.every(token => {
+        const tokenDigits = token.replace(/\D/g, '');
+        return (
+          normNome.includes(token) ||
+          normCpf.includes(token) ||
+          (tokenDigits.length >= 2 && rawCpf.includes(tokenDigits)) ||
+          (tokenDigits.length >= 2 && rawPhone.includes(tokenDigits)) ||
+          normPhone.includes(token) ||
+          normEmail.includes(token)
+        );
+      });
+    };
+
+    return alunos.filter(a => {
+      if (!matchStudent(a)) return false;
+      if (filterType === 'hoje') return todayClientIds ? todayClientIds.has(a._id) : false;
+      if (filterType === 'alertas') return a.temAlertaCritico;
+      if (filterType === 'reavaliacao') return isReavaliacaoPendente(a);
+      if (filterType === 'forca') return a.totalST > 0;
+      if (filterType === 'avaliados') return a.totalGeral > 0;
+      return true;
+    });
+  }, [alunos, searchTerm, filterType, todayClientIds]);
+
   return (
     <div
       style={{
@@ -254,11 +327,32 @@ export default function CentralAvaliacoesPanel({
         </div>
       )}
 
+      {/* 🌟 BARRA DE NAVEGAÇÃO RÁPIDA PANORÂMICA NO DESKTOP */}
+      {!isMobile && (
+        <AlunoDesktopNavigator
+          currentAluno={alunoDetail?.client ? { _id: alunoDetail.client._id, nome: alunoDetail.client.nome } : null}
+          filteredAlunos={filteredAlunos}
+          selectedAlunoId={selectedAlunoId}
+          onSelectAluno={handleSelectAluno}
+          filterType={filterType}
+          onChangeFilterType={setFilterType}
+          searchTerm={searchTerm}
+          onChangeSearchTerm={setSearchTerm}
+          todayClientIds={todayClientIds}
+          desktopLayout={desktopLayout}
+          onToggleDesktopLayout={handleToggleDesktopLayout}
+        />
+      )}
+
       {/* Grid Principal: Coluna Esquerda (Alunos) + Coluna Direita (Central Individual) */}
       <div
         style={{
           display: isMobile ? 'flex' : 'grid',
-          gridTemplateColumns: isMobile ? undefined : 'minmax(300px, 350px) 1fr',
+          gridTemplateColumns: isMobile
+            ? undefined
+            : desktopLayout === 'full'
+            ? '1fr'
+            : 'minmax(300px, 350px) 1fr',
           flexDirection: isMobile ? 'column' : undefined,
           gap: '18px',
           flex: 1,
@@ -266,8 +360,8 @@ export default function CentralAvaliacoesPanel({
           width: '100%'
         }}
       >
-        {/* COLUNA ESQUERDA: LISTAGEM DE ALUNOS (exibida se desktop ou se mobileView === 'list') */}
-        {(!isMobile || mobileView === 'list') && (
+        {/* COLUNA ESQUERDA: LISTAGEM DE ALUNOS (exibida se mobileView === 'list' ou se desktopLayout === 'split') */}
+        {((isMobile && mobileView === 'list') || (!isMobile && desktopLayout === 'split')) && (
           <div
             style={{
               background: 'var(--bg-card)',
@@ -291,8 +385,8 @@ export default function CentralAvaliacoesPanel({
           </div>
         )}
 
-        {/* COLUNA DIREITA: CENTRAL INDIVIDUAL DO ALUNO (exibida se desktop ou se mobileView === 'detail') */}
-        {(!isMobile || mobileView === 'detail') && (
+        {/* COLUNA DIREITA: CENTRAL INDIVIDUAL DO ALUNO (exibida se mobileView === 'detail' ou se desktop) */}
+        {((isMobile && mobileView === 'detail') || !isMobile) && (
           <div
             style={{
               background: 'var(--bg-card)',

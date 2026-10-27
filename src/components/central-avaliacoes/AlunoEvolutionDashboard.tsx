@@ -955,7 +955,7 @@ export default function AlunoEvolutionDashboard({
       )}
 
       {/* 3. GRID DE BIOMECÂNICA AVANÇADA (FORÇA & GONIOMETRIA) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))', gap: '16px' }}>
         {/* Painel 1: Dinamometria Bilateral (Barras D vs E ou Radar) */}
         <div
           style={{
