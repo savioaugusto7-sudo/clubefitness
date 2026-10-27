@@ -35,11 +35,25 @@ export default function QueixaFisioterapiaCard({
 }: QueixaFisioterapiaCardProps) {
   const [activeCifCategory, setActiveCifCategory] = useState<string>('mobilidade_mudancas');
   const [cifSearchTerm, setCifSearchTerm] = useState('');
+  const [alivioSearchTerm, setAlivioSearchTerm] = useState('');
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
 
-  // Região anatômica selecionada atualmente (com detecção inteligente para queixas legadas)
+  // Estados para modo de texto livre anatômico
+  const [isCustomRegiao, setIsCustomRegiao] = useState<boolean>(() => {
+    if (!queixa.regiao) return false;
+    return !REGIOES_ANATOMICAS.some(r => r.nome.toLowerCase() === queixa.regiao.toLowerCase());
+  });
+
+  const [isCustomSubRegiao, setIsCustomSubRegiao] = useState<boolean>(() => {
+    if (!queixa.subRegiao) return false;
+    const regDef = REGIOES_ANATOMICAS.find(r => r.nome.toLowerCase() === (queixa.regiao || '').toLowerCase());
+    if (!regDef) return true;
+    return !regDef.subRegioes.some(s => s.nome.toLowerCase() === queixa.subRegiao.toLowerCase());
+  });
+
+  // Região anatômica selecionada atualmente (com detecção inteligente para queixas legadas e texto livre)
   const selectedRegiaoDef = useMemo(() => {
-    if (queixa.regiao) {
+    if (queixa.regiao && queixa.regiao !== '__OUTRA__') {
       const found = REGIOES_ANATOMICAS.find(r => r.nome.toLowerCase() === queixa.regiao.toLowerCase());
       if (found) return found;
     }
@@ -56,6 +70,17 @@ export default function QueixaFisioterapiaCard({
     if (onde.includes('punho') || onde.includes('mão') || onde.includes('carpo')) return REGIOES_ANATOMICAS.find(r => r.id === 'punho_mao')!;
     if (onde.includes('sacro') || onde.includes('pelve') || onde.includes('glute')) return REGIOES_ANATOMICAS.find(r => r.id === 'pelve_sacroiliaca')!;
 
+    // Região personalizada
+    if (queixa.regiao && queixa.regiao !== '__OUTRA__') {
+      return {
+        id: 'outra_personalizada',
+        nome: queixa.regiao,
+        icone: 'fa-pencil-alt',
+        lateralidadePermitida: ['Direito', 'Esquerdo', 'Bilateral', 'Central / Axial'] as ('Direito' | 'Esquerdo' | 'Bilateral' | 'Central / Axial')[],
+        subRegioes: []
+      };
+    }
+
     return REGIOES_ANATOMICAS.find(r => r.id === 'joelho') || REGIOES_ANATOMICAS[0];
   }, [queixa.regiao, queixa.dorOnde]);
 
@@ -63,14 +88,16 @@ export default function QueixaFisioterapiaCard({
   const updateField = (field: keyof QueixaFisioterapicaItem, value: any) => {
     const updated = { ...queixa, [field]: value };
 
-    // Se mudou a região, ajusta a lateralidade se a atual não for permitida e seleciona a primeira sub-região
+    // Se mudou a região para uma conhecida, ajusta a lateralidade se a atual não for permitida
     if (field === 'regiao') {
       const regDef = REGIOES_ANATOMICAS.find(r => r.nome === value);
       if (regDef) {
         if (!regDef.lateralidadePermitida.includes(updated.lateralidade)) {
           updated.lateralidade = regDef.lateralidadePermitida[0];
         }
-        updated.subRegiao = regDef.subRegioes[0]?.nome || '';
+        if (!isCustomSubRegiao) {
+          updated.subRegiao = regDef.subRegioes[0]?.nome || '';
+        }
       }
     }
 
@@ -93,6 +120,17 @@ export default function QueixaFisioterapiaCard({
     updateField('atividadesAgravantes', next);
   };
 
+  // Adição tokenizada de atividade personalizada
+  const handleAddAtividadeToken = (texto: string) => {
+    const clean = texto.trim();
+    if (!clean) return;
+    const current = queixa.atividadesAgravantes || [];
+    if (!current.includes(clean)) {
+      updateField('atividadesAgravantes', [...current, clean]);
+    }
+    setCifSearchTerm('');
+  };
+
   // Toggle de fator de alívio
   const toggleAlivio = (fator: string) => {
     const current = queixa.fatoresAlivio || [];
@@ -101,6 +139,17 @@ export default function QueixaFisioterapiaCard({
       ? current.filter(f => f !== fator)
       : [...current, fator];
     updateField('fatoresAlivio', next);
+  };
+
+  // Adição tokenizada de fator de alívio personalizado
+  const handleAddAlivioToken = (texto: string) => {
+    const clean = texto.trim();
+    if (!clean) return;
+    const current = queixa.fatoresAlivio || [];
+    if (!current.includes(clean)) {
+      updateField('fatoresAlivio', [...current, clean]);
+    }
+    setAlivioSearchTerm('');
   };
 
   // Atividades filtradas pela busca
@@ -117,6 +166,13 @@ export default function QueixaFisioterapiaCard({
     });
     return matches;
   }, [cifSearchTerm]);
+
+  // Fatores de alívio filtrados pela busca
+  const filteredAlivioSuggestions = useMemo(() => {
+    const term = alivioSearchTerm.toLowerCase().trim();
+    if (!term) return FATORES_ALIVIO_SUGESTOES;
+    return FATORES_ALIVIO_SUGESTOES.filter(f => f.toLowerCase().includes(term));
+  }, [alivioSearchTerm]);
 
   const currentCategoryObj = useMemo(() => {
     return CIF_CATEGORIAS_ATIVIDADES.find(c => c.id === activeCifCategory) || CIF_CATEGORIAS_ATIVIDADES[0];
@@ -179,7 +235,7 @@ export default function QueixaFisioterapiaCard({
             EVA: {queixa.dorIntensidade}/10
           </span>
 
-          {/* Botão de Manter Queixa Anterior (Comparativo de Avaliação) */}
+          {/* Botão de Manter Queixa Anterior */}
           {prevQueixa && onKeepPrev && (
             <button
               type="button"
@@ -222,33 +278,90 @@ export default function QueixaFisioterapiaCard({
         )}
       </div>
 
-      {/* 2. LOCALIZAÇÃO ANATÔMICA PADRONIZADA */}
+      {/* 2. LOCALIZAÇÃO ANATÔMICA (DROPDOWN + TEXTO LIVRE) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '14px' }}>
         {/* Região Macro */}
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
-            Região Anatômica:
-          </label>
-          <select
-            className="form-control form-control-sm"
-            value={queixa.regiao}
-            disabled={readOnly}
-            onChange={e => updateField('regiao', e.target.value)}
-            style={{
-              background: 'var(--bg-dark, #0f172a)',
-              color: 'var(--text-main, #f8fafc)',
-              borderColor: 'var(--border-color, rgba(255, 255, 255, 0.15))',
-              height: '36px',
-              borderRadius: '6px',
-              fontSize: '0.85rem'
-            }}
-          >
-            {REGIOES_ANATOMICAS.map(r => (
-              <option key={r.id} value={r.nome}>
-                {r.nome}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', margin: 0, fontWeight: 600 }}>
+              Região Anatômica:
+            </label>
+            {isCustomRegiao && !readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustomRegiao(false);
+                  setIsCustomSubRegiao(false);
+                  updateField('regiao', 'Joelho');
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--primary, #6366f1)',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                <i className="fas fa-list" style={{ marginRight: '3px' }} /> Voltar ao Catálogo
+              </button>
+            )}
+          </div>
+
+          {isCustomRegiao ? (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Digite a região (ex: ATM, Tórax, etc.)..."
+                value={queixa.regiao || ''}
+                disabled={readOnly}
+                onChange={e => updateField('regiao', e.target.value)}
+                style={{
+                  background: 'var(--bg-dark, #0f172a)',
+                  color: 'var(--text-main, #f8fafc)',
+                  borderColor: 'var(--primary, #6366f1)',
+                  height: '36px',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem'
+                }}
+                autoFocus
+              />
+            </div>
+          ) : (
+            <select
+              className="form-control form-control-sm"
+              value={queixa.regiao}
+              disabled={readOnly}
+              onChange={e => {
+                if (e.target.value === '__OUTRA__') {
+                  setIsCustomRegiao(true);
+                  setIsCustomSubRegiao(true);
+                  updateField('regiao', '');
+                } else {
+                  setIsCustomRegiao(false);
+                  updateField('regiao', e.target.value);
+                }
+              }}
+              style={{
+                background: 'var(--bg-dark, #0f172a)',
+                color: 'var(--text-main, #f8fafc)',
+                borderColor: 'var(--border-color, rgba(255, 255, 255, 0.15))',
+                height: '36px',
+                borderRadius: '6px',
+                fontSize: '0.85rem'
+              }}
+            >
+              {REGIOES_ANATOMICAS.map(r => (
+                <option key={r.id} value={r.nome}>
+                  {r.nome}
+                </option>
+              ))}
+              <option value="__OUTRA__" style={{ fontWeight: 600, color: 'var(--primary, #6366f1)' }}>
+                ✍️ Outra Região (Texto Livre)...
               </option>
-            ))}
-          </select>
+            </select>
+          )}
         </div>
 
         {/* Lateralidade */}
@@ -289,29 +402,82 @@ export default function QueixaFisioterapiaCard({
 
         {/* Sub-Região / Estrutura Específica */}
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
-            Sub-Região / Estrutura:
-          </label>
-          <select
-            className="form-control form-control-sm"
-            value={queixa.subRegiao}
-            disabled={readOnly}
-            onChange={e => updateField('subRegiao', e.target.value)}
-            style={{
-              background: 'var(--bg-dark, #0f172a)',
-              color: 'var(--text-main, #f8fafc)',
-              borderColor: 'var(--border-color, rgba(255, 255, 255, 0.15))',
-              height: '36px',
-              borderRadius: '6px',
-              fontSize: '0.85rem'
-            }}
-          >
-            {selectedRegiaoDef.subRegioes.map(sr => (
-              <option key={sr.id} value={sr.nome}>
-                {sr.nome}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', margin: 0, fontWeight: 600 }}>
+              Sub-Região / Estrutura:
+            </label>
+            {isCustomSubRegiao && !isCustomRegiao && !readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustomSubRegiao(false);
+                  updateField('subRegiao', selectedRegiaoDef.subRegioes[0]?.nome || '');
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--primary, #6366f1)',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                <i className="fas fa-list" style={{ marginRight: '3px' }} /> Voltar ao Catálogo
+              </button>
+            )}
+          </div>
+
+          {isCustomSubRegiao || isCustomRegiao ? (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Digite a estrutura / detalhes..."
+                value={queixa.subRegiao || ''}
+                disabled={readOnly}
+                onChange={e => updateField('subRegiao', e.target.value)}
+                style={{
+                  background: 'var(--bg-dark, #0f172a)',
+                  color: 'var(--text-main, #f8fafc)',
+                  borderColor: 'var(--primary, #6366f1)',
+                  height: '36px',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem'
+                }}
+              />
+            </div>
+          ) : (
+            <select
+              className="form-control form-control-sm"
+              value={queixa.subRegiao}
+              disabled={readOnly}
+              onChange={e => {
+                if (e.target.value === '__OUTRA_SUB__') {
+                  setIsCustomSubRegiao(true);
+                  updateField('subRegiao', '');
+                } else {
+                  updateField('subRegiao', e.target.value);
+                }
+              }}
+              style={{
+                background: 'var(--bg-dark, #0f172a)',
+                color: 'var(--text-main, #f8fafc)',
+                borderColor: 'var(--border-color, rgba(255, 255, 255, 0.15))',
+                height: '36px',
+                borderRadius: '6px',
+                fontSize: '0.85rem'
+              }}
+            >
+              {selectedRegiaoDef.subRegioes.map(sr => (
+                <option key={sr.id} value={sr.nome}>
+                  {sr.nome}
+                </option>
+              ))}
+              <option value="__OUTRA_SUB__" style={{ fontWeight: 600, color: 'var(--primary, #6366f1)' }}>
+                ✍️ Outra Estrutura (Texto Livre)...
               </option>
-            ))}
-          </select>
+            </select>
+          )}
         </div>
       </div>
 
@@ -369,19 +535,19 @@ export default function QueixaFisioterapiaCard({
         </div>
       </div>
 
-      {/* 4. ATIVIDADES AGRAVANTES BASEADAS NA CIF */}
+      {/* 4. ATIVIDADES AGRAVANTES BASEADAS NA CIF COM BUSCA TOKENIZADA */}
       <div style={{ marginBottom: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
           <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-main, #f8fafc)', margin: 0 }}>
             <i className="fas fa-person-walking" style={{ marginRight: '5px', color: '#f59e0b' }} />
-            Atividades que Provocam ou Agravam a Dor (Base CIF):
+            Atividades que Provocam ou Agravam a Dor (Base CIF + Livre):
           </label>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-dim, #94a3b8)' }}>
             {(queixa.atividadesAgravantes || []).length} selecionada(s)
           </span>
         </div>
 
-        {/* Tags de Atividades Selecionadas */}
+        {/* Tokens / Tags de Atividades Selecionadas */}
         {(queixa.atividadesAgravantes || []).length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px', padding: '6px 8px', background: 'rgba(245, 158, 11, 0.08)', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
             {queixa.atividadesAgravantes.map(ativ => (
@@ -405,6 +571,7 @@ export default function QueixaFisioterapiaCard({
                     className="fas fa-times"
                     onClick={() => toggleAtividade(ativ)}
                     style={{ cursor: 'pointer', fontSize: '0.7rem' }}
+                    title="Remover atividade"
                   />
                 )}
               </span>
@@ -412,64 +579,129 @@ export default function QueixaFisioterapiaCard({
           </div>
         )}
 
-        {/* Busca e Abas Rápidas de Categorias CIF */}
+        {/* Campo de Busca Tokenizado */}
         {!readOnly && (
           <div>
-            {/* Campo de Busca Rápida de Atividades */}
-            <div style={{ position: 'relative', marginBottom: '8px' }}>
-              <i
-                className="fas fa-search"
-                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim, #94a3b8)', fontSize: '0.75rem' }}
-              />
-              <input
-                type="text"
-                placeholder="Buscar atividade agravante (ex: escada, agachar, sentar, corrida, repouso...)"
-                value={cifSearchTerm}
-                onChange={e => setCifSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  paddingLeft: '28px',
-                  paddingRight: '10px',
-                  height: '32px',
-                  borderRadius: '6px',
-                  background: 'var(--bg-dark, #0f172a)',
-                  border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
-                  color: 'var(--text-main, #f8fafc)',
-                  fontSize: '0.78rem'
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <i
+                  className="fas fa-search"
+                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim, #94a3b8)', fontSize: '0.75rem' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Buscar ou digitar atividade livre (pressione Enter para adicionar)..."
+                  value={cifSearchTerm}
+                  onChange={e => setCifSearchTerm(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (cifSearchTerm.trim()) {
+                        handleAddAtividadeToken(cifSearchTerm);
+                      }
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    paddingLeft: '28px',
+                    paddingRight: '10px',
+                    height: '34px',
+                    borderRadius: '6px',
+                    background: 'var(--bg-dark, #0f172a)',
+                    border: '1px solid var(--border-color, rgba(255,255,255,0.12))',
+                    color: 'var(--text-main, #f8fafc)',
+                    fontSize: '0.78rem'
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (cifSearchTerm.trim()) {
+                    handleAddAtividadeToken(cifSearchTerm);
+                  }
                 }}
-              />
+                disabled={!cifSearchTerm.trim()}
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#f59e0b',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  fontSize: '0.75rem',
+                  cursor: cifSearchTerm.trim() ? 'pointer' : 'default',
+                  opacity: cifSearchTerm.trim() ? 1 : 0.5,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <i className="fas fa-plus" /> Adicionar
+              </button>
             </div>
 
-            {/* Resultados da Busca de Atividades */}
-            {cifSearchTerm && filteredCifActivities.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px', maxHeight: '140px', overflowY: 'auto', padding: '6px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
-                {filteredCifActivities.map(item => {
-                  const isSelected = (queixa.atividadesAgravantes || []).includes(item.nome);
-                  return (
+            {/* Resultados da Busca Tokenizada / Sugestões rápidas */}
+            {cifSearchTerm.trim() && (
+              <div style={{ marginBottom: '10px', padding: '6px 8px', background: 'rgba(0,0,0,0.25)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {/* Opção para adicionar o texto exato digitado caso ainda não exista */}
+                {!(queixa.atividadesAgravantes || []).includes(cifSearchTerm.trim()) && (
+                  <div style={{ marginBottom: filteredCifActivities.length > 0 ? '6px' : 0 }}>
                     <button
-                      key={item.nome}
                       type="button"
-                      onClick={() => toggleAtividade(item.nome)}
+                      onClick={() => handleAddAtividadeToken(cifSearchTerm)}
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: '12px',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
                         fontSize: '0.72rem',
-                        border: '1px solid',
-                        borderColor: isSelected ? '#f59e0b' : 'var(--border-color, rgba(255,255,255,0.15))',
-                        background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
-                        color: isSelected ? '#f59e0b' : 'var(--text-main, #f8fafc)',
-                        cursor: 'pointer'
+                        border: '1px dashed #f59e0b',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        color: '#f59e0b',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
                       }}
                     >
-                      {isSelected ? '✓ ' : '+ '} {item.nome}
-                      <small style={{ opacity: 0.6, marginLeft: '4px' }}>({item.categoria})</small>
+                      <i className="fas fa-plus-circle" /> Inserir "{cifSearchTerm.trim()}" como nova atividade
                     </button>
-                  );
-                })}
+                  </div>
+                )}
+
+                {/* Sugestões do catálogo que combinam com os termos digitados */}
+                {filteredCifActivities.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '130px', overflowY: 'auto' }}>
+                    {filteredCifActivities.map(item => {
+                      const isSelected = (queixa.atividadesAgravantes || []).includes(item.nome);
+                      return (
+                        <button
+                          key={item.nome}
+                          type="button"
+                          onClick={() => toggleAtividade(item.nome)}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.72rem',
+                            border: '1px solid',
+                            borderColor: isSelected ? '#f59e0b' : 'var(--border-color, rgba(255,255,255,0.15))',
+                            background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                            color: isSelected ? '#f59e0b' : 'var(--text-main, #f8fafc)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isSelected ? '✓ ' : '+ '} {item.nome}
+                          <small style={{ opacity: 0.6, marginLeft: '4px' }}>({item.categoria})</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Abas das Categorias CIF */}
+            {/* Abas das Categorias CIF quando não há busca ativa */}
             {!cifSearchTerm && (
               <>
                 <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '8px' }}>
@@ -552,18 +784,120 @@ export default function QueixaFisioterapiaCard({
           }}
         >
           <i className={`fas fa-chevron-${showAdvancedDetails ? 'up' : 'down'}`} />
-          {showAdvancedDetails ? 'Ocultar detalhes clínicos adicionais' : 'Mais detalhes (Fatores de Alívio, Característica da Dor, Tempo)'}
+          {showAdvancedDetails ? 'Ocultar detalhes clínicos adicionais' : 'Mais detalhes (Fatores de Alívio com Busca Tokenizada, Tipo de Dor, Tempo)'}
         </button>
 
         {showAdvancedDetails && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '10px' }}>
-            {/* Fatores de Melhora / Alívio */}
+            {/* Fatores de Melhora / Alívio com Busca Tokenizada */}
             <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
-                O que alivia a dor? (Fatores de Melhora):
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', margin: 0, fontWeight: 600 }}>
+                  O que alivia a dor? (Fatores de Melhora / Alívio):
+                </label>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim, #94a3b8)' }}>
+                  {(queixa.fatoresAlivio || []).length} selecionado(s)
+                </span>
+              </div>
+
+              {/* Tokens de Alívio Selecionados */}
+              {(queixa.fatoresAlivio || []).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px', padding: '6px 8px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                  {queixa.fatoresAlivio.map(fat => (
+                    <span
+                      key={fat}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        color: '#10b981',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {fat}
+                      {!readOnly && (
+                        <i
+                          className="fas fa-times"
+                          onClick={() => toggleAlivio(fat)}
+                          style={{ cursor: 'pointer', fontSize: '0.7rem' }}
+                          title="Remover fator de alívio"
+                        />
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Campo de Busca Tokenizado para Alívio */}
+              {!readOnly && (
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <i
+                      className="fas fa-search"
+                      style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim, #94a3b8)', fontSize: '0.75rem' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Buscar ou digitar fator de alívio (ex: Gelo, Acupuntura, TENS... Enter para adicionar)"
+                      value={alivioSearchTerm}
+                      onChange={e => setAlivioSearchTerm(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (alivioSearchTerm.trim()) {
+                            handleAddAlivioToken(alivioSearchTerm);
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        paddingLeft: '28px',
+                        paddingRight: '10px',
+                        height: '32px',
+                        borderRadius: '6px',
+                        background: 'var(--bg-dark, #0f172a)',
+                        border: '1px solid var(--border-color, rgba(255,255,255,0.12))',
+                        color: 'var(--text-main, #f8fafc)',
+                        fontSize: '0.75rem'
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (alivioSearchTerm.trim()) {
+                        handleAddAlivioToken(alivioSearchTerm);
+                      }
+                    }}
+                    disabled={!alivioSearchTerm.trim()}
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      color: '#10b981',
+                      borderRadius: '6px',
+                      padding: '0 12px',
+                      fontSize: '0.72rem',
+                      cursor: alivioSearchTerm.trim() ? 'pointer' : 'default',
+                      opacity: alivioSearchTerm.trim() ? 1 : 0.5,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <i className="fas fa-plus" /> Adicionar
+                  </button>
+                </div>
+              )}
+
+              {/* Sugestões de Alívio */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {FATORES_ALIVIO_SUGESTOES.map(fat => {
+                {filteredAlivioSuggestions.map(fat => {
                   const isSelected = (queixa.fatoresAlivio || []).includes(fat);
                   return (
                     <button

@@ -307,15 +307,18 @@ export function synthesizeLegacyFields(q: Partial<QueixaFisioterapicaItem>): {
   desencadeiaPiora: string;
   melhoraDesaparece: string;
 } {
-  // dorOnde: "Joelho Direito (Compartimento Medial)" ou "Coluna Lombar Central (L5–S1)"
+  // dorOnde: "Joelho Direito (Compartimento Medial)" ou "Região Livre Direito (Estrutura Livre)"
+  const regiaoVal = (q.regiao && q.regiao !== '__OUTRA__') ? q.regiao.trim() : '';
+  const subRegiaoVal = (q.subRegiao && q.subRegiao !== '__OUTRA_SUB__') ? q.subRegiao.trim() : '';
+
   const parts: string[] = [];
-  if (q.regiao) parts.push(q.regiao);
+  if (regiaoVal) parts.push(regiaoVal);
   if (q.lateralidade && q.lateralidade !== 'Central / Axial') {
     parts.push(q.lateralidade);
   }
   let onde = parts.join(' ');
-  if (q.subRegiao) {
-    onde = onde ? `${onde} (${q.subRegiao})` : q.subRegiao;
+  if (subRegiaoVal) {
+    onde = onde ? `${onde} (${subRegiaoVal})` : subRegiaoVal;
   }
   if (!onde) onde = q.dorOnde || 'Região não informada';
 
