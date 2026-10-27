@@ -7,6 +7,7 @@ import AlunoEvolutionDashboard from './central-avaliacoes/AlunoEvolutionDashboar
 import AlunoHistoryTimeline from './central-avaliacoes/AlunoHistoryTimeline';
 import AvulsoTestModal from './central-avaliacoes/AvulsoTestModal';
 import AlunoClinicalHeader from './central-avaliacoes/AlunoClinicalHeader';
+import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 
 interface CentralAvaliacoesPanelProps {
   onOpenCompletaPhysical?: () => void;
@@ -182,6 +183,15 @@ export default function CentralAvaliacoesPanel({
   const handleOpenFichaTreino = () => {
     if (selectedAlunoId && alunoDetail?.client?.nome) {
       router.push(`/ficha/${selectedAlunoId}?studentName=${encodeURIComponent(alunoDetail.client.nome)}`);
+    }
+  };
+
+  const handleDownloadLaudoPDF = () => {
+    if (alunoDetail?.longitudinal?.computed && alunoDetail?.longitudinal?.narrative) {
+      downloadReavaliacaoLaudoPDF(alunoDetail.longitudinal.computed, alunoDetail.longitudinal.narrative);
+    } else {
+      setActiveSubTab('historico');
+      alert('Para emitir o Laudo Clínico Comparativo em PDF, selecione duas avaliações (T1 e T2) na aba Histórico.');
     }
   };
 
@@ -376,6 +386,8 @@ export default function CentralAvaliacoesPanel({
                   totalTimelineCount={alunoDetail.counts?.totalTimeline || 0}
                   onOpenNovoTeste={() => setShowNovoTesteModal(true)}
                   onOpenFichaTreino={handleOpenFichaTreino}
+                  onDownloadLaudoPDF={handleDownloadLaudoPDF}
+                  hasLaudoAvailable={Boolean(alunoDetail.longitudinal?.computed && alunoDetail.longitudinal?.narrative)}
                   isMobile={isMobile}
                   onBackToList={() => setMobileView('list')}
                 />

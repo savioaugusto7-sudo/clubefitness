@@ -18,6 +18,8 @@ interface AlunoClinicalHeaderProps {
   totalTimelineCount: number;
   onOpenNovoTeste: () => void;
   onOpenFichaTreino?: () => void;
+  onDownloadLaudoPDF?: () => void;
+  hasLaudoAvailable?: boolean;
   onOpenComparativo?: () => void;
   isMobile?: boolean;
   onBackToList?: () => void;
@@ -30,6 +32,8 @@ export default function AlunoClinicalHeader({
   totalTimelineCount,
   onOpenNovoTeste,
   onOpenFichaTreino,
+  onDownloadLaudoPDF,
+  hasLaudoAvailable = false,
   onOpenComparativo,
   isMobile = false,
   onBackToList
@@ -287,6 +291,35 @@ export default function AlunoClinicalHeader({
             >
               <i className="fas fa-dumbbell" />
               <span>Ficha de Treino</span>
+            </button>
+          )}
+
+          {onDownloadLaudoPDF && (
+            <button
+              type="button"
+              onClick={onDownloadLaudoPDF}
+              style={{
+                flex: isMobile ? 1 : 'initial',
+                minHeight: '44px',
+                padding: '10px 16px',
+                borderRadius: '10px',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.15s ease',
+                opacity: hasLaudoAvailable ? 1 : 0.65
+              }}
+              title={hasLaudoAvailable ? 'Emitir Laudo Clínico Comparativo em PDF' : 'Necessário pelo menos 2 avaliações no prontuário'}
+            >
+              <i className="fas fa-file-pdf" />
+              <span>Laudo PDF</span>
             </button>
           )}
         </div>

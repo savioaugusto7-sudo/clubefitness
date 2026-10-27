@@ -15,6 +15,7 @@ import {
 } from 'chart.js';
 import { Radar, Line, Bar } from 'react-chartjs-2';
 import LiveClinicalAlert from '../LiveClinicalAlert';
+import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 
 ChartJS.register(
   RadialLinearScale,
@@ -890,9 +891,34 @@ export default function AlunoEvolutionDashboard({
             <i className="fas fa-clipboard-check" style={{ color: 'var(--primary, #818cf8)' }} />
             Diretrizes Clínicas para a Sala de Treino
           </span>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim, #94a3b8)', background: 'rgba(255,255,255,0.06)', padding: '3px 10px', borderRadius: '12px' }}>
-            {counts.totalTimeline} registro(s) no prontuário
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {longitudinal?.computed && longitudinal?.narrative && (
+              <button
+                type="button"
+                onClick={() => downloadReavaliacaoLaudoPDF(longitudinal.computed, longitudinal.narrative)}
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: '#38bdf8',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                title="Emitir Laudo Clínico de Reavaliação em PDF"
+              >
+                <i className="fas fa-file-pdf" />
+                Baixar Laudo PDF
+              </button>
+            )}
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim, #94a3b8)', background: 'rgba(255,255,255,0.06)', padding: '3px 10px', borderRadius: '12px' }}>
+              {counts.totalTimeline} registro(s) no prontuário
+            </span>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
