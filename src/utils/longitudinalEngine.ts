@@ -244,25 +244,84 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   const qList2 = Array.isArray(anamneseT2.queixas) ? anamneseT2.queixas : [];
 
   if (qList1.length > 0 || qList2.length > 0) {
-    const allRegions = new Set<string>();
-    qList1.forEach((q: any) => { if (q.dorOnde) allRegions.add(q.dorOnde.trim()); });
-    qList2.forEach((q: any) => { if (q.dorOnde) allRegions.add(q.dorOnde.trim()); });
+    const cleanPainRegion = (text: string): string => (text || '').replace(/\s+/g, ' ').trim();
+    const extractBaseSegment = (text: string): string => {
+      let s = cleanPainRegion(text);
+      s = s.replace(/\s*\([^)]*\).*/g, '');
+      s = s.replace(/\s*[-–:].*$/g, '');
+      return s.trim().toLowerCase();
+    };
 
-    allRegions.forEach(region => {
-      const q1 = qList1.find((item: any) => (item.dorOnde || '').trim().toLowerCase() === region.toLowerCase()) || { dorIntensidade: 0 };
-      const q2 = qList2.find((item: any) => (item.dorOnde || '').trim().toLowerCase() === region.toLowerCase()) || { dorIntensidade: 0 };
-      const v1 = Number(q1.dorIntensidade ?? 0);
-      const v2 = Number(q2.dorIntensidade ?? 0);
+    const pickBestName = (nameA: string, nameB: string): string => {
+      const cleanA = cleanPainRegion(nameA);
+      const cleanB = cleanPainRegion(nameB);
+      if (!cleanA) return cleanB;
+      if (!cleanB) return cleanA;
+      const hasParenA = cleanA.includes('(');
+      const hasParenB = cleanB.includes('(');
+      if (hasParenA && !hasParenB) return cleanA;
+      if (hasParenB && !hasParenA) return cleanB;
+      return cleanA.length >= cleanB.length ? cleanA : cleanB;
+    };
+
+    const pairs: Array<{
+      baseSegment: string;
+      displayName: string;
+      q1?: any;
+      q2?: any;
+    }> = [];
+
+    qList1.forEach((q1: any) => {
+      if (!q1?.dorOnde) return;
+      const clean = cleanPainRegion(q1.dorOnde);
+      const base = extractBaseSegment(clean);
+      if (!base) return;
+      pairs.push({
+        baseSegment: base,
+        displayName: clean,
+        q1
+      });
+    });
+
+    qList2.forEach((q2: any) => {
+      if (!q2?.dorOnde) return;
+      const clean = cleanPainRegion(q2.dorOnde);
+      const base = extractBaseSegment(clean);
+      if (!base) return;
+
+      const candidates = pairs.filter(p => !p.q2 && p.baseSegment === base);
+      let match = candidates[0];
+      if (candidates.length > 1) {
+        const exact = candidates.find(c => c.displayName.toLowerCase() === clean.toLowerCase());
+        if (exact) match = exact;
+      }
+
+      if (match) {
+        match.q2 = q2;
+        match.displayName = pickBestName(match.displayName, clean);
+      } else {
+        pairs.push({
+          baseSegment: base,
+          displayName: clean,
+          q2
+        });
+      }
+    });
+
+    pairs.forEach(item => {
+      const v1 = Number(item.q1?.dorIntensidade ?? 0);
+      const v2 = Number(item.q2?.dorIntensidade ?? 0);
       const delta = v2 - v1;
 
       let sit = 'Estável';
       if (v1 > 0 && v2 === 0) sit = 'Resolvida';
       else if (delta <= -3) sit = 'Melhora expressiva';
       else if (delta < 0) sit = 'Melhorando';
+      else if (v1 === 0 && v2 > 0) sit = 'Aumento de dor';
       else if (delta > 0) sit = 'Aumento de dor';
 
       rowsEVA.push({
-        queixa: region,
+        queixa: item.displayName,
         t1: v1,
         t2: v2,
         variacao: delta,
