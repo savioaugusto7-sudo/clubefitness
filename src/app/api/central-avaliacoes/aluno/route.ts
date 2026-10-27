@@ -205,7 +205,7 @@ export async function GET(request: Request) {
 
     // 4. Comparador Longitudinal (Laudo de Reavaliação T1 vs T2)
     // Seletor de opções comparativas (todas as avaliações que possuem dados de goniometria ou testes funcionais)
-    const availableReports = [...physioReports].sort((a, b) => a.data.localeCompare(b.data));
+    const availableReports = [...physioReports].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
     let t1Doc: any = null;
     let t2Doc: any = null;
 
@@ -224,12 +224,12 @@ export async function GET(request: Request) {
     let clinicalNarrative: any = null;
 
     if (t1Doc && t2Doc && t1Doc._id.toString() !== t2Doc._id.toString()) {
-      // Buscar os testes de força mais próximos de t1 e t2
-      const sortedST = [...strengthTests].sort((a, b) => a.data.localeCompare(b.data));
-      const st1 = sortedST.find(s => s.data <= t1Doc.data) || sortedST[0];
-      const st2 = sortedST.reverse().find(s => s.data <= t2Doc.data) || sortedST[0];
-
       try {
+        // Buscar os testes de força mais próximos de t1 e t2
+        const sortedST = [...strengthTests].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        const st1 = sortedST.find(s => s.data && t1Doc.data && s.data <= t1Doc.data) || sortedST[0];
+        const st2 = sortedST.slice().reverse().find(s => s.data && t2Doc.data && s.data <= t2Doc.data) || sortedST[0];
+
         const computed = computeLongitudinalReassessment({
           client: {
             nome: clientDoc.dadosPessoais?.nome || 'Aluno',
@@ -251,72 +251,108 @@ export async function GET(request: Request) {
     }
 
     // 5. Alertas Clínicos Vivos na Avaliação Mais Recente
-    const latestGonioDoc = physioReports[0]?.goniometria || physicalAssessments[0]?.dadosMedidos?.goniometria || null;
-    const liveGonioAlerts = latestGonioDoc ? calculateGoniometryAlerts(latestGonioDoc) : [];
+    let liveGonioAlerts: any[] = [];
+    try {
+      const latestGonioDoc = physioReports[0]?.goniometria || physicalAssessments[0]?.dadosMedidos?.goniometria || null;
+      liveGonioAlerts = latestGonioDoc ? calculateGoniometryAlerts(latestGonioDoc) : [];
+    } catch (err: any) {
+      console.warn('Erro ao calcular alertas de goniometria:', err.message);
+    }
 
-    const latestStrengthDoc = strengthTests[0] || null;
-    const liveStrengthAlerts = latestStrengthDoc ? calculateStrengthTestAlerts(latestStrengthDoc) : [];
+    let liveStrengthAlerts: any[] = [];
+    try {
+      const latestStrengthDoc = strengthTests[0] || null;
+      if (latestStrengthDoc) {
+        const testsList = Array.isArray(latestStrengthDoc.testesRealizados)
+          ? latestStrengthDoc.testesRealizados
+          : Array.isArray(latestStrengthDoc.exercicios)
+          ? latestStrengthDoc.exercicios
+          : [];
+        liveStrengthAlerts = calculateStrengthTestAlerts(
+          testsList,
+          clientDoc.dadosPessoais?.peso || 70,
+          clientDoc.dadosPessoais?.sexo === 'Feminino' ? 'F' : 'M'
+        );
+      }
+    } catch (err: any) {
+      console.warn('Erro ao calcular alertas de força:', err.message);
+    }
 
     // 6. Séries Cronológicas para Gráficos de Evolução
     // A) Goniometria ao longo do tempo (Dorsiflexão Estendido, Dorsiflexão Lunge, Flexão Joelho, Poplíteo)
-    const gonioTimelineDocs = [...physioReports, ...physicalAssessments]
-      .filter(doc => {
-        const g = doc.goniometria || doc.dadosMedidos?.goniometria;
-        return g && (g.tornozeloDorsi1D || g.tornozeloDorsi2D || g.joelhoFlexaoD);
-      })
-      .sort((a, b) => a.data.localeCompare(b.data));
+    let gonioSeries: any[] = [];
+    try {
+      const gonioTimelineDocs = [...physioReports, ...physicalAssessments]
+        .filter(doc => {
+          const g = doc.goniometria || doc.dadosMedidos?.goniometria;
+          return g && (g.tornozeloDorsi1D || g.tornozeloDorsi2D || g.joelhoFlexaoD);
+        })
+        .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
 
-    const gonioSeries = gonioTimelineDocs.map(doc => {
-      const g = doc.goniometria || doc.dadosMedidos?.goniometria || {};
-      const getV = (v: any) => typeof v === 'object' ? Number(v?.semForca ?? v?.ativo ?? '') || null : Number(v) || null;
-      return {
-        data: doc.data,
-        dorsi1D: getV(g.tornozeloDorsi1D),
-        dorsi1E: getV(g.tornozeloDorsi1E),
-        dorsi2D: getV(g.tornozeloDorsi2D),
-        dorsi2E: getV(g.tornozeloDorsi2E),
-        joelhoFlexaoD: getV(g.joelhoFlexaoD),
-        joelhoFlexaoE: getV(g.joelhoFlexaoE),
-        popliteoD: getV(g.joelhoPopliteoD),
-        popliteoE: getV(g.joelhoPopliteoE)
-      };
-    });
+      gonioSeries = gonioTimelineDocs.map(doc => {
+        const g = doc.goniometria || doc.dadosMedidos?.goniometria || {};
+        const getV = (v: any) => typeof v === 'object' ? Number(v?.semForca ?? v?.ativo ?? '') || null : Number(v) || null;
+        return {
+          data: doc.data,
+          dorsi1D: getV(g.tornozeloDorsi1D),
+          dorsi1E: getV(g.tornozeloDorsi1E),
+          dorsi2D: getV(g.tornozeloDorsi2D),
+          dorsi2E: getV(g.tornozeloDorsi2E),
+          joelhoFlexaoD: getV(g.joelhoFlexaoD),
+          joelhoFlexaoE: getV(g.joelhoFlexaoE),
+          popliteoD: getV(g.joelhoPopliteoD),
+          popliteoE: getV(g.joelhoPopliteoE)
+        };
+      });
+    } catch (err: any) {
+      console.warn('Erro em gonioSeries:', err.message);
+    }
 
     // B) Dor / EVA ao longo do tempo
-    const evaSeriesDocs = [...physioReports]
-      .filter(doc => (doc.anamnese?.queixas && doc.anamnese.queixas.length > 0) || (doc.anamnese?.queixasDor && doc.anamnese.queixasDor.length > 0) || doc.conteudo?.dorEscala != null)
-      .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+    let evaSeries: any[] = [];
+    try {
+      const evaSeriesDocs = [...physioReports]
+        .filter(doc => (doc.anamnese?.queixas && doc.anamnese.queixas.length > 0) || (doc.anamnese?.queixasDor && doc.anamnese.queixasDor.length > 0) || doc.conteudo?.dorEscala != null)
+        .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
 
-    const evaSeries = evaSeriesDocs.map(doc => {
-      const queixas = doc.anamnese?.queixas || doc.anamnese?.queixasDor || [];
-      return {
-        data: doc.data,
-        queixas: queixas.map((q: any) => ({
-          regiao: q.dorOnde || q.regiao || doc.conteudo?.queixaPrincipal || 'Geral',
-          intensidade: Number(q.dorIntensidade ?? q.intensidade ?? doc.conteudo?.dorEscala) || 0
-        })),
-        dorGeral: doc.conteudo?.dorEscala != null ? Number(doc.conteudo.dorEscala) : null
-      };
-    });
+      evaSeries = evaSeriesDocs.map(doc => {
+        const queixas = doc.anamnese?.queixas || doc.anamnese?.queixasDor || [];
+        return {
+          data: doc.data,
+          queixas: queixas.map((q: any) => ({
+            regiao: q.dorOnde || q.regiao || doc.conteudo?.queixaPrincipal || 'Geral',
+            intensidade: Number(q.dorIntensidade ?? q.intensidade ?? doc.conteudo?.dorEscala) || 0
+          })),
+          dorGeral: doc.conteudo?.dorEscala != null ? Number(doc.conteudo.dorEscala) : null
+        };
+      });
+    } catch (err: any) {
+      console.warn('Erro em evaSeries:', err.message);
+    }
 
     // C) Testes de Força ao longo do tempo (Dinamometria)
-    const strengthSeriesDocs = [...strengthTests].sort((a, b) => a.data.localeCompare(b.data));
-    const strengthSeries = strengthSeriesDocs.map(doc => {
-      return {
-        data: doc.data,
-        testes: (doc.testesRealizados || []).map((t: any) => ({
-          movimento: t.movimento,
-          lado: t.lado,
-          forcaN: t.forcaN || t.valorObtido,
-          pcPercent: t.pcPercent
-        })),
-        comparativos: (doc.comparativos || []).map((c: any) => ({
-          movimento: c.movimento,
-          simetria: c.simetria,
-          deficit: c.deficit
-        }))
-      };
-    });
+    let strengthSeries: any[] = [];
+    try {
+      const strengthSeriesDocs = [...strengthTests].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+      strengthSeries = strengthSeriesDocs.map(doc => {
+        return {
+          data: doc.data,
+          testes: (doc.testesRealizados || []).map((t: any) => ({
+            movimento: t.movimento,
+            lado: t.lado,
+            forcaN: t.forcaN || t.valorObtido,
+            pcPercent: t.pcPercent
+          })),
+          comparativos: (doc.comparativos || []).map((c: any) => ({
+            movimento: c.movimento,
+            simetria: c.simetria,
+            deficit: c.deficit
+          }))
+        };
+      });
+    } catch (err: any) {
+      console.warn('Erro em strengthSeries:', err.message);
+    }
 
     return NextResponse.json({
       success: true,

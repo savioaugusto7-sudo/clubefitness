@@ -321,15 +321,32 @@ export function calculateGoniometryAlerts(gonio: any): BiomechanicAlert[] {
 /**
  * 2. Análise Clínica e Alertas dos Testes de Força Muscular (Dinamometria)
  */
-export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 70, sexo: 'M' | 'F' = 'M', extraData?: any): BiomechanicAlert[] {
+export function calculateStrengthTestAlerts(testesList: any, pesoKg: number = 70, sexo: 'M' | 'F' = 'M', extraData?: any): BiomechanicAlert[] {
   const alerts: BiomechanicAlert[] = [];
-  if (!testesList || testesList.length === 0) return alerts;
+  if (!testesList) return alerts;
+
+  let list: any[] = [];
+  if (Array.isArray(testesList)) {
+    list = testesList;
+  } else if (typeof testesList === 'object') {
+    list = Array.isArray(testesList.testesRealizados)
+      ? testesList.testesRealizados
+      : Array.isArray(testesList.exercicios)
+      ? testesList.exercicios
+      : Array.isArray(testesList.testes)
+      ? testesList.testes
+      : [];
+  }
+
+  if (list.length === 0) return alerts;
 
   // Mapa de forças em Newtons por movimento e lado
   const map: Record<string, { D: number; E: number; max: number }> = {};
 
-  testesList.forEach(t => {
-    const key = `${t.articulacao}_${t.movimento}`.toLowerCase().trim();
+  list.forEach(t => {
+    if (!t) return;
+    const key = `${t.articulacao || ''}_${t.movimento || ''}`.toLowerCase().trim();
+    if (!key || key === '_') return;
     if (!map[key]) map[key] = { D: 0, E: 0, max: 0 };
     const forcaN = Number(t.forcaN) || (Number(t.valorObtido) * (t.unidade === 'kgf' ? 9.80665 : 1)) || 0;
     if (t.lado === 'Direito') map[key].D = forcaN;
@@ -344,8 +361,10 @@ export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 
 
   // 2.0 Assimetrias Bilaterais Direita vs Esquerda (> 10%)
   const bilateralGroups: Record<string, { articulacao: string; movimento: string; D: number; E: number }> = {};
-  testesList.forEach(t => {
-    const key = `${t.articulacao}_${t.movimento}`.toLowerCase().trim();
+  list.forEach(t => {
+    if (!t) return;
+    const key = `${t.articulacao || ''}_${t.movimento || ''}`.toLowerCase().trim();
+    if (!key || key === '_') return;
     if (!bilateralGroups[key]) {
       bilateralGroups[key] = { articulacao: t.articulacao, movimento: t.movimento, D: 0, E: 0 };
     }

@@ -22,6 +22,7 @@ export default function CentralAvaliacoesPanel({
   // Dados do Aluno Selecionado
   const [alunoDetail, setAlunoDetail] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   // Controle de Abas da Central Individual
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'historico'>('dashboard');
@@ -55,6 +56,7 @@ export default function CentralAvaliacoesPanel({
   // 2. Carregar Detalhes Completos do Aluno Selecionado
   const loadAlunoDetail = useCallback(async (clientId: string, t1Id?: string, t2Id?: string) => {
     setLoadingDetail(true);
+    setDetailError(null);
     try {
       let url = `/api/central-avaliacoes/aluno?clientId=${clientId}`;
       if (t1Id && t2Id) {
@@ -64,13 +66,24 @@ export default function CentralAvaliacoesPanel({
       const json = await res.json();
       if (json.success && json.data) {
         setAlunoDetail(json.data);
+      } else {
+        setDetailError(json.error || 'Não foi possível carregar os dados deste aluno.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao carregar detalhes do aluno na Central:', err);
+      setDetailError(err.message || 'Erro de conexão ao carregar prontuário do aluno.');
     } finally {
       setLoadingDetail(false);
     }
   }, []);
+
+  const handleSelectAluno = (id: string) => {
+    if (id !== selectedAlunoId) {
+      setSelectedAlunoId(id);
+      setAlunoDetail(null); // Limpa o anterior imediatamente para feedback instantâneo ao usuário
+      setDetailError(null);
+    }
+  };
 
   useEffect(() => {
     if (selectedAlunoId) {
@@ -165,7 +178,7 @@ export default function CentralAvaliacoesPanel({
           <AlunoCardList
             alunos={alunos}
             selectedAlunoId={selectedAlunoId}
-            onSelectAluno={id => setSelectedAlunoId(id)}
+            onSelectAluno={handleSelectAluno}
             loading={loadingAlunos}
           />
         </div>
@@ -188,6 +201,33 @@ export default function CentralAvaliacoesPanel({
               <i className="fas fa-spinner fa-spin fa-3x" style={{ color: 'var(--primary)', marginBottom: '12px' }} />
               <h5 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-main)' }}>Carregando dados clínicos do aluno...</h5>
               <small>Processando histórico, cálculos de força e goniometria</small>
+            </div>
+          ) : detailError ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-dim)' }}>
+              <i className="fas fa-exclamation-triangle fa-3x" style={{ color: '#ef4444', marginBottom: '14px' }} />
+              <h5 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', color: 'var(--text-main)' }}>
+                Erro ao carregar prontuário do aluno
+              </h5>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', maxWidth: '420px', margin: '0 auto 16px auto' }}>
+                {detailError}
+              </p>
+              <button
+                type="button"
+                onClick={() => selectedAlunoId && loadAlunoDetail(selectedAlunoId)}
+                style={{
+                  background: 'var(--primary)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                <i className="fas fa-redo-alt" style={{ marginRight: '6px' }} />
+                Tentar Novamente
+              </button>
             </div>
           ) : !alunoDetail?.client ? (
             <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-dim)' }}>

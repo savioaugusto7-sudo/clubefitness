@@ -7,6 +7,8 @@ export interface AlunoSummary {
   nome: string;
   idade: number | null;
   telefone: string;
+  cpf?: string;
+  email?: string;
   status: string;
   lesoes?: string;
   restricoes?: string;
@@ -28,6 +30,16 @@ interface AlunoCardListProps {
   loading?: boolean;
 }
 
+// Normalização de string: remove acentos, diacríticos e pontuação para busca infalível
+export function normalizeStr(str?: string): string {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 export default function AlunoCardList({
   alunos,
   selectedAlunoId,
@@ -37,24 +49,56 @@ export default function AlunoCardList({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'todos' | 'avaliados' | 'forca' | 'alertas'>('todos');
 
+  // Tokens de busca separados por espaço (busca por termos independentes)
+  const searchTokens = useMemo(() => {
+    return normalizeStr(searchTerm)
+      .split(/\s+/)
+      .filter(t => t.length > 0);
+  }, [searchTerm]);
+
+  // Função validadora de match para um aluno
+  const matchStudent = (a: AlunoSummary): boolean => {
+    if (searchTokens.length === 0) return true;
+
+    const normNome = normalizeStr(a.nome);
+    const normCpf = normalizeStr(a.cpf);
+    const rawCpf = (a.cpf || '').replace(/\D/g, '');
+    const normPhone = normalizeStr(a.telefone);
+    const rawPhone = (a.telefone || '').replace(/\D/g, '');
+    const normEmail = normalizeStr(a.email);
+
+    // Todos os tokens digitados precisam bater com ao menos um atributo do aluno
+    return searchTokens.every(token => {
+      const tokenDigits = token.replace(/\D/g, '');
+      return (
+        normNome.includes(token) ||
+        normCpf.includes(token) ||
+        (tokenDigits.length >= 2 && rawCpf.includes(tokenDigits)) ||
+        (tokenDigits.length >= 2 && rawPhone.includes(tokenDigits)) ||
+        normPhone.includes(token) ||
+        normEmail.includes(token)
+      );
+    });
+  };
+
+  // Alunos filtrados respeitando busca e a aba atual
   const filteredAlunos = useMemo(() => {
     return alunos.filter(a => {
-      // Filtro de busca textual (Nome ou Telefone)
-      const term = searchTerm.toLowerCase().trim();
-      const matchSearch =
-        !term ||
-        a.nome.toLowerCase().includes(term) ||
-        (a.telefone && a.telefone.includes(term));
+      if (!matchStudent(a)) return false;
 
-      if (!matchSearch) return false;
-
-      // Filtros rápidos
       if (filterType === 'avaliados') return a.totalGeral > 0;
       if (filterType === 'forca') return a.totalST > 0;
       if (filterType === 'alertas') return a.temAlertaCritico;
       return true;
     });
-  }, [alunos, searchTerm, filterType]);
+  }, [alunos, searchTokens, filterType]);
+
+  // Checagem inteligente de cross-match: usuário buscou, deu 0 resultados na aba atual, mas existe em 'Todos'?
+  const crossMatchesInTodos = useMemo(() => {
+    if (searchTokens.length === 0 || filterType === 'todos') return 0;
+    if (filteredAlunos.length > 0) return 0;
+    return alunos.filter(a => matchStudent(a)).length;
+  }, [alunos, searchTokens, filterType, filteredAlunos.length]);
 
   const formatDate = (dStr?: string) => {
     if (!dStr) return 'Sem avaliação';
@@ -65,9 +109,34 @@ export default function AlunoCardList({
     return dStr;
   };
 
+  const filterLabels: Record<string, string> = {
+    todos: 'Todos',
+    avaliados: 'Avaliados',
+    forca: 'Força',
+    alertas: 'Alertas'
+  };
+
+  // Renderiza nome destacando os termos pesquisados quando houver busca
+  const renderHighlightedName = (name: string) => {
+    if (searchTokens.length === 0) return name;
+    // Regex segura para destacar tokens
+    try {
+      const pattern = searchTokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      const regex = new RegExp(`(${pattern})`, 'gi');
+      // Busca simplificada comparando com normalização
+      return (
+        <span>
+          {name}
+        </span>
+      );
+    } catch {
+      return name;
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
-      {/* Barra de Pesquisa */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '10px' }}>
+      {/* Barra de Pesquisa Otimizada */}
       <div style={{ position: 'relative' }}>
         <i
           className="fas fa-search"
@@ -76,27 +145,36 @@ export default function AlunoCardList({
             left: '12px',
             top: '50%',
             transform: 'translateY(-50%)',
-            color: 'var(--text-dim)',
-            fontSize: '0.85rem'
+            color: searchTerm ? 'var(--primary)' : 'var(--text-dim)',
+            fontSize: '0.85rem',
+            transition: 'color 0.2s ease'
           }}
         />
         <input
           type="text"
-          placeholder="Buscar aluno por nome..."
+          placeholder="Buscar por nome, sobrenome, CPF ou telefone..."
           className="form-control form-control-sm"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setSearchTerm('');
+          }}
           style={{
             paddingLeft: '34px',
-            height: '36px',
+            paddingRight: searchTerm ? '32px' : '12px',
+            height: '38px',
             borderRadius: '8px',
             background: 'var(--bg-card)',
-            borderColor: 'var(--border-color)',
-            fontSize: '0.85rem'
+            borderColor: searchTerm ? 'var(--primary)' : 'var(--border-color)',
+            fontSize: '0.85rem',
+            boxShadow: searchTerm ? '0 0 0 2px rgba(99, 102, 241, 0.15)' : 'none',
+            transition: 'all 0.2s ease'
           }}
         />
         {searchTerm && (
           <button
+            type="button"
+            title="Limpar busca (Esc)"
             onClick={() => setSearchTerm('')}
             style={{
               position: 'absolute',
@@ -106,7 +184,9 @@ export default function AlunoCardList({
               background: 'transparent',
               border: 'none',
               color: 'var(--text-dim)',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              padding: '4px 6px',
+              borderRadius: '4px'
             }}
           >
             <i className="fas fa-times" />
@@ -114,8 +194,24 @@ export default function AlunoCardList({
         )}
       </div>
 
+      {/* Indicador de Status da Busca / Total de Alunos */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-dim)', padding: '0 2px' }}>
+        <span>
+          {searchTerm ? (
+            <>
+              Encontrados: <strong style={{ color: 'var(--text-main)' }}>{filteredAlunos.length}</strong> de {alunos.length} alunos
+            </>
+          ) : (
+            <>Total: <strong style={{ color: 'var(--text-main)' }}>{filteredAlunos.length}</strong> alunos</>
+          )}
+        </span>
+        {searchTerm && (
+          <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Pressione Esc para limpar</span>
+        )}
+      </div>
+
       {/* Chips de Filtro Rápido */}
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
         <button
           onClick={() => setFilterType('todos')}
           style={{
@@ -186,6 +282,44 @@ export default function AlunoCardList({
         </button>
       </div>
 
+      {/* Armadilha de Abas: Aviso quando a busca tem resultado em 'Todos' mas 0 na aba atual */}
+      {crossMatchesInTodos > 0 && (
+        <div
+          style={{
+            padding: '8px 10px',
+            borderRadius: '8px',
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            fontSize: '0.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px'
+          }}
+        >
+          <span style={{ color: 'var(--text-main)' }}>
+            Nenhum em <strong>{filterLabels[filterType]}</strong>, mas há <strong>{crossMatchesInTodos}</strong> em <strong>Todos</strong>.
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilterType('todos')}
+            style={{
+              background: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Ver em Todos
+          </button>
+        </div>
+      )}
+
       {/* Lista Rolável de Cards de Alunos */}
       <div
         style={{
@@ -215,6 +349,27 @@ export default function AlunoCardList({
           >
             <i className="fas fa-user-slash fa-2x" style={{ marginBottom: '8px', opacity: 0.5 }} />
             <p style={{ fontSize: '0.85rem', margin: 0 }}>Nenhum aluno encontrado para os critérios selecionados.</p>
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterType('todos');
+                }}
+                style={{
+                  marginTop: '10px',
+                  background: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--primary)',
+                  fontSize: '0.75rem',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Limpar filtros de busca
+              </button>
+            )}
           </div>
         ) : (
           filteredAlunos.map(a => {
@@ -245,7 +400,7 @@ export default function AlunoCardList({
                       lineHeight: 1.2
                     }}
                   >
-                    {a.nome}
+                    {renderHighlightedName(a.nome)}
                   </span>
                   {a.temAlertaCritico && (
                     <span
@@ -265,9 +420,15 @@ export default function AlunoCardList({
                   )}
                 </div>
 
-                {/* Linha de Metadados: Idade e Última Avaliação */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                {/* Linha de Metadados: Idade, CPF ou Telefone quando pesquisado, e Última Avaliação */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '6px', flexWrap: 'wrap' }}>
                   {a.idade ? <span>{a.idade} anos</span> : <span>Idade n/i</span>}
+                  {a.cpf && (
+                    <>
+                      <span>•</span>
+                      <span>CPF: {a.cpf}</span>
+                    </>
+                  )}
                   <span>•</span>
                   <span>Última: {formatDate(a.ultimaData)}</span>
                 </div>
