@@ -160,13 +160,13 @@ export default function AlunoCardList({
             if (e.key === 'Escape') setSearchTerm('');
           }}
           style={{
-            paddingLeft: '34px',
-            paddingRight: searchTerm ? '32px' : '12px',
-            height: '38px',
-            borderRadius: '8px',
+            paddingLeft: '36px',
+            paddingRight: searchTerm ? '34px' : '12px',
+            height: '42px',
+            borderRadius: '10px',
             background: 'var(--bg-card)',
             borderColor: searchTerm ? 'var(--primary)' : 'var(--border-color)',
-            fontSize: '0.85rem',
+            fontSize: '0.92rem',
             boxShadow: searchTerm ? '0 0 0 2px rgba(99, 102, 241, 0.15)' : 'none',
             transition: 'all 0.2s ease'
           }}
@@ -185,7 +185,7 @@ export default function AlunoCardList({
               border: 'none',
               color: 'var(--text-dim)',
               cursor: 'pointer',
-              padding: '4px 6px',
+              padding: '6px 8px',
               borderRadius: '4px'
             }}
           >
@@ -195,7 +195,7 @@ export default function AlunoCardList({
       </div>
 
       {/* Indicador de Status da Busca / Total de Alunos */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-dim)', padding: '0 2px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', color: 'var(--text-dim)', padding: '0 2px' }}>
         <span>
           {searchTerm ? (
             <>
@@ -211,20 +211,21 @@ export default function AlunoCardList({
       </div>
 
       {/* Chips de Filtro Rápido */}
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setFilterType('todos')}
           style={{
-            padding: '4px 10px',
-            borderRadius: '16px',
-            fontSize: '0.75rem',
-            fontWeight: 500,
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
             border: '1px solid',
             borderColor: filterType === 'todos' ? 'var(--primary)' : 'var(--border-color)',
-            background: filterType === 'todos' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+            background: filterType === 'todos' ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
             color: filterType === 'todos' ? 'var(--primary)' : 'var(--text-dim)',
             cursor: 'pointer',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
           }}
         >
           Todos ({alunos.length})
@@ -232,16 +233,17 @@ export default function AlunoCardList({
         <button
           onClick={() => setFilterType('avaliados')}
           style={{
-            padding: '4px 10px',
-            borderRadius: '16px',
-            fontSize: '0.75rem',
-            fontWeight: 500,
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
             border: '1px solid',
             borderColor: filterType === 'avaliados' ? 'var(--secondary)' : 'var(--border-color)',
-            background: filterType === 'avaliados' ? 'rgba(13, 148, 136, 0.15)' : 'transparent',
+            background: filterType === 'avaliados' ? 'rgba(13, 148, 136, 0.18)' : 'transparent',
             color: filterType === 'avaliados' ? 'var(--secondary)' : 'var(--text-dim)',
             cursor: 'pointer',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
           }}
         >
           Avaliados ({alunos.filter(a => a.totalGeral > 0).length})
@@ -249,16 +251,17 @@ export default function AlunoCardList({
         <button
           onClick={() => setFilterType('forca')}
           style={{
-            padding: '4px 10px',
-            borderRadius: '16px',
-            fontSize: '0.75rem',
-            fontWeight: 500,
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
             border: '1px solid',
             borderColor: filterType === 'forca' ? '#f59e0b' : 'var(--border-color)',
-            background: filterType === 'forca' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+            background: filterType === 'forca' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
             color: filterType === 'forca' ? '#f59e0b' : 'var(--text-dim)',
             cursor: 'pointer',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
           }}
         >
           Força ({alunos.filter(a => a.totalST > 0).length})
@@ -266,16 +269,17 @@ export default function AlunoCardList({
         <button
           onClick={() => setFilterType('alertas')}
           style={{
-            padding: '4px 10px',
-            borderRadius: '16px',
-            fontSize: '0.75rem',
-            fontWeight: 500,
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
             border: '1px solid',
             borderColor: filterType === 'alertas' ? '#ef4444' : 'var(--border-color)',
-            background: filterType === 'alertas' ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+            background: filterType === 'alertas' ? 'rgba(239, 68, 68, 0.18)' : 'transparent',
             color: filterType === 'alertas' ? '#ef4444' : 'var(--text-dim)',
             cursor: 'pointer',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
           }}
         >
           Alertas ({alunos.filter(a => a.temAlertaCritico).length})
@@ -379,45 +383,57 @@ export default function AlunoCardList({
                 key={a._id}
                 onClick={() => onSelectAluno(a._id)}
                 style={{
-                  background: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-card)',
+                  background: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-card)',
                   border: '1px solid',
                   borderColor: isSelected ? 'var(--primary)' : 'var(--border-color)',
                   borderLeft: isSelected ? '4px solid var(--primary)' : '3px solid transparent',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
                   cursor: 'pointer',
                   transition: 'all 0.18s ease-in-out',
-                  position: 'relative'
+                  position: 'relative',
+                  minHeight: '56px'
                 }}
               >
                 {/* Nome do Aluno (Sem Avatar, Conforme Instrução) */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span
                     style={{
-                      fontWeight: isSelected ? 600 : 500,
-                      fontSize: '0.9rem',
+                      fontWeight: isSelected ? 700 : 600,
+                      fontSize: '0.94rem',
                       color: isSelected ? 'var(--primary)' : 'var(--text-main)',
-                      lineHeight: 1.2
+                      lineHeight: 1.25
                     }}
                   >
                     {renderHighlightedName(a.nome)}
                   </span>
-                  {a.temAlertaCritico && (
-                    <span
-                      title="Possui alertas clínicos ou assimetrias críticas"
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {a.temAlertaCritico && (
+                      <span
+                        title="Possui alertas clínicos ou assimetrias críticas"
+                        style={{
+                          fontSize: '9px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(239, 68, 68, 0.18)',
+                          color: '#ef4444',
+                          fontWeight: 700
+                        }}
+                      >
+                        ALERTA
+                      </span>
+                    )}
+                    <i
+                      className="fas fa-chevron-right"
                       style={{
-                        fontSize: '9px',
-                        padding: '2px 5px',
-                        borderRadius: '4px',
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        color: '#ef4444',
-                        fontWeight: 600,
-                        marginLeft: '6px'
+                        fontSize: '0.75rem',
+                        color: isSelected ? 'var(--primary)' : 'var(--text-dim)',
+                        opacity: isSelected ? 1 : 0.4,
+                        transition: 'transform 0.15s ease',
+                        transform: isSelected ? 'translateX(2px)' : 'none'
                       }}
-                    >
-                      ALERTA
-                    </span>
-                  )}
+                    />
+                  </div>
                 </div>
 
                 {/* Linha de Metadados: Idade, CPF ou Telefone quando pesquisado, e Última Avaliação */}
