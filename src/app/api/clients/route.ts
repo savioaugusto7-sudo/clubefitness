@@ -62,9 +62,10 @@ export async function GET(request: Request) {
       let contracts: any[] = [];
       if (clientIds.length > 0) {
         contracts = await Contract.find({ clientId: { $in: clientIds } })
+          .select('clientId status versao createdAt criarRecorrenciaMensal isRecorrente recorrenciaVigencia dataInicio formaPagamento parcelas valorLiquido recorrenciaMeses dataFimRecorrencia dataFim')
           .sort({ versao: -1, createdAt: -1 })
           .lean()
-          .maxTimeMS(5000);
+          .maxTimeMS(4000);
       }
 
       const latestContractMap = new Map<string, any>();
