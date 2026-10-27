@@ -246,10 +246,45 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   if (qList1.length > 0 || qList2.length > 0) {
     const cleanPainRegion = (text: string): string => (text || '').replace(/\s+/g, ' ').trim();
     const extractBaseSegment = (text: string): string => {
-      let s = cleanPainRegion(text);
+      let s = cleanPainRegion(text).toLowerCase();
+      // Remove prefixos comuns de queixa álgica
+      s = s.replace(/^dor\s+(no|na|nos|nas|em|do|da|dos|das|de)\s+/i, '');
+      s = s.replace(/^dor\s+/i, '');
+      // Remove especificações entre parênteses
       s = s.replace(/\s*\([^)]*\).*/g, '');
+      // Remove orações subordinadas/irradiações separadas por vírgula
+      s = s.replace(/\s*,\s*(com\s+irradiação|irradiando|irradia|piorando|associada).*$/i, '');
       s = s.replace(/\s*[-–:].*$/g, '');
-      return s.trim().toLowerCase();
+      // Normaliza abreviações de lateralidade
+      s = s.replace(/\b(e|esq)\.?$/i, 'esquerdo');
+      s = s.replace(/\b(d|dir)\.?$/i, 'direito');
+      s = s.replace(/\b(e|esq)\b/i, 'esquerdo');
+      s = s.replace(/\b(d|dir)\b/i, 'direito');
+
+      const anat = [
+        { re: /joelho\s+esquerdo/i, tag: 'joelho esquerdo' },
+        { re: /joelho\s+direito/i, tag: 'joelho direito' },
+        { re: /ombro\s+esquerdo/i, tag: 'ombro esquerdo' },
+        { re: /ombro\s+direito/i, tag: 'ombro direito' },
+        { re: /tornozelo\s+esquerdo/i, tag: 'tornozelo esquerdo' },
+        { re: /tornozelo\s+direito/i, tag: 'tornozelo direito' },
+        { re: /quadril\s+esquerdo/i, tag: 'quadril esquerdo' },
+        { re: /quadril\s+direito/i, tag: 'quadril direito' },
+        { re: /coluna\s+lombar|lombar/i, tag: 'coluna lombar' },
+        { re: /coluna\s+cervical|cervical/i, tag: 'coluna cervical' }
+      ];
+
+      for (const item of anat) {
+        if (item.re.test(s)) {
+          if (s.includes('posterior')) return `${item.tag} posterior`;
+          if (s.includes('anterior')) return `${item.tag} anterior`;
+          if (s.includes('medial')) return `${item.tag} medial`;
+          if (s.includes('lateral')) return `${item.tag} lateral`;
+          return item.tag;
+        }
+      }
+
+      return s.replace(/\s+/g, ' ').trim();
     };
 
     const pickBestName = (nameA: string, nameB: string): string => {
@@ -257,6 +292,10 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       const cleanB = cleanPainRegion(nameB);
       if (!cleanA) return cleanB;
       if (!cleanB) return cleanA;
+      const isAbbrA = /\b[ED]\b/i.test(cleanA);
+      const isAbbrB = /\b[ED]\b/i.test(cleanB);
+      if (!isAbbrA && isAbbrB) return cleanA;
+      if (isAbbrA && !isAbbrB) return cleanB;
       const hasParenA = cleanA.includes('(');
       const hasParenB = cleanB.includes('(');
       if (hasParenA && !hasParenB) return cleanA;
@@ -289,7 +328,12 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       const base = extractBaseSegment(clean);
       if (!base) return;
 
-      const candidates = pairs.filter(p => !p.q2 && p.baseSegment === base);
+      let candidates = pairs.filter(p => !p.q2 && p.baseSegment === base);
+      if (candidates.length === 0) {
+        // Fallback por inclusão parcial de segmento anatômico
+        candidates = pairs.filter(p => !p.q2 && (p.baseSegment.includes(base) || base.includes(p.baseSegment)));
+      }
+
       let match = candidates[0];
       if (candidates.length > 1) {
         const exact = candidates.find(c => c.displayName.toLowerCase() === clean.toLowerCase());
