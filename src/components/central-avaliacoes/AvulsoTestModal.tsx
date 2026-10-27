@@ -295,7 +295,9 @@ export default function AvulsoTestModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(5, 8, 15, 0.85)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -306,15 +308,16 @@ export default function AvulsoTestModal({
     >
       <div
         style={{
-          background: 'var(--bg-card)',
+          backgroundColor: '#0f172a',
           borderRadius: '14px',
-          border: '1px solid var(--border-color)',
+          border: '1px solid rgba(255, 255, 255, 0.16)',
           maxWidth: '750px',
           width: '100%',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
+          boxShadow: '0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          overflow: 'hidden'
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -322,24 +325,25 @@ export default function AvulsoTestModal({
         <div
           style={{
             padding: '16px 20px',
-            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: '#0f172a',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}
         >
           <div>
-            <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <i className="fas fa-bolt" style={{ color: '#ec4899' }} />
               Lançamento de Teste Avulso / Medição
             </h4>
-            <small style={{ color: 'var(--text-dim)' }}>
-              Aluno: <strong>{clientNome}</strong> • Registro isolado sem necessidade de avaliação completa
+            <small style={{ color: 'var(--text-dim, #94a3b8)' }}>
+              Aluno: <strong style={{ color: '#e2e8f0' }}>{clientNome}</strong> • Registro isolado sem necessidade de avaliação completa
             </small>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '1.2rem', cursor: 'pointer' }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-dim, #94a3b8)', fontSize: '1.2rem', cursor: 'pointer' }}
           >
             <i className="fas fa-times" />
           </button>
@@ -349,8 +353,8 @@ export default function AvulsoTestModal({
         <div
           style={{
             padding: '12px 20px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: '#161f30',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -396,7 +400,7 @@ export default function AvulsoTestModal({
         </div>
 
         {/* Grade de Seleção do Teste */}
-        <div style={{ padding: '12px 20px 6px', borderBottom: '1px solid var(--border-color)', overflowX: 'auto', display: 'flex', gap: '6px' }}>
+        <div style={{ padding: '12px 20px 6px', backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', overflowX: 'auto', display: 'flex', gap: '6px' }}>
           {[
             { id: 'Y_TEST', label: 'Y-Test', icon: 'fa-shoe-prints' },
             { id: 'STEP_DOWN', label: 'Step Down', icon: 'fa-sort-amount-down' },
@@ -414,11 +418,11 @@ export default function AvulsoTestModal({
                 padding: '6px 12px',
                 borderRadius: '8px',
                 fontSize: '0.8rem',
-                fontWeight: 500,
+                fontWeight: 600,
                 border: '1px solid',
-                borderColor: selectedCategory === t.id ? 'var(--primary)' : 'var(--border-color)',
-                background: selectedCategory === t.id ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                color: selectedCategory === t.id ? 'var(--primary)' : 'var(--text-dim)',
+                borderColor: selectedCategory === t.id ? '#6366f1' : 'rgba(255, 255, 255, 0.12)',
+                background: selectedCategory === t.id ? '#312e81' : '#161f30',
+                color: selectedCategory === t.id ? '#fff' : 'var(--text-dim, #94a3b8)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 display: 'inline-flex',
@@ -433,11 +437,11 @@ export default function AvulsoTestModal({
         </div>
 
         {/* Corpo do Formulário do Teste Específico */}
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '20px', backgroundColor: '#0b0f19', overflowY: 'auto', flex: 1 }}>
           {/* 1. Y-TEST */}
           {selectedCategory === 'Y_TEST' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.15)' }}>
+              <div style={{ backgroundColor: '#161f30', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px', display: 'block' }}>
                   Comprimento do Membro Inferior (cm) — Da EIAS ao maléolo medial:
                 </label>
@@ -812,7 +816,8 @@ export default function AvulsoTestModal({
         <div
           style={{
             padding: '14px 20px',
-            borderTop: '1px solid var(--border-color)',
+            backgroundColor: '#0f172a',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
             justifyContent: 'flex-end',
             gap: '10px'

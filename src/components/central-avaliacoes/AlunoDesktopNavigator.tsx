@@ -125,8 +125,8 @@ export default function AlunoDesktopNavigator({
       ref={dropdownRef}
       style={{
         position: 'relative',
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
-        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
         borderRadius: '14px',
         padding: '10px 16px',
         display: 'flex',
@@ -134,7 +134,7 @@ export default function AlunoDesktopNavigator({
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '12px',
-        boxShadow: '0 4px 18px rgba(0, 0, 0, 0.25)',
+        boxShadow: '0 4px 18px rgba(0, 0, 0, 0.4)',
         zIndex: 50
       }}
     >
@@ -327,15 +327,15 @@ export default function AlunoDesktopNavigator({
             left: 0,
             right: 0,
             maxWidth: '680px',
-            background: 'var(--bg-card, #1e293b)',
-            border: '1px solid var(--border-color, rgba(255, 255, 255, 0.18))',
+            backgroundColor: '#0b0f19',
+            border: '1px solid rgba(255, 255, 255, 0.22)',
             borderRadius: '14px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 30px 60px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.12)',
             padding: '14px',
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
-            zIndex: 100
+            zIndex: 1000
           }}
         >
           {/* Campo de Busca Rápida */}
@@ -349,11 +349,11 @@ export default function AlunoDesktopNavigator({
               placeholder="Digite o nome, CPF ou telefone do aluno..."
               style={{
                 width: '100%',
-                background: 'rgba(15, 23, 42, 0.8)',
-                border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15))',
+                backgroundColor: '#161f30',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 borderRadius: '8px',
                 padding: '10px 14px 10px 36px',
-                color: 'var(--text-main, #fff)',
+                color: '#fff',
                 fontSize: '0.92rem',
                 outline: 'none'
               }}
@@ -379,7 +379,7 @@ export default function AlunoDesktopNavigator({
           </div>
 
           {/* Lista de Alunos Filtrados para Troca Imediata */}
-          <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '4px' }}>
+          <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px', paddingRight: '4px' }}>
             {filteredAlunos.length > 0 ? (
               filteredAlunos.map(a => {
                 const isSelected = a._id === selectedAlunoId;
@@ -396,22 +396,22 @@ export default function AlunoDesktopNavigator({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '9px 12px',
+                      padding: '10px 12px',
                       borderRadius: '8px',
-                      background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                      border: isSelected ? '1px solid var(--primary, #6366f1)' : '1px solid transparent',
+                      backgroundColor: isSelected ? '#312e81' : '#161f30',
+                      border: isSelected ? '1px solid #818cf8' : '1px solid rgba(255, 255, 255, 0.08)',
                       cursor: 'pointer',
                       transition: 'all 0.12s ease'
                     }}
                     onMouseEnter={e => {
-                      if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.08)';
+                      if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#243048';
                     }}
                     onMouseLeave={e => {
-                      if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.03)';
+                      if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#161f30';
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                      <strong style={{ fontSize: '0.88rem', color: isSelected ? '#a5b4fc' : 'var(--text-main, #fff)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <strong style={{ fontSize: '0.88rem', color: isSelected ? '#c7d2fe' : 'var(--text-main, #fff)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {a.nome}
                       </strong>
                       {a.idade && <span style={{ fontSize: '0.74rem', color: 'var(--text-dim, #94a3b8)' }}>{a.idade}a</span>}
@@ -419,12 +419,12 @@ export default function AlunoDesktopNavigator({
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       {isHoje && (
-                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.25)', color: '#10b981' }}>
                           HOJE
                         </span>
                       )}
                       {a.temAlertaCritico && (
-                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.25)', color: '#f87171' }}>
                           ALERTA
                         </span>
                       )}
