@@ -303,6 +303,18 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       return cleanA.length >= cleanB.length ? cleanA : cleanB;
     };
 
+    const getQueixaKey = (q: any): { baseSegment: string; displayName: string } => {
+      const clean = cleanPainRegion(q.dorOnde || '');
+      if (q.regiao) {
+        const lat = q.lateralidade && q.lateralidade !== 'Central / Axial' ? ` ${q.lateralidade}` : '';
+        const sub = q.subRegiao ? ` (${q.subRegiao})` : '';
+        const display = `${q.regiao}${lat}${sub}`;
+        const base = `${q.regiao}${lat}`.toLowerCase().trim();
+        return { baseSegment: base, displayName: display || clean };
+      }
+      return { baseSegment: extractBaseSegment(clean), displayName: clean };
+    };
+
     const pairs: Array<{
       baseSegment: string;
       displayName: string;
@@ -311,42 +323,38 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     }> = [];
 
     qList1.forEach((q1: any) => {
-      if (!q1?.dorOnde) return;
-      const clean = cleanPainRegion(q1.dorOnde);
-      const base = extractBaseSegment(clean);
-      if (!base) return;
+      const { baseSegment, displayName } = getQueixaKey(q1);
+      if (!baseSegment) return;
       pairs.push({
-        baseSegment: base,
-        displayName: clean,
+        baseSegment,
+        displayName,
         q1
       });
     });
 
     qList2.forEach((q2: any) => {
-      if (!q2?.dorOnde) return;
-      const clean = cleanPainRegion(q2.dorOnde);
-      const base = extractBaseSegment(clean);
-      if (!base) return;
+      const { baseSegment, displayName } = getQueixaKey(q2);
+      if (!baseSegment) return;
 
-      let candidates = pairs.filter(p => !p.q2 && p.baseSegment === base);
+      let candidates = pairs.filter(p => !p.q2 && p.baseSegment === baseSegment);
       if (candidates.length === 0) {
         // Fallback por inclusão parcial de segmento anatômico
-        candidates = pairs.filter(p => !p.q2 && (p.baseSegment.includes(base) || base.includes(p.baseSegment)));
+        candidates = pairs.filter(p => !p.q2 && (p.baseSegment.includes(baseSegment) || baseSegment.includes(p.baseSegment)));
       }
 
       let match = candidates[0];
       if (candidates.length > 1) {
-        const exact = candidates.find(c => c.displayName.toLowerCase() === clean.toLowerCase());
+        const exact = candidates.find(c => c.displayName.toLowerCase() === displayName.toLowerCase());
         if (exact) match = exact;
       }
 
       if (match) {
         match.q2 = q2;
-        match.displayName = pickBestName(match.displayName, clean);
+        match.displayName = pickBestName(match.displayName, displayName);
       } else {
         pairs.push({
-          baseSegment: base,
-          displayName: clean,
+          baseSegment,
+          displayName,
           q2
         });
       }

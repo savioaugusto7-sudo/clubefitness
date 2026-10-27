@@ -413,6 +413,39 @@ export async function syncPhysioReportTests(reportDoc: any) {
         origemDocumento: { tipo: 'PhysioReport', documentoId: docId }
       });
     }
+
+    // Queixas de Dor / EVA
+    const queixas = reportDoc.anamnese?.queixas || [];
+    if (Array.isArray(queixas) && queixas.length > 0) {
+      for (const q of queixas) {
+        if (!q) continue;
+        const eva = Number(q.dorIntensidade ?? q.intensidade ?? reportDoc.conteudo?.dorEscala ?? 0);
+        await ClientTestRecord.create({
+          clienteId,
+          profissionalId,
+          data,
+          tipoTeste: 'QUEIXAS_EVA',
+          dados: {
+            regiao: q.regiao || q.dorOnde || 'Geral',
+            subRegiao: q.subRegiao || '',
+            lateralidade: q.lateralidade || '',
+            intensidade: eva,
+            atividadesAgravantes: q.atividadesAgravantes || [],
+            fatoresAlivio: q.fatoresAlivio || [],
+            caracteristica: q.caracteristicaDor || 'Pontual / Aguda',
+            observacoesLivres: q.observacoesLivres || '',
+            dorOnde: q.dorOnde || '',
+            desencadeiaPiora: q.desencadeiaPiora || '',
+            melhoraDesaparece: q.melhoraDesaparece || ''
+          },
+          metricas: {
+            scorePrincipal: eva,
+            classificacao: eva === 0 ? 'Sem dor' : (eva <= 3 ? 'Dor leve' : (eva <= 6 ? 'Dor moderada' : 'Dor severa'))
+          },
+          origemDocumento: { tipo: 'PhysioReport', documentoId: docId }
+        });
+      }
+    }
   } catch (err) {
     console.error('Error syncing physio report tests to ClientTestRecord:', err);
   }

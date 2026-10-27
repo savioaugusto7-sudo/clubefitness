@@ -170,14 +170,23 @@ export async function GET(request: Request) {
 
     clientTestRecords.forEach(tr => {
       const metrics: string[] = [];
-      if (tr.metricas?.scorePrincipal != null) {
-        metrics.push(`Score: ${tr.metricas.scorePrincipal}`);
-      }
-      if (tr.metricas?.assimetriaPercentual != null) {
-        metrics.push(`Assimetria: ${tr.metricas.assimetriaPercentual}%`);
-      }
-      if (tr.comparativoAnterior?.statusEvolucao) {
-        metrics.push(`Status: ${tr.comparativoAnterior.statusEvolucao}`);
+      if (tr.tipoTeste === 'QUEIXAS_EVA') {
+        const onde = tr.dados?.dorOnde || tr.dados?.regiao || 'Dor';
+        const eva = tr.dados?.intensidade ?? tr.metricas?.scorePrincipal ?? 0;
+        metrics.push(`${onde}: EVA ${eva}/10`);
+        if (tr.dados?.atividadesAgravantes && tr.dados.atividadesAgravantes.length > 0) {
+          metrics.push(`Piora: ${tr.dados.atividadesAgravantes.slice(0, 2).join(', ')}`);
+        }
+      } else {
+        if (tr.metricas?.scorePrincipal != null) {
+          metrics.push(`Score: ${tr.metricas.scorePrincipal}`);
+        }
+        if (tr.metricas?.assimetriaPercentual != null) {
+          metrics.push(`Assimetria: ${tr.metricas.assimetriaPercentual}%`);
+        }
+        if (tr.comparativoAnterior?.statusEvolucao) {
+          metrics.push(`Status: ${tr.comparativoAnterior.statusEvolucao}`);
+        }
       }
 
       timeline.push({
@@ -185,8 +194,8 @@ export async function GET(request: Request) {
         origem: 'ClientTestRecord',
         tipoTeste: tr.tipoTeste,
         tipoLabel: TEST_TYPE_LABELS[tr.tipoTeste] || tr.tipoTeste || 'Teste Avulso',
-        icone: 'fa-bolt',
-        cor: '#ec4899',
+        icone: tr.tipoTeste === 'QUEIXAS_EVA' ? 'fa-heart-pulse' : 'fa-bolt',
+        cor: tr.tipoTeste === 'QUEIXAS_EVA' ? '#ef4444' : '#ec4899',
         data: tr.data,
         createdAt: tr.createdAt,
         avaliadorId: tr.profissionalId,
@@ -308,24 +317,41 @@ export async function GET(request: Request) {
       console.warn('Erro em gonioSeries:', err.message);
     }
 
-    // B) Dor / EVA ao longo do tempo
+    // B) Dor / EVA ao longo do tempo (unificando Relatórios Fisioterápicos e Testes Avulsos de Queixa)
     let evaSeries: any[] = [];
     try {
       const evaSeriesDocs = [...physioReports]
-        .filter(doc => (doc.anamnese?.queixas && doc.anamnese.queixas.length > 0) || (doc.anamnese?.queixasDor && doc.anamnese.queixasDor.length > 0) || doc.conteudo?.dorEscala != null)
-        .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        .filter(doc => (doc.anamnese?.queixas && doc.anamnese.queixas.length > 0) || (doc.anamnese?.queixasDor && doc.anamnese.queixasDor.length > 0) || doc.conteudo?.dorEscala != null);
 
-      evaSeries = evaSeriesDocs.map(doc => {
-        const queixas = doc.anamnese?.queixas || doc.anamnese?.queixasDor || [];
-        return {
-          data: doc.data,
-          queixas: queixas.map((q: any) => ({
-            regiao: q.dorOnde || q.regiao || doc.conteudo?.queixaPrincipal || 'Geral',
-            intensidade: Number(q.dorIntensidade ?? q.intensidade ?? doc.conteudo?.dorEscala) || 0
-          })),
-          dorGeral: doc.conteudo?.dorEscala != null ? Number(doc.conteudo.dorEscala) : null
-        };
-      });
+      const avulsoEvaRecords = clientTestRecords.filter(tr => tr.tipoTeste === 'QUEIXAS_EVA');
+
+      const combinedEva = [
+        ...evaSeriesDocs.map(doc => {
+          const queixas = doc.anamnese?.queixas || doc.anamnese?.queixasDor || [];
+          return {
+            data: doc.data,
+            origem: 'Relatório',
+            queixas: queixas.map((q: any) => ({
+              regiao: q.dorOnde || q.regiao || doc.conteudo?.queixaPrincipal || 'Geral',
+              intensidade: Number(q.dorIntensidade ?? q.intensidade ?? doc.conteudo?.dorEscala) || 0,
+              atividadesAgravantes: q.atividadesAgravantes || []
+            })),
+            dorGeral: doc.conteudo?.dorEscala != null ? Number(doc.conteudo.dorEscala) : null
+          };
+        }),
+        ...avulsoEvaRecords.map(tr => ({
+          data: tr.data,
+          origem: 'Avulso',
+          queixas: [{
+            regiao: tr.dados?.dorOnde || tr.dados?.regiao || 'Geral',
+            intensidade: Number(tr.dados?.intensidade ?? tr.metricas?.scorePrincipal ?? 0),
+            atividadesAgravantes: tr.dados?.atividadesAgravantes || []
+          }],
+          dorGeral: Number(tr.dados?.intensidade ?? tr.metricas?.scorePrincipal ?? 0)
+        }))
+      ].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+
+      evaSeries = combinedEva;
     } catch (err: any) {
       console.warn('Erro em evaSeries:', err.message);
     }

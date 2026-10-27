@@ -38,6 +38,8 @@ import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 import { getWeeklyFrequencyMetrics } from '@/utils/retentionEngine';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 import { getUpcomingBirthdays, BirthdaySummary, BirthdayItem } from '@/utils/dateUtils';
+import QueixaFisioterapiaCard from './fisioterapia/QueixaFisioterapiaCard';
+import { QueixaFisioterapicaItem } from '@/utils/fisioterapiaQueixasCatalog';
 
 export { normalizeText, smartSearchMatch };
 
@@ -4079,15 +4081,36 @@ goniometria: {
   };
 
   const addQueixa = () => {
-    setRepQueixas([...repQueixas, { dorOnde: '', quandoComecou: '', comoIniciou: '', dorEvolucao: 'estavel', dorIntensidade: 5, dorTodoMomento: 'sim', desencadeiaPiora: '', melhoraDesaparece: '', caracteristicaDor: 'Pontual / Aguda', origens: [] }]);
+    const novaQueixa: any = {
+      regiao: 'Coluna Lombar',
+      subRegiao: 'Lombar Baixa (L4–L5)',
+      lateralidade: 'Central / Axial',
+      dorIntensidade: 5,
+      atividadesAgravantes: ['Inclinar tronco à frente (Flexão)'],
+      fatoresAlivio: ['Repouso absoluto'],
+      dorEvolucao: 'estavel',
+      dorTodoMomento: 'sim',
+      caracteristicaDor: 'Pontual / Aguda',
+      dorOnde: 'Coluna Lombar Central (Lombar Baixa L4–L5)',
+      desencadeiaPiora: 'Inclinar tronco à frente (Flexão)',
+      melhoraDesaparece: 'Repouso absoluto',
+      quandoComecou: '',
+      comoIniciou: '',
+      origens: []
+    };
+    setRepQueixas([...repQueixas, novaQueixa]);
   };
   
   const removeQueixa = (index: number) => {
     setRepQueixas(repQueixas.filter((_, idx) => idx !== index));
   };
   
-  const updateQueixa = (index: number, field: string, val: any) => {
-    setRepQueixas(repQueixas.map((q, idx) => idx === index ? { ...q, [field]: val } : q));
+  const updateQueixa = (index: number, fieldOrItem: string | any, val?: any) => {
+    if (typeof fieldOrItem === 'object' && fieldOrItem !== null) {
+      setRepQueixas(repQueixas.map((q, idx) => idx === index ? fieldOrItem : q));
+    } else {
+      setRepQueixas(repQueixas.map((q, idx) => idx === index ? { ...q, [fieldOrItem]: val } : q));
+    }
     clearRepPrefill('anamnese.queixas');
   };
 
@@ -14345,199 +14368,31 @@ goniometria: {
                             const prevQ = prevQueixas[idx];
 
                             return (
-                              <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '12px', position: 'relative' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <strong style={{ color: 'var(--color-primary)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
-                                      {idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
-                                    </strong>
-                                    {prevQ && (
-                                      <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => {
-                                          if (prevQ.dorOnde !== undefined) updateQueixa(idx, 'dorOnde', prevQ.dorOnde);
-                                          if (prevQ.quandoComecou !== undefined) updateQueixa(idx, 'quandoComecou', prevQ.quandoComecou);
-                                          if (prevQ.comoIniciou !== undefined) updateQueixa(idx, 'comoIniciou', prevQ.comoIniciou);
-                                          if (prevQ.dorEvolucao !== undefined) updateQueixa(idx, 'dorEvolucao', prevQ.dorEvolucao);
-                                          if (prevQ.dorIntensidade !== undefined) updateQueixa(idx, 'dorIntensidade', Number(prevQ.dorIntensidade));
-                                          if (prevQ.dorTodoMomento !== undefined) updateQueixa(idx, 'dorTodoMomento', prevQ.dorTodoMomento);
-                                          if (prevQ.desencadeiaPiora !== undefined) updateQueixa(idx, 'desencadeiaPiora', prevQ.desencadeiaPiora);
-                                          if (prevQ.melhoraDesaparece !== undefined) updateQueixa(idx, 'melhoraDesaparece', prevQ.melhoraDesaparece);
-                                          if (prevQ.caracteristicaDor !== undefined) updateQueixa(idx, 'caracteristicaDor', prevQ.caracteristicaDor);
-                                          if (prevQ.origens !== undefined) updateQueixa(idx, 'origens', prevQ.origens);
-                                        }}
-                                        style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
-                                      >
-                                        <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter Esta Queixa
-                                      </button>
-                                    )}
-                                  </div>
-                                  {idx > 0 && (
-                                    <button type="button" className="btn btn-danger btn-sm" onClick={() => removeQueixa(idx)} style={{ padding: '3px 8px', fontSize: '0.75rem' }}>
-                                      <i className="fa-solid fa-trash" style={{ marginRight: '4px' }}></i> Remover
-                                    </button>
-                                  )}
-                                </div>
-                                
-                                <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Onde é a dor?</label>
-                                    <input type="text" className="form-control form-control-sm" value={q.dorOnde} onChange={e => updateQueixa(idx, 'dorOnde', e.target.value)} placeholder="Ex: Joelho lateral esquerdo..." required />
-                                    <ComparisonPill
-                                      prevValue={prevQ?.dorOnde}
-                                      currValue={q.dorOnde}
-                                      onKeepValue={() => {
-                                        if (prevQ?.dorOnde) updateQueixa(idx, 'dorOnde', prevQ.dorOnde);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Quando começou a sentir?</label>
-                                    <input type="text" className="form-control form-control-sm" value={q.quandoComecou} onChange={e => updateQueixa(idx, 'quandoComecou', e.target.value)} placeholder="Ex: Há 3 semanas..." />
-                                    <ComparisonPill
-                                      prevValue={prevQ?.quandoComecou}
-                                      currValue={q.quandoComecou}
-                                      onKeepValue={() => {
-                                        if (prevQ?.quandoComecou) updateQueixa(idx, 'quandoComecou', prevQ.quandoComecou);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Como iniciou?</label>
-                                    <input type="text" className="form-control form-control-sm" value={q.comoIniciou} onChange={e => updateQueixa(idx, 'comoIniciou', e.target.value)} placeholder="Ex: Durante agachamento..." />
-                                    <ComparisonPill
-                                      prevValue={prevQ?.comoIniciou}
-                                      currValue={q.comoIniciou}
-                                      onKeepValue={() => {
-                                        if (prevQ?.comoIniciou) updateQueixa(idx, 'comoIniciou', prevQ.comoIniciou);
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="resp-grid-1-1" style={{ marginBottom: '10px' }}>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Evolução da Dor</label>
-                                    <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'estavel'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'estavel')} /> Sente a mesma dor</label>
-                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'aumentando'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'aumentando')} /> Foi aumentando</label>
-                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'diminuindo'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'diminuindo')} /> Foi diminuindo</label>
-                                    </div>
-                                    <ComparisonPill
-                                      prevValue={prevQ?.dorEvolucao ? (prevQ.dorEvolucao === 'estavel' ? 'Sente a mesma dor' : prevQ.dorEvolucao === 'aumentando' ? 'Foi aumentando' : 'Foi diminuindo') : undefined}
-                                      currValue={q.dorEvolucao === 'estavel' ? 'Sente a mesma dor' : q.dorEvolucao === 'aumentando' ? 'Foi aumentando' : 'Foi diminuindo'}
-                                      onKeepValue={() => {
-                                        if (prevQ?.dorEvolucao) updateQueixa(idx, 'dorEvolucao', prevQ.dorEvolucao);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Intensidade da Dor (EVA: <strong>{q.dorIntensidade}</strong>/10)</label>
-                                    <input type="range" className="form-control" min="0" max="10" value={q.dorIntensidade} onChange={e => updateQueixa(idx, 'dorIntensidade', Number(e.target.value))} style={{ accentColor: 'var(--color-danger)' }} />
-                                    <ComparisonPill
-                                      prevValue={prevQ?.dorIntensidade}
-                                      currValue={q.dorIntensidade}
-                                      unit="/10"
-                                      isLowerBetter={true}
-                                      onKeepValue={() => {
-                                        if (prevQ?.dorIntensidade !== undefined) updateQueixa(idx, 'dorIntensidade', Number(prevQ.dorIntensidade));
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Sente essa dor a todo momento?</label>
-                                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
-                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'sim'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'sim')} /> Sim</label>
-                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'nao'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'nao')} /> Não</label>
-                                    </div>
-                                    <ComparisonPill
-                                      prevValue={prevQ?.dorTodoMomento ? (prevQ.dorTodoMomento === 'sim' ? 'Sim' : 'Não') : undefined}
-                                      currValue={q.dorTodoMomento === 'sim' ? 'Sim' : 'Não'}
-                                      onKeepValue={() => {
-                                        if (prevQ?.dorTodoMomento) updateQueixa(idx, 'dorTodoMomento', prevQ.dorTodoMomento);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>O que piora?</label>
-                                    <input type="text" className="form-control form-control-sm" value={q.desencadeiaPiora || ''} onChange={e => updateQueixa(idx, 'desencadeiaPiora', e.target.value)} placeholder="Ex: Ficar de pé prolongado..." />
-                                    <ComparisonPill
-                                      prevValue={prevQ?.desencadeiaPiora}
-                                      currValue={q.desencadeiaPiora}
-                                      onKeepValue={() => {
-                                        if (prevQ?.desencadeiaPiora) updateQueixa(idx, 'desencadeiaPiora', prevQ.desencadeiaPiora);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>O que melhora?</label>
-                                    <input type="text" className="form-control form-control-sm" value={q.melhoraDesaparece || ''} onChange={e => updateQueixa(idx, 'melhoraDesaparece', e.target.value)} placeholder="Ex: Repouso..." />
-                                    <ComparisonPill
-                                      prevValue={prevQ?.melhoraDesaparece}
-                                      currValue={q.melhoraDesaparece}
-                                      onKeepValue={() => {
-                                        if (prevQ?.melhoraDesaparece) updateQueixa(idx, 'melhoraDesaparece', prevQ.melhoraDesaparece);
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="resp-grid-1-2">
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Característica da Dor</label>
-                                    <select className="form-control form-control-sm" value={q.caracteristicaDor || 'Pontual / Aguda'} onChange={e => updateQueixa(idx, 'caracteristicaDor', e.target.value)}>
-                                      <option value="Queimação">Queimação</option>
-                                      <option value="Elétrica / Choque">Elétrica / Choque</option>
-                                      <option value="Pontual / Aguda">Pontual / Aguda</option>
-                                      <option value="Difusa / Surda">Difusa / Surda</option>
-                                      <option value="Latejante">Latejante</option>
-                                      <option value="Outra">Outra</option>
-                                    </select>
-                                    <ComparisonPill
-                                      prevValue={prevQ?.caracteristicaDor}
-                                      currValue={q.caracteristicaDor}
-                                      onKeepValue={() => {
-                                        if (prevQ?.caracteristicaDor) updateQueixa(idx, 'caracteristicaDor', prevQ.caracteristicaDor);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Origem Estimada da Dor</label>
-                                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
-                                      {['Discal', 'Ligamentar', 'Muscular', 'Nervoso', 'Facetário', 'Visceral'].map(orig => {
-                                        const hasOrig = (q.origens || []).includes(orig);
-                                        return (
-                                          <label key={orig} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                            <input
-                                              type="checkbox"
-                                              checked={hasOrig}
-                                              onChange={e => {
-                                                const current = q.origens || [];
-                                                const updated = e.target.checked
-                                                  ? [...current, orig]
-                                                  : current.filter((o: string) => o !== orig);
-                                                updateQueixa(idx, 'origens', updated);
-                                              }}
-                                            />
-                                            {orig}
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                    <ComparisonPill
-                                      prevValue={prevQ?.origens?.length ? prevQ.origens.join(', ') : undefined}
-                                      currValue={q.origens?.length ? q.origens.join(', ') : undefined}
-                                      onKeepValue={() => {
-                                        if (prevQ?.origens) updateQueixa(idx, 'origens', prevQ.origens);
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
+                              <QueixaFisioterapiaCard
+                                key={idx}
+                                queixa={q}
+                                index={idx}
+                                isPrincipal={idx === 0}
+                                onChange={newQ => updateQueixa(idx, newQ)}
+                                onRemove={idx > 0 ? () => removeQueixa(idx) : undefined}
+                                prevQueixa={prevQ}
+                                onKeepPrev={prevQ ? () => {
+                                  const updated = {
+                                    ...q,
+                                    ...prevQ,
+                                    dorOnde: prevQ.dorOnde || q.dorOnde,
+                                    dorIntensidade: prevQ.dorIntensidade !== undefined ? Number(prevQ.dorIntensidade) : q.dorIntensidade,
+                                    desencadeiaPiora: prevQ.desencadeiaPiora || q.desencadeiaPiora,
+                                    melhoraDesaparece: prevQ.melhoraDesaparece || q.melhoraDesaparece,
+                                    regiao: prevQ.regiao || q.regiao || 'Joelho',
+                                    subRegiao: prevQ.subRegiao || q.subRegiao || '',
+                                    lateralidade: prevQ.lateralidade || q.lateralidade || 'Direito',
+                                    atividadesAgravantes: Array.isArray(prevQ.atividadesAgravantes) ? prevQ.atividadesAgravantes : (q.atividadesAgravantes || []),
+                                    fatoresAlivio: Array.isArray(prevQ.fatoresAlivio) ? prevQ.fatoresAlivio : (q.fatoresAlivio || [])
+                                  };
+                                  updateQueixa(idx, updated);
+                                } : undefined}
+                              />
                             );
                           })}
                           

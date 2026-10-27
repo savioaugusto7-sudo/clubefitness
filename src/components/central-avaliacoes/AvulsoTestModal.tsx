@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import QueixaFisioterapiaCard from '@/components/fisioterapia/QueixaFisioterapiaCard';
+import { QueixaFisioterapicaItem } from '@/utils/fisioterapiaQueixasCatalog';
 
 interface AvulsoTestModalProps {
   clientId: string;
@@ -94,10 +96,21 @@ export default function AvulsoTestModal({
   const [toKfboD, setToKfboD] = useState<number | ''>('');
   const [toKfboE, setToKfboE] = useState<number | ''>('');
 
-  // 8. Queixa Dor EVA
-  const [evaRegiao, setEvaRegiao] = useState('Joelho');
-  const [evaIntensidade, setEvaIntensidade] = useState<number>(0);
-  const [evaCaracteristica, setEvaCaracteristica] = useState('Dor ao agachar / descer escadas');
+  // 8. Queixa Dor EVA Padronizada (Anatomia + CIF)
+  const [evaQueixa, setEvaQueixa] = useState<QueixaFisioterapicaItem>({
+    regiao: 'Joelho',
+    subRegiao: 'Anterior / Patelofemoral (Retropatelar / Tróclea)',
+    lateralidade: 'Direito',
+    dorIntensidade: 5,
+    atividadesAgravantes: ['Descer escadas', 'Agachar (Squatting)'],
+    fatoresAlivio: ['Repouso absoluto'],
+    dorEvolucao: 'estavel',
+    comportamentoDor: 'Intermitente',
+    caracteristicaDor: 'Pontual / Aguda',
+    dorOnde: 'Joelho Direito (Anterior / Patelofemoral)',
+    desencadeiaPiora: 'Descer escadas, Agachar (Squatting)',
+    melhoraDesaparece: 'Repouso absoluto'
+  });
 
   // Cálculos dinâmicos em tempo real
   const yCalc = React.useMemo(() => {
@@ -219,13 +232,31 @@ export default function AvulsoTestModal({
         };
       } else if (selectedCategory === 'QUEIXAS_EVA') {
         payloadDados = {
-          regiao: evaRegiao,
-          intensidade: evaIntensidade,
-          caracteristica: evaCaracteristica
+          regiao: evaQueixa.regiao,
+          subRegiao: evaQueixa.subRegiao,
+          lateralidade: evaQueixa.lateralidade,
+          intensidade: evaQueixa.dorIntensidade,
+          atividadesAgravantes: evaQueixa.atividadesAgravantes,
+          fatoresAlivio: evaQueixa.fatoresAlivio,
+          caracteristica: evaQueixa.caracteristicaDor || 'Pontual / Aguda',
+          observacoesLivres: evaQueixa.observacoesLivres || '',
+          // Retrocompatibilidade automática sintetizada:
+          dorOnde: evaQueixa.dorOnde,
+          desencadeiaPiora: evaQueixa.desencadeiaPiora,
+          melhoraDesaparece: evaQueixa.melhoraDesaparece
         };
         payloadMetricas = {
-          scorePrincipal: evaIntensidade,
-          classificacao: evaIntensidade === 0 ? 'Sem dor' : (evaIntensidade <= 3 ? 'Dor leve' : (evaIntensidade <= 6 ? 'Dor moderada' : 'Dor severa'))
+          scorePrincipal: evaQueixa.dorIntensidade,
+          regiao: evaQueixa.regiao,
+          lateralidade: evaQueixa.lateralidade,
+          subRegiao: evaQueixa.subRegiao,
+          classificacao: evaQueixa.dorIntensidade === 0
+            ? 'Sem dor'
+            : evaQueixa.dorIntensidade <= 3
+            ? 'Dor leve'
+            : evaQueixa.dorIntensidade <= 6
+            ? 'Dor moderada'
+            : 'Dor severa'
         };
       }
 
@@ -752,48 +783,14 @@ export default function AvulsoTestModal({
             </div>
           )}
 
-          {/* 8. QUEIXAS DE DOR & ESCALA EVA */}
+          {/* 8. QUEIXAS DE DOR & ESCALA EVA PADRONIZADA */}
           {selectedCategory === 'QUEIXAS_EVA' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Região Anatômica da Dor:</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Joelho direito (compartimento medial)"
-                  className="form-control form-control-sm"
-                  value={evaRegiao}
-                  onChange={e => setEvaRegiao(e.target.value)}
-                />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Intensidade na Escala EVA (0 a 10):</label>
-                  <strong style={{ color: evaIntensidade >= 7 ? '#ef4444' : (evaIntensidade >= 4 ? '#f59e0b' : '#10b981') }}>
-                    {evaIntensidade} / 10
-                  </strong>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="1"
-                  className="form-range"
-                  style={{ width: '100%' }}
-                  value={evaIntensidade}
-                  onChange={e => setEvaIntensidade(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Características e Comportamento da Dor:</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Piora na descida de degraus, alivia com aquecimento"
-                  className="form-control form-control-sm"
-                  value={evaCaracteristica}
-                  onChange={e => setEvaCaracteristica(e.target.value)}
-                />
-              </div>
-            </div>
+            <QueixaFisioterapiaCard
+              queixa={evaQueixa}
+              index={0}
+              isPrincipal={true}
+              onChange={setEvaQueixa}
+            />
           )}
 
           {/* Campo de Observações Gerais */}
