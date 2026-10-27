@@ -39,7 +39,9 @@ export interface TableRowForca {
   t1: number;
   t2: number;
   variacaoPct: number;
+  variacao?: string;
   leitura: 'Evoluiu muito' | 'Evoluiu' | 'Estável' | 'Estagnado' | 'Queda aparente — requer verificação';
+  situacao?: string;
 }
 
 export interface TableRowRazao {
@@ -56,6 +58,7 @@ export interface TableRowSimetria {
   t1: number;
   t2: number;
   variacaoPP: number;
+  variacao?: string;
   situacao: 'Resolvida' | 'Melhorou, ainda acima de 10%' | 'Persistente' | 'Piorou';
 }
 
@@ -465,13 +468,19 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       leitura = 'Evoluiu';
     }
 
+    const variacaoStr = (v1 > 0 && v2 > 0)
+      ? `${deltaPct >= 0 ? '+' : ''}${deltaPct}%`
+      : (v2 > 0 ? '+100%' : (v1 > 0 ? '-100%' : '0%'));
+
     rowsForca.push({
       movimento: mov,
       lado,
       t1: v1,
       t2: v2,
       variacaoPct: deltaPct,
-      leitura
+      variacao: variacaoStr,
+      leitura,
+      situacao: leitura
     });
   });
 
@@ -608,6 +617,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       t1: defT1,
       t2: defT2,
       variacaoPP: deltaPP,
+      variacao: `${deltaPP >= 0 ? '+' : ''}${deltaPP} p.p.`,
       situacao: sit
     });
   });

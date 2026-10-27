@@ -444,30 +444,36 @@ export default function AlunoHistoryTimeline({
                         </tr>
                       </thead>
                       <tbody>
-                        {longitudinal.computed.tabelaForca.map((r: any, idx: number) => (
-                          <tr key={idx}>
-                            <td><strong>{r.movimento}</strong></td>
-                            <td>{r.lado}</td>
-                            <td style={{ textAlign: 'center' }}>{r.t1}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{r.t2}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: r.variacao.startsWith('+') ? '#10b981' : (r.variacao.startsWith('-') ? '#ef4444' : 'inherit') }}>
-                              {r.variacao}
-                            </td>
-                            <td>
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  background: r.situacao.includes('Evoluiu') ? 'rgba(16, 185, 129, 0.12)' : (r.situacao.includes('Queda') ? 'rgba(239, 68, 68, 0.12)' : 'rgba(148, 163, 184, 0.1)'),
-                                  color: r.situacao.includes('Evoluiu') ? '#10b981' : (r.situacao.includes('Queda') ? '#ef4444' : 'var(--text-dim)')
-                                }}
-                              >
-                                {r.situacao}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {longitudinal.computed.tabelaForca.map((r: any, idx: number) => {
+                          const varStr = String(r.variacao ?? (r.variacaoPct != null ? `${r.variacaoPct >= 0 ? '+' : ''}${r.variacaoPct}%` : '—'));
+                          const sitStr = String(r.situacao ?? r.leitura ?? 'Estável');
+                          const isPos = varStr.startsWith('+');
+                          const isNeg = varStr.startsWith('-');
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{r.movimento}</strong></td>
+                              <td>{r.lado}</td>
+                              <td style={{ textAlign: 'center' }}>{r.t1}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{r.t2}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold', color: isPos ? '#10b981' : (isNeg ? '#ef4444' : 'inherit') }}>
+                                {varStr}
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: sitStr.includes('Evoluiu') ? 'rgba(16, 185, 129, 0.12)' : (sitStr.includes('Queda') ? 'rgba(239, 68, 68, 0.12)' : 'rgba(148, 163, 184, 0.1)'),
+                                    color: sitStr.includes('Evoluiu') ? '#10b981' : (sitStr.includes('Queda') ? '#ef4444' : 'var(--text-dim)')
+                                  }}
+                                >
+                                  {sitStr}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -493,27 +499,31 @@ export default function AlunoHistoryTimeline({
                         </tr>
                       </thead>
                       <tbody>
-                        {longitudinal.computed.tabelaSimetria.map((s: any, idx: number) => (
-                          <tr key={idx}>
-                            <td><strong>{s.movimento}</strong></td>
-                            <td style={{ textAlign: 'center' }}>{s.t1}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{s.t2}</td>
-                            <td style={{ textAlign: 'center' }}>{s.variacao}</td>
-                            <td>
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  background: s.situacao === 'Resolvida' ? 'rgba(16, 185, 129, 0.15)' : (s.situacao.includes('Melhorou') ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
-                                  color: s.situacao === 'Resolvida' ? '#10b981' : (s.situacao.includes('Melhorou') ? '#f59e0b' : '#ef4444')
-                                }}
-                              >
-                                {s.situacao}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {longitudinal.computed.tabelaSimetria.map((s: any, idx: number) => {
+                          const varStr = String(s.variacao ?? (s.variacaoPP != null ? `${s.variacaoPP >= 0 ? '+' : ''}${s.variacaoPP} p.p.` : '—'));
+                          const sitStr = String(s.situacao || 'Persistente');
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{s.movimento}</strong></td>
+                              <td style={{ textAlign: 'center' }}>{s.t1}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{s.t2}</td>
+                              <td style={{ textAlign: 'center' }}>{varStr}</td>
+                              <td>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: sitStr === 'Resolvida' ? 'rgba(16, 185, 129, 0.15)' : (sitStr.includes('Melhorou') ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
+                                    color: sitStr === 'Resolvida' ? '#10b981' : (sitStr.includes('Melhorou') ? '#f59e0b' : '#ef4444')
+                                  }}
+                                >
+                                  {sitStr}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -540,30 +550,36 @@ export default function AlunoHistoryTimeline({
                         </tr>
                       </thead>
                       <tbody>
-                        {longitudinal.computed.tabelaGoniometria.map((g: any, idx: number) => (
-                          <tr key={idx}>
-                            <td><strong>{g.movimento}</strong></td>
-                            <td style={{ textAlign: 'center', color: 'var(--text-dim)' }}>{g.referencia}</td>
-                            <td style={{ textAlign: 'center' }}>{g.t1 != null ? `${g.t1}°` : '—'}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{g.t2 != null ? `${g.t2}°` : '—'}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: g.variacao.startsWith('+') ? '#10b981' : (g.variacao.startsWith('-') ? '#ef4444' : 'inherit') }}>
-                              {g.variacao}
-                            </td>
-                            <td>
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  background: g.leitura === 'Normalizou' || g.leitura === 'Evoluiu' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                  color: g.leitura === 'Normalizou' || g.leitura === 'Evoluiu' ? '#10b981' : '#ef4444'
-                                }}
-                              >
-                                {g.leitura}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {longitudinal.computed.tabelaGoniometria.map((g: any, idx: number) => {
+                          const varStr = String(g.variacao != null ? g.variacao : '—');
+                          const isPos = varStr.startsWith('+');
+                          const isNeg = varStr.startsWith('-');
+                          const leiStr = String(g.leitura || 'Estável');
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{g.movimento}</strong></td>
+                              <td style={{ textAlign: 'center', color: 'var(--text-dim)' }}>{g.referencia}</td>
+                              <td style={{ textAlign: 'center' }}>{g.t1 != null ? `${g.t1}°` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{g.t2 != null ? `${g.t2}°` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold', color: isPos ? '#10b981' : (isNeg ? '#ef4444' : 'inherit') }}>
+                                {varStr}
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: leiStr === 'Normalizou' || leiStr === 'Evoluiu' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                    color: leiStr === 'Normalizou' || leiStr === 'Evoluiu' ? '#10b981' : '#ef4444'
+                                  }}
+                                >
+                                  {leiStr}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -589,29 +605,32 @@ export default function AlunoHistoryTimeline({
                         </tr>
                       </thead>
                       <tbody>
-                        {longitudinal.computed.tabelaEVA.rows.map((eva: any, idx: number) => (
-                          <tr key={idx}>
-                            <td><strong>{eva.queixa}</strong></td>
-                            <td style={{ textAlign: 'center' }}>{eva.t1}/10</td>
-                            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{eva.t2}/10</td>
-                            <td style={{ textAlign: 'center', color: eva.delta < 0 ? '#10b981' : '#ef4444' }}>
-                              {eva.delta} pts
-                            </td>
-                            <td>
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  background: eva.status === 'Resolvida' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                  color: eva.status === 'Resolvida' ? '#10b981' : '#f59e0b'
-                                }}
-                              >
-                                {eva.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {longitudinal.computed.tabelaEVA.rows.map((eva: any, idx: number) => {
+                          const statusStr = String(eva.status || 'Em acompanhamento');
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{eva.queixa}</strong></td>
+                              <td style={{ textAlign: 'center' }}>{eva.t1}/10</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{eva.t2}/10</td>
+                              <td style={{ textAlign: 'center', color: Number(eva.delta) < 0 ? '#10b981' : '#ef4444' }}>
+                                {eva.delta} pts
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: statusStr === 'Resolvida' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                    color: statusStr === 'Resolvida' ? '#10b981' : '#f59e0b'
+                                  }}
+                                >
+                                  {statusStr}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
