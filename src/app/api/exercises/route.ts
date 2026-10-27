@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       filter.status = status;
     }
 
-    const records = await Exercise.find(filter);
+    const records = await Exercise.find(filter).select('nome grupo equipamento gifUrl status solicitadoPorNome instrucoes videoUrl').lean().maxTimeMS(8000);
     return NextResponse.json({ success: true, data: records });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -13,7 +13,10 @@ export async function GET(request: Request) {
     const includeHistory = searchParams.get('history') === 'true';
 
     if (!clientId) {
-      const workouts = await ClientWorkout.find({}).lean();
+      const workouts = await ClientWorkout.find({})
+        .select('clienteId updatedAt fichasMonitorado.ultimaAtualizacao fichasMonitorado.exercicios.nome fichasLivre.ultimaAtualizacao fichasLivre.exercicios.nome')
+        .lean()
+        .maxTimeMS(8000);
       return NextResponse.json({ success: true, data: workouts });
     }
 
@@ -22,11 +25,12 @@ export async function GET(request: Request) {
       const history = await WorkoutHistory.find({ clienteId: clientId })
         .sort({ createdAt: -1 })
         .limit(50)
-        .lean();
+        .lean()
+        .maxTimeMS(5000);
       return NextResponse.json({ success: true, data: history });
     }
 
-    let workout = await ClientWorkout.findOne({ clienteId: clientId });
+    let workout = await ClientWorkout.findOne({ clienteId: clientId }).lean();
     if (!workout) {
       const defaultWorksheets = [
         { id: 'A', nome: 'Ficha A', ultimaAtualizacao: '', observacoesGerais: '', exercicios: [] },

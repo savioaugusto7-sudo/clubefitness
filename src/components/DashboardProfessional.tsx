@@ -2702,10 +2702,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           safeFetchJson('/api/workouts')
             .then(res => { if (res?.success && Array.isArray(res.data)) setWorkouts(res.data); })
         );
-        promises.push(
+        // Baixar banco de exercícios desacoplado em background para não travar a lista de alunos
+        if (exercises.length === 0) {
           safeFetchJson('/api/exercises')
             .then(res => { if (res?.success && Array.isArray(res.data)) setExercises(res.data); })
-        );
+            .catch(() => {});
+        }
       } else if (activeTab === 'agenda_fixa') {
         promises.push(
           safeFetchJson('/api/fixed-schedules')
