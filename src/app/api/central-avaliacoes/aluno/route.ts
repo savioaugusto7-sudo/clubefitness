@@ -310,7 +310,13 @@ export async function GET(request: Request) {
           joelhoFlexaoD: getV(g.joelhoFlexaoD),
           joelhoFlexaoE: getV(g.joelhoFlexaoE),
           popliteoD: getV(g.joelhoPopliteoD),
-          popliteoE: getV(g.joelhoPopliteoE)
+          popliteoE: getV(g.joelhoPopliteoE),
+          ombroRotIntD: getV(g.ombroRotIntD || g.ombroRotacaoInternaD),
+          ombroRotIntE: getV(g.ombroRotIntE || g.ombroRotacaoInternaE),
+          ombroRotExtD: getV(g.ombroRotExtD || g.ombroRotacaoExternaD),
+          ombroRotExtE: getV(g.ombroRotExtE || g.ombroRotacaoExternaE),
+          ombroFlexaoD: getV(g.ombroFlexaoD),
+          ombroFlexaoE: getV(g.ombroFlexaoE)
         };
       });
     } catch (err: any) {

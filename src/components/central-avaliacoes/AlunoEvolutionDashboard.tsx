@@ -69,6 +69,10 @@ export default function AlunoEvolutionDashboard({
   longitudinal,
   onOpenNovoTeste
 }: AlunoEvolutionDashboardProps) {
+  // 🌟 ESTADOS DA FASE 3: MODOS DE VISUALIZAÇÃO E SELETOR ARTICULAR
+  const [strengthViewMode, setStrengthViewMode] = React.useState<'bilateral' | 'radar'>('bilateral');
+  const [gonioArticulacao, setGonioArticulacao] = React.useState<'tornozelo' | 'joelho' | 'ombro'>('tornozelo');
+
   // Formatador de data abreviada
   const formatShortDate = (dStr?: string) => {
     if (!dStr) return '';
@@ -77,9 +81,77 @@ export default function AlunoEvolutionDashboard({
     return dStr;
   };
 
-  // 1. DADOS DO GRÁFICO RADAR (FORÇA BILATERAL: D vs E)
-  // Pegamos a avaliação de força mais recente
+  // 1. DADOS DE DINAMOMETRIA (AVALIAÇÃO MAIS RECENTE)
   const latestStrengthDoc = evolutionSeries.strength[evolutionSeries.strength.length - 1];
+
+  // 1A. CÁLCULO DAS BARRAS DE FORÇA BILATERAL D vs E COM ZONAS DE SIMETRIA (≤10%, 10-15%, >15%)
+  const strengthMovements = React.useMemo(() => {
+    if (!latestStrengthDoc?.testes || latestStrengthDoc.testes.length === 0) return [];
+
+    const map = new Map<string, { mov: string; d: number; e: number }>();
+
+    latestStrengthDoc.testes.forEach((t: any) => {
+      const mov = t.movimento || 'Movimento';
+      if (!map.has(mov)) {
+        map.set(mov, { mov, d: 0, e: 0 });
+      }
+      const item = map.get(mov)!;
+      const val = Number(t.forcaN || t.valorObtido) || 0;
+      if (t.lado === 'Direito') item.d = val;
+      if (t.lado === 'Esquerdo') item.e = val;
+    });
+
+    const list = Array.from(map.values()).map(item => {
+      const maxF = Math.max(item.d, item.e);
+      const diff = maxF > 0 ? Math.round((Math.abs(item.d - item.e) / maxF) * 100) : 0;
+      let status: 'otimo' | 'atencao' | 'critico' = 'otimo';
+      let statusLabel = 'Equilibrado';
+      let statusColor = '#10b981';
+      let statusBg = 'rgba(16, 185, 129, 0.12)';
+
+      if (diff > 15) {
+        status = 'critico';
+        statusLabel = 'Assimetria Crítica (>15%)';
+        statusColor = '#ef4444';
+        statusBg = 'rgba(239, 68, 68, 0.16)';
+      } else if (diff > 10) {
+        status = 'atencao';
+        statusLabel = 'Alerta Moderado (>10%)';
+        statusColor = '#f59e0b';
+        statusBg = 'rgba(245, 158, 11, 0.16)';
+      } else {
+        status = 'otimo';
+        statusLabel = 'Simétrico (≤10%)';
+        statusColor = '#10b981';
+        statusBg = 'rgba(16, 185, 129, 0.16)';
+      }
+
+      return {
+        ...item,
+        diff,
+        deficitLado: item.d < item.e ? 'Déficit Direito' : item.e < item.d ? 'Déficit Esquerdo' : 'Equilibrado',
+        status,
+        statusLabel,
+        statusColor,
+        statusBg
+      };
+    });
+
+    // Ordena colocando os de maior assimetria no topo para diagnóstico visual imediato
+    return list.sort((a, b) => b.diff - a.diff);
+  }, [latestStrengthDoc]);
+
+  // Pico de força para normalização visual das barras (máximo relativo)
+  const maxStrengthInSet = React.useMemo(() => {
+    let m = 50;
+    strengthMovements.forEach(s => {
+      if (s.d > m) m = s.d;
+      if (s.e > m) m = s.e;
+    });
+    return m;
+  }, [strengthMovements]);
+
+  // 1B. DADOS DO GRÁFICO RADAR
   const radarLabels: string[] = [];
   const radarDataD: number[] = [];
   const radarDataE: number[] = [];
@@ -143,36 +215,127 @@ export default function AlunoEvolutionDashboard({
     }
   };
 
-  // 2. DADOS DO GRÁFICO DE LINHAS: EVOLUÇÃO DE GONIOMETRIA (LUNGE vs ESTENDIDO)
+  // 2. DADOS DO GRÁFICO DINÂMICO DE GONIOMETRIA COM SELETOR ARTICULAR
   const gonioDates = evolutionSeries.goniometria.map(g => formatShortDate(g.data));
-  const gonioDorsi1D = evolutionSeries.goniometria.map(g => g.dorsi1D);
-  const gonioDorsi2D = evolutionSeries.goniometria.map(g => g.dorsi2D);
 
-  const gonioChartData = {
-    labels: gonioDates,
-    datasets: [
-      {
-        label: 'Tornozelo Lunge / Joelho Fletido (Ref: 35-45°)',
-        data: gonioDorsi2D,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 4,
-        pointBackgroundColor: '#10b981'
-      },
-      {
-        label: 'Tornozelo Joelho Estendido (Ref: 20°)',
-        data: gonioDorsi1D,
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 4,
-        pointBackgroundColor: '#6366f1'
-      }
-    ]
-  };
+  const gonioChartData = React.useMemo(() => {
+    if (gonioArticulacao === 'tornozelo') {
+      const gonioDorsi2D = evolutionSeries.goniometria.map(g => g.dorsi2D);
+      const gonioDorsi1D = evolutionSeries.goniometria.map(g => g.dorsi1D);
+      return {
+        labels: gonioDates,
+        datasets: [
+          {
+            label: 'Lunge / Joelho Fletido (Ref: 35-45°)',
+            data: gonioDorsi2D,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#10b981'
+          },
+          {
+            label: 'Joelho Estendido (Ref: 20°)',
+            data: gonioDorsi1D,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#6366f1'
+          }
+        ]
+      };
+    }
+
+    if (gonioArticulacao === 'joelho') {
+      const flexaoD = evolutionSeries.goniometria.map(g => g.joelhoFlexaoD);
+      const flexaoE = evolutionSeries.goniometria.map(g => g.joelhoFlexaoE);
+      const popliteoD = evolutionSeries.goniometria.map(g => g.popliteoD);
+      return {
+        labels: gonioDates,
+        datasets: [
+          {
+            label: 'Flexão Joelho D (Ref: 130-140°)',
+            data: flexaoD,
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#06b6d4'
+          },
+          {
+            label: 'Flexão Joelho E (Ref: 130-140°)',
+            data: flexaoE,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#3b82f6'
+          },
+          {
+            label: 'Ângulo Poplíteo (Ref: 80-90°)',
+            data: popliteoD,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#f59e0b'
+          }
+        ]
+      };
+    }
+
+    // Articulação do Ombro
+    const rotExtD = evolutionSeries.goniometria.map(g => g.ombroRotExtD);
+    const rotIntD = evolutionSeries.goniometria.map(g => g.ombroRotIntD);
+    const flexaoD = evolutionSeries.goniometria.map(g => g.ombroFlexaoD);
+    return {
+      labels: gonioDates,
+      datasets: [
+        {
+          label: 'Rotação Externa D (Ref: 80-100°)',
+          data: rotExtD,
+          borderColor: '#8b5cf6',
+          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#8b5cf6'
+        },
+        {
+          label: 'Rotação Interna D (Ref: 80-90°)',
+          data: rotIntD,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#10b981'
+        },
+        {
+          label: 'Flexão de Ombro (Ref: 180°)',
+          data: flexaoD,
+          borderColor: '#ec4899',
+          backgroundColor: 'rgba(236, 72, 153, 0.1)',
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#ec4899'
+        }
+      ]
+    };
+  }, [gonioArticulacao, evolutionSeries.goniometria, gonioDates]);
+
+  // Verifica se há medições preenchidas para a articulação selecionada
+  const hasGonioDataForSelectedJoint = React.useMemo(() => {
+    if (!gonioChartData.datasets || gonioChartData.datasets.length === 0) return false;
+    return gonioChartData.datasets.some(ds => ds.data.some((v: any) => v !== null && v !== undefined && !isNaN(Number(v))));
+  }, [gonioChartData]);
 
   const gonioChartOptions = {
     responsive: true,
@@ -195,7 +358,7 @@ export default function AlunoEvolutionDashboard({
     }
   };
 
-  // 3. DADOS DO GRÁFICO DE BARRAS: RESOLUÇÃO DE DOR EVA
+  // 3. DADOS CONSOLIDADOS DE DOR (EVA) E COMPARAÇÃO TEMPORAL
   const evaItems: { regiao: string; t1: number; t2: number }[] = [];
   if (longitudinal?.computed?.tabelaEVA?.rows) {
     longitudinal.computed.tabelaEVA.rows.forEach((r: any) => {
@@ -206,6 +369,57 @@ export default function AlunoEvolutionDashboard({
       });
     });
   }
+
+  // Lista consolidada de cards de queixas anatômicas com tags CIF e escala visual
+  const mappedQueixas = React.useMemo(() => {
+    const list: Array<{
+      regiao: string;
+      intensidade: number;
+      t1?: number;
+      t2?: number;
+      delta?: number;
+      status?: string;
+      agravantes?: string[];
+      data?: string;
+    }> = [];
+
+    if (longitudinal?.computed?.tabelaEVA?.rows?.length > 0) {
+      longitudinal.computed.tabelaEVA.rows.forEach((r: any) => {
+        list.push({
+          regiao: r.queixa,
+          intensidade: Number(r.t2 ?? r.t1 ?? 0),
+          t1: Number(r.t1) || 0,
+          t2: Number(r.t2) || 0,
+          delta: r.delta != null ? Number(r.delta) : (r.t2 != null && r.t1 != null ? Number(r.t2) - Number(r.t1) : undefined),
+          status: r.status,
+          agravantes: []
+        });
+      });
+    }
+
+    if (list.length === 0 && evolutionSeries.eva?.length > 0) {
+      const lastEvaDoc = evolutionSeries.eva[evolutionSeries.eva.length - 1];
+      if (lastEvaDoc?.queixas?.length > 0) {
+        lastEvaDoc.queixas.forEach((q: any) => {
+          list.push({
+            regiao: q.regiao || 'Geral',
+            intensidade: Number(q.intensidade) || 0,
+            agravantes: q.atividadesAgravantes || [],
+            data: lastEvaDoc.data
+          });
+        });
+      } else if (lastEvaDoc?.dorGeral != null) {
+        list.push({
+          regiao: 'Queixa Geral',
+          intensidade: Number(lastEvaDoc.dorGeral) || 0,
+          agravantes: [],
+          data: lastEvaDoc.data
+        });
+      }
+    }
+
+    return list;
+  }, [longitudinal, evolutionSeries.eva]);
 
   const evaChartData = {
     labels: evaItems.map(e => e.regiao),
@@ -714,81 +928,251 @@ export default function AlunoEvolutionDashboard({
         <LiveClinicalAlert alerts={combinedAlerts} title="Indicativos Clínicos & Riscos Biomecânicos Vivos" />
       )}
 
-      {/* 3. GRID DE GRÁFICOS VISUAIS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
-        {/* Gráfico 1: Radar de Força Bilateral */}
+      {/* 3. GRID DE BIOMECÂNICA AVANÇADA (FORÇA & GONIOMETRIA) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '16px' }}>
+        {/* Painel 1: Dinamometria Bilateral (Barras D vs E ou Radar) */}
         <div
           style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            border: '1px solid var(--border-color)',
-            padding: '16px',
+            background: 'var(--bg-card, #1e293b)',
+            borderRadius: '14px',
+            border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+            padding: '16px 18px',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          {/* Header com Alternador de Visualização */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
             <div>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fas fa-spider" style={{ color: 'var(--primary)' }} />
-                Mapa de Força Bilateral (Dinamometria)
+              <strong style={{ fontSize: '0.92rem', color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <i className="fas fa-weight-hanging" style={{ color: 'var(--primary, #818cf8)' }} />
+                Força Bilateral (Dinamometria)
               </strong>
-              <small style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>
-                Simetria agonista / antagonista mais recente
+              <small style={{ color: 'var(--text-dim, #94a3b8)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+                Corte de simetria: ≤10% Equilibrado | &gt;15% Risco
               </small>
             </div>
-            {radarLabels.length > 0 && (
-              <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)' }}>
-                {radarLabels.length} grupos
-              </span>
-            )}
+
+            {/* Alternador de Modo: Barras vs Radar */}
+            <div style={{ display: 'inline-flex', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <button
+                type="button"
+                onClick={() => setStrengthViewMode('bilateral')}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: strengthViewMode === 'bilateral' ? 'var(--primary, #6366f1)' : 'transparent',
+                  color: strengthViewMode === 'bilateral' ? '#fff' : 'var(--text-dim, #94a3b8)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <i className="fas fa-bars-progress" />
+                Barras D vs E
+              </button>
+              <button
+                type="button"
+                onClick={() => setStrengthViewMode('radar')}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: strengthViewMode === 'radar' ? 'var(--primary, #6366f1)' : 'transparent',
+                  color: strengthViewMode === 'radar' ? '#fff' : 'var(--text-dim, #94a3b8)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <i className="fas fa-spider" />
+                Radar
+              </button>
+            </div>
           </div>
 
+          {/* Conteúdo do Painel de Força */}
           <div style={{ flex: 1, minHeight: '260px', position: 'relative' }}>
-            {radarLabels.length > 0 ? (
-              <Radar data={radarChartData} options={radarOptions} />
+            {strengthViewMode === 'bilateral' ? (
+              strengthMovements.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {strengthMovements.map((mov, idx) => {
+                    const pctD = Math.min(100, Math.round((mov.d / maxStrengthInSet) * 100));
+                    const pctE = Math.min(100, Math.round((mov.e / maxStrengthInSet) * 100));
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '10px',
+                          border: `1px solid ${mov.status === 'critico' ? 'rgba(239, 68, 68, 0.35)' : mov.status === 'atencao' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(255, 255, 255, 0.06)'}`,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main, #fff)' }}>
+                            {mov.mov}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              background: mov.statusBg,
+                              color: mov.statusColor,
+                              border: `1px solid ${mov.statusColor}30`
+                            }}
+                          >
+                            {mov.diff}% assimetria • {mov.statusLabel}
+                          </span>
+                        </div>
+
+                        {/* Barra Direito (D) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: '#cbd5e1' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#0d9488' }} />
+                              Membro Direito (D)
+                            </span>
+                            <strong style={{ color: '#0d9488' }}>{mov.d} N</strong>
+                          </div>
+                          <div style={{ height: '7px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pctD}%`, background: '#0d9488', borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                          </div>
+                        </div>
+
+                        {/* Barra Esquerdo (E) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: '#cbd5e1' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#6366f1' }} />
+                              Membro Esquerdo (E)
+                            </span>
+                            <strong style={{ color: '#818cf8' }}>{mov.e} N</strong>
+                          </div>
+                          <div style={{ height: '7px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pctE}%`, background: '#6366f1', borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                          </div>
+                        </div>
+
+                        {/* Indicativo de déficit se houver assimetria */}
+                        {mov.diff > 10 && (
+                          <div style={{ fontSize: '0.72rem', color: mov.statusColor, display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px' }}>
+                            <i className="fas fa-triangle-exclamation" style={{ fontSize: '0.68rem' }} />
+                            <span>{mov.deficitLado} ({mov.diff}% menor que o contralateral)</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: 'var(--text-dim, #94a3b8)', padding: '20px', textAlign: 'center' }}>
+                  <i className="fas fa-weight-hanging fa-2x" style={{ opacity: 0.3, marginBottom: '8px' }} />
+                  <p style={{ fontSize: '0.84rem', margin: '0 0 10px 0' }}>Nenhum teste de força dinamométrica registrado ainda.</p>
+                  <button onClick={onOpenNovoTeste} className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem' }}>
+                    Lançar Teste de Força
+                  </button>
+                </div>
+              )
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-dim)', padding: '20px', textAlign: 'center' }}>
-                <i className="fas fa-weight-hanging fa-2x" style={{ opacity: 0.3, marginBottom: '8px' }} />
-                <p style={{ fontSize: '0.85rem', margin: '0 0 10px 0' }}>Nenhum teste de força dinamométrica registrado ainda.</p>
-                <button onClick={onOpenNovoTeste} className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem' }}>
-                  Lançar Teste de Força
-                </button>
-              </div>
+              radarLabels.length > 0 ? (
+                <div style={{ height: '260px', position: 'relative' }}>
+                  <Radar data={radarChartData} options={radarOptions} />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: 'var(--text-dim, #94a3b8)', padding: '20px', textAlign: 'center' }}>
+                  <i className="fas fa-spider fa-2x" style={{ opacity: 0.3, marginBottom: '8px' }} />
+                  <p style={{ fontSize: '0.84rem', margin: '0 0 10px 0' }}>Sem dados suficientes para mapa de teia radar.</p>
+                </div>
+              )
             )}
           </div>
         </div>
 
-        {/* Gráfico 2: Linha Temporal de Amplitude de Tornozelo */}
+        {/* Painel 2: Goniometria Dinâmica com Seletor Articular */}
         <div
           style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            border: '1px solid var(--border-color)',
-            padding: '16px',
+            background: 'var(--bg-card, #1e293b)',
+            borderRadius: '14px',
+            border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+            padding: '16px 18px',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          {/* Header com Seletor Articular */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
             <div>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <strong style={{ fontSize: '0.92rem', color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <i className="fas fa-chart-line" style={{ color: '#10b981' }} />
-                Evolução da Dorsiflexão de Tornozelo
+                Evolução Goniométrica (ADM)
               </strong>
-              <small style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>
-                Cadeia Fechada (Lunge 35-45°) vs Estendido (20°)
+              <small style={{ color: 'var(--text-dim, #94a3b8)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+                {gonioArticulacao === 'tornozelo' && 'Normalidade: Lunge ≥35-45° | Joelho Estendido ≥20°'}
+                {gonioArticulacao === 'joelho' && 'Normalidade: Flexão ≥130-140° | Poplíteo ≥80-90°'}
+                {gonioArticulacao === 'ombro' && 'Normalidade: Rot. Ext. ≥80-100° | Rot. Int. ≥80-90°'}
               </small>
+            </div>
+
+            {/* Seletor Articular: Tornozelo | Joelho | Ombro */}
+            <div style={{ display: 'inline-flex', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {(['tornozelo', 'joelho', 'ombro'] as const).map(j => {
+                const labels = { tornozelo: '🦶 Tornozelo', joelho: '🦵 Joelho', ombro: '💪 Ombro' };
+                const isActive = gonioArticulacao === j;
+                return (
+                  <button
+                    key={j}
+                    type="button"
+                    onClick={() => setGonioArticulacao(j)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: isActive ? '#10b981' : 'transparent',
+                      color: isActive ? '#fff' : 'var(--text-dim, #94a3b8)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {labels[j]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
+          {/* Gráfico ou Estado Vazio */}
           <div style={{ flex: 1, minHeight: '260px', position: 'relative' }}>
-            {gonioDates.length > 0 ? (
-              <Line data={gonioChartData} options={gonioChartOptions} />
+            {hasGonioDataForSelectedJoint ? (
+              <div style={{ height: '260px', position: 'relative' }}>
+                <Line data={gonioChartData} options={gonioChartOptions} />
+              </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-dim)', padding: '20px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: 'var(--text-dim, #94a3b8)', padding: '20px', textAlign: 'center' }}>
                 <i className="fas fa-ruler-combined fa-2x" style={{ opacity: 0.3, marginBottom: '8px' }} />
-                <p style={{ fontSize: '0.85rem', margin: '0 0 10px 0' }}>Nenhuma medição de goniometria registrada ainda.</p>
+                <p style={{ fontSize: '0.84rem', margin: '0 0 10px 0' }}>
+                  {gonioDates.length > 0
+                    ? `Nenhuma medição específica de ${gonioArticulacao} nos laudos deste aluno.`
+                    : 'Nenhuma medição de goniometria registrada ainda.'}
+                </p>
                 <button onClick={onOpenNovoTeste} className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem' }}>
                   Lançar Goniometria
                 </button>
@@ -798,33 +1182,170 @@ export default function AlunoEvolutionDashboard({
         </div>
       </div>
 
-      {/* Gráfico 3: Resolução de Dor EVA (se houver queixas comparativas) */}
-      {evaItems.length > 0 && (
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            border: '1px solid var(--border-color)',
-            padding: '16px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+      {/* 4. MAPEAMENTO ANATÔMICO DAS QUEIXAS & ESCALA EVA */}
+      <div
+        style={{
+          background: 'var(--bg-card, #1e293b)',
+          borderRadius: '14px',
+          border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+          padding: '16px 18px',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <strong style={{ fontSize: '0.92rem', color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <i className="fas fa-heartbeat" style={{ color: '#ef4444' }} />
+              Mapeamento de Queixas Clínicas & Dor (Escala EVA)
+            </strong>
+            <small style={{ color: 'var(--text-dim, #94a3b8)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+              Monitoramento analógico visual (0 a 10) e agravantes funcionais
+            </small>
+          </div>
+          {mappedQueixas.length > 0 && (
+            <span style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.12)', color: '#f87171', fontWeight: 700 }}>
+              {mappedQueixas.length} queixa(s) documentada(s)
+            </span>
+          )}
+        </div>
+
+        {mappedQueixas.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Grid de Cards Anatômicos de Queixas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '12px' }}>
+              {mappedQueixas.map((q, qIdx) => {
+                const dorVal = q.intensidade;
+                const dorColor = dorVal === 0 ? '#10b981' : dorVal <= 3 ? '#10b981' : dorVal <= 6 ? '#f59e0b' : '#ef4444';
+                const dorPct = Math.min(100, (dorVal / 10) * 100);
+
+                return (
+                  <div
+                    key={qIdx}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderLeft: `4px solid ${dorColor}`,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+                      <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <i className="fas fa-map-pin" style={{ color: dorColor, fontSize: '0.75rem' }} />
+                        {q.regiao}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          background: `${dorColor}22`,
+                          color: dorColor,
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {dorVal}/10 EVA
+                      </span>
+                    </div>
+
+                    {/* Régua visual colorida de dor 0 a 10 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${dorPct}%`,
+                            background: dorColor,
+                            borderRadius: '3px',
+                            transition: 'width 0.4s ease'
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#64748b' }}>
+                        <span>0 (Sem dor)</span>
+                        <span>5 (Moderada)</span>
+                        <span>10 (Intensa)</span>
+                      </div>
+                    </div>
+
+                    {/* Evolução Longitudinal se houver T1 vs T2 */}
+                    {q.t1 !== undefined && q.t2 !== undefined && (
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-dim, #94a3b8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Inicial (T1): <strong>{q.t1}</strong> → Atual (T2): <strong>{q.t2}</strong></span>
+                        {q.delta !== undefined && (
+                          <span style={{ color: q.delta <= 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>
+                            {q.delta < 0 ? `⬇️ ${Math.abs(q.delta)} pts` : q.delta > 0 ? `⬆️ +${q.delta} pts` : 'Estável'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tags CIF de agravantes se houver */}
+                    {q.agravantes && q.agravantes.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                        {q.agravantes.map((tag, tIdx) => (
+                          <span
+                            key={tIdx}
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: '#cbd5e1'
+                            }}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Gráfico de Barras Comparativo se houver histórico longitudinal */}
+            {evaItems.length > 0 && (
+              <div style={{ marginTop: '10px', paddingTop: '14px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1' }}>
+                    Comparativo Longitudinal T1 vs T2 (Resolução Clínica):
+                  </span>
+                </div>
+                <div style={{ height: '220px', position: 'relative' }}>
+                  <Bar data={evaChartData} options={evaChartOptions} />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '10px',
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}
+          >
+            <i className="fas fa-shield-heart fa-2x" style={{ color: '#10b981' }} />
             <div>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fas fa-heartbeat" style={{ color: '#ef4444' }} />
-                Resposta Clínica à Dor (Escala EVA)
+              <strong style={{ fontSize: '0.88rem', color: '#10b981', display: 'block' }}>
+                Prontuário Assintomático
               </strong>
-              <small style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>
-                Comparativo da intensidade inicial (T1) vs reavaliação (T2)
+              <small style={{ color: 'var(--text-dim, #94a3b8)', fontSize: '0.78rem' }}>
+                Nenhuma queixa de dor musculoesquelética ativa relatada nas avaliações.
               </small>
             </div>
           </div>
-
-          <div style={{ height: '220px', position: 'relative' }}>
-            <Bar data={evaChartData} options={evaChartOptions} />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 4. FATORES CLÍNICOS DE DESTAQUE (DO LAUDO DE REAVALIAÇÃO) */}
       {longitudinal?.narrative && (
