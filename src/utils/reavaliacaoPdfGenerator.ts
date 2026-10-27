@@ -399,100 +399,94 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   `}
 
   <!-- 8. TESTES FUNCIONAIS -->
-  <div class="section-title">8. TESTES FUNCIONAIS</div>
+  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0) ? `
+    <div class="section-title">8. TESTES FUNCIONAIS</div>
 
-  <div class="subsection-title">8.1 Y Teste (equilíbrio dinâmico)</div>
-  ${testesFuncionais.yTeste ? `
-    <table>
-      <thead>
-        <tr>
-          <th>Variável</th>
-          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
-          <th class="text-center">${identificacao.dataReavaliacao}</th>
-          <th class="text-center">Variação</th>
-          <th>Leitura</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Composite Score direito</td>
-          <td class="text-center">${testesFuncionais.yTeste.compositeScoreD.t1.toFixed(1).replace('.', ',')}%</td>
-          <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreD.t2.toFixed(1).replace('.', ',')}%</td>
-          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.compositeScoreD.deltaPP >= 0 ? '+' : ''}${testesFuncionais.yTeste.compositeScoreD.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
-          <td>${testesFuncionais.yTeste.compositeScoreD.leitura}</td>
-        </tr>
-        <tr>
-          <td>Composite Score esquerdo</td>
-          <td class="text-center">${testesFuncionais.yTeste.compositeScoreE.t1.toFixed(1).replace('.', ',')}%</td>
-          <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreE.t2.toFixed(1).replace('.', ',')}%</td>
-          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.compositeScoreE.deltaPP >= 0 ? '+' : ''}${testesFuncionais.yTeste.compositeScoreE.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
-          <td>${testesFuncionais.yTeste.compositeScoreE.leitura}</td>
-        </tr>
-        <tr>
-          <td>Alcance anterior (diferença entre lados)</td>
-          <td class="text-center">${testesFuncionais.yTeste.alcanceAnteriorDif.t1.toFixed(1).replace('.', ',')} cm</td>
-          <td class="text-center font-bold">${testesFuncionais.yTeste.alcanceAnteriorDif.t2.toFixed(1).replace('.', ',')} cm</td>
-          <td class="text-center font-bold" style="color:${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm <= 0 ? '#059669' : '#dc2626'}">${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
-          <td>${testesFuncionais.yTeste.alcanceAnteriorDif.leitura}</td>
-        </tr>
-        <tr>
-          <td>Alcance posteromedial (diferença)</td>
-          <td class="text-center">${testesFuncionais.yTeste.alcancePosteromedialDif.t1.toFixed(1).replace('.', ',')} cm</td>
-          <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosteromedialDif.t2.toFixed(1).replace('.', ',')} cm</td>
-          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
-          <td>${testesFuncionais.yTeste.alcancePosteromedialDif.leitura}</td>
-        </tr>
-        <tr>
-          <td>Alcance posterolateral (diferença)</td>
-          <td class="text-center">${testesFuncionais.yTeste.alcancePosterolateralDif.t1.toFixed(1).replace('.', ',')} cm</td>
-          <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosterolateralDif.t2.toFixed(1).replace('.', ',')} cm</td>
-          <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
-          <td>${testesFuncionais.yTeste.alcancePosterolateralDif.leitura}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p style="font-size:9.5pt; color:#334155;">${testesFuncionais.yTeste.parecer}</p>
-  ` : `
-    <p style="font-size:9.5pt; color:#64748b; font-style:italic;">Y-Balance Test não mensurado neste ciclo avaliativo.</p>
-  `}
-
-  <div class="subsection-title">8.2 Step Down Test (controle dinâmico)</div>
-  ${testesFuncionais.stepDown.length > 0 ? `
-    <table>
-      <thead>
-        <tr>
-          <th>Variável</th>
-          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
-          <th class="text-center">${identificacao.dataReavaliacao}</th>
-          <th class="text-center">Variação</th>
-          <th>Leitura</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${testesFuncionais.stepDown.map(r => `
+    ${testesFuncionais.yTeste ? `
+      <div class="subsection-title">8.1 Y Teste (equilíbrio dinâmico)</div>
+      <table>
+        <thead>
           <tr>
-            <td>${r.variavel}</td>
-            <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}°</td>
-            <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}°</td>
-            <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : (r.variavel.includes('Queda pélvica') ? '#dc2626' : '#059669')}">
-              ${r.variacao > 0 ? `+${r.variacao.toFixed(1).replace('.', ',')}°` : `${r.variacao.toFixed(1).replace('.', ',')}°`}
-            </td>
-            <td>${r.leitura}</td>
+            <th>Variável</th>
+            <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+            <th class="text-center">${identificacao.dataReavaliacao}</th>
+            <th class="text-center">Variação</th>
+            <th>Leitura</th>
           </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  ` : `
-    <p style="font-size:9.5pt; color:#64748b; font-style:italic;">Step Down Test não mensurado neste ciclo avaliativo.</p>
-  `}
+        </thead>
+        <tbody>
+          <tr>
+            <td>Composite Score direito</td>
+            <td class="text-center">${testesFuncionais.yTeste.compositeScoreD.t1.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreD.t2.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.compositeScoreD.deltaPP >= 0 ? '+' : ''}${testesFuncionais.yTeste.compositeScoreD.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
+            <td>${testesFuncionais.yTeste.compositeScoreD.leitura}</td>
+          </tr>
+          <tr>
+            <td>Composite Score esquerdo</td>
+            <td class="text-center">${testesFuncionais.yTeste.compositeScoreE.t1.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold">${testesFuncionais.yTeste.compositeScoreE.t2.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.compositeScoreE.deltaPP >= 0 ? '+' : ''}${testesFuncionais.yTeste.compositeScoreE.deltaPP.toFixed(1).replace('.', ',')} p.p.</td>
+            <td>${testesFuncionais.yTeste.compositeScoreE.leitura}</td>
+          </tr>
+          <tr>
+            <td>Alcance anterior (diferença entre lados)</td>
+            <td class="text-center">${testesFuncionais.yTeste.alcanceAnteriorDif.t1.toFixed(1).replace('.', ',')} cm</td>
+            <td class="text-center font-bold">${testesFuncionais.yTeste.alcanceAnteriorDif.t2.toFixed(1).replace('.', ',')} cm</td>
+            <td class="text-center font-bold" style="color:${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm <= 0 ? '#059669' : '#dc2626'}">${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcanceAnteriorDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
+            <td>${testesFuncionais.yTeste.alcanceAnteriorDif.leitura}</td>
+          </tr>
+          <tr>
+            <td>Alcance posteromedial (diferença)</td>
+            <td class="text-center">${testesFuncionais.yTeste.alcancePosteromedialDif.t1.toFixed(1).replace('.', ',')} cm</td>
+            <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosteromedialDif.t2.toFixed(1).replace('.', ',')} cm</td>
+            <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcancePosteromedialDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
+            <td>${testesFuncionais.yTeste.alcancePosteromedialDif.leitura}</td>
+          </tr>
+          <tr>
+            <td>Alcance posterolateral (diferença)</td>
+            <td class="text-center">${testesFuncionais.yTeste.alcancePosterolateralDif.t1.toFixed(1).replace('.', ',')} cm</td>
+            <td class="text-center font-bold">${testesFuncionais.yTeste.alcancePosterolateralDif.t2.toFixed(1).replace('.', ',')} cm</td>
+            <td class="text-center font-bold" style="color:#059669;">${testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm >= 0 ? '+' : ''}${testesFuncionais.yTeste.alcancePosterolateralDif.deltaCm.toFixed(1).replace('.', ',')} cm</td>
+            <td>${testesFuncionais.yTeste.alcancePosterolateralDif.leitura}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:9.5pt; color:#334155;">${testesFuncionais.yTeste.parecer}</p>
+    ` : ''}
+
+    ${testesFuncionais.stepDown.length > 0 ? `
+      <div class="subsection-title">${testesFuncionais.yTeste ? '8.2' : '8.1'} Step Down Test (controle dinâmico)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Variável</th>
+            <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+            <th class="text-center">${identificacao.dataReavaliacao}</th>
+            <th class="text-center">Variação</th>
+            <th>Leitura</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${testesFuncionais.stepDown.map(r => `
+            <tr>
+              <td>${r.variavel}</td>
+              <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}°</td>
+              <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}°</td>
+              <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : (r.variavel.includes('Queda pélvica') ? '#dc2626' : '#059669')}">
+                ${r.variacao > 0 ? `+${r.variacao.toFixed(1).replace('.', ',')}°` : `${r.variacao.toFixed(1).replace('.', ',')}°`}
+              </td>
+              <td>${r.leitura}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : ''}
+  ` : ''}
 
   <!-- 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA) -->
-  <div class="section-title">9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA)</div>
-  ${tabelaGoniometria.length === 0 ? `
-    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
-      Goniometria articular não mensurada neste ciclo.
-    </div>
-  ` : `
+  ${tabelaGoniometria.length > 0 ? `
+    <div class="section-title">9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA)</div>
     <table>
       <thead>
         <tr>
@@ -517,15 +511,11 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         `).join('')}
       </tbody>
     </table>
-  `}
+  ` : ''}
 
   <!-- 10. TESTES ORTOPÉDICOS ESPECIAIS -->
-  <div class="section-title">10. TESTES ORTOPÉDICOS ESPECIAIS — COMPARATIVO</div>
-  ${tabelaTestesOrtopedicos.length === 0 ? `
-    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
-      Nenhum teste ortopédico especial registrado para comparação longitudinal.
-    </div>
-  ` : `
+  ${tabelaTestesOrtopedicos.length > 0 ? `
+    <div class="section-title">10. TESTES ORTOPÉDICOS ESPECIAIS — COMPARATIVO</div>
     <table>
       <thead>
         <tr>
@@ -546,7 +536,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         `).join('')}
       </tbody>
     </table>
-  `}
+  ` : ''}
 
   <!-- 11. FATORES DE EVOLUÇÃO -->
   <div class="section-title">11. FATORES DE EVOLUÇÃO</div>
