@@ -39,16 +39,41 @@ export default function CentralAvaliacoesPanel({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Cache de Prontuários em Memória para Transição Instantânea (0ms)
+  const detailCacheRef = React.useRef<Map<string, any>>(new Map());
+
   // Dados do Aluno Selecionado
   const [alunoDetail, setAlunoDetail] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
+  // Clientes com Agendamento Hoje (para badges e filtro de agenda)
+  const [todayClientIds, setTodayClientIds] = useState<Set<string>>(new Set());
+
   // Controle de Abas da Central Individual
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'historico'>('dashboard');
   const [showNovoTesteModal, setShowNovoTesteModal] = useState(false);
 
-  // 1. Carregar Lista de Alunos Inicial
+  // 1. Carregar Agendamentos de Hoje (Background)
+  useEffect(() => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    fetch(`/api/appointments?date=${todayStr}`)
+      .then(res => res.json())
+      .then(json => {
+        if (json?.success && Array.isArray(json.data)) {
+          const ids = new Set<string>();
+          json.data.forEach((apt: any) => {
+            const cid = apt.clienteId?._id || apt.clienteId;
+            if (cid) ids.add(String(cid));
+          });
+          setTodayClientIds(ids);
+        }
+      })
+      .catch(err => console.warn('[CentralAvaliacoes] Erro ao carregar agendamentos de hoje:', err));
+  }, []);
+
+  // 2. Carregar Lista de Alunos Inicial
   const loadAlunos = useCallback(async () => {
     setLoadingAlunos(true);
     try {
@@ -56,7 +81,6 @@ export default function CentralAvaliacoesPanel({
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setAlunos(json.data);
-        // Se nenhum aluno selecionado, seleciona o primeiro com avaliações ou o primeiro da lista
         if (!selectedAlunoId && json.data.length > 0) {
           const comAval = json.data.find((a: any) => a.totalGeral > 0) || json.data[0];
           setSelectedAlunoId(comAval._id);
@@ -73,10 +97,21 @@ export default function CentralAvaliacoesPanel({
     loadAlunos();
   }, [loadAlunos]);
 
-  // 2. Carregar Detalhes Completos do Aluno Selecionado
+  // 3. Carregar Detalhes do Aluno com Cache Instantâneo (0ms Stale-While-Revalidate)
   const loadAlunoDetail = useCallback(async (clientId: string, t1Id?: string, t2Id?: string) => {
-    setLoadingDetail(true);
-    setDetailError(null);
+    const cacheKey = `${clientId}_${t1Id || 'def'}_${t2Id || 'def'}`;
+    const cached = detailCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      // 🚀 Renderização imediata (0ms) sem spinner
+      setAlunoDetail(cached);
+      setLoadingDetail(false);
+      setDetailError(null);
+    } else {
+      setLoadingDetail(true);
+      setDetailError(null);
+    }
+
     try {
       let url = `/api/central-avaliacoes/aluno?clientId=${clientId}`;
       if (t1Id && t2Id) {
@@ -85,13 +120,16 @@ export default function CentralAvaliacoesPanel({
       const res = await fetch(url);
       const json = await res.json();
       if (json.success && json.data) {
+        detailCacheRef.current.set(cacheKey, json.data);
         setAlunoDetail(json.data);
-      } else {
+      } else if (!cached) {
         setDetailError(json.error || 'Não foi possível carregar os dados deste aluno.');
       }
     } catch (err: any) {
       console.error('Erro ao carregar detalhes do aluno na Central:', err);
-      setDetailError(err.message || 'Erro de conexão ao carregar prontuário do aluno.');
+      if (!cached) {
+        setDetailError(err.message || 'Erro de conexão ao carregar prontuário do aluno.');
+      }
     } finally {
       setLoadingDetail(false);
     }
@@ -100,7 +138,14 @@ export default function CentralAvaliacoesPanel({
   const handleSelectAluno = (id: string) => {
     if (id !== selectedAlunoId) {
       setSelectedAlunoId(id);
-      setAlunoDetail(null);
+      const defaultKey = `${id}_def_def`;
+      const cached = detailCacheRef.current.get(defaultKey);
+      if (cached) {
+        setAlunoDetail(cached);
+        setLoadingDetail(false);
+      } else {
+        setAlunoDetail(null);
+      }
       setDetailError(null);
     }
     if (isMobile) {
@@ -123,6 +168,12 @@ export default function CentralAvaliacoesPanel({
 
   const handleTestSaved = () => {
     if (selectedAlunoId) {
+      // Limpar cache do aluno modificado para refletir novos dados
+      const keysToDelete: string[] = [];
+      detailCacheRef.current.forEach((val, key) => {
+        if (key.startsWith(selectedAlunoId)) keysToDelete.push(key);
+      });
+      keysToDelete.forEach(k => detailCacheRef.current.delete(k));
       loadAlunoDetail(selectedAlunoId);
     }
     loadAlunos();
@@ -225,6 +276,7 @@ export default function CentralAvaliacoesPanel({
               selectedAlunoId={selectedAlunoId}
               onSelectAluno={handleSelectAluno}
               loading={loadingAlunos}
+              todayClientIds={todayClientIds}
             />
           </div>
         )}

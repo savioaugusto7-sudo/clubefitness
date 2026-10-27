@@ -23,11 +23,14 @@ export interface AlunoSummary {
   temAlertaCritico: boolean;
 }
 
+export type FilterType = 'todos' | 'hoje' | 'alertas' | 'reavaliacao' | 'forca' | 'avaliados';
+
 interface AlunoCardListProps {
   alunos: AlunoSummary[];
   selectedAlunoId: string | null;
   onSelectAluno: (id: string) => void;
   loading?: boolean;
+  todayClientIds?: Set<string>;
 }
 
 // Normalização de string: remove acentos, diacríticos e pontuação para busca infalível
@@ -44,10 +47,29 @@ export default function AlunoCardList({
   alunos,
   selectedAlunoId,
   onSelectAluno,
-  loading = false
+  loading = false,
+  todayClientIds
 }: AlunoCardListProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'todos' | 'avaliados' | 'forca' | 'alertas'>('todos');
+  const [filterType, setFilterType] = useState<FilterType>('todos');
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // 🌟 Atalho Global de Teclado: Apertar '/' foca o campo de busca
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // Tokens de busca separados por espaço (busca por termos independentes)
   const searchTokens = useMemo(() => {
@@ -67,7 +89,6 @@ export default function AlunoCardList({
     const rawPhone = (a.telefone || '').replace(/\D/g, '');
     const normEmail = normalizeStr(a.email);
 
-    // Todos os tokens digitados precisam bater com ao menos um atributo do aluno
     return searchTokens.every(token => {
       const tokenDigits = token.replace(/\D/g, '');
       return (
@@ -81,17 +102,29 @@ export default function AlunoCardList({
     });
   };
 
+  // Verificador de Reavaliação Pendente (avaliado há mais de 45 dias)
+  const isReavaliacaoPendente = (a: AlunoSummary): boolean => {
+    if (!a.ultimaData || a.totalGeral === 0) return false;
+    const parts = a.ultimaData.split('-');
+    if (parts.length !== 3) return false;
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 45;
+  };
+
   // Alunos filtrados respeitando busca e a aba atual
   const filteredAlunos = useMemo(() => {
     return alunos.filter(a => {
       if (!matchStudent(a)) return false;
 
-      if (filterType === 'avaliados') return a.totalGeral > 0;
-      if (filterType === 'forca') return a.totalST > 0;
+      if (filterType === 'hoje') return todayClientIds ? todayClientIds.has(a._id) : false;
       if (filterType === 'alertas') return a.temAlertaCritico;
+      if (filterType === 'reavaliacao') return isReavaliacaoPendente(a);
+      if (filterType === 'forca') return a.totalST > 0;
+      if (filterType === 'avaliados') return a.totalGeral > 0;
       return true;
     });
-  }, [alunos, searchTokens, filterType]);
+  }, [alunos, searchTokens, filterType, todayClientIds]);
 
   // Checagem inteligente de cross-match: usuário buscou, deu 0 resultados na aba atual, mas existe em 'Todos'?
   const crossMatchesInTodos = useMemo(() => {
@@ -109,26 +142,58 @@ export default function AlunoCardList({
     return dStr;
   };
 
-  const filterLabels: Record<string, string> = {
+  const filterLabels: Record<FilterType, string> = {
     todos: 'Todos',
-    avaliados: 'Avaliados',
+    hoje: 'Hoje',
+    alertas: 'Alertas',
+    reavaliacao: 'Reavaliação',
     forca: 'Força',
-    alertas: 'Alertas'
+    avaliados: 'Avaliados'
   };
+
+  // 🌟 Navegação por Teclado dentro do Input: Setas para cima/baixo alternam alunos
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setSearchTerm('');
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (filteredAlunos.length > 0) {
+        const idx = filteredAlunos.findIndex(a => a._id === selectedAlunoId);
+        const nextIdx = idx < filteredAlunos.length - 1 ? idx + 1 : 0;
+        onSelectAluno(filteredAlunos[nextIdx]._id);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (filteredAlunos.length > 0) {
+        const idx = filteredAlunos.findIndex(a => a._id === selectedAlunoId);
+        const prevIdx = idx > 0 ? idx - 1 : filteredAlunos.length - 1;
+        onSelectAluno(filteredAlunos[prevIdx]._id);
+      }
+    } else if (e.key === 'Enter') {
+      if (filteredAlunos.length > 0 && !selectedAlunoId) {
+        onSelectAluno(filteredAlunos[0]._id);
+      }
+    }
+  };
+
+  // Contagens para os chips
+  const countHoje = useMemo(() => {
+    if (!todayClientIds) return 0;
+    return alunos.filter(a => todayClientIds.has(a._id)).length;
+  }, [alunos, todayClientIds]);
+
+  const countAlertas = useMemo(() => alunos.filter(a => a.temAlertaCritico).length, [alunos]);
+  const countReavaliacao = useMemo(() => alunos.filter(a => isReavaliacaoPendente(a)).length, [alunos]);
+  const countForca = useMemo(() => alunos.filter(a => a.totalST > 0).length, [alunos]);
+  const countAvaliados = useMemo(() => alunos.filter(a => a.totalGeral > 0).length, [alunos]);
 
   // Renderiza nome destacando os termos pesquisados quando houver busca
   const renderHighlightedName = (name: string) => {
     if (searchTokens.length === 0) return name;
-    // Regex segura para destacar tokens
     try {
       const pattern = searchTokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
       const regex = new RegExp(`(${pattern})`, 'gi');
-      // Busca simplificada comparando com normalização
-      return (
-        <span>
-          {name}
-        </span>
-      );
+      return <span>{name}</span>;
     } catch {
       return name;
     }
@@ -136,7 +201,7 @@ export default function AlunoCardList({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '10px' }}>
-      {/* Barra de Pesquisa Otimizada */}
+      {/* Barra de Pesquisa Otimizada com Atalho '/' */}
       <div style={{ position: 'relative' }}>
         <i
           className="fas fa-search"
@@ -151,17 +216,16 @@ export default function AlunoCardList({
           }}
         />
         <input
+          ref={searchInputRef}
           type="text"
-          placeholder="Buscar por nome, sobrenome, CPF ou telefone..."
+          placeholder="Buscar aluno, CPF ou telefone... (ou tecle /)"
           className="form-control form-control-sm"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Escape') setSearchTerm('');
-          }}
+          onKeyDown={handleInputKeyDown}
           style={{
             paddingLeft: '36px',
-            paddingRight: searchTerm ? '34px' : '12px',
+            paddingRight: searchTerm ? '34px' : '36px',
             height: '42px',
             borderRadius: '10px',
             background: 'var(--bg-card)',
@@ -171,7 +235,7 @@ export default function AlunoCardList({
             transition: 'all 0.2s ease'
           }}
         />
-        {searchTerm && (
+        {searchTerm ? (
           <button
             type="button"
             title="Limpar busca (Esc)"
@@ -191,6 +255,24 @@ export default function AlunoCardList({
           >
             <i className="fas fa-times" />
           </button>
+        ) : (
+          <span
+            style={{
+              position: 'absolute',
+              right: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontSize: '0.72rem',
+              color: 'var(--text-dim)',
+              background: 'rgba(255,255,255,0.06)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              pointerEvents: 'none'
+            }}
+            title="Pressione a tecla / para buscar rapidamente"
+          >
+            /
+          </span>
         )}
       </div>
 
@@ -199,18 +281,16 @@ export default function AlunoCardList({
         <span>
           {searchTerm ? (
             <>
-              Encontrados: <strong style={{ color: 'var(--text-main)' }}>{filteredAlunos.length}</strong> de {alunos.length} alunos
+              Encontrados: <strong style={{ color: 'var(--text-main)' }}>{filteredAlunos.length}</strong> de {alunos.length}
             </>
           ) : (
-            <>Total: <strong style={{ color: 'var(--text-main)' }}>{filteredAlunos.length}</strong> alunos</>
+            <>Exibindo: <strong style={{ color: 'var(--text-main)' }}>{filteredAlunos.length}</strong> de {alunos.length}</>
           )}
         </span>
-        {searchTerm && (
-          <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Pressione Esc para limpar</span>
-        )}
+        <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Use ↑ ↓ para navegar</span>
       </div>
 
-      {/* Chips de Filtro Rápido */}
+      {/* Chips de Filtro Rápido Clínicos */}
       <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setFilterType('todos')}
@@ -230,42 +310,28 @@ export default function AlunoCardList({
         >
           Todos ({alunos.length})
         </button>
-        <button
-          onClick={() => setFilterType('avaliados')}
-          style={{
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            border: '1px solid',
-            borderColor: filterType === 'avaliados' ? 'var(--secondary)' : 'var(--border-color)',
-            background: filterType === 'avaliados' ? 'rgba(13, 148, 136, 0.18)' : 'transparent',
-            color: filterType === 'avaliados' ? 'var(--secondary)' : 'var(--text-dim)',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            minHeight: '34px'
-          }}
-        >
-          Avaliados ({alunos.filter(a => a.totalGeral > 0).length})
-        </button>
-        <button
-          onClick={() => setFilterType('forca')}
-          style={{
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            border: '1px solid',
-            borderColor: filterType === 'forca' ? '#f59e0b' : 'var(--border-color)',
-            background: filterType === 'forca' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
-            color: filterType === 'forca' ? '#f59e0b' : 'var(--text-dim)',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            minHeight: '34px'
-          }}
-        >
-          Força ({alunos.filter(a => a.totalST > 0).length})
-        </button>
+
+        {countHoje > 0 && (
+          <button
+            onClick={() => setFilterType('hoje')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              border: '1px solid',
+              borderColor: filterType === 'hoje' ? '#10b981' : 'var(--border-color)',
+              background: filterType === 'hoje' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+              color: filterType === 'hoje' ? '#10b981' : 'var(--text-dim)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              minHeight: '34px'
+            }}
+          >
+            🟢 Hoje ({countHoje})
+          </button>
+        )}
+
         <button
           onClick={() => setFilterType('alertas')}
           style={{
@@ -282,7 +348,64 @@ export default function AlunoCardList({
             minHeight: '34px'
           }}
         >
-          Alertas ({alunos.filter(a => a.temAlertaCritico).length})
+          Alertas ({countAlertas})
+        </button>
+
+        <button
+          onClick={() => setFilterType('reavaliacao')}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            border: '1px solid',
+            borderColor: filterType === 'reavaliacao' ? '#f59e0b' : 'var(--border-color)',
+            background: filterType === 'reavaliacao' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
+            color: filterType === 'reavaliacao' ? '#f59e0b' : 'var(--text-dim)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
+          }}
+        >
+          Reavaliação ({countReavaliacao})
+        </button>
+
+        <button
+          onClick={() => setFilterType('forca')}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            border: '1px solid',
+            borderColor: filterType === 'forca' ? '#6366f1' : 'var(--border-color)',
+            background: filterType === 'forca' ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+            color: filterType === 'forca' ? '#6366f1' : 'var(--text-dim)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
+          }}
+        >
+          Força ({countForca})
+        </button>
+
+        <button
+          onClick={() => setFilterType('avaliados')}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            border: '1px solid',
+            borderColor: filterType === 'avaliados' ? 'var(--secondary)' : 'var(--border-color)',
+            background: filterType === 'avaliados' ? 'rgba(13, 148, 136, 0.18)' : 'transparent',
+            color: filterType === 'avaliados' ? 'var(--secondary)' : 'var(--text-dim)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            minHeight: '34px'
+          }}
+        >
+          Avaliados ({countAvaliados})
         </button>
       </div>
 
@@ -407,7 +530,22 @@ export default function AlunoCardList({
                   >
                     {renderHighlightedName(a.nome)}
                   </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {todayClientIds?.has(a._id) && (
+                      <span
+                        title="Possui agendamento hoje"
+                        style={{
+                          fontSize: '9px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#10b981',
+                          fontWeight: 700
+                        }}
+                      >
+                        HOJE
+                      </span>
+                    )}
                     {a.temAlertaCritico && (
                       <span
                         title="Possui alertas clínicos ou assimetrias críticas"
@@ -421,6 +559,21 @@ export default function AlunoCardList({
                         }}
                       >
                         ALERTA
+                      </span>
+                    )}
+                    {isReavaliacaoPendente(a) && (
+                      <span
+                        title="Última avaliação há mais de 45 dias"
+                        style={{
+                          fontSize: '9px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(245, 158, 11, 0.18)',
+                          color: '#f59e0b',
+                          fontWeight: 700
+                        }}
+                      >
+                        REAVALIAÇÃO
                       </span>
                     )}
                     <i
