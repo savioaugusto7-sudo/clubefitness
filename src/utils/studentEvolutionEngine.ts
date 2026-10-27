@@ -439,7 +439,7 @@ export function processStudentEvolution(
     { id: 'joelho_flex', label: 'Joelho - Flexão', dKey: 'joelhoFlexaoD', eKey: 'joelhoFlexaoE' },
     { id: 'joelho_popliteo', label: 'Joelho - Ângulo Poplíteo', dKey: 'joelhoPopliteoD', eKey: 'joelhoPopliteoE' },
     { id: 'tornozelo_dorsi1', label: 'Tornozelo - Dorsiflexão Joelho Estendido', dKey: 'tornozeloDorsi1D', eKey: 'tornozeloDorsi1E' },
-    { id: 'tornozelo_dorsi2', label: 'Tornozelo - Dorsiflexão Joelho Fletido', dKey: 'tornozeloDorsi2D', eKey: 'tornozeloDorsi2E' },
+    { id: 'tornozelo_dorsi2', label: 'Tornozelo - Dorsiflexão Joelho Fletido / Lunge', dKey: 'tornozeloDorsi2D', eKey: 'tornozeloDorsi2E' },
     { id: 'tornozelo_plantar', label: 'Tornozelo - Flexão Plantar', dKey: 'tornozeloFlexaoPlantarD', eKey: 'tornozeloFlexaoPlantarE' },
     { id: 'ombro_rot_int', label: 'Ombro - Rotação Interna', dKey: 'ombroRotIntD', eKey: 'ombroRotIntE' },
     { id: 'ombro_rot_ext', label: 'Ombro - Rotação Externa', dKey: 'ombroRotExtD', eKey: 'ombroRotExtE' },

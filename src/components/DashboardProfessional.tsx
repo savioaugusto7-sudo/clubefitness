@@ -22,6 +22,7 @@ import AlunosPanel from './AlunosPanel';
 import WellnessModal from './WellnessModal';
 import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
+import CentralAvaliacoesPanel from './CentralAvaliacoesPanel';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
 import DossieAlunoModal from './DossieAlunoModal';
@@ -8941,6 +8942,26 @@ goniometria: {
         />
       )}
 
+      {/* 4b. View: Central de Avaliações */}
+      {activeTab === 'central_avaliacoes' && (
+        <CentralAvaliacoesPanel
+          onOpenCompletaPhysical={() => {
+            setAsClient('');
+            setAsStep(1);
+            setAsDraftSavedAt(null);
+            setAsDate(new Date().toISOString().split('T')[0]);
+            setShowAssessmentModal(true);
+          }}
+          onOpenCompletaPhysio={() => {
+            setRepClient('');
+            setRepActiveStep(1);
+            setRepDraftSavedAt(null);
+            setRepDate(new Date().toISOString().split('T')[0]);
+            setShowReportModal(true);
+          }}
+        />
+      )}
+
       {/* 5. View: Avaliações Físicas */}
       {activeTab === 'avaliacoes' && (() => {
         const listKey = 'avaliacoes';
@@ -11293,7 +11314,7 @@ goniometria: {
       )}
 
       {/* Default Fallback for other tabs */}
-      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino', 'alterar_senha', 'trancamentos_prof'].includes(activeTab) && (
+      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'central_avaliacoes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino', 'alterar_senha', 'trancamentos_prof'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -12514,8 +12535,10 @@ goniometria: {
                         { label: 'Quadril Rot. Interna (E)', prevValue: getGVal(pg.quadrilRotIntE), currValue: getGVal(asGonio.quadrilRotIntE), unit: '°' },
                         { label: 'Quadril Flexão 2 (D)', prevValue: getGVal(pg.quadrilFlexao2D), currValue: getGVal(asGonio.quadrilFlexao2D), unit: '°' },
                         { label: 'Quadril Flexão 2 (E)', prevValue: getGVal(pg.quadrilFlexao2E), currValue: getGVal(asGonio.quadrilFlexao2E), unit: '°' },
-                        { label: 'Tornozelo Dorsi 1 (D)', prevValue: getGVal(pg.tornozeloDorsi1D), currValue: getGVal(asGonio.tornozeloDorsi1D), unit: '°' },
-                        { label: 'Tornozelo Dorsi 1 (E)', prevValue: getGVal(pg.tornozeloDorsi1E), currValue: getGVal(asGonio.tornozeloDorsi1E), unit: '°' },
+                        { label: 'Tornozelo Dorsi - Joelho Estendido (D)', prevValue: getGVal(pg.tornozeloDorsi1D), currValue: getGVal(asGonio.tornozeloDorsi1D), unit: '°' },
+                        { label: 'Tornozelo Dorsi - Joelho Estendido (E)', prevValue: getGVal(pg.tornozeloDorsi1E), currValue: getGVal(asGonio.tornozeloDorsi1E), unit: '°' },
+                        { label: 'Tornozelo Dorsi - Lunge (D)', prevValue: getGVal(pg.tornozeloDorsi2D), currValue: getGVal(asGonio.tornozeloDorsi2D), unit: '°' },
+                        { label: 'Tornozelo Dorsi - Lunge (E)', prevValue: getGVal(pg.tornozeloDorsi2E), currValue: getGVal(asGonio.tornozeloDorsi2E), unit: '°' },
                         { label: 'Ombro Rot. Interna (D)', prevValue: getGVal(pg.ombroRotIntD), currValue: getGVal(asGonio.ombroRotIntD), unit: '°' },
                         { label: 'Ombro Rot. Interna (E)', prevValue: getGVal(pg.ombroRotIntE), currValue: getGVal(asGonio.ombroRotIntE), unit: '°' }
                       ];
@@ -12575,10 +12598,10 @@ goniometria: {
                               <th colSpan={2} style={{ textAlign: 'center', background: 'rgba(99,102,241,0.06)' }}>Esquerdo</th>
                             </tr>
                             <tr>
-                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(13,148,136,0.04)' }}>Ativo (Sem)</th>
-                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(13,148,136,0.08)' }}>Passivo (Com)</th>
-                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(99,102,241,0.04)' }}>Ativo (Sem)</th>
-                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(99,102,241,0.08)' }}>Passivo (Com)</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(13,148,136,0.04)' }}>1</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(13,148,136,0.08)' }}>2</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(99,102,241,0.04)' }}>1</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(99,102,241,0.08)' }}>2</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -12620,7 +12643,7 @@ goniometria: {
                                     <small style={{ color: 'var(--text-dim)' }}>Ref: {row.ref}</small>
                                   </td>
                                   {/* Direito */}
-                                  <td data-label="Direito Ativo (Sem)" style={{ background: 'rgba(13,148,136,0.02)' }}>
+                                  <td data-label="Direito 1" style={{ background: 'rgba(13,148,136,0.02)' }}>
                                     <input
                                       type="number"
                                       placeholder="1"
@@ -12630,7 +12653,7 @@ goniometria: {
                                       onChange={e => updateField(row.keyD, 'semForca', e.target.value)}
                                     />
                                   </td>
-                                  <td data-label="Direito Passivo (Com)" style={{ background: 'rgba(13,148,136,0.05)' }}>
+                                  <td data-label="Direito 2" style={{ background: 'rgba(13,148,136,0.05)' }}>
                                     <input
                                       type="number"
                                       placeholder="2"
@@ -12641,7 +12664,7 @@ goniometria: {
                                     />
                                   </td>
                                   {/* Esquerdo */}
-                                  <td data-label="Esquerdo Ativo (Sem)" style={{ background: 'rgba(99,102,241,0.02)' }}>
+                                  <td data-label="Esquerdo 1" style={{ background: 'rgba(99,102,241,0.02)' }}>
                                     <input
                                       type="number"
                                       placeholder="1"
@@ -12651,7 +12674,7 @@ goniometria: {
                                       onChange={e => updateField(row.keyE, 'semForca', e.target.value)}
                                     />
                                   </td>
-                                  <td data-label="Esquerdo Passivo (Com)" style={{ background: 'rgba(99,102,241,0.05)' }}>
+                                  <td data-label="Esquerdo 2" style={{ background: 'rgba(99,102,241,0.05)' }}>
                                     <input
                                       type="number"
                                       placeholder="2"

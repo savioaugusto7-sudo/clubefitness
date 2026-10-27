@@ -34,6 +34,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       icon: 'fa-chart-pie',
       tabs: [
         { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
+        { id: 'central_avaliacoes', label: 'Central de Avaliações', icon: 'fa-stethoscope' },
         { id: 'agenda_completa', label: 'Agenda Geral', icon: 'fa-calendar-alt' },
         { id: 'treinamento_prof', label: '🎓 Treinamento Profissional', icon: 'fa-graduation-cap' },
         { id: 'log_atividades', label: 'Log de Atividades', icon: 'fa-history' }
@@ -49,6 +50,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'metas_profissionais', label: 'Metas dos Profissionais', icon: 'fa-trophy' },
         { id: 'advertencias', label: 'Advertências & Débitos', icon: 'fa-triangle-exclamation' },
         { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
+        { id: 'central_avaliacoes', label: 'Central de Avaliações', icon: 'fa-stethoscope' },
         { id: 'relatorios_mensais', label: 'Relatórios Mensais', icon: 'fa-envelope-open-text' },
         { id: 'vincular_alunos', label: 'Vincular Alunos', icon: 'fa-link' },
         { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' }
@@ -103,6 +105,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'registro_ponto', label: 'Registrar Ponto', icon: 'fa-fingerprint' },
         { id: 'resumo_dia', label: 'Resumo do Dia', icon: 'fa-clipboard-list' },
+        { id: 'central_avaliacoes', label: 'Central de Avaliações', icon: 'fa-stethoscope' },
         { id: 'dashboard', label: 'Agenda Completa', icon: 'fa-calendar-alt' },
         { id: 'agendamento_prof', label: 'Agendar Aluno', icon: 'fa-calendar-plus' },
         { id: 'clientes', label: 'Clientes Vinculados', icon: 'fa-user-friends' },
@@ -114,6 +117,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       title: 'TREINOS & AVALIAÇÕES',
       icon: 'fa-dumbbell',
       tabs: [
+        { id: 'central_avaliacoes', label: 'Central de Avaliações', icon: 'fa-stethoscope' },
         { id: 'treinos_prof', label: 'Fichas de Treino', icon: 'fa-dumbbell' },
         { id: 'avaliacoes', label: 'Avaliações Físicas', icon: 'fa-heartbeat' },
         { id: 'relatorios', label: 'Relatórios Fisioterápicos', icon: 'fa-file-medical' },
@@ -144,6 +148,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       icon: 'fa-clipboard-check',
       tabs: [
         { id: 'dashboard', label: 'Painel da Recepção', icon: 'fa-chart-pie' },
+        { id: 'central_avaliacoes', label: 'Central de Avaliações', icon: 'fa-stethoscope' },
         { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
         { id: 'agendamentos', label: 'Agendamentos', icon: 'fa-calendar-alt' },
         { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
@@ -761,6 +766,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
             <div className="bottom-drawer-grid">
               {allTabs
                 .filter(tab => !bottomNavConfigs[role]?.some(bt => bt.id === tab.id))
+                .filter((tab, index, self) => index === self.findIndex(t => t.id === tab.id))
                 .map(tab => (
                   <div 
                     key={tab.id} 

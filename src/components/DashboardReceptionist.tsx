@@ -11,6 +11,7 @@ import GestaoContratosPanel from './GestaoContratosPanel';
 import DynamusPanel from './DynamusPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
+import CentralAvaliacoesPanel from './CentralAvaliacoesPanel';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -3119,6 +3120,10 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
 
   if (activeTab === 'dynamus') {
     return <DynamusPanel clients={clients} plans={plans} userCargo="Recepcionista" fetchData={fetchData} />;
+  }
+
+  if (activeTab === 'central_avaliacoes') {
+    return <CentralAvaliacoesPanel />;
   }
 
   return null;

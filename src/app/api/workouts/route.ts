@@ -14,7 +14,11 @@ export async function GET(request: Request) {
 
     if (!clientId) {
       const workouts = await ClientWorkout.find({})
-        .select('clienteId updatedAt fichasMonitorado.ultimaAtualizacao fichasMonitorado.exercicios.nome fichasLivre.ultimaAtualizacao fichasLivre.exercicios.nome')
+        .select(
+          'clienteId updatedAt ' +
+          'fichasMonitorado.id fichasMonitorado.nome fichasMonitorado.ultimaAtualizacao fichasMonitorado.validadeDias fichasMonitorado.dataCriacao fichasMonitorado.dataExpiracao fichasMonitorado.exercicios.exercicioId ' +
+          'fichasLivre.id fichasLivre.nome fichasLivre.ultimaAtualizacao fichasLivre.validadeDias fichasLivre.dataCriacao fichasLivre.dataExpiracao fichasLivre.exercicios.exercicioId'
+        )
         .lean()
         .maxTimeMS(8000);
       return NextResponse.json({ success: true, data: workouts });

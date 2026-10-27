@@ -2546,11 +2546,11 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     } else if (movement === 'tornozeloDorsi1') {
       if (val < 15) { color = '#ef4444'; label = 'Abaixo do ideal (<15°)'; }
       else if (val < 20) { color = '#f59e0b'; label = 'Atenção / Encurtamento (15-19°)'; }
-      else if (val > 30) { color = '#ef4444'; label = 'Hipermóvel (>30°)'; }
+      else { color = '#10b981'; label = 'Normal (≥20°)'; }
     } else if (movement === 'tornozeloDorsi2') {
       if (val < 25) { color = '#ef4444'; label = 'Abaixo do ideal (<25°)'; }
-      else if (val < 35) { color = '#f59e0b'; label = 'Atenção / Déficit Lunge (25-34°)'; }
-      else if (val > 48) { color = '#ef4444'; label = 'Hipermóvel (>48°)'; }
+      else if (val < 35) { color = '#f59e0b'; label = 'Encurtado (25-34°)'; }
+      else { color = '#10b981'; label = 'Normal (35-45°)'; }
     } else if (movement === 'tornozeloFlexaoPlantar') {
       if (val < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
       else if (val < 40) { color = '#f59e0b'; label = 'Atenção'; }

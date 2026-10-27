@@ -16,11 +16,49 @@ export default function WellnessModal({ isOpen, onClose, appointment, clientWork
   const [fadiga, setFadiga] = useState<number>(2);
   const [dorMuscular, setDorMuscular] = useState<number>(1);
   const [selectedFicha, setSelectedFicha] = useState<string>('');
+  const [workoutDoc, setWorkoutDoc] = useState<any>(clientWorkout || null);
+  const [loadingWorkout, setLoadingWorkout] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [summaryResult, setSummaryResult] = useState<WellnessResult | null>(null);
   const loadedAptIdRef = React.useRef<string | null>(null);
+
+  // Sincronizar workoutDoc com clientWorkout caso seja atualizado externamente
+  useEffect(() => {
+    if (clientWorkout) {
+      setWorkoutDoc(clientWorkout);
+    }
+  }, [clientWorkout]);
+
+  // Self-Healing: Se o aluno não tiver fichas no prop clientWorkout ou se for nulo, busca direto na API
+  useEffect(() => {
+    if (isOpen && appointment) {
+      const targetClientId = appointment.clienteId?._id || appointment.clienteId || null;
+      const cidStr = targetClientId ? String(targetClientId) : null;
+      if (!cidStr) return;
+
+      const curW = clientWorkout || workoutDoc;
+      const hasValidSheets = Boolean(
+        curW &&
+        ((Array.isArray(curW.fichasMonitorado) && curW.fichasMonitorado.some((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0)) ||
+         (Array.isArray(curW.fichasLivre) && curW.fichasLivre.some((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0)))
+      );
+
+      if (!hasValidSheets) {
+        setLoadingWorkout(true);
+        fetch(`/api/workouts?clientId=${cidStr}`)
+          .then(res => res.json())
+          .then(json => {
+            if (json?.success && json?.data) {
+              setWorkoutDoc(json.data);
+            }
+          })
+          .catch(err => console.warn('[WellnessModal] Erro ao carregar fichas do aluno sob demanda:', err))
+          .finally(() => setLoadingWorkout(false));
+      }
+    }
+  }, [isOpen, appointment?._id, appointment?.clienteId, clientWorkout]);
 
   useEffect(() => {
     if (isOpen && appointment) {
@@ -37,7 +75,8 @@ export default function WellnessModal({ isOpen, onClose, appointment, clientWork
           setDorMuscular(1);
         }
         if (appointment?.treinoExecutado?.fichaId) {
-          setSelectedFicha(appointment.treinoExecutado.fichaId);
+          const isLivre = appointment.treinoExecutado.categoria === 'fichasLivre' || appointment.treinoExecutado.tipo === 'livre';
+          setSelectedFicha(isLivre ? `livre_${appointment.treinoExecutado.fichaId}` : appointment.treinoExecutado.fichaId);
         } else if (appointment?.treinoExecutado?.tipo === 'livre') {
           setSelectedFicha('livre');
         } else {
@@ -66,18 +105,19 @@ export default function WellnessModal({ isOpen, onClose, appointment, clientWork
     setErrorMessage('');
     try {
       const payload: any = { sono, fadiga, dorMuscular };
+      const effectiveWorkout = workoutDoc || clientWorkout;
       if (selectedFicha) {
         const isLivre = selectedFicha.startsWith('livre_') || selectedFicha === 'livre';
         const cleanId = selectedFicha.replace(/^livre_/, '');
         
         let customNome = '';
         if (isLivre) {
-          const s = (clientWorkout?.fichasLivre || []).find((f: any) => f.id === cleanId);
+          const s = (effectiveWorkout?.fichasLivre || []).find((f: any) => f.id === cleanId);
           customNome = s?.nome && !s.nome.toLowerCase().startsWith('treino livre') && !s.nome.toLowerCase().startsWith('ficha')
             ? `TREINO LIVRE ${cleanId} - ${s.nome}`
             : `TREINO LIVRE ${cleanId}`;
         } else {
-          const s = (clientWorkout?.fichasMonitorado || []).find((f: any) => f.id === cleanId);
+          const s = (effectiveWorkout?.fichasMonitorado || []).find((f: any) => f.id === cleanId);
           customNome = s?.nome && !s.nome.toLowerCase().startsWith('ficha')
             ? `Ficha ${cleanId} - ${s.nome}`
             : (s?.nome || `Ficha ${cleanId}`);
@@ -411,8 +451,27 @@ export default function WellnessModal({ isOpen, onClose, appointment, clientWork
                 Qual treino o aluno irá realizar hoje? (Opcional)
               </label>
               {(() => {
-                const monitoradoSheets = (clientWorkout?.fichasMonitorado || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
-                const livreSheets = (clientWorkout?.fichasLivre || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
+                if (loadingWorkout) {
+                  return (
+                    <div style={{
+                      padding: '12px 14px',
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: 'var(--text-muted, #94a3b8)',
+                      fontSize: '0.82rem'
+                    }}>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ color: '#10b981' }}></i>
+                      <span>Carregando fichas de treino do aluno...</span>
+                    </div>
+                  );
+                }
+
+                const effectiveWorkout = workoutDoc || clientWorkout;
+                const monitoradoSheets = (effectiveWorkout?.fichasMonitorado || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
+                const livreSheets = (effectiveWorkout?.fichasLivre || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
                 const hasAnySheets = monitoradoSheets.length > 0 || livreSheets.length > 0;
 
                 if (!hasAnySheets) {

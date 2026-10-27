@@ -743,8 +743,8 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     { mov: 'Ângulo poplíteo — esquerdo', ref: '155–160°', key1: 'joelhoPopliteoE', key2: 'joelhoPopliteoE', minRef: 155 },
     { mov: 'Dorsiflexão de tornozelo com joelho estendido — direito', ref: '20°', key1: 'tornozeloDorsi1D', key2: 'tornozeloDorsi1D', minRef: 20 },
     { mov: 'Dorsiflexão de tornozelo com joelho estendido — esquerdo', ref: '20°', key1: 'tornozeloDorsi1E', key2: 'tornozeloDorsi1E', minRef: 20 },
-    { mov: 'Dorsiflexão de tornozelo com joelho fletido — direito', ref: '35–45°', key1: 'tornozeloDorsi2D', key2: 'tornozeloDorsi2D', minRef: 35 },
-    { mov: 'Dorsiflexão de tornozelo com joelho fletido — esquerdo', ref: '35–45°', key1: 'tornozeloDorsi2E', key2: 'tornozeloDorsi2E', minRef: 35 },
+    { mov: 'Dorsiflexão de tornozelo com joelho fletido / Lunge — direito', ref: '35–45°', key1: 'tornozeloDorsi2D', key2: 'tornozeloDorsi2D', minRef: 35 },
+    { mov: 'Dorsiflexão de tornozelo com joelho fletido / Lunge — esquerdo', ref: '35–45°', key1: 'tornozeloDorsi2E', key2: 'tornozeloDorsi2E', minRef: 35 },
     { mov: 'Flexão plantar de tornozelo — direito', ref: '40–50°', key1: 'tornozeloFlexaoPlantarD', key2: 'tornozeloFlexaoPlantarD', minRef: 40 },
     { mov: 'Flexão plantar de tornozelo — esquerdo', ref: '40–50°', key1: 'tornozeloFlexaoPlantarE', key2: 'tornozeloFlexaoPlantarE', minRef: 40 }
   ];
