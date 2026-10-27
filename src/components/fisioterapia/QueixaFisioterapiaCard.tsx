@@ -36,7 +36,8 @@ export default function QueixaFisioterapiaCard({
   const [activeCifCategory, setActiveCifCategory] = useState<string>('mobilidade_mudancas');
   const [cifSearchTerm, setCifSearchTerm] = useState('');
   const [alivioSearchTerm, setAlivioSearchTerm] = useState('');
-  const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+  // Aberto por padrão para induzir o preenchimento completo dos dados clínicos
+  const [showAdvancedDetails, setShowAdvancedDetails] = useState(true);
 
   // Estados para modo de texto livre anatômico
   const [isCustomRegiao, setIsCustomRegiao] = useState<boolean>(() => {
@@ -120,8 +121,8 @@ export default function QueixaFisioterapiaCard({
     updateField('atividadesAgravantes', next);
   };
 
-  // Adição tokenizada de atividade personalizada
-  const handleAddAtividadeToken = (texto: string) => {
+  // Adição de atividade personalizada
+  const handleAddAtividade = (texto: string) => {
     const clean = texto.trim();
     if (!clean) return;
     const current = queixa.atividadesAgravantes || [];
@@ -141,8 +142,8 @@ export default function QueixaFisioterapiaCard({
     updateField('fatoresAlivio', next);
   };
 
-  // Adição tokenizada de fator de alívio personalizado
-  const handleAddAlivioToken = (texto: string) => {
+  // Adição de fator de alívio personalizado
+  const handleAddAlivio = (texto: string) => {
     const clean = texto.trim();
     if (!clean) return;
     const current = queixa.fatoresAlivio || [];
@@ -185,11 +186,11 @@ export default function QueixaFisioterapiaCard({
     <div
       style={{
         background: 'var(--bg-card, #1e293b)',
-        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
         borderRadius: '12px',
-        padding: '16px',
-        marginBottom: '14px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        padding: '18px',
+        marginBottom: '16px',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
         position: 'relative'
       }}
     >
@@ -199,37 +200,40 @@ export default function QueixaFisioterapiaCard({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottom: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+          borderBottom: '1px solid var(--border-color, rgba(255,255,255,0.1))',
           paddingBottom: '12px',
-          marginBottom: '14px',
+          marginBottom: '16px',
           flexWrap: 'wrap',
           gap: '10px'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span
             style={{
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              color: isPrincipal ? 'var(--primary, #6366f1)' : 'var(--text-main, #f8fafc)',
+              fontWeight: 800,
+              fontSize: '1rem',
+              color: isPrincipal ? '#818cf8' : '#f8fafc',
               textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            <i className={`fas ${selectedRegiaoDef.icone}`} style={{ marginRight: '6px' }} />
+            <i className={`fas ${selectedRegiaoDef.icone}`} />
             {isPrincipal ? 'Queixa Principal' : `Queixa Secundária #${index}`}
           </span>
 
           {/* Badge da Dor EVA */}
           <span
             style={{
-              fontSize: '0.75rem',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              background: `${evaColor}20`,
+              fontSize: '0.85rem',
+              padding: '3px 10px',
+              borderRadius: '14px',
+              background: `${evaColor}25`,
               color: evaColor,
-              fontWeight: 600,
-              border: `1px solid ${evaColor}40`
+              fontWeight: 700,
+              border: `1px solid ${evaColor}60`
             }}
           >
             EVA: {queixa.dorIntensidade}/10
@@ -241,16 +245,17 @@ export default function QueixaFisioterapiaCard({
               type="button"
               onClick={onKeepPrev}
               style={{
-                fontSize: '0.7rem',
-                padding: '2px 8px',
+                fontSize: '0.78rem',
+                padding: '4px 10px',
                 borderRadius: '6px',
-                background: 'rgba(56, 189, 248, 0.12)',
+                background: 'rgba(56, 189, 248, 0.15)',
                 color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '5px',
+                fontWeight: 600
               }}
             >
               <i className="fas fa-arrow-down-to-bracket" /> Manter da Avaliação Anterior
@@ -264,26 +269,27 @@ export default function QueixaFisioterapiaCard({
             type="button"
             onClick={onRemove}
             style={{
-              background: 'rgba(239, 68, 68, 0.1)',
+              background: 'rgba(239, 68, 68, 0.12)',
               color: '#ef4444',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
               borderRadius: '6px',
-              padding: '3px 8px',
-              fontSize: '0.75rem',
-              cursor: 'pointer'
+              padding: '4px 10px',
+              fontSize: '0.80rem',
+              cursor: 'pointer',
+              fontWeight: 600
             }}
           >
-            <i className="fas fa-trash" style={{ marginRight: '4px' }} /> Remover Queixa
+            <i className="fas fa-trash" style={{ marginRight: '5px' }} /> Remover Queixa
           </button>
         )}
       </div>
 
       {/* 2. LOCALIZAÇÃO ANATÔMICA (DROPDOWN + TEXTO LIVRE) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '16px' }}>
         {/* Região Macro */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', margin: 0, fontWeight: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <label style={{ fontSize: '0.88rem', color: '#e2e8f0', margin: 0, fontWeight: 700 }}>
               Região Anatômica:
             </label>
             {isCustomRegiao && !readOnly && (
@@ -297,10 +303,11 @@ export default function QueixaFisioterapiaCard({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--primary, #6366f1)',
-                  fontSize: '0.7rem',
+                  color: '#818cf8',
+                  fontSize: '0.78rem',
                   cursor: 'pointer',
-                  padding: 0
+                  padding: 0,
+                  fontWeight: 600
                 }}
               >
                 <i className="fas fa-list" style={{ marginRight: '3px' }} /> Voltar ao Catálogo
@@ -312,25 +319,26 @@ export default function QueixaFisioterapiaCard({
             <div style={{ display: 'flex', gap: '6px' }}>
               <input
                 type="text"
-                className="form-control form-control-sm"
-                placeholder="Digite a região (ex: ATM, Tórax, etc.)..."
+                className="form-control"
+                placeholder="Digite a região (ex: ATM, Tórax, Costelas)..."
                 value={queixa.regiao || ''}
                 disabled={readOnly}
                 onChange={e => updateField('regiao', e.target.value)}
                 style={{
                   background: 'var(--bg-dark, #0f172a)',
-                  color: 'var(--text-main, #f8fafc)',
-                  borderColor: 'var(--primary, #6366f1)',
-                  height: '36px',
+                  color: '#f8fafc',
+                  borderColor: '#6366f1',
+                  height: '38px',
                   borderRadius: '6px',
-                  fontSize: '0.85rem'
+                  fontSize: '0.90rem',
+                  fontWeight: 500
                 }}
                 autoFocus
               />
             </div>
           ) : (
             <select
-              className="form-control form-control-sm"
+              className="form-control"
               value={queixa.regiao}
               disabled={readOnly}
               onChange={e => {
@@ -345,11 +353,12 @@ export default function QueixaFisioterapiaCard({
               }}
               style={{
                 background: 'var(--bg-dark, #0f172a)',
-                color: 'var(--text-main, #f8fafc)',
-                borderColor: 'var(--border-color, rgba(255, 255, 255, 0.15))',
-                height: '36px',
+                color: '#f8fafc',
+                borderColor: 'var(--border-color, rgba(255, 255, 255, 0.2))',
+                height: '38px',
                 borderRadius: '6px',
-                fontSize: '0.85rem'
+                fontSize: '0.90rem',
+                fontWeight: 500
               }}
             >
               {REGIOES_ANATOMICAS.map(r => (
@@ -357,7 +366,7 @@ export default function QueixaFisioterapiaCard({
                   {r.nome}
                 </option>
               ))}
-              <option value="__OUTRA__" style={{ fontWeight: 600, color: 'var(--primary, #6366f1)' }}>
+              <option value="__OUTRA__" style={{ fontWeight: 700, color: '#818cf8' }}>
                 ✍️ Outra Região (Texto Livre)...
               </option>
             </select>
@@ -366,10 +375,10 @@ export default function QueixaFisioterapiaCard({
 
         {/* Lateralidade */}
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
+          <label style={{ fontSize: '0.88rem', color: '#e2e8f0', marginBottom: '6px', display: 'block', fontWeight: 700 }}>
             Lateralidade:
           </label>
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {selectedRegiaoDef.lateralidadePermitida.map(lat => {
               const isSelected = queixa.lateralidade === lat;
               return (
@@ -380,16 +389,16 @@ export default function QueixaFisioterapiaCard({
                   onClick={() => updateField('lateralidade', lat)}
                   style={{
                     flex: 1,
-                    minWidth: '60px',
-                    padding: '6px 8px',
+                    minWidth: '65px',
+                    padding: '8px 10px',
                     borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    fontWeight: isSelected ? 600 : 400,
+                    fontSize: '0.84rem',
+                    fontWeight: isSelected ? 700 : 500,
                     cursor: readOnly ? 'default' : 'pointer',
                     border: '1px solid',
-                    borderColor: isSelected ? 'var(--primary, #6366f1)' : 'var(--border-color, rgba(255,255,255,0.1))',
-                    background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                    color: isSelected ? 'var(--primary, #6366f1)' : 'var(--text-dim, #94a3b8)',
+                    borderColor: isSelected ? 'var(--primary, #6366f1)' : 'var(--border-color, rgba(255,255,255,0.15))',
+                    background: isSelected ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
+                    color: isSelected ? '#a5b4fc' : '#cbd5e1',
                     transition: 'all 0.15s ease'
                   }}
                 >
@@ -402,8 +411,8 @@ export default function QueixaFisioterapiaCard({
 
         {/* Sub-Região / Estrutura Específica */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', margin: 0, fontWeight: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <label style={{ fontSize: '0.88rem', color: '#e2e8f0', margin: 0, fontWeight: 700 }}>
               Sub-Região / Estrutura:
             </label>
             {isCustomSubRegiao && !isCustomRegiao && !readOnly && (
@@ -416,10 +425,11 @@ export default function QueixaFisioterapiaCard({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--primary, #6366f1)',
-                  fontSize: '0.7rem',
+                  color: '#818cf8',
+                  fontSize: '0.78rem',
                   cursor: 'pointer',
-                  padding: 0
+                  padding: 0,
+                  fontWeight: 600
                 }}
               >
                 <i className="fas fa-list" style={{ marginRight: '3px' }} /> Voltar ao Catálogo
@@ -431,24 +441,25 @@ export default function QueixaFisioterapiaCard({
             <div style={{ display: 'flex', gap: '6px' }}>
               <input
                 type="text"
-                className="form-control form-control-sm"
-                placeholder="Digite a estrutura / detalhes..."
+                className="form-control"
+                placeholder="Digite a estrutura / detalhes (ex: tendão patelar, menisco)..."
                 value={queixa.subRegiao || ''}
                 disabled={readOnly}
                 onChange={e => updateField('subRegiao', e.target.value)}
                 style={{
                   background: 'var(--bg-dark, #0f172a)',
-                  color: 'var(--text-main, #f8fafc)',
-                  borderColor: 'var(--primary, #6366f1)',
-                  height: '36px',
+                  color: '#f8fafc',
+                  borderColor: '#6366f1',
+                  height: '38px',
                   borderRadius: '6px',
-                  fontSize: '0.85rem'
+                  fontSize: '0.90rem',
+                  fontWeight: 500
                 }}
               />
             </div>
           ) : (
             <select
-              className="form-control form-control-sm"
+              className="form-control"
               value={queixa.subRegiao}
               disabled={readOnly}
               onChange={e => {
@@ -461,11 +472,12 @@ export default function QueixaFisioterapiaCard({
               }}
               style={{
                 background: 'var(--bg-dark, #0f172a)',
-                color: 'var(--text-main, #f8fafc)',
-                borderColor: 'var(--border-color, rgba(255, 255, 255, 0.15))',
-                height: '36px',
+                color: '#f8fafc',
+                borderColor: 'var(--border-color, rgba(255, 255, 255, 0.2))',
+                height: '38px',
                 borderRadius: '6px',
-                fontSize: '0.85rem'
+                fontSize: '0.90rem',
+                fontWeight: 500
               }}
             >
               {selectedRegiaoDef.subRegioes.map(sr => (
@@ -473,7 +485,7 @@ export default function QueixaFisioterapiaCard({
                   {sr.nome}
                 </option>
               ))}
-              <option value="__OUTRA_SUB__" style={{ fontWeight: 600, color: 'var(--primary, #6366f1)' }}>
+              <option value="__OUTRA_SUB__" style={{ fontWeight: 700, color: '#818cf8' }}>
                 ✍️ Outra Estrutura (Texto Livre)...
               </option>
             </select>
@@ -484,18 +496,18 @@ export default function QueixaFisioterapiaCard({
       {/* 3. ESCALA ANALÓGICA VISUAL (EVA 0–10) */}
       <div
         style={{
-          background: 'rgba(0, 0, 0, 0.15)',
-          padding: '12px 14px',
+          background: 'rgba(0, 0, 0, 0.2)',
+          padding: '14px 16px',
           borderRadius: '8px',
-          marginBottom: '14px',
-          border: '1px solid var(--border-color, rgba(255, 255, 255, 0.05))'
+          marginBottom: '16px',
+          border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))'
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main, #f8fafc)', margin: 0 }}>
+          <label style={{ fontSize: '0.92rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
             Intensidade da Dor (Escala EVA):
           </label>
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: evaColor }}>
+          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: evaColor }}>
             {evaLabel}
           </span>
         </div>
@@ -513,20 +525,21 @@ export default function QueixaFisioterapiaCard({
             width: '100%',
             accentColor: evaColor,
             cursor: readOnly ? 'default' : 'pointer',
-            height: '6px'
+            height: '8px'
           }}
         />
 
-        {/* Marcadores 0 a 10 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.68rem', color: 'var(--text-dim, #94a3b8)', padding: '0 2px' }}>
+        {/* Marcadores 0 a 10 com fontes nítidas */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.80rem', color: '#cbd5e1', padding: '0 4px', fontWeight: 600 }}>
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => (
             <span
               key={val}
               onClick={() => !readOnly && updateField('dorIntensidade', val)}
               style={{
                 cursor: readOnly ? 'default' : 'pointer',
-                fontWeight: queixa.dorIntensidade === val ? 700 : 400,
-                color: queixa.dorIntensidade === val ? evaColor : 'inherit'
+                fontWeight: queixa.dorIntensidade === val ? 800 : 500,
+                color: queixa.dorIntensidade === val ? evaColor : 'inherit',
+                fontSize: queixa.dorIntensidade === val ? '0.90rem' : '0.80rem'
               }}
             >
               {val}
@@ -535,34 +548,34 @@ export default function QueixaFisioterapiaCard({
         </div>
       </div>
 
-      {/* 4. ATIVIDADES AGRAVANTES BASEADAS NA CIF COM BUSCA TOKENIZADA */}
-      <div style={{ marginBottom: '14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
-          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-main, #f8fafc)', margin: 0 }}>
-            <i className="fas fa-person-walking" style={{ marginRight: '5px', color: '#f59e0b' }} />
-            Atividades que Provocam ou Agravam a Dor (Base CIF + Livre):
+      {/* 4. ATIVIDADES QUE AGRAVAM A DOR (CIF + PERSONALIZADAS) */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+          <label style={{ fontSize: '0.90rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+            <i className="fas fa-person-walking" style={{ marginRight: '6px', color: '#f59e0b' }} />
+            Atividades que Provocam ou Agravam a Dor:
           </label>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim, #94a3b8)' }}>
+          <span style={{ fontSize: '0.80rem', color: '#cbd5e1', fontWeight: 600 }}>
             {(queixa.atividadesAgravantes || []).length} selecionada(s)
           </span>
         </div>
 
         {/* Tokens / Tags de Atividades Selecionadas */}
         {(queixa.atividadesAgravantes || []).length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px', padding: '6px 8px', background: 'rgba(245, 158, 11, 0.08)', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px', padding: '8px 10px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
             {queixa.atividadesAgravantes.map(ativ => (
               <span
                 key={ativ}
                 style={{
-                  background: 'rgba(245, 158, 11, 0.2)',
-                  color: '#f59e0b',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  padding: '3px 8px',
-                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.25)',
+                  color: '#fbbf24',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '14px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '8px'
                 }}
               >
                 {ativ}
@@ -570,7 +583,7 @@ export default function QueixaFisioterapiaCard({
                   <i
                     className="fas fa-times"
                     onClick={() => toggleAtividade(ativ)}
-                    style={{ cursor: 'pointer', fontSize: '0.7rem' }}
+                    style={{ cursor: 'pointer', fontSize: '0.80rem' }}
                     title="Remover atividade"
                   />
                 )}
@@ -579,38 +592,38 @@ export default function QueixaFisioterapiaCard({
           </div>
         )}
 
-        {/* Campo de Busca Tokenizado */}
+        {/* Campo de Busca e Inserção Livre de Atividades */}
         {!readOnly && (
           <div>
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <i
                   className="fas fa-search"
-                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim, #94a3b8)', fontSize: '0.75rem' }}
+                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.85rem' }}
                 />
                 <input
                   type="text"
-                  placeholder="Buscar ou digitar atividade livre (pressione Enter para adicionar)..."
+                  placeholder="Buscar ou digitar atividade agravante (pressione Enter para adicionar)..."
                   value={cifSearchTerm}
                   onChange={e => setCifSearchTerm(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       if (cifSearchTerm.trim()) {
-                        handleAddAtividadeToken(cifSearchTerm);
+                        handleAddAtividade(cifSearchTerm);
                       }
                     }
                   }}
                   style={{
                     width: '100%',
-                    paddingLeft: '28px',
-                    paddingRight: '10px',
-                    height: '34px',
+                    paddingLeft: '34px',
+                    paddingRight: '12px',
+                    height: '38px',
                     borderRadius: '6px',
                     background: 'var(--bg-dark, #0f172a)',
-                    border: '1px solid var(--border-color, rgba(255,255,255,0.12))',
-                    color: 'var(--text-main, #f8fafc)',
-                    fontSize: '0.78rem'
+                    border: '1px solid var(--border-color, rgba(255,255,255,0.18))',
+                    color: '#f8fafc',
+                    fontSize: '0.88rem'
                   }}
                 />
               </div>
@@ -618,48 +631,48 @@ export default function QueixaFisioterapiaCard({
                 type="button"
                 onClick={() => {
                   if (cifSearchTerm.trim()) {
-                    handleAddAtividadeToken(cifSearchTerm);
+                    handleAddAtividade(cifSearchTerm);
                   }
                 }}
                 disabled={!cifSearchTerm.trim()}
                 style={{
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                  color: '#f59e0b',
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                  color: '#fbbf24',
                   borderRadius: '6px',
-                  padding: '0 12px',
-                  fontSize: '0.75rem',
+                  padding: '0 14px',
+                  fontSize: '0.84rem',
                   cursor: cifSearchTerm.trim() ? 'pointer' : 'default',
                   opacity: cifSearchTerm.trim() ? 1 : 0.5,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   whiteSpace: 'nowrap',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '5px'
                 }}
               >
                 <i className="fas fa-plus" /> Adicionar
               </button>
             </div>
 
-            {/* Resultados da Busca Tokenizada / Sugestões rápidas */}
+            {/* Resultados da Busca / Sugestões rápidas */}
             {cifSearchTerm.trim() && (
-              <div style={{ marginBottom: '10px', padding: '6px 8px', background: 'rgba(0,0,0,0.25)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ marginBottom: '12px', padding: '8px 10px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 {/* Opção para adicionar o texto exato digitado caso ainda não exista */}
                 {!(queixa.atividadesAgravantes || []).includes(cifSearchTerm.trim()) && (
-                  <div style={{ marginBottom: filteredCifActivities.length > 0 ? '6px' : 0 }}>
+                  <div style={{ marginBottom: filteredCifActivities.length > 0 ? '8px' : 0 }}>
                     <button
                       type="button"
-                      onClick={() => handleAddAtividadeToken(cifSearchTerm)}
+                      onClick={() => handleAddAtividade(cifSearchTerm)}
                       style={{
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         borderRadius: '6px',
-                        fontSize: '0.72rem',
+                        fontSize: '0.80rem',
                         border: '1px dashed #f59e0b',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        color: '#f59e0b',
+                        background: 'rgba(245, 158, 11, 0.2)',
+                        color: '#fbbf24',
                         cursor: 'pointer',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px'
@@ -672,7 +685,7 @@ export default function QueixaFisioterapiaCard({
 
                 {/* Sugestões do catálogo que combinam com os termos digitados */}
                 {filteredCifActivities.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '130px', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
                     {filteredCifActivities.map(item => {
                       const isSelected = (queixa.atividadesAgravantes || []).includes(item.nome);
                       return (
@@ -681,18 +694,19 @@ export default function QueixaFisioterapiaCard({
                           type="button"
                           onClick={() => toggleAtividade(item.nome)}
                           style={{
-                            padding: '3px 8px',
+                            padding: '4px 10px',
                             borderRadius: '12px',
-                            fontSize: '0.72rem',
+                            fontSize: '0.80rem',
+                            fontWeight: isSelected ? 700 : 500,
                             border: '1px solid',
-                            borderColor: isSelected ? '#f59e0b' : 'var(--border-color, rgba(255,255,255,0.15))',
-                            background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
-                            color: isSelected ? '#f59e0b' : 'var(--text-main, #f8fafc)',
+                            borderColor: isSelected ? '#f59e0b' : 'var(--border-color, rgba(255,255,255,0.2))',
+                            background: isSelected ? 'rgba(245, 158, 11, 0.3)' : 'transparent',
+                            color: isSelected ? '#fbbf24' : '#f8fafc',
                             cursor: 'pointer'
                           }}
                         >
                           {isSelected ? '✓ ' : '+ '} {item.nome}
-                          <small style={{ opacity: 0.6, marginLeft: '4px' }}>({item.categoria})</small>
+                          <small style={{ opacity: 0.7, marginLeft: '5px' }}>({item.categoria})</small>
                         </button>
                       );
                     })}
@@ -704,7 +718,7 @@ export default function QueixaFisioterapiaCard({
             {/* Abas das Categorias CIF quando não há busca ativa */}
             {!cifSearchTerm && (
               <>
-                <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '10px' }}>
                   {CIF_CATEGORIAS_ATIVIDADES.map(cat => {
                     const isCatActive = cat.id === activeCifCategory;
                     return (
@@ -713,18 +727,18 @@ export default function QueixaFisioterapiaCard({
                         type="button"
                         onClick={() => setActiveCifCategory(cat.id)}
                         style={{
-                          padding: '4px 8px',
+                          padding: '6px 10px',
                           borderRadius: '6px',
-                          fontSize: '0.72rem',
-                          fontWeight: isCatActive ? 600 : 400,
+                          fontSize: '0.80rem',
+                          fontWeight: isCatActive ? 700 : 500,
                           border: 'none',
-                          background: isCatActive ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                          color: isCatActive ? 'var(--primary, #6366f1)' : 'var(--text-dim, #94a3b8)',
+                          background: isCatActive ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.03)',
+                          color: isCatActive ? '#a5b4fc' : '#94a3b8',
                           cursor: 'pointer',
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        <i className={`fas ${cat.icone}`} style={{ marginRight: '4px' }} />
+                        <i className={`fas ${cat.icone}`} style={{ marginRight: '5px' }} />
                         {cat.categoria}
                       </button>
                     );
@@ -732,7 +746,7 @@ export default function QueixaFisioterapiaCard({
                 </div>
 
                 {/* Chips de Atividades da Categoria Selecionada */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {currentCategoryObj.atividades.map(ativ => {
                     const isSelected = (queixa.atividadesAgravantes || []).includes(ativ.nome);
                     return (
@@ -742,14 +756,14 @@ export default function QueixaFisioterapiaCard({
                         title={ativ.descricao}
                         onClick={() => toggleAtividade(ativ.nome)}
                         style={{
-                          padding: '4px 9px',
-                          borderRadius: '12px',
-                          fontSize: '0.73rem',
-                          fontWeight: isSelected ? 600 : 400,
+                          padding: '5px 11px',
+                          borderRadius: '14px',
+                          fontSize: '0.82rem',
+                          fontWeight: isSelected ? 700 : 500,
                           border: '1px solid',
-                          borderColor: isSelected ? '#f59e0b' : 'var(--border-color, rgba(255,255,255,0.12))',
-                          background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.02)',
-                          color: isSelected ? '#f59e0b' : 'var(--text-main, #f8fafc)',
+                          borderColor: isSelected ? '#f59e0b' : 'var(--border-color, rgba(255,255,255,0.15))',
+                          background: isSelected ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255,255,255,0.03)',
+                          color: isSelected ? '#fbbf24' : '#f8fafc',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease'
                         }}
@@ -765,57 +779,67 @@ export default function QueixaFisioterapiaCard({
         )}
       </div>
 
-      {/* 5. SEÇÃO AVANÇADA / FATORES DE ALÍVIO E CARACTERÍSTICAS DA DOR (EXPANSÍVEL) */}
-      <div style={{ borderTop: '1px solid var(--border-color, rgba(255,255,255,0.08))', paddingTop: '10px' }}>
+      {/* 5. SEÇÃO DE DETALHES CLÍNICOS E FATORES DE ALÍVIO (ABERTO POR PADRÃO) */}
+      <div style={{ borderTop: '1px solid var(--border-color, rgba(255,255,255,0.12))', paddingTop: '14px', marginTop: '16px' }}>
         <button
           type="button"
           onClick={() => setShowAdvancedDetails(!showAdvancedDetails)}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-dim, #94a3b8)',
-            fontSize: '0.75rem',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+            borderRadius: '6px',
+            color: '#e2e8f0',
+            fontSize: '0.88rem',
+            fontWeight: 700,
             cursor: 'pointer',
-            padding: 0,
+            padding: '8px 12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            marginBottom: showAdvancedDetails ? '12px' : '6px'
+            justifyContent: 'space-between',
+            width: '100%',
+            marginBottom: showAdvancedDetails ? '14px' : '6px'
           }}
         >
-          <i className={`fas fa-chevron-${showAdvancedDetails ? 'up' : 'down'}`} />
-          {showAdvancedDetails ? 'Ocultar detalhes clínicos adicionais' : 'Mais detalhes (Fatores de Alívio com Busca Tokenizada, Tipo de Dor, Tempo)'}
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fas fa-stethoscope" style={{ color: '#10b981' }} />
+            Detalhes Clínicos: O que alivia a dor, tipo de sintoma e tempo
+          </span>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {showAdvancedDetails ? 'Ocultar detalhes' : 'Expandir detalhes'}
+            <i className={`fas fa-chevron-${showAdvancedDetails ? 'up' : 'down'}`} />
+          </span>
         </button>
 
         {showAdvancedDetails && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '10px' }}>
-            {/* Fatores de Melhora / Alívio com Busca Tokenizada */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '12px' }}>
+            {/* Fatores de Melhora / Alívio */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', margin: 0, fontWeight: 600 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.88rem', color: '#e2e8f0', margin: 0, fontWeight: 700 }}>
+                  <i className="fas fa-heart-pulse" style={{ marginRight: '6px', color: '#10b981' }} />
                   O que alivia a dor? (Fatores de Melhora / Alívio):
                 </label>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim, #94a3b8)' }}>
+                <span style={{ fontSize: '0.80rem', color: '#cbd5e1', fontWeight: 600 }}>
                   {(queixa.fatoresAlivio || []).length} selecionado(s)
                 </span>
               </div>
 
               {/* Tokens de Alívio Selecionados */}
               {(queixa.fatoresAlivio || []).length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px', padding: '6px 8px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px', padding: '8px 10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   {queixa.fatoresAlivio.map(fat => (
                     <span
                       key={fat}
                       style={{
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        color: '#10b981',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '3px 8px',
-                        borderRadius: '12px',
+                        background: 'rgba(16, 185, 129, 0.25)',
+                        color: '#34d399',
+                        fontSize: '0.84rem',
+                        fontWeight: 700,
+                        padding: '4px 10px',
+                        borderRadius: '14px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '8px'
                       }}
                     >
                       {fat}
@@ -823,7 +847,7 @@ export default function QueixaFisioterapiaCard({
                         <i
                           className="fas fa-times"
                           onClick={() => toggleAlivio(fat)}
-                          style={{ cursor: 'pointer', fontSize: '0.7rem' }}
+                          style={{ cursor: 'pointer', fontSize: '0.80rem' }}
                           title="Remover fator de alívio"
                         />
                       )}
@@ -832,37 +856,37 @@ export default function QueixaFisioterapiaCard({
                 </div>
               )}
 
-              {/* Campo de Busca Tokenizado para Alívio */}
+              {/* Campo de Busca e Inserção de Fator de Alívio */}
               {!readOnly && (
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                   <div style={{ position: 'relative', flex: 1 }}>
                     <i
                       className="fas fa-search"
-                      style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim, #94a3b8)', fontSize: '0.75rem' }}
+                      style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.85rem' }}
                     />
                     <input
                       type="text"
-                      placeholder="Buscar ou digitar fator de alívio (ex: Gelo, Acupuntura, TENS... Enter para adicionar)"
+                      placeholder="Digite ou busque o que alivia a dor (ex: Gelo, Calor, Repouso) e aperte Enter..."
                       value={alivioSearchTerm}
                       onChange={e => setAlivioSearchTerm(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           if (alivioSearchTerm.trim()) {
-                            handleAddAlivioToken(alivioSearchTerm);
+                            handleAddAlivio(alivioSearchTerm);
                           }
                         }
                       }}
                       style={{
                         width: '100%',
-                        paddingLeft: '28px',
-                        paddingRight: '10px',
-                        height: '32px',
+                        paddingLeft: '34px',
+                        paddingRight: '12px',
+                        height: '38px',
                         borderRadius: '6px',
                         background: 'var(--bg-dark, #0f172a)',
-                        border: '1px solid var(--border-color, rgba(255,255,255,0.12))',
-                        color: 'var(--text-main, #f8fafc)',
-                        fontSize: '0.75rem'
+                        border: '1px solid var(--border-color, rgba(255,255,255,0.18))',
+                        color: '#f8fafc',
+                        fontSize: '0.88rem'
                       }}
                     />
                   </div>
@@ -870,24 +894,24 @@ export default function QueixaFisioterapiaCard({
                     type="button"
                     onClick={() => {
                       if (alivioSearchTerm.trim()) {
-                        handleAddAlivioToken(alivioSearchTerm);
+                        handleAddAlivio(alivioSearchTerm);
                       }
                     }}
                     disabled={!alivioSearchTerm.trim()}
                     style={{
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.35)',
-                      color: '#10b981',
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      border: '1px solid rgba(16, 185, 129, 0.45)',
+                      color: '#34d399',
                       borderRadius: '6px',
-                      padding: '0 12px',
-                      fontSize: '0.72rem',
+                      padding: '0 14px',
+                      fontSize: '0.84rem',
                       cursor: alivioSearchTerm.trim() ? 'pointer' : 'default',
                       opacity: alivioSearchTerm.trim() ? 1 : 0.5,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       whiteSpace: 'nowrap',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px'
+                      gap: '5px'
                     }}
                   >
                     <i className="fas fa-plus" /> Adicionar
@@ -895,8 +919,8 @@ export default function QueixaFisioterapiaCard({
                 </div>
               )}
 
-              {/* Sugestões de Alívio */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {/* Sugestões de Alívio com Fontes Legíveis */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {filteredAlivioSuggestions.map(fat => {
                   const isSelected = (queixa.fatoresAlivio || []).includes(fat);
                   return (
@@ -906,13 +930,14 @@ export default function QueixaFisioterapiaCard({
                       disabled={readOnly}
                       onClick={() => toggleAlivio(fat)}
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '0.72rem',
+                        padding: '5px 11px',
+                        borderRadius: '14px',
+                        fontSize: '0.82rem',
+                        fontWeight: isSelected ? 700 : 500,
                         border: '1px solid',
-                        borderColor: isSelected ? '#10b981' : 'var(--border-color, rgba(255,255,255,0.12))',
-                        background: isSelected ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
-                        color: isSelected ? '#10b981' : 'var(--text-main, #f8fafc)',
+                        borderColor: isSelected ? '#10b981' : 'var(--border-color, rgba(255,255,255,0.15))',
+                        background: isSelected ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.03)',
+                        color: isSelected ? '#34d399' : '#f8fafc',
                         cursor: readOnly ? 'default' : 'pointer'
                       }}
                     >
@@ -924,17 +949,17 @@ export default function QueixaFisioterapiaCard({
             </div>
 
             {/* Linha com Características Clínicas */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block' }}>
+                <label style={{ fontSize: '0.86rem', color: '#e2e8f0', marginBottom: '6px', display: 'block', fontWeight: 600 }}>
                   Sensação / Tipo da Dor:
                 </label>
                 <select
-                  className="form-control form-control-sm"
+                  className="form-control"
                   disabled={readOnly}
                   value={queixa.caracteristicaDor || 'Pontual / Aguda'}
                   onChange={e => updateField('caracteristicaDor', e.target.value)}
-                  style={{ background: 'var(--bg-dark, #0f172a)', color: 'var(--text-main, #f8fafc)', fontSize: '0.78rem' }}
+                  style={{ background: 'var(--bg-dark, #0f172a)', color: '#f8fafc', fontSize: '0.88rem', height: '38px', borderRadius: '6px', borderColor: 'rgba(255,255,255,0.18)' }}
                 >
                   {TIPOS_CARACTERISTICA_DOR.map(t => (
                     <option key={t} value={t}>
@@ -945,15 +970,15 @@ export default function QueixaFisioterapiaCard({
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block' }}>
+                <label style={{ fontSize: '0.86rem', color: '#e2e8f0', marginBottom: '6px', display: 'block', fontWeight: 600 }}>
                   Comportamento Temporal:
                 </label>
                 <select
-                  className="form-control form-control-sm"
+                  className="form-control"
                   disabled={readOnly}
                   value={queixa.comportamentoDor || 'Intermitente'}
                   onChange={e => updateField('comportamentoDor', e.target.value)}
-                  style={{ background: 'var(--bg-dark, #0f172a)', color: 'var(--text-main, #f8fafc)', fontSize: '0.78rem' }}
+                  style={{ background: 'var(--bg-dark, #0f172a)', color: '#f8fafc', fontSize: '0.88rem', height: '38px', borderRadius: '6px', borderColor: 'rgba(255,255,255,0.18)' }}
                 >
                   <option value="Intermitente">Intermitente (Vem e vai)</option>
                   <option value="Constante / Todo momento">Constante (Todo momento)</option>
@@ -961,15 +986,15 @@ export default function QueixaFisioterapiaCard({
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block' }}>
+                <label style={{ fontSize: '0.86rem', color: '#e2e8f0', marginBottom: '6px', display: 'block', fontWeight: 600 }}>
                   Evolução dos Sintomas:
                 </label>
                 <select
-                  className="form-control form-control-sm"
+                  className="form-control"
                   disabled={readOnly}
                   value={queixa.dorEvolucao || 'estavel'}
                   onChange={e => updateField('dorEvolucao', e.target.value)}
-                  style={{ background: 'var(--bg-dark, #0f172a)', color: 'var(--text-main, #f8fafc)', fontSize: '0.78rem' }}
+                  style={{ background: 'var(--bg-dark, #0f172a)', color: '#f8fafc', fontSize: '0.88rem', height: '38px', borderRadius: '6px', borderColor: 'rgba(255,255,255,0.18)' }}
                 >
                   <option value="estavel">Estável (Sente a mesma dor)</option>
                   <option value="aumentando">Piorando / Aumentando</option>
@@ -978,20 +1003,20 @@ export default function QueixaFisioterapiaCard({
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block' }}>
+                <label style={{ fontSize: '0.86rem', color: '#e2e8f0', marginBottom: '6px', display: 'block', fontWeight: 600 }}>
                   Tempo de Início:
                 </label>
                 <input
                   type="text"
                   placeholder="Ex: Há 3 semanas..."
                   disabled={readOnly}
-                  className="form-control form-control-sm"
+                  className="form-control"
                   value={queixa.tempoEvolucao || queixa.quandoComecou || ''}
                   onChange={e => {
                     updateField('tempoEvolucao', e.target.value);
                     updateField('quandoComecou', e.target.value);
                   }}
-                  style={{ background: 'var(--bg-dark, #0f172a)', color: 'var(--text-main, #f8fafc)', fontSize: '0.78rem' }}
+                  style={{ background: 'var(--bg-dark, #0f172a)', color: '#f8fafc', fontSize: '0.88rem', height: '38px', borderRadius: '6px', borderColor: 'rgba(255,255,255,0.18)' }}
                 />
               </div>
             </div>
@@ -1000,32 +1025,32 @@ export default function QueixaFisioterapiaCard({
       </div>
 
       {/* 6. OBSERVAÇÕES LIVRES */}
-      <div>
-        <label style={{ fontSize: '0.75rem', color: 'var(--text-dim, #94a3b8)', marginBottom: '4px', display: 'block', fontWeight: 600 }}>
+      <div style={{ marginTop: '14px' }}>
+        <label style={{ fontSize: '0.88rem', color: '#e2e8f0', marginBottom: '6px', display: 'block', fontWeight: 700 }}>
           Observações Clínicas Livres:
         </label>
         <textarea
           rows={2}
           disabled={readOnly}
-          className="form-control form-control-sm"
+          className="form-control"
           placeholder="Anotações livres sobre a queixa, contexto clínico, irradiação ou observações do aluno..."
           value={queixa.observacoesLivres || ''}
           onChange={e => updateField('observacoesLivres', e.target.value)}
           style={{
             background: 'var(--bg-dark, #0f172a)',
-            color: 'var(--text-main, #f8fafc)',
-            borderColor: 'var(--border-color, rgba(255, 255, 255, 0.12))',
+            color: '#f8fafc',
+            borderColor: 'var(--border-color, rgba(255, 255, 255, 0.18))',
             borderRadius: '6px',
-            fontSize: '0.8rem',
+            fontSize: '0.88rem',
             resize: 'vertical'
           }}
         />
       </div>
 
       {/* 7. PREVIEW DA QUEIXA SINTETIZADA (TRANSPARÊNCIA TOTAL) */}
-      <div style={{ marginTop: '10px', fontSize: '0.72rem', color: 'var(--text-dim, #94a3b8)', background: 'rgba(0,0,0,0.1)', padding: '6px 10px', borderRadius: '4px' }}>
+      <div style={{ marginTop: '12px', fontSize: '0.80rem', color: '#cbd5e1', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
         <span>
-          <strong>Registro Padronizado:</strong> {queixa.dorOnde || 'Sem região'} • EVA {queixa.dorIntensidade}/10
+          <strong style={{ color: '#f8fafc' }}>Registro Padronizado:</strong> {queixa.dorOnde || 'Sem região'} • EVA {queixa.dorIntensidade}/10
           {queixa.desencadeiaPiora && ` • Piora: ${queixa.desencadeiaPiora}`}
           {queixa.melhoraDesaparece && ` • Alívio: ${queixa.melhoraDesaparece}`}
         </span>
