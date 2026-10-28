@@ -37,7 +37,8 @@ const TestesEspeciaisSchema = new Schema({
   yTest: String,
   stepDown: String,
   maigne: String,
-  hopTest: Schema.Types.Mixed
+  hopTest: Schema.Types.Mixed,
+  visaP: Schema.Types.Mixed
 }, { _id: false });
 
 const DadosMedidosSchema = new Schema({

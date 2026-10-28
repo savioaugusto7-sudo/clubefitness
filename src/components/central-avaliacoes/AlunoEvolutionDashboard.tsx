@@ -18,6 +18,7 @@ import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from '@/utils/biomechanicsEngine';
 import { detectCompartment, COMPARTIMENTOS_METADATA } from '@/utils/fisioterapiaQueixasCatalog';
 import { calculateACWR, calculateWellnessACWRDecision, ACWRResult, DecisionMatrixResult } from '@/utils/acwrEngine';
+import { VisaPComparisonResult } from '@/utils/visaPEngine';
 
 ChartJS.register(
   RadialLinearScale,
@@ -36,6 +37,7 @@ interface AlunoEvolutionDashboardProps {
     _id: string;
     nome: string;
     idade: number | null;
+    sexo?: string;
     peso: number | null;
     altura: number | null;
     lesoes?: string;
@@ -58,8 +60,12 @@ interface AlunoEvolutionDashboardProps {
     eva: any[];
     strength: any[];
     wellness?: any[];
+    visaP?: VisaPComparisonResult | null;
+    hopTest?: HopBatteryResult | null;
   };
   longitudinal: {
+    t1Data?: string | null;
+    t2Data?: string | null;
     computed?: any;
     narrative?: any;
   } | null;
@@ -108,8 +114,13 @@ export default function AlunoEvolutionDashboard({
 
   // 🌟 DADOS DA BATERIA DE HOP TESTS (SIMETRIA LSI & RETORNO AO ESPORTE)
   const hopTestData: HopBatteryResult | null = React.useMemo(() => {
-    return longitudinal?.computed?.testesFuncionais?.hopTest || null;
-  }, [longitudinal]);
+    return longitudinal?.computed?.testesFuncionais?.hopTest || evolutionSeries.hopTest || null;
+  }, [longitudinal, evolutionSeries.hopTest]);
+
+  // 🌟 DADOS DO QUESTIONÁRIO VALIDADO VISA-P (TENDINOPATIA PATELAR • MCID = 13 PTS)
+  const visaPData: VisaPComparisonResult | null = React.useMemo(() => {
+    return longitudinal?.computed?.testesFuncionais?.visaP || evolutionSeries.visaP || null;
+  }, [longitudinal, evolutionSeries.visaP]);
 
   // Formatador de data abreviada
   const formatShortDate = (dStr?: string) => {
@@ -1215,7 +1226,7 @@ export default function AlunoEvolutionDashboard({
               /* MODO 'razoes': Razões Musculares & %PC */
               advancedStrengthRatios.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
-                  {advancedStrengthRatios.map((rz, rIdx) => {
+                  {advancedStrengthRatios.map((rz: AdvancedStrengthRatioItem, rIdx: number) => {
                     const statusBg = rz.statusGeral === 'critico' ? 'rgba(239, 68, 68, 0.15)' : rz.statusGeral === 'atencao' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)';
                     const statusColor = rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#f59e0b' : '#10b981';
                     const statusLabel = rz.statusGeral === 'critico' ? 'Risco Elevado' : rz.statusGeral === 'atencao' ? 'Atenção' : 'Equilibrado';
@@ -1472,6 +1483,114 @@ export default function AlunoEvolutionDashboard({
                 Diretriz para o Treinador de Musculação:
               </strong>
               {hopTestData.diretrizTreinador}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 PAINEL QUESTIONÁRIO VALIDADO VISA-P (TENDINOPATIA PATELAR • MCID = 13 PTS) */}
+      {visaPData && visaPData.atual && (
+        <div
+          style={{
+            background: 'var(--bg-card, #1e293b)',
+            borderRadius: '14px',
+            border: `1px solid ${visaPData.atual.badgeCor}40`,
+            borderLeft: `4px solid ${visaPData.atual.badgeCor}`,
+            padding: '16px 18px',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <strong style={{ fontSize: '0.92rem', color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <i className="fas fa-clipboard-check" style={{ color: visaPData.atual.badgeCor }} />
+                Escala Científica VISA-P — Tendinopatia Patelar (MCID ≥ 13 pts)
+              </strong>
+              <small style={{ color: 'var(--text-dim, #94a3b8)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+                Victorian Institute of Sport Assessment – Patella (Visentini et al. / Wageck et al.) • Joelho: {visaPData.atual.membroAvaliado}
+              </small>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {visaPData.anterior && visaPData.deltaPontos !== undefined && (
+                <span
+                  style={{
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    padding: '3px 9px',
+                    borderRadius: '10px',
+                    background: visaPData.deltaPontos >= 13 ? 'rgba(16, 185, 129, 0.18)' : visaPData.deltaPontos > 0 ? 'rgba(56, 189, 248, 0.18)' : 'rgba(239, 68, 68, 0.18)',
+                    color: visaPData.deltaPontos >= 13 ? '#10b981' : visaPData.deltaPontos > 0 ? '#38bdf8' : '#ef4444',
+                    border: `1px solid ${visaPData.deltaPontos >= 13 ? '#10b98150' : '#38bdf850'}`
+                  }}
+                >
+                  {visaPData.anterior.scoreTotal} ➔ {visaPData.atual.scoreTotal} pts ({visaPData.deltaPontos >= 0 ? `+${visaPData.deltaPontos}` : visaPData.deltaPontos})
+                  {visaPData.mcidAtingido ? ' • 🏆 MCID Atingido' : ''}
+                </span>
+              )}
+              <span style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                Score: <strong style={{ color: visaPData.atual.badgeCor, fontSize: '1.1rem' }}>{visaPData.atual.scoreTotal}/100</strong>
+              </span>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  background: visaPData.atual.badgeBg,
+                  color: visaPData.atual.badgeCor,
+                  border: `1px solid ${visaPData.atual.badgeCor}50`
+                }}
+              >
+                {visaPData.atual.classificacaoLabel}
+              </span>
+            </div>
+          </div>
+
+          {/* 3 Subdomínios do VISA-P */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '10px 12px' }}>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>1. Sintomas & Dor (Q1, Q2, Q3, Q6)</span>
+              <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{visaPData.atual.scoreSintomasDor} <small style={{ color: '#64748b' }}>/ 40 pts</small></strong>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>Sentado, escadas, extensão e 10 hops</div>
+            </div>
+
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '10px 12px' }}>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>2. Função Sob Carga (Q4 e Q5)</span>
+              <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{visaPData.atual.scoreFuncaoCarga} <small style={{ color: '#64748b' }}>/ 20 pts</small></strong>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>Afundo (Lunge) e Agachamento Profundo</div>
+            </div>
+
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '10px 12px' }}>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>3. Capacidade Esportiva (Q7 e Q8)</span>
+              <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{visaPData.atual.scoreCapacidadeEsportiva} <small style={{ color: '#64748b' }}>/ 40 pts</small></strong>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>Nível de treino e tempo tolerado ({visaPData.atual.respostas.q8TipoDorTreino})</div>
+            </div>
+          </div>
+
+          {/* Parecer do Continuum Tendíneo e Diretriz para o Treinador */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '10px' }}>
+            <div style={{ padding: '10px 12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.06)', fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+              <strong style={{ color: '#f8fafc', display: 'block', marginBottom: '3px' }}>
+                <i className="fas fa-stethoscope" style={{ marginRight: '5px', color: '#fbbf24' }} />
+                {visaPData.atual.estagioTendineo}:
+              </strong>
+              {visaPData.atual.parecerClinico}
+              {visaPData.leituraComparativa && (
+                <div style={{ marginTop: '4px', color: '#38bdf8', fontWeight: 600 }}>
+                  {visaPData.leituraComparativa}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '10px 12px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.78rem', color: '#10b981', lineHeight: 1.45 }}>
+              <strong style={{ color: '#10b981', display: 'block', marginBottom: '3px' }}>
+                <i className="fas fa-bullseye" style={{ marginRight: '5px' }} />
+                Diretriz de Carga Tendínea para o Treinador:
+              </strong>
+              {visaPData.atual.diretrizTreinador}
             </div>
           </div>
         </div>

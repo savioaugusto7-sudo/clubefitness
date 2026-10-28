@@ -450,7 +450,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   `}
 
   <!-- 8. TESTES FUNCIONAIS -->
-  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 || testesFuncionais.hopTest) ? `
+  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 || testesFuncionais.hopTest || testesFuncionais.visaP) ? `
     <div class="section-title">8. TESTES FUNCIONAIS</div>
 
     ${testesFuncionais.yTeste ? `
@@ -594,6 +594,71 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
       <div style="margin-top:8px; padding:10px 12px; background:${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#ecfdf5' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#fffbeb' : '#fef2f2'}; border:1px solid ${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#a7f3d0' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#fde68a' : '#fecaca'}; border-radius:6px; font-size:8.5pt;">
         <div style="margin-bottom:4px; color:#1e293b;"><strong>Parecer Clínico RTS:</strong> ${testesFuncionais.hopTest.parecerRTS}</div>
         <div style="color:${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#047857' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#92400e' : '#991b1b'}; font-weight:700;"><strong>🎯 Diretriz para o Treinador:</strong> ${testesFuncionais.hopTest.diretrizTreinador}</div>
+      </div>
+    ` : ''}
+
+    ${testesFuncionais.visaP && testesFuncionais.visaP.atual ? `
+      <div class="subsection-title">Questionário Validado VISA-P — Tendinopatia Patelar (Escala 0–100 • MCID = 13 pts)</div>
+      <p style="font-size:9pt; color:#475569; margin-bottom:8px;">
+        Instrumento específico internacional (<em>Victorian Institute of Sport Assessment – Patella</em>, Visentini et al., 1998 / Wageck et al., 2013) para quantificação da dor e capacidade de carga no tendão patelar.
+        <strong>Joelho Avaliado:</strong> ${testesFuncionais.visaP.atual.membroAvaliado}.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Domínio Funcional Avaliado</th>
+            <th class="text-center">Pontuação Máxima</th>
+            ${testesFuncionais.visaP.anterior ? `<th class="text-center">${testesFuncionais.visaP.dataT1 || identificacao.dataRelatorioInicial}</th>` : ''}
+            <th class="text-center">${testesFuncionais.visaP.dataT2 || identificacao.dataReavaliacao}</th>
+            ${testesFuncionais.visaP.anterior ? `<th class="text-center">Variação</th>` : ''}
+            <th>Interpretação Clínica</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-bold">1. Sintomas & Dor (Q1, Q2, Q3, Q6)</td>
+            <td class="text-center">40 pts</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center">${testesFuncionais.visaP.anterior.scoreSintomasDor} pts</td>` : ''}
+            <td class="text-center font-bold">${testesFuncionais.visaP.atual.scoreSintomasDor} pts</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center font-bold">${testesFuncionais.visaP.atual.scoreSintomasDor - testesFuncionais.visaP.anterior.scoreSintomasDor >= 0 ? '+' : ''}${testesFuncionais.visaP.atual.scoreSintomasDor - testesFuncionais.visaP.anterior.scoreSintomasDor} pts</td>` : ''}
+            <td>Tolerância sentado, escadas, extensão ativa e 10 saltos unipodais</td>
+          </tr>
+          <tr>
+            <td class="font-bold">2. Função Sob Carga (Q4 e Q5)</td>
+            <td class="text-center">20 pts</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center">${testesFuncionais.visaP.anterior.scoreFuncaoCarga} pts</td>` : ''}
+            <td class="text-center font-bold">${testesFuncionais.visaP.atual.scoreFuncaoCarga} pts</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center font-bold">${testesFuncionais.visaP.atual.scoreFuncaoCarga - testesFuncionais.visaP.anterior.scoreFuncaoCarga >= 0 ? '+' : ''}${testesFuncionais.visaP.atual.scoreFuncaoCarga - testesFuncionais.visaP.anterior.scoreFuncaoCarga} pts</td>` : ''}
+            <td>Execução de Afundo (Lunge) e Agachamento Profundo</td>
+          </tr>
+          <tr>
+            <td class="font-bold">3. Capacidade Esportiva (Q7 e Q8)</td>
+            <td class="text-center">40 pts</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center">${testesFuncionais.visaP.anterior.scoreCapacidadeEsportiva} pts</td>` : ''}
+            <td class="text-center font-bold">${testesFuncionais.visaP.atual.scoreCapacidadeEsportiva} pts</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center font-bold">${testesFuncionais.visaP.atual.scoreCapacidadeEsportiva - testesFuncionais.visaP.anterior.scoreCapacidadeEsportiva >= 0 ? '+' : ''}${testesFuncionais.visaP.atual.scoreCapacidadeEsportiva - testesFuncionais.visaP.anterior.scoreCapacidadeEsportiva} pts</td>` : ''}
+            <td>Nível de treino e tempo tolerado (${testesFuncionais.visaP.atual.respostas.q8TipoDorTreino})</td>
+          </tr>
+          <tr style="background:#f8fafc; font-weight:700; border-top:2px solid #cbd5e1;">
+            <td>Escore Global VISA-P</td>
+            <td class="text-center">100 pts (Corte ≥ 80)</td>
+            ${testesFuncionais.visaP.anterior ? `<td class="text-center">${testesFuncionais.visaP.anterior.scoreTotal}/100</td>` : ''}
+            <td class="text-center font-bold" style="font-size:10pt; color:${testesFuncionais.visaP.atual.scoreTotal >= 80 ? '#059669' : testesFuncionais.visaP.atual.scoreTotal >= 65 ? '#d97706' : '#dc2626'};">
+              ${testesFuncionais.visaP.atual.scoreTotal}/100
+            </td>
+            ${testesFuncionais.visaP.anterior && testesFuncionais.visaP.deltaPontos !== undefined ? `
+              <td class="text-center font-bold" style="color:${testesFuncionais.visaP.deltaPontos >= 13 ? '#059669' : testesFuncionais.visaP.deltaPontos >= 0 ? '#0284c7' : '#dc2626'};">
+                ${testesFuncionais.visaP.deltaPontos >= 0 ? `+${testesFuncionais.visaP.deltaPontos}` : testesFuncionais.visaP.deltaPontos} pts ${testesFuncionais.visaP.mcidAtingido ? '(MCID ≥ 13 ✓)' : ''}
+              </td>
+            ` : ''}
+            <td>${testesFuncionais.visaP.atual.classificacaoLabel}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px; padding:10px 12px; background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid ${testesFuncionais.visaP.atual.badgeCor}; border-radius:6px; font-size:8.5pt;">
+        <div style="margin-bottom:4px; color:#1e293b;"><strong>${testesFuncionais.visaP.atual.estagioTendineo}:</strong> ${testesFuncionais.visaP.atual.parecerClinico}</div>
+        ${testesFuncionais.visaP.leituraComparativa ? `<div style="margin-bottom:4px; color:#0369a1; font-weight:600;">${testesFuncionais.visaP.leituraComparativa}</div>` : ''}
+        <div style="color:#047857; font-weight:700;"><strong>🎯 Diretriz de Carga Tendínea para o Treinador:</strong> ${testesFuncionais.visaP.atual.diretrizTreinador}</div>
       </div>
     ` : ''}
   ` : ''}

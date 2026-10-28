@@ -16,7 +16,10 @@ const ClientTestRecordSchema = new Schema({
       'MAIGNE',
       'COMPOSICAO_CORPORAL',
       'PERIMETRIA',
-      'HOP_TEST'
+      'HOP_TEST',
+      'VISA_P',
+      'QUEIXAS_EVA',
+      'TESTES_ESPECIAIS'
     ],
     required: true,
     index: true

@@ -5,6 +5,13 @@ import QueixaFisioterapiaCard from '@/components/fisioterapia/QueixaFisioterapia
 import { QueixaFisioterapicaItem } from '@/utils/fisioterapiaQueixasCatalog';
 import { calculateHopBatteryAnalysis } from '@/utils/biomechanicsEngine';
 import { calculateWellness } from '@/utils/wellnessHelper';
+import {
+  calculateVisaPAnalysis,
+  VISA_P_QUESTIONS_META,
+  VISA_P_Q7_OPTIONS,
+  VISA_P_Q8_OPTIONS,
+  VisaPQ8Type
+} from '@/utils/visaPEngine';
 
 interface AvulsoTestModalProps {
   clientId: string;
@@ -19,6 +26,7 @@ type TestCategory =
   | 'Y_TEST'
   | 'STEP_DOWN'
   | 'HOP_TEST'
+  | 'VISA_P'
   | 'WELLNESS'
   | 'GONIOMETRIA'
   | 'DINAMOMETRIA'
@@ -75,6 +83,18 @@ export default function AvulsoTestModal({
   const [wellSono, setWellSono] = useState<number>(3);
   const [wellFadiga, setWellFadiga] = useState<number>(3);
   const [wellDor, setWellDor] = useState<number>(3);
+
+  // 2.7 Questionário Validado VISA-P (Tendinopatia Patelar — 0 a 100 pts, MCID = 13 pts)
+  const [visaMembro, setVisaMembro] = useState<'Direito' | 'Esquerdo' | 'Bilateral'>('Direito');
+  const [visaQ1, setVisaQ1] = useState<number>(8);
+  const [visaQ2, setVisaQ2] = useState<number>(7);
+  const [visaQ3, setVisaQ3] = useState<number>(8);
+  const [visaQ4, setVisaQ4] = useState<number>(6);
+  const [visaQ5, setVisaQ5] = useState<number>(6);
+  const [visaQ6, setVisaQ6] = useState<number>(5);
+  const [visaQ7, setVisaQ7] = useState<number>(7);
+  const [visaQ8Tipo, setVisaQ8Tipo] = useState<VisaPQ8Type>('8B');
+  const [visaQ8Score, setVisaQ8Score] = useState<number>(14);
 
   // 3. Goniometria Form State (Padrão Canônico Oficial)
   const [gDorsi1D, setGDorsi1D] = useState<number | ''>('');
@@ -168,6 +188,22 @@ export default function AvulsoTestModal({
     return calculateWellness(wellSono, wellFadiga, wellDor);
   }, [wellSono, wellFadiga, wellDor]);
 
+  const visaPCalc = React.useMemo(() => {
+    return calculateVisaPAnalysis({
+      membroAvaliado: visaMembro,
+      q1SentadoSemDor: visaQ1,
+      q2DescerEscadas: visaQ2,
+      q3ExtensaoAtivaSemPeso: visaQ3,
+      q4AfundoLunge: visaQ4,
+      q5AgachamentoProfundo: visaQ5,
+      q6DezSaltosUnipodais: visaQ6,
+      q7PraticaEsportiva: visaQ7,
+      q8TipoDorTreino: visaQ8Tipo,
+      q8TempoTreinoScore: visaQ8Score,
+      data: dataTeste
+    });
+  }, [visaMembro, visaQ1, visaQ2, visaQ3, visaQ4, visaQ5, visaQ6, visaQ7, visaQ8Tipo, visaQ8Score, dataTeste]);
+
   const dinamometriaAssimetria = React.useMemo(() => {
     const vd = Number(stValorD) || 0;
     const ve = Number(stValorE) || 0;
@@ -250,6 +286,30 @@ export default function AvulsoTestModal({
           lsiMedio: hopCalc?.lsiMedio || 0,
           statusGeral: hopCalc?.statusGeral || 'retencao',
           classificacao: hopCalc?.badgeStatus || 'Pendente'
+        };
+      } else if (selectedCategory === 'VISA_P') {
+        payloadDados = {
+          membroAvaliado: visaMembro,
+          q1SentadoSemDor: visaQ1,
+          q2DescerEscadas: visaQ2,
+          q3ExtensaoAtivaSemPeso: visaQ3,
+          q4AfundoLunge: visaQ4,
+          q5AgachamentoProfundo: visaQ5,
+          q6DezSaltosUnipodais: visaQ6,
+          q7PraticaEsportiva: visaQ7,
+          q8TipoDorTreino: visaQ8Tipo,
+          q8TempoTreinoScore: visaQ8Score,
+          scoreTotal: visaPCalc?.scoreTotal || 0,
+          scoreSintomasDor: visaPCalc?.scoreSintomasDor || 0,
+          scoreFuncaoCarga: visaPCalc?.scoreFuncaoCarga || 0,
+          scoreCapacidadeEsportiva: visaPCalc?.scoreCapacidadeEsportiva || 0,
+          estagioTendineo: visaPCalc?.estagioTendineo || '',
+          diretrizTreinador: visaPCalc?.diretrizTreinador || ''
+        };
+        payloadMetricas = {
+          scorePrincipal: visaPCalc?.scoreTotal || 0,
+          ladoDeficitario: visaMembro,
+          classificacao: visaPCalc?.classificacaoLabel || 'Avaliado'
         };
       } else if (selectedCategory === 'GONIOMETRIA') {
         payloadDados = {
@@ -480,6 +540,7 @@ export default function AvulsoTestModal({
             { id: 'Y_TEST', label: 'Y-Test', icon: 'fa-shoe-prints' },
             { id: 'STEP_DOWN', label: 'Step Down', icon: 'fa-sort-amount-down' },
             { id: 'HOP_TEST', label: 'Hop Tests (LSI)', icon: 'fa-person-running' },
+            { id: 'VISA_P', label: 'VISA-P (Tendão Patelar)', icon: 'fa-clipboard-list' },
             { id: 'WELLNESS', label: 'Wellness & ACWR', icon: 'fa-battery-half' },
             { id: 'GONIOMETRIA', label: 'Goniometria', icon: 'fa-ruler-combined' },
             { id: 'DINAMOMETRIA', label: 'Força Kinology', icon: 'fa-weight-hanging' },
@@ -951,6 +1012,196 @@ export default function AvulsoTestModal({
                   <strong style={{ color: wellnessCalc.statusColor }}>🎯 Conduta Imediata:</strong> {wellnessCalc.conduta}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* 2.7 QUESTIONÁRIO VALIDADO VISA-P (TENDINOPATIA PATELAR — 0 A 100 PTS, MCID = 13 PTS) */}
+          {selectedCategory === 'VISA_P' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ padding: '10px 14px', background: 'rgba(245, 158, 11, 0.08)', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <small style={{ color: '#fbbf24', fontWeight: 600 }}>
+                  <i className="fas fa-clipboard-check" style={{ marginRight: '6px' }} />
+                  Escala Internacional VISA-P (Visentini et al. / Wageck et al.): 0 a 100 pts • Diferença Mínima Clinicamente Importante (MCID) = 13 pts.
+                </small>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: 0, fontWeight: 600 }}>Joelho Avaliado:</label>
+                  <select
+                    value={visaMembro}
+                    onChange={e => setVisaMembro(e.target.value as any)}
+                    className="form-control form-control-sm"
+                    style={{ width: '140px', background: '#0f172a', color: '#fff', borderColor: '#475569' }}
+                  >
+                    <option value="Direito">Joelho Direito</option>
+                    <option value="Esquerdo">Joelho Esquerdo</option>
+                    <option value="Bilateral">Bilateral</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Questões 1 a 6 (Sliders 0 a 10 pontos) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '10px' }}>
+                {VISA_P_QUESTIONS_META.map(qMeta => {
+                  const stateMap: Record<string, [number, React.Dispatch<React.SetStateAction<number>>]> = {
+                    q1SentadoSemDor: [visaQ1, setVisaQ1],
+                    q2DescerEscadas: [visaQ2, setVisaQ2],
+                    q3ExtensaoAtivaSemPeso: [visaQ3, setVisaQ3],
+                    q4AfundoLunge: [visaQ4, setVisaQ4],
+                    q5AgachamentoProfundo: [visaQ5, setVisaQ5],
+                    q6DezSaltosUnipodais: [visaQ6, setVisaQ6]
+                  };
+                  const [val, setVal] = stateMap[qMeta.id];
+                  const cor = val >= 8 ? '#10b981' : val >= 5 ? '#f59e0b' : '#ef4444';
+
+                  return (
+                    <div key={qMeta.id} style={{ background: '#161f30', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.35 }}>
+                          {qMeta.pergunta}
+                        </span>
+                        <strong style={{ fontSize: '0.85rem', color: cor, whiteSpace: 'nowrap' }}>
+                          {val}/10 pts
+                        </strong>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={10}
+                        step={1}
+                        value={val}
+                        onChange={e => setVal(Number(e.target.value))}
+                        style={{ width: '100%', accentColor: cor }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.66rem', color: '#94a3b8' }}>
+                        <span>{qMeta.minLabel}</span>
+                        <span>{qMeta.maxLabel}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Questão 7 (Prática Esportiva: 0, 4, 7 ou 10 pts) */}
+              <div style={{ background: '#161f30', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc', marginBottom: '6px', display: 'block' }}>
+                  7. Você está praticando atividade física ou treinamento esportivo atualmente?
+                </label>
+                <select
+                  value={visaQ7}
+                  onChange={e => setVisaQ7(Number(e.target.value))}
+                  className="form-control form-control-sm"
+                  style={{ background: '#0f172a', color: '#fff', borderColor: '#475569' }}
+                >
+                  {VISA_P_Q7_OPTIONS.map(opt => (
+                    <option key={opt.points} value={opt.points}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Questão 8 (8A, 8B ou 8C — Duração suportada de treino: 0 a 30 pts) */}
+              <div style={{ background: '#161f30', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc', marginBottom: '6px', display: 'block' }}>
+                    8. Comportamento da dor no tendão patelar durante a sessão de treino (selecione apenas 1 perfil: 8A, 8B ou 8C):
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {(['8A', '8B', '8C'] as VisaPQ8Type[]).map(tipo => {
+                      const active = visaQ8Tipo === tipo;
+                      const labels: Record<VisaPQ8Type, string> = {
+                        '8A': '8A • Sem dor durante o treino (máx 30 pts)',
+                        '8B': '8B • Com dor que NÃO interrompe o treino (máx 20 pts)',
+                        '8C': '8C • Com dor que INTERROMPE o treino (máx 10 pts)'
+                      };
+                      return (
+                        <button
+                          key={tipo}
+                          type="button"
+                          onClick={() => {
+                            setVisaQ8Tipo(tipo);
+                            const defaultPts = VISA_P_Q8_OPTIONS[tipo].options[2]?.points ?? 0;
+                            setVisaQ8Score(defaultPts);
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            border: '1px solid',
+                            borderColor: active ? '#f59e0b' : 'rgba(255,255,255,0.12)',
+                            background: active ? 'rgba(245, 158, 11, 0.2)' : '#0f172a',
+                            color: active ? '#fbbf24' : '#94a3b8',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {labels[tipo]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '4px', display: 'block' }}>
+                    {VISA_P_Q8_OPTIONS[visaQ8Tipo].title}
+                  </label>
+                  <select
+                    value={visaQ8Score}
+                    onChange={e => setVisaQ8Score(Number(e.target.value))}
+                    className="form-control form-control-sm"
+                    style={{ background: '#0f172a', color: '#fff', borderColor: '#475569' }}
+                  >
+                    {VISA_P_Q8_OPTIONS[visaQ8Tipo].options.map(opt => (
+                      <option key={opt.points} value={opt.points}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Preview do Resultado VISA-P e Diretriz do Continuum */}
+              {visaPCalc && (
+                <div style={{ background: '#0a0f1d', border: `1px solid ${visaPCalc.badgeCor}`, borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc' }}>
+                        Escore Final VISA-P ({visaPCalc.membroAvaliado}):
+                      </span>
+                      <span style={{ fontSize: '1.25rem', fontWeight: 800, color: visaPCalc.badgeCor }}>
+                        {visaPCalc.scoreTotal}/100 pts
+                      </span>
+                    </div>
+                    <span style={{ padding: '3px 10px', borderRadius: '6px', background: visaPCalc.badgeBg, color: visaPCalc.badgeCor, fontSize: '0.78rem', fontWeight: 700, border: `1px solid ${visaPCalc.badgeCor}` }}>
+                      {visaPCalc.classificacaoLabel}
+                    </span>
+                  </div>
+
+                  {/* Subdomínios */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Sintomas & Dor (Q1,2,3,6)</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>{visaPCalc.scoreSintomasDor}/40 pts</strong>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Função Sob Carga (Q4,5)</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>{visaPCalc.scoreFuncaoCarga}/20 pts</strong>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Capacidade Esportiva (Q7,8)</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>{visaPCalc.scoreCapacidadeEsportiva}/40 pts</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                    <strong>Estágio Clínico:</strong> {visaPCalc.estagioTendineo} — {visaPCalc.parecerClinico}
+                  </div>
+
+                  <div style={{ padding: '8px 10px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '6px', fontSize: '0.78rem', color: '#10b981' }}>
+                    <strong>🎯 Diretriz para o Treinador:</strong> {visaPCalc.diretrizTreinador}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

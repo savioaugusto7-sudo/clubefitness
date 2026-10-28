@@ -52,7 +52,8 @@ export async function GET(request: Request) {
         'MAIGNE',
         'COMPOSICAO_CORPORAL',
         'PERIMETRIA',
-        'HOP_TEST'
+        'HOP_TEST',
+        'VISA_P'
       ];
 
       const latestTests: Record<string, any> = {};

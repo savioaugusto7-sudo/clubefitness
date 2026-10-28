@@ -14,8 +14,9 @@ import { checkSessionPermission } from '@/utils/authHelper';
 import { computeLongitudinalReassessment } from '@/utils/longitudinalEngine';
 import { generateClinicalNarrative } from '@/utils/clinicalReasoningEngine';
 import { generatePersonalizedClinicalNarrative } from '@/utils/aiClinicalNarrative';
-import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
+import { calculateGoniometryAlerts, calculateStrengthTestAlerts, calculateHopBatteryAnalysis } from '@/utils/biomechanicsEngine';
 import { calculateACWR, calculateWellnessACWRDecision } from '@/utils/acwrEngine';
+import { compareVisaPLongitudinal } from '@/utils/visaPEngine';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -38,6 +39,7 @@ const TEST_TYPE_LABELS: Record<string, string> = {
   Y_TEST: 'Y-Test (Equilíbrio Dinâmico)',
   STEP_DOWN: 'Step Down Test',
   HOP_TEST: 'Bateria de Hop Tests (Simetria LSI)',
+  VISA_P: 'Questionário VISA-P (Tendão Patelar)',
   GONIOMETRIA: 'Goniometria Pontual',
   DINAMOMETRIA: 'Dinamometria / Força',
   THOMAS: 'Teste de Thomas',
@@ -257,6 +259,23 @@ export async function GET(request: Request) {
     let longitudinalComputed: any = null;
     let clinicalNarrative: any = null;
 
+    const visaPRecords = clientTestRecords
+      .filter((tr: any) => tr.tipoTeste === 'VISA_P')
+      .sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
+    const visaT1Doc = visaPRecords.length >= 2 ? visaPRecords[0] : null;
+    const visaT2Doc = visaPRecords.length >= 1 ? visaPRecords[visaPRecords.length - 1] : null;
+    const standaloneVisaP = compareVisaPLongitudinal(
+      visaT1Doc?.dados,
+      visaT2Doc?.dados,
+      visaT1Doc?.data,
+      visaT2Doc?.data
+    );
+
+    const hopRecords = clientTestRecords
+      .filter((tr: any) => tr.tipoTeste === 'HOP_TEST')
+      .sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''));
+    const standaloneHopTest = hopRecords.length > 0 ? calculateHopBatteryAnalysis(hopRecords[0]?.dados) : null;
+
     if (t1Doc && t2Doc && t1Doc._id.toString() !== t2Doc._id.toString()) {
       try {
         // Buscar os testes de força mais próximos de t1 e t2
@@ -273,8 +292,19 @@ export async function GET(request: Request) {
           t1Report: t1Doc,
           t2Report: t2Doc,
           t1Strength: st1,
-          t2Strength: st2
+          t2Strength: st2,
+          t1VisaP: visaT1Doc?.dados,
+          t2VisaP: visaT2Doc?.dados
         });
+
+        if (!computed.testesFuncionais.hopTest && standaloneHopTest) {
+          computed.testesFuncionais.hopTest = standaloneHopTest;
+        }
+        if (!computed.testesFuncionais.visaP && standaloneVisaP) {
+          computed.testesFuncionais.visaP = standaloneVisaP;
+        }
+        (computed as any).acwr = acwrResult;
+        (computed as any).matrizDecisao = decisionMatrix;
 
         const baseNarrative = generateClinicalNarrative(computed);
         const narrative = await generatePersonalizedClinicalNarrative(computed, baseNarrative);
@@ -458,7 +488,9 @@ export async function GET(request: Request) {
           goniometria: gonioSeries,
           eva: evaSeries,
           strength: strengthSeries,
-          wellness: recentWellnessLogs
+          wellness: recentWellnessLogs,
+          visaP: standaloneVisaP,
+          hopTest: standaloneHopTest
         }
       }
     }, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } });

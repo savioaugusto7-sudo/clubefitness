@@ -5,6 +5,7 @@
 
 import { identifyClinicalClusters, ClinicalCluster, ClientClinicalProfile } from './clinicalClustersEngine';
 import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from './biomechanicsEngine';
+import { compareVisaPLongitudinal, VisaPComparisonResult } from './visaPEngine';
 
 export interface EvaluatorInfo {
   nome: string;
@@ -26,6 +27,8 @@ export interface LongitudinalInput {
   t2Strength?: any;
   avaliadorT1?: EvaluatorInfo;
   avaliadorT2?: EvaluatorInfo;
+  t1VisaP?: any;
+  t2VisaP?: any;
 }
 
 export interface TableRowEva {
@@ -153,6 +156,7 @@ export interface LongitudinalComputedResult {
     yTeste: YTestComparison | null;
     stepDown: StepDownComparisonRow[];
     hopTest?: HopBatteryResult | null;
+    visaP?: VisaPComparisonResult | null;
   };
   tabelaGoniometria: TableRowGoniometria[];
   tabelaColuna: TableRowColuna[];
@@ -820,6 +824,11 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
                  t1Report?.hopTest || t1Report?.dados?.hopTest || t1Report?.testesOrtopedicos?.hopTest;
   const hopTestResult = calculateHopBatteryAnalysis(hopRaw);
 
+  // VISA-P (Questionário Validado de Tendinopatia Patelar — MCID = 13 pts)
+  const visaRawT1 = input.t1VisaP || t1Report?.visaP || t1Report?.dados?.visaP || t1Report?.testesOrtopedicos?.visaP || t1Report?.dadosMedidos?.testesEspeciais?.visaP;
+  const visaRawT2 = input.t2VisaP || t2Report?.visaP || t2Report?.dados?.visaP || t2Report?.testesOrtopedicos?.visaP || t2Report?.dadosMedidos?.testesEspeciais?.visaP;
+  const visaPResult = compareVisaPLongitudinal(visaRawT1, visaRawT2, dtRelatorioT1, dtReavaliacao);
+
   // 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA - Com referências cinesiológicas completas)
   const g1 = t1Report?.goniometria || {};
   const g2 = t2Report?.goniometria || {};
@@ -1043,7 +1052,8 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     testesFuncionais: {
       yTeste: yTestResult,
       stepDown: sdRows,
-      hopTest: hopTestResult
+      hopTest: hopTestResult,
+      visaP: visaPResult
     },
     tabelaGoniometria: goniometriaRows,
     tabelaColuna: tabelaColunaRows,
