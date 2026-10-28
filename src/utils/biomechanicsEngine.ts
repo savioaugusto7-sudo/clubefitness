@@ -1682,3 +1682,358 @@ export function calculateStrengthEvolutionComparison(
   };
 }
 
+/**
+ * 🌟 PROPOSTA 1 (Fase 1): Motor de Índices Dinamométricos Avançados & Força Relativa (% Peso Corporal)
+ * Base Científica: Curso Avançado de Reabilitação e Fisioterapia Esportiva (Dra. Rutchelia Novais)
+ */
+export interface AdvancedStrengthRatioItem {
+  id: 'hq' | 'add_abd' | 'ri_re_quad' | 'quad_pc' | 'gluteo_pc';
+  nome: string;
+  subtitulo: string;
+  articulacao: string;
+  valorD: number | null;
+  valorE: number | null;
+  valorGeral: number | null;
+  unidade: string;
+  referenciaMin: number;
+  referenciaMax: number;
+  referenciaFormatada: string;
+  statusD: 'otimo' | 'atencao' | 'critico' | 'nao_avaliado';
+  statusE: 'otimo' | 'atencao' | 'critico' | 'nao_avaliado';
+  statusGeral: 'otimo' | 'atencao' | 'critico';
+  diagnosticoClinico: string;
+  diretrizTreinador: string;
+}
+
+export function calculateAdvancedStrengthRatios(
+  testesList: any,
+  pesoKg: number = 70,
+  sexo: 'M' | 'F' = 'M'
+): AdvancedStrengthRatioItem[] {
+  const results: AdvancedStrengthRatioItem[] = [];
+  if (!testesList) return results;
+
+  let list: any[] = [];
+  if (Array.isArray(testesList)) {
+    list = testesList;
+  } else if (typeof testesList === 'object') {
+    list = Array.isArray(testesList.testesRealizados)
+      ? testesList.testesRealizados
+      : Array.isArray(testesList.exercicios)
+      ? testesList.exercicios
+      : Array.isArray(testesList.testes)
+      ? testesList.testes
+      : [];
+  }
+
+  if (list.length === 0) return results;
+
+  const normalize = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  // Mapear movimentos para kgf
+  const map: Record<string, { D: number; E: number; max: number }> = {};
+  list.forEach(t => {
+    if (!t) return;
+
+    let art = normalize(t.articulacao);
+    let mov = normalize(t.movimento);
+    const combinedText = normalize(`${t.articulacao || ''} ${t.movimento || ''} ${t.nome || ''} ${t.exercicio || ''} ${t.teste || ''}`);
+
+    if (!art || !mov) {
+      if ((combinedText.includes('extens') || combinedText.includes('quadriceps')) && (combinedText.includes('joelho') || combinedText.includes('perna') || !art)) {
+        art = 'joelho';
+        mov = 'extensao';
+      } else if ((combinedText.includes('flex') || combinedText.includes('isquio') || combinedText.includes('posterior')) && (combinedText.includes('joelho') || combinedText.includes('perna') || !art)) {
+        art = 'joelho';
+        mov = 'flexao';
+      } else if ((combinedText.includes('abduc') || combinedText.includes('gluteo medio')) && (combinedText.includes('quadril') || !art)) {
+        art = 'quadril';
+        mov = 'abducao';
+      } else if ((combinedText.includes('aduc') || combinedText.includes('adutor')) && (combinedText.includes('quadril') || !art)) {
+        art = 'quadril';
+        mov = 'aducao';
+      } else if ((combinedText.includes('rotacao interna') || combinedText.includes('rotacao medial') || /\b(ri|rot\s*int|rot\s*med)\b/i.test(combinedText)) && (combinedText.includes('quadril') || !art)) {
+        art = 'quadril';
+        mov = 'rotacao interna';
+      } else if ((combinedText.includes('rotacao externa') || combinedText.includes('rotacao lateral') || /\b(re|rot\s*ext|rot\s*lat)\b/i.test(combinedText)) && (combinedText.includes('quadril') || !art)) {
+        art = 'quadril';
+        mov = 'rotacao externa';
+      }
+    }
+
+    if (!art || !mov) return;
+    const key = `${art}_${mov}`;
+    if (!map[key]) map[key] = { D: 0, E: 0, max: 0 };
+
+    // Suporte a formato com colunas lado a lado (direito/esquerdo ou d/e)
+    const rawValD = t.direito ?? t.d ?? t.valorD ?? t.forcaD ?? t.forcaDireita ?? null;
+    const rawValE = t.esquerdo ?? t.e ?? t.valorE ?? t.forcaE ?? t.forcaEsquerda ?? null;
+
+    const toKgf = (val: any) => {
+      if (val == null || val === '') return 0;
+      const n = Number(val);
+      if (isNaN(n) || n <= 0) return 0;
+      // Se unidade for Newton (ou se valor > 120 e não for kgf explícito, provável Newton)
+      if (t.unidade === 'N' || (t.forcaN != null && n > 150)) {
+        return n / 9.80665;
+      }
+      return n;
+    };
+
+    if (rawValD !== null || rawValE !== null) {
+      if (rawValD !== null) {
+        const kgfD = toKgf(rawValD);
+        map[key].D = Math.max(map[key].D, kgfD);
+        map[key].max = Math.max(map[key].max, kgfD);
+      }
+      if (rawValE !== null) {
+        const kgfE = toKgf(rawValE);
+        map[key].E = Math.max(map[key].E, kgfE);
+        map[key].max = Math.max(map[key].max, kgfE);
+      }
+    } else {
+      // Formato com linha individual por lado
+      let kgf = 0;
+      if (t.forcaN != null && Number(t.forcaN) > 0) {
+        kgf = Number(t.forcaN) / 9.80665;
+      } else if (t.forca != null && Number(t.forca) > 0) {
+        kgf = toKgf(t.forca);
+      } else if (t.valorObtido != null && Number(t.valorObtido) > 0) {
+        kgf = toKgf(t.valorObtido);
+      } else if (t.valor != null && Number(t.valor) > 0) {
+        kgf = toKgf(t.valor);
+      }
+
+      const lado = normalize(t.lado);
+      if (lado.startsWith('d') || lado === 'direito') {
+        map[key].D = Math.max(map[key].D, kgf);
+      } else if (lado.startsWith('e') || lado === 'esquerdo') {
+        map[key].E = Math.max(map[key].E, kgf);
+      }
+      map[key].max = Math.max(map[key].max, kgf);
+    }
+  });
+
+  const getF = (art: string, mov: string) => {
+    const k = `${normalize(art)}_${normalize(mov)}`;
+    return map[k] || { D: 0, E: 0, max: 0 };
+  };
+
+  const extJoelho = getF('Joelho', 'Extensão');
+  const flexJoelho = getF('Joelho', 'Flexão');
+  const abdQuadril = getF('Quadril', 'Abdução');
+  const adQuadril = getF('Quadril', 'Adução');
+  const rotIntQuad = getF('Quadril', 'Rotação Interna');
+  const rotExtQuad = getF('Quadril', 'Rotação Externa');
+
+  // 1. RAZÃO H:Q (Isquiotibiais / Quadríceps)
+  const hasExtJ = extJoelho.max > 0;
+  const hasFlexJ = flexJoelho.max > 0;
+  if (hasExtJ && hasFlexJ) {
+    const vD = (extJoelho.D > 0 && flexJoelho.D > 0) ? Math.round((flexJoelho.D / extJoelho.D) * 100) : null;
+    const vE = (extJoelho.E > 0 && flexJoelho.E > 0) ? Math.round((flexJoelho.E / extJoelho.E) * 100) : null;
+    const vTotExt = (extJoelho.D + extJoelho.E) || extJoelho.max;
+    const vTotFlex = (flexJoelho.D + flexJoelho.E) || flexJoelho.max;
+    const vGeral = vTotExt > 0 ? Math.round((vTotFlex / vTotExt) * 100) : null;
+
+    const evalStatus = (v: number | null): 'otimo' | 'atencao' | 'critico' | 'nao_avaliado' => {
+      if (v === null) return 'nao_avaliado';
+      if (v < 60) return 'critico';
+      if (v <= 75) return 'otimo';
+      return 'atencao';
+    };
+
+    const sD = evalStatus(vD);
+    const sE = evalStatus(vE);
+    const sGeral = evalStatus(vGeral) === 'nao_avaliado' ? 'critico' : evalStatus(vGeral);
+
+    let diag = 'Equilíbrio funcional preservado entre cadeia anterior e posterior do joelho.';
+    let dir = 'Manter progressão balanceada de carga em flexores e extensores.';
+    if (vGeral !== null && vGeral < 60) {
+      diag = `Razão H:Q reduzida (${vGeral}%). Déficit de força de isquiotibiais em relação ao quadríceps. Risco acentuado de lesão de LCA e estiramento de posteriores.`;
+      dir = 'Priorizar fortalecimento excêntrico de isquiotibiais (Nordic hamstring, stiff unilateral, mesa flexora controlada). Evitar dominância de quadríceps.';
+    } else if (vGeral !== null && vGeral > 75) {
+      diag = `Razão H:Q elevada (${vGeral}%). Predomínio de isquiotibiais sobre o quadríceps.`;
+      dir = 'Aumentar estímulo de extensão de joelho (cadeira extensora, leg press) para recuperar a capacidade de frenagem do quadríceps.';
+    }
+
+    results.push({
+      id: 'hq',
+      nome: 'Razão H:Q (Isquiotibiais / Quadríceps)',
+      subtitulo: 'Equilíbrio agonista/antagonista do joelho',
+      articulacao: 'Joelho',
+      valorD: vD,
+      valorE: vE,
+      valorGeral: vGeral,
+      unidade: '%',
+      referenciaMin: 60,
+      referenciaMax: 75,
+      referenciaFormatada: '60% – 75%',
+      statusD: sD,
+      statusE: sE,
+      statusGeral: sGeral as any,
+      diagnosticoClinico: diag,
+      diretrizTreinador: dir
+    });
+  }
+
+  // 2. ÍNDICE ADD/ABD (Adutores / Abdutores do Quadril)
+  const hasAdQ = adQuadril.max > 0;
+  const hasAbdQ = abdQuadril.max > 0;
+  if (hasAdQ && hasAbdQ) {
+    const vD = (abdQuadril.D > 0 && adQuadril.D > 0) ? Math.round((adQuadril.D / abdQuadril.D) * 100) / 100 : null;
+    const vE = (abdQuadril.E > 0 && adQuadril.E > 0) ? Math.round((adQuadril.E / abdQuadril.E) * 100) / 100 : null;
+    const vTotAbd = (abdQuadril.D + abdQuadril.E) || abdQuadril.max;
+    const vTotAd = (adQuadril.D + adQuadril.E) || adQuadril.max;
+    const vGeral = vTotAbd > 0 ? Math.round((vTotAd / vTotAbd) * 100) / 100 : null;
+
+    const evalStatus = (v: number | null): 'otimo' | 'atencao' | 'critico' | 'nao_avaliado' => {
+      if (v === null) return 'nao_avaliado';
+      if (v < 0.80) return 'critico';
+      if (v >= 1.05 && v <= 1.20) return 'otimo';
+      return 'atencao';
+    };
+
+    const sD = evalStatus(vD);
+    const sE = evalStatus(vE);
+    const sGeral = evalStatus(vGeral) === 'nao_avaliado' ? 'critico' : evalStatus(vGeral);
+
+    let diag = 'Razão Adutor/Abdutor adequada para estabilização pélvica e proteção pubo-adutora.';
+    let dir = 'Manter estímulo simétrico em planos frontal e sagital.';
+    if (vGeral !== null && vGeral < 0.80) {
+      diag = `Déficit adutor expressivo (${vGeral.toFixed(2)}x). Risco elevado de dor inguinal, pubalgia e colapso dinâmico em valgo.`;
+      dir = 'Adicionar fortalecimento específico de adutores (Copenhagen plank adaptada, adução em polia baixa com controle excêntrico).';
+    } else if (vGeral !== null && vGeral > 1.20) {
+      diag = `Predomínio adutor sobre abdutores (${vGeral.toFixed(2)}x). Possível sobrecarga medial do joelho.`;
+      dir = 'Reforçar glúteo médio e mínimo (abdução com miniband, elevação pélvica unilateral) para estabilização da pelve.';
+    }
+
+    results.push({
+      id: 'add_abd',
+      nome: 'Índice ADD/ABD (Adutores / Abdutores)',
+      subtitulo: 'Equilíbrio frontal do quadril e estabilização pélvica',
+      articulacao: 'Quadril',
+      valorD: vD,
+      valorE: vE,
+      valorGeral: vGeral,
+      unidade: 'x',
+      referenciaMin: 1.05,
+      referenciaMax: 1.20,
+      referenciaFormatada: '1.05 – 1.20',
+      statusD: sD,
+      statusE: sE,
+      statusGeral: sGeral as any,
+      diagnosticoClinico: diag,
+      diretrizTreinador: dir
+    });
+  }
+
+  // 3. FORÇA RELATIVA DO QUADRÍCEPS (% PESO CORPORAL)
+  if (extJoelho.max > 0 && pesoKg > 0) {
+    const vD = extJoelho.D > 0 ? Math.round((extJoelho.D / pesoKg) * 100) : null;
+    const vE = extJoelho.E > 0 ? Math.round((extJoelho.E / pesoKg) * 100) : null;
+    const vMedia = Math.round((extJoelho.max / pesoKg) * 100);
+    const corteMin = sexo === 'M' ? 70 : 60;
+
+    const sD = vD !== null ? (vD >= corteMin ? 'otimo' : vD >= 50 ? 'atencao' : 'critico') : 'nao_avaliado';
+    const sE = vE !== null ? (vE >= corteMin ? 'otimo' : vE >= 50 ? 'atencao' : 'critico') : 'nao_avaliado';
+    const sGeral = vMedia >= corteMin ? 'otimo' : vMedia >= 50 ? 'atencao' : 'critico';
+
+    let diag = `Força de quadríceps atinge o limiar protetor de blindagem articular (${vMedia}% PC).`;
+    let dir = 'Apto para progressão de volume e exercícios de sobrecarga em agachamentos e leg press.';
+    if (vMedia < corteMin) {
+      diag = `Força relativa do quadríceps abaixo do limiar protetor (${vMedia}% PC vs meta ≥ ${corteMin}% PC). Risco de sobrecarga femoropatelar e dor anterior no joelho.`;
+      dir = 'Priorizar ganho de força pura no aparelho extensor (cadeira extensora isométrica e concêntrica) antes de treinos de salto ou impacto.';
+    }
+
+    results.push({
+      id: 'quad_pc',
+      nome: 'Quadríceps Relativo ao Peso (%PC)',
+      subtitulo: 'Capacidade de amortecimento articular do joelho',
+      articulacao: 'Joelho',
+      valorD: vD,
+      valorE: vE,
+      valorGeral: vMedia,
+      unidade: '% PC',
+      referenciaMin: corteMin,
+      referenciaMax: 100,
+      referenciaFormatada: `≥ ${corteMin}% PC`,
+      statusD: sD as any,
+      statusE: sE as any,
+      statusGeral: sGeral as any,
+      diagnosticoClinico: diag,
+      diretrizTreinador: dir
+    });
+  }
+
+  // 4. FORÇA RELATIVA DE GLÚTEO MÉDIO / ABDUTORES (% PESO CORPORAL)
+  if (abdQuadril.max > 0 && pesoKg > 0) {
+    const vD = abdQuadril.D > 0 ? Math.round((abdQuadril.D / pesoKg) * 100) : null;
+    const vE = abdQuadril.E > 0 ? Math.round((abdQuadril.E / pesoKg) * 100) : null;
+    const vMedia = Math.round((abdQuadril.max / pesoKg) * 100);
+    const corteMin = sexo === 'M' ? 30 : 25;
+
+    const sD = vD !== null ? (vD >= corteMin ? 'otimo' : 'critico') : 'nao_avaliado';
+    const sE = vE !== null ? (vE >= corteMin ? 'otimo' : 'critico') : 'nao_avaliado';
+    const sGeral = vMedia >= corteMin ? 'otimo' : 'critico';
+
+    let diag = `Estabilização do plano frontal da pelve adequada (${vMedia}% PC).`;
+    let dir = 'Manter exercícios funcionais unipodais para preservação do controle dinâmico.';
+    if (vMedia < corteMin) {
+      diag = `Fraqueza de abdutores de quadril (${vMedia}% PC vs meta ≥ ${corteMin}% PC). Forte correlação com valgo dinâmico, queda pélvica e dor femoropatelar.`;
+      dir = 'Incorporar ativação isolada de glúteo médio e mínimo (abdução com elástico, marcha lateral, elevação pélvica unilateral).';
+    }
+
+    results.push({
+      id: 'gluteo_pc',
+      nome: 'Glúteo Médio Relativo ao Peso (%PC)',
+      subtitulo: 'Estabilidade do plano frontal e prevenção de valgo',
+      articulacao: 'Quadril',
+      valorD: vD,
+      valorE: vE,
+      valorGeral: vMedia,
+      unidade: '% PC',
+      referenciaMin: corteMin,
+      referenciaMax: 50,
+      referenciaFormatada: `≥ ${corteMin}% PC`,
+      statusD: sD as any,
+      statusE: sE as any,
+      statusGeral: sGeral as any,
+      diagnosticoClinico: diag,
+      diretrizTreinador: dir
+    });
+  }
+
+  // 5. RAZÃO ROTACIONAL RI/RE DE QUADRIL
+  if (rotIntQuad.max > 0 && rotExtQuad.max > 0) {
+    const vTotRI = (rotIntQuad.D + rotIntQuad.E) || rotIntQuad.max;
+    const vTotRE = (rotExtQuad.D + rotExtQuad.E) || rotExtQuad.max;
+    const vGeral = vTotRE > 0 ? Math.round((vTotRI / vTotRE) * 100) / 100 : null;
+
+    if (vGeral !== null) {
+      const sGeral = (vGeral >= 0.90 && vGeral <= 1.15) ? 'otimo' : 'atencao';
+      results.push({
+        id: 'ri_re_quad',
+        nome: 'Razão Rotação Interna / Externa (RI/RE)',
+        subtitulo: 'Simetria rotacional do complexo coxofemoral',
+        articulacao: 'Quadril',
+        valorD: (rotExtQuad.D > 0 && rotIntQuad.D > 0) ? Math.round((rotIntQuad.D / rotExtQuad.D) * 100) / 100 : null,
+        valorE: (rotExtQuad.E > 0 && rotIntQuad.E > 0) ? Math.round((rotIntQuad.E / rotExtQuad.E) * 100) / 100 : null,
+        valorGeral: vGeral,
+        unidade: 'x',
+        referenciaMin: 0.90,
+        referenciaMax: 1.15,
+        referenciaFormatada: '0.90 – 1.15 (≈ 1:1)',
+        statusD: 'otimo',
+        statusE: 'otimo',
+        statusGeral: sGeral,
+        diagnosticoClinico: sGeral === 'otimo' ? 'Equilíbrio rotacional simétrico no quadril.' : 'Desequilíbrio rotacional coxofemoral.',
+        diretrizTreinador: sGeral === 'otimo' ? 'Manter mobilidade e força rotacional.' : 'Ajustar rotações de quadril com foco no rotador deficitário.'
+      });
+    }
+  }
+
+  return results;
+}
+
+

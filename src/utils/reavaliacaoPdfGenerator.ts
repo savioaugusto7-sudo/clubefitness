@@ -372,7 +372,21 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         `).join('')}
       </tbody>
     </table>
-    <p style="font-size:9.5pt; color:#334155;"><strong>Análise da razão I:Q:</strong> ${tabelaRazoes.analisePorLadoIQ}</p>
+    <p style="font-size:9.5pt; color:#334155; margin-bottom:6px;"><strong>Análise da razão H:Q:</strong> ${tabelaRazoes.analisePorLadoIQ}</p>
+    ${computed.razoesAvancadas && computed.razoesAvancadas.length > 0 ? `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; page-break-inside:avoid;">
+        ${computed.razoesAvancadas.map(rz => `
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:3.5px solid ${rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#f59e0b' : '#10b981'}; padding:7px 10px; border-radius:4px; font-size:8pt;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+              <strong style="color:#0f172a;">${rz.nome}</strong>
+              <span style="font-weight:700; color:${rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#b45309' : '#047857'};">${rz.valorGeral !== null ? `${rz.valorGeral}${rz.unidade}` : '-'}</span>
+            </div>
+            <div style="color:#475569; font-size:7.5pt; line-height:1.35; margin-bottom:3px;">${rz.diagnosticoClinico}</div>
+            <div style="color:#047857; font-size:7.5pt; font-weight:700; background:rgba(16,185,129,0.08); padding:3px 6px; border-radius:3px;">🎯 Diretriz de Treino: ${rz.diretrizTreinador}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
   `}
 
   <!-- 7. ANÁLISE DE SIMETRIA ENTRE MEMBROS -->

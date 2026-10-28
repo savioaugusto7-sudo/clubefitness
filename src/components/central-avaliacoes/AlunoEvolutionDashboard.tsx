@@ -14,8 +14,8 @@ import {
   BarElement
 } from 'chart.js';
 import { Radar, Line, Bar } from 'react-chartjs-2';
-import LiveClinicalAlert from '../LiveClinicalAlert';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
+import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem } from '@/utils/biomechanicsEngine';
 
 ChartJS.register(
   RadialLinearScale,
@@ -71,8 +71,17 @@ export default function AlunoEvolutionDashboard({
   onOpenNovoTeste
 }: AlunoEvolutionDashboardProps) {
   // 🌟 ESTADOS DA FASE 3: MODOS DE VISUALIZAÇÃO E SELETOR ARTICULAR
-  const [strengthViewMode, setStrengthViewMode] = React.useState<'bilateral' | 'radar'>('bilateral');
+  const [strengthViewMode, setStrengthViewMode] = React.useState<'bilateral' | 'radar' | 'razoes'>('bilateral');
   const [gonioArticulacao, setGonioArticulacao] = React.useState<'tornozelo' | 'joelho' | 'ombro'>('tornozelo');
+
+  // 🌟 CÁLCULO DAS RAZÕES MUSCULARES E FORÇA RELATIVA (% PESO CORPORAL)
+  const advancedStrengthRatios = React.useMemo(() => {
+    if (longitudinal?.computed?.razoesAvancadas && longitudinal.computed.razoesAvancadas.length > 0) {
+      return longitudinal.computed.razoesAvancadas;
+    }
+    const testList = latestStrengthDoc?.testes || latestStrengthDoc?.testesRealizados || latestStrengthDoc?.exercicios || [];
+    return calculateAdvancedStrengthRatios(testList, client.peso || 70, (client.sexo as any) || 'M');
+  }, [longitudinal, latestStrengthDoc, client]);
 
   // Formatador de data abreviada
   const formatShortDate = (dStr?: string) => {
@@ -1024,6 +1033,27 @@ export default function AlunoEvolutionDashboard({
                 <i className="fas fa-spider" />
                 Radar
               </button>
+              <button
+                type="button"
+                onClick={() => setStrengthViewMode('razoes')}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: strengthViewMode === 'razoes' ? 'var(--primary, #6366f1)' : 'transparent',
+                  color: strengthViewMode === 'razoes' ? '#fff' : 'var(--text-dim, #94a3b8)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <i className="fas fa-scale-balanced" />
+                Razões &amp; %PC
+              </button>
             </div>
           </div>
 
@@ -1115,7 +1145,7 @@ export default function AlunoEvolutionDashboard({
                   </button>
                 </div>
               )
-            ) : (
+            ) : strengthViewMode === 'radar' ? (
               radarLabels.length > 0 ? (
                 <div style={{ height: '260px', position: 'relative' }}>
                   <Radar data={radarChartData} options={radarOptions} />
@@ -1124,6 +1154,81 @@ export default function AlunoEvolutionDashboard({
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: 'var(--text-dim, #94a3b8)', padding: '20px', textAlign: 'center' }}>
                   <i className="fas fa-spider fa-2x" style={{ opacity: 0.3, marginBottom: '8px' }} />
                   <p style={{ fontSize: '0.84rem', margin: '0 0 10px 0' }}>Sem dados suficientes para mapa de teia radar.</p>
+                </div>
+              )
+            ) : (
+              /* MODO 'razoes': Razões Musculares & %PC */
+              advancedStrengthRatios.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {advancedStrengthRatios.map((rz, rIdx) => {
+                    const statusBg = rz.statusGeral === 'critico' ? 'rgba(239, 68, 68, 0.15)' : rz.statusGeral === 'atencao' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+                    const statusColor = rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#f59e0b' : '#10b981';
+                    const statusLabel = rz.statusGeral === 'critico' ? 'Risco Elevado' : rz.statusGeral === 'atencao' ? 'Atenção' : 'Equilibrado';
+
+                    return (
+                      <div
+                        key={rIdx}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '10px',
+                          border: `1px solid ${rz.statusGeral === 'critico' ? 'rgba(239, 68, 68, 0.35)' : rz.statusGeral === 'atencao' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(16, 185, 129, 0.25)'}`,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main, #fff)' }}>
+                            {rz.nome}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              background: statusBg,
+                              color: statusColor,
+                              border: `1px solid ${statusColor}30`
+                            }}
+                          >
+                            {rz.valorGeral !== null ? `${rz.valorGeral}${rz.unidade}` : '-'} • {statusLabel}
+                          </span>
+                        </div>
+
+                        {/* Detalhe de Valores Unilaterais D e E se existirem */}
+                        {(rz.valorD !== null || rz.valorE !== null) && (
+                          <div style={{ display: 'flex', gap: '14px', fontSize: '0.74rem', color: '#cbd5e1', background: 'rgba(255,255,255,0.02)', padding: '4px 8px', borderRadius: '6px' }}>
+                            <span>
+                              <strong style={{ color: '#0d9488' }}>Membro D:</strong> {rz.valorD !== null ? `${rz.valorD}${rz.unidade}` : 'N/A'}
+                            </span>
+                            <span>
+                              <strong style={{ color: '#818cf8' }}>Membro E:</strong> {rz.valorE !== null ? `${rz.valorE}${rz.unidade}` : 'N/A'}
+                            </span>
+                            <span style={{ marginLeft: 'auto', color: 'var(--text-dim, #94a3b8)' }}>
+                              Meta: {rz.referenciaFormatada}
+                            </span>
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-main, #cbd5e1)', lineHeight: 1.4 }}>
+                          {rz.diagnosticoClinico}
+                        </div>
+
+                        <div style={{ fontSize: '0.72rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.08)', padding: '5px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fas fa-bullseye" />
+                          <span><strong>Diretriz de Treino:</strong> {rz.diretrizTreinador}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '220px', color: 'var(--text-dim, #94a3b8)', padding: '20px', textAlign: 'center' }}>
+                  <i className="fas fa-scale-balanced fa-2x" style={{ opacity: 0.3, marginBottom: '8px' }} />
+                  <p style={{ fontSize: '0.84rem', margin: '0 0 6px 0' }}>Grupos musculares agonistas/antagonistas não mensurados na avaliação atual.</p>
+                  <small style={{ fontSize: '0.74rem', color: 'var(--text-dim, #94a3b8)' }}>Necessário teste de extensão/flexão de joelho ou abdução/adução de quadril.</small>
                 </div>
               )
             )}

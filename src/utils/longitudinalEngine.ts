@@ -4,6 +4,7 @@
  */
 
 import { identifyClinicalClusters, ClinicalCluster, ClientClinicalProfile } from './clinicalClustersEngine';
+import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem } from './biomechanicsEngine';
 
 export interface EvaluatorInfo {
   nome: string;
@@ -156,6 +157,7 @@ export interface LongitudinalComputedResult {
   tabelaColuna: TableRowColuna[];
   tabelaTestesOrtopedicos: TableRowTesteOrtopedico[];
   clusters?: any[];
+  razoesAvancadas?: AdvancedStrengthRatioItem[];
 }
 
 /** Formata data BR DD/MM/AAAA */
@@ -526,23 +528,47 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     const iqGlobalT2 = hasIQT2 ? Math.round(((flexJoelhoD_T2 + flexJoelhoE_T2) / (extJoelhoD_T2 + extJoelhoE_T2)) * 1000) / 10 : 0;
     const deltaIQ = Math.round((iqGlobalT2 - iqGlobalT1) * 10) / 10;
 
-    let interpIQ = 'Dentro da referência (60–75%)';
-    if (iqGlobalT2 < 60) interpIQ = 'Abaixo da referência (< 60%) — Risco para LCA e isquiotibiais';
-    else if (iqGlobalT2 > 80) interpIQ = 'Elevada (> 80%)';
+    let interpIQ = 'Dentro da referência (60–75%) — Equilíbrio muscular ótimo';
+    if (iqGlobalT2 < 60) interpIQ = 'Abaixo da referência (< 60%) — Risco aumentado para LCA e estiramento de isquiotibiais';
+    else if (iqGlobalT2 > 75) interpIQ = 'Elevada (> 75%) — Predomínio de cadeia posterior';
 
     rowsRazoes.push({
-      indice: 'Razão isquiotibiais/quadríceps global',
-      referencia: '60–75%',
+      indice: 'Razão isquiotibiais/quadríceps (H:Q) global',
+      referencia: '60%–75%',
       t1: hasIQT1 ? `${iqGlobalT1.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
       t2: hasIQT2 ? `${iqGlobalT2.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
       variacao: (hasIQT1 && hasIQT2) ? `${deltaIQ >= 0 ? '+' : ''}${deltaIQ.toFixed(1).replace('.', ',')} p.p.` : '-',
       interpretacao: interpIQ
     });
 
-    analisePorLadoIQ = `Razão I:Q em T2: ${hasIQT2 ? `${iqGlobalT2.toFixed(1).replace('.', ',')}%` : 'Não avaliada'}.`;
+    // Razão H:Q Unilateral se ambos os lados forem avaliados
+    if (extJoelhoD_T2 > 0 && flexJoelhoD_T2 > 0) {
+      const iqD = Math.round((flexJoelhoD_T2 / extJoelhoD_T2) * 100);
+      rowsRazoes.push({
+        indice: 'Razão H:Q — Membro Direito (D)',
+        referencia: '60%–75%',
+        t1: (extJoelhoD_T1 > 0 && flexJoelhoD_T1 > 0) ? `${Math.round((flexJoelhoD_T1 / extJoelhoD_T1) * 100)}%` : '-',
+        t2: `${iqD}%`,
+        variacao: (extJoelhoD_T1 > 0 && flexJoelhoD_T1 > 0) ? `${iqD - Math.round((flexJoelhoD_T1 / extJoelhoD_T1) * 100)} p.p.` : '-',
+        interpretacao: iqD >= 60 && iqD <= 75 ? 'Equilibrado (60–75%)' : (iqD < 60 ? 'Déficit posterior (<60%)' : 'Predomínio flexor (>75%)')
+      });
+    }
+    if (extJoelhoE_T2 > 0 && flexJoelhoE_T2 > 0) {
+      const iqE = Math.round((flexJoelhoE_T2 / extJoelhoE_T2) * 100);
+      rowsRazoes.push({
+        indice: 'Razão H:Q — Membro Esquerdo (E)',
+        referencia: '60%–75%',
+        t1: (extJoelhoE_T1 > 0 && flexJoelhoE_T1 > 0) ? `${Math.round((flexJoelhoE_T1 / extJoelhoE_T1) * 100)}%` : '-',
+        t2: `${iqE}%`,
+        variacao: (extJoelhoE_T1 > 0 && flexJoelhoE_T1 > 0) ? `${iqE - Math.round((flexJoelhoE_T1 / extJoelhoE_T1) * 100)} p.p.` : '-',
+        interpretacao: iqE >= 60 && iqE <= 75 ? 'Equilibrado (60–75%)' : (iqE < 60 ? 'Déficit posterior (<60%)' : 'Predomínio flexor (>75%)')
+      });
+    }
+
+    analisePorLadoIQ = `Razão H:Q em T2: ${hasIQT2 ? `${iqGlobalT2.toFixed(1).replace('.', ',')}%` : 'Não avaliada'}.`;
   }
 
-  // Adutor / Abdutor
+  // Adutor / Abdutor (Padrão Ouro: 1.05 a 1.20)
   const adD_T1 = mapT1['Adução de quadril_Direito'] || 0;
   const adE_T1 = mapT1['Adução de quadril_Esquerdo'] || 0;
   const abdD_T1 = mapT1['Abdução de quadril_Direito'] || 0;
@@ -561,13 +587,14 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     const rT2 = hasAdAbdT2 ? Math.round(((adD_T2 + adE_T2) / (abdD_T2 + abdE_T2)) * 100) / 100 : 0;
     const deltaR = Math.round((rT2 - rT1) * 100) / 100;
 
-    let interp = 'Dentro da referência (0,80–1,15)';
-    if (rT2 < 0.80) interp = 'Abaixo da referência (< 0,80) — Predomínio de abdutores';
-    else if (rT2 > 1.15) interp = 'Acima da referência (> 1,15) — Predomínio de adutores';
+    let interp = 'Dentro da referência (1,05–1,20) — Proteção pubo-adutora ótima';
+    if (rT2 < 0.80) interp = 'Abaixo da referência (< 0,80) — Risco elevado de dor inguinal e pubalgia';
+    else if (rT2 < 1.05) interp = 'Leve déficit adutor (0,80–1,04) — Abaixo do padrão-ouro';
+    else if (rT2 > 1.20) interp = 'Acima da referência (> 1,20) — Predomínio de adutores sobre abdutores';
 
     rowsRazoes.push({
-      indice: 'Razão adutor/abdutor de quadril',
-      referencia: '0,80–1,15',
+      indice: 'Índice adutor/abdutor de quadril (ADD/ABD)',
+      referencia: '1,05–1,20',
       t1: hasAdAbdT1 ? rT1.toFixed(2).replace('.', ',') : 'Não avaliado',
       t2: hasAdAbdT2 ? rT2.toFixed(2).replace('.', ',') : 'Não avaliado',
       variacao: (hasAdAbdT1 && hasAdAbdT2) ? `${deltaR >= 0 ? '+' : ''}${deltaR.toFixed(2).replace('.', ',')}` : '-',
@@ -575,8 +602,26 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     });
   }
 
-  // Glúteo Médio Relativo (%PC)
+  // Força Relativa de Quadríceps (%PC)
   if (pesoKg > 0) {
+    const extTotT1 = extJoelhoD_T1 + extJoelhoE_T1;
+    const extTotT2 = extJoelhoD_T2 + extJoelhoE_T2;
+    if (extTotT1 > 0 || extTotT2 > 0) {
+      const qPcT1 = extTotT1 > 0 ? Math.round(((extTotT1 / 2) / (pesoKg * 9.81)) * 1000) / 10 : 0;
+      const qPcT2 = extTotT2 > 0 ? Math.round(((extTotT2 / 2) / (pesoKg * 9.81)) * 1000) / 10 : 0;
+      const deltaQPc = Math.round((qPcT2 - qPcT1) * 10) / 10;
+
+      rowsRazoes.push({
+        indice: 'Quadríceps relativo ao peso corporal (%PC)',
+        referencia: '≥60% do peso corporal',
+        t1: extTotT1 > 0 ? `${qPcT1.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
+        t2: extTotT2 > 0 ? `${qPcT2.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
+        variacao: (extTotT1 > 0 && extTotT2 > 0) ? `${deltaQPc >= 0 ? '+' : ''}${deltaQPc.toFixed(1).replace('.', ',')} p.p.` : '-',
+        interpretacao: qPcT2 >= 60 ? 'Adequado (≥60%) — Boa capacidade de amortecimento patelofemoral' : 'Abaixo da referência (<60%) — Risco de sobrecarga articular'
+      });
+    }
+
+    // Glúteo Médio Relativo (%PC)
     const abdTotT1 = abdD_T1 + abdE_T1;
     const abdTotT2 = abdD_T2 + abdE_T2;
     if (abdTotT1 > 0 || abdTotT2 > 0) {
@@ -585,12 +630,12 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       const deltaGMed = Math.round((gMedT2 - gMedT1) * 10) / 10;
 
       rowsRazoes.push({
-        indice: 'Glúteo médio relativo ao peso corporal',
+        indice: 'Glúteo médio relativo ao peso corporal (%PC)',
         referencia: '≥25% do peso corporal',
         t1: abdTotT1 > 0 ? `${gMedT1.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
         t2: abdTotT2 > 0 ? `${gMedT2.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
         variacao: (abdTotT1 > 0 && abdTotT2 > 0) ? `${deltaGMed >= 0 ? '+' : ''}${deltaGMed.toFixed(1).replace('.', ',')} p.p.` : '-',
-        interpretacao: gMedT2 >= 25 ? 'Adequado (≥25%)' : 'Abaixo da referência (<25%) — Déficit de controle frontal'
+        interpretacao: gMedT2 >= 25 ? 'Adequado (≥25%) — Estabilidade frontal preservada' : 'Abaixo da referência (<25%) — Déficit de controle pélvico'
       });
     }
   }
@@ -993,6 +1038,11 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     tabelaGoniometria: goniometriaRows,
     tabelaColuna: tabelaColunaRows,
     tabelaTestesOrtopedicos: rowsTestesOrtopedicos,
-    clusters
+    clusters,
+    razoesAvancadas: calculateAdvancedStrengthRatios(
+      t2Strength?.testesRealizados || t2Strength?.testes || t2Strength?.exercicios || t1Strength?.testesRealizados || t1Strength?.testes || t1Strength?.exercicios,
+      pesoKg || 70,
+      (client.sexo as any) || 'M'
+    )
   };
 }

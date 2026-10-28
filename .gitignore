@@ -43,5 +43,6 @@ next-env.d.ts
 # scratch / temp files
 scratch*
 *.tmp
-temp/
 /public/relatorios/
+materiais_referencia/*.pdf
+!materiais_referencia/PROPOSTA_TECNICA_EVOLUCAO_CLINICA_RESPONSAVEL_TECNICO.pdf
