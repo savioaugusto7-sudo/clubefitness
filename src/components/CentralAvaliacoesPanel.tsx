@@ -494,6 +494,8 @@ export default function CentralAvaliacoesPanel({
                     liveAlerts={alunoDetail.liveAlerts}
                     evolutionSeries={alunoDetail.evolutionSeries}
                     longitudinal={alunoDetail.longitudinal}
+                    acwr={alunoDetail.acwr}
+                    matrizDecisao={alunoDetail.matrizDecisao}
                     onOpenNovoTeste={() => setShowNovoTesteModal(true)}
                   />
                 )}

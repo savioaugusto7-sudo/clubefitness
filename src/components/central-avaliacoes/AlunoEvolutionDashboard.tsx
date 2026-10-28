@@ -17,6 +17,7 @@ import { Radar, Line, Bar } from 'react-chartjs-2';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from '@/utils/biomechanicsEngine';
 import { detectCompartment, COMPARTIMENTOS_METADATA } from '@/utils/fisioterapiaQueixasCatalog';
+import { calculateACWR, calculateWellnessACWRDecision, ACWRResult, DecisionMatrixResult } from '@/utils/acwrEngine';
 
 ChartJS.register(
   RadialLinearScale,
@@ -45,6 +46,7 @@ interface AlunoEvolutionDashboardProps {
     physioReports: number;
     strengthTests: number;
     clientTestRecords: number;
+    wellnessLogs?: number;
     totalTimeline: number;
   };
   liveAlerts: {
@@ -55,11 +57,14 @@ interface AlunoEvolutionDashboardProps {
     goniometria: any[];
     eva: any[];
     strength: any[];
+    wellness?: any[];
   };
   longitudinal: {
     computed?: any;
     narrative?: any;
   } | null;
+  acwr?: ACWRResult | null;
+  matrizDecisao?: DecisionMatrixResult | null;
   onOpenNovoTeste: () => void;
 }
 
@@ -69,11 +74,25 @@ export default function AlunoEvolutionDashboard({
   liveAlerts,
   evolutionSeries,
   longitudinal,
+  acwr,
+  matrizDecisao,
   onOpenNovoTeste
 }: AlunoEvolutionDashboardProps) {
   // 🌟 ESTADOS DA FASE 3: MODOS DE VISUALIZAÇÃO E SELETOR ARTICULAR
   const [strengthViewMode, setStrengthViewMode] = React.useState<'bilateral' | 'radar' | 'razoes'>('bilateral');
   const [gonioArticulacao, setGonioArticulacao] = React.useState<'tornozelo' | 'joelho' | 'ombro'>('tornozelo');
+
+  // 🌟 MONITORAMENTO DE CARGA ACWR & MATRIZ DE DECISÃO DO WELLNESS (Gabbett / Hooper)
+  const acwrData: ACWRResult = React.useMemo(() => {
+    if (acwr) return acwr;
+    return calculateACWR([], null);
+  }, [acwr]);
+
+  const decisionMatrixData: DecisionMatrixResult = React.useMemo(() => {
+    if (matrizDecisao) return matrizDecisao;
+    const lastWell = evolutionSeries.wellness && evolutionSeries.wellness.length > 0 ? evolutionSeries.wellness[0] : null;
+    return calculateWellnessACWRDecision(lastWell, acwrData);
+  }, [matrizDecisao, evolutionSeries.wellness, acwrData]);
 
   // 1. DADOS DE DINAMOMETRIA (AVALIAÇÃO MAIS RECENTE)
   const latestStrengthDoc = evolutionSeries.strength[evolutionSeries.strength.length - 1];
@@ -1457,6 +1476,215 @@ export default function AlunoEvolutionDashboard({
           </div>
         </div>
       )}
+
+      {/* 🌟 PAINEL ACWR & MATRIZ DE DECISÃO DO WELLNESS (Gabbett / Hooper) */}
+      <div
+        style={{
+          background: 'var(--bg-card, #1e293b)',
+          borderRadius: '14px',
+          border: `1px solid ${decisionMatrixData.semaforoCor}40`,
+          borderLeft: `4px solid ${decisionMatrixData.semaforoCor}`,
+          padding: '16px 18px',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px'
+        }}
+      >
+        {/* Cabeçalho do Card */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <strong style={{ fontSize: '0.92rem', color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <i className="fas fa-battery-half" style={{ color: decisionMatrixData.semaforoCor }} />
+              Monitoramento de Carga ACWR & Matriz de Decisão do Wellness
+            </strong>
+            <small style={{ color: 'var(--text-dim, #94a3b8)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+              Modelo de Gabbett (2016) e Matriz de Hooper — Carga Aguda (7d) vs Crônica (28d) cruzada com Prontidão Diária
+            </small>
+          </div>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              padding: '4px 12px',
+              borderRadius: '12px',
+              background: decisionMatrixData.semaforoBg,
+              color: decisionMatrixData.semaforoCor,
+              border: `1px solid ${decisionMatrixData.semaforoCor}50`
+            }}
+          >
+            {decisionMatrixData.semaforoLabel}
+          </span>
+        </div>
+
+        {/* Grade com 2 Blocos: 1. ACWR (Carga) e 2. Wellness (Recuperação) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '14px' }}>
+          {/* BLOCO 1: RAZÃO ACWR */}
+          <div
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '10px',
+              border: `1px solid ${acwrData.zonaCor}30`,
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim, #94a3b8)', fontWeight: 600 }}>
+                  Razão ACWR (Aguda / Crônica)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '2px' }}>
+                  <span style={{ fontSize: '1.8rem', fontWeight: 800, color: acwrData.zonaCor, lineHeight: 1 }}>
+                    {acwrData.acwr.toFixed(2)}
+                  </span>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: acwrData.zonaCor }}>
+                    {acwrData.zona === 'sweet_spot' ? '🟢 Sweet Spot' : acwrData.zona === 'perigo' ? '🔴 Risco de Lesão 4x' : acwrData.zona === 'atencao' ? '🟡 Sobre-alcance' : '🔵 Sub-treinamento'}
+                  </span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '0.72rem', color: '#94a3b8' }}>
+                <div><strong>Aguda 7d:</strong> {acwrData.cargaAguda7d} UA</div>
+                <div><strong>Crônica sem:</strong> {acwrData.cargaCronica28dMediaSemanal} UA</div>
+                <div style={{ color: '#64748b' }}>{acwrData.totalSessoes28d} sessões em 28d</div>
+              </div>
+            </div>
+
+            {/* Barra de Zonas de Risco de Gabbett */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ position: 'relative', height: '10px', borderRadius: '5px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden', display: 'flex' }}>
+                <div style={{ width: '30%', background: '#38bdf8', opacity: acwrData.zona === 'subtreinamento' ? 1 : 0.35 }} title="Subtreinamento (< 0.80)" />
+                <div style={{ width: '35%', background: '#10b981', opacity: acwrData.zona === 'sweet_spot' ? 1 : 0.35 }} title="Sweet Spot (0.80 - 1.30)" />
+                <div style={{ width: '15%', background: '#f59e0b', opacity: acwrData.zona === 'atencao' ? 1 : 0.35 }} title="Atenção (1.30 - 1.49)" />
+                <div style={{ width: '20%', background: '#ef4444', opacity: acwrData.zona === 'perigo' ? 1 : 0.35 }} title="Danger Zone (≥ 1.50)" />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.66rem', color: '#64748b' }}>
+                <span>0.0</span>
+                <span>0.80 (Sweet Spot)</span>
+                <span>1.30</span>
+                <span>1.50+ (Perigo)</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-main, #cbd5e1)', lineHeight: 1.4 }}>
+              {acwrData.diagnosticoClinico}
+            </div>
+          </div>
+
+          {/* BLOCO 2: PRONTIDÃO PSICOFISIOLÓGICA (WELLNESS) */}
+          <div
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '10px',
+              border: `1px solid ${decisionMatrixData.semaforoCor}30`,
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim, #94a3b8)', fontWeight: 600 }}>
+                  Prontidão Biológica (Wellness)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '2px' }}>
+                  <span style={{ fontSize: '1.8rem', fontWeight: 800, color: decisionMatrixData.semaforoCor, lineHeight: 1 }}>
+                    {decisionMatrixData.wellnessScore}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>/ 30 pts</span>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: decisionMatrixData.semaforoCor }}>
+                    • {decisionMatrixData.wellnessStatusLabel}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenNovoTeste}
+                className="btn btn-outline btn-sm"
+                style={{ fontSize: '0.7rem', padding: '3px 8px', borderColor: 'rgba(255,255,255,0.15)' }}
+              >
+                + Check-in
+              </button>
+            </div>
+
+            {/* Triplo Indicador (Sono, Fadiga, Dor) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Sono</span>
+                <strong style={{ fontSize: '0.82rem', color: '#818cf8' }}>
+                  {evolutionSeries.wellness?.[0]?.sono ? `${evolutionSeries.wellness[0].sono}/10` : 'Normal'}
+                </strong>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Fadiga</span>
+                <strong style={{ fontSize: '0.82rem', color: '#f59e0b' }}>
+                  {evolutionSeries.wellness?.[0]?.fadiga ? `${evolutionSeries.wellness[0].fadiga}/10` : 'Controlada'}
+                </strong>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Dor Muscular</span>
+                <strong style={{ fontSize: '0.82rem', color: '#ef4444' }}>
+                  {evolutionSeries.wellness?.[0]?.dorMuscular ? `${evolutionSeries.wellness[0].dorMuscular}/10` : '0/10'}
+                </strong>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-main, #cbd5e1)', lineHeight: 1.4 }}>
+              {decisionMatrixData.parecerProntidao}
+            </div>
+          </div>
+        </div>
+
+        {/* FAIXA DE CONDUTA IMEDIATA PARA A SALA DE MUSCULAÇÃO */}
+        <div
+          style={{
+            padding: '12px 14px',
+            background: decisionMatrixData.semaforoBg,
+            border: `1px solid ${decisionMatrixData.semaforoCor}50`,
+            borderRadius: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: decisionMatrixData.semaforoCor }}>
+              🎯 DIRETRIZ INTERDISCIPLINAR PARA O TREINADOR DE HOJE:
+            </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-main, #fff)', fontWeight: 600 }}>
+              {decisionMatrixData.diretrizTreinador}
+            </span>
+          </div>
+
+          {/* Tags de Ações Específicas */}
+          {decisionMatrixData.acoesEspecificas?.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+              {decisionMatrixData.acoesEspecificas.map((acao: string, aIdx: number) => (
+                <span
+                  key={aIdx}
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    color: '#f8fafc',
+                    border: `1px solid ${decisionMatrixData.semaforoCor}40`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <i className="fas fa-check" style={{ fontSize: '0.65rem', color: decisionMatrixData.semaforoCor }} />
+                  {acao}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* 4. MAPEAMENTO ANATÔMICO DAS QUEIXAS & ESCALA EVA */}
       <div

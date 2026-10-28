@@ -7,11 +7,15 @@ import PhysioReport from '@/models/PhysioReport';
 import StrengthTest from '@/models/StrengthTest';
 import ClientTestRecord from '@/models/ClientTestRecord';
 import Professional from '@/models/Professional';
+import Appointment from '@/models/Appointment';
+import ClientWorkout from '@/models/ClientWorkout';
+import WellnessLog from '@/models/WellnessLog';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { computeLongitudinalReassessment } from '@/utils/longitudinalEngine';
 import { generateClinicalNarrative } from '@/utils/clinicalReasoningEngine';
 import { generatePersonalizedClinicalNarrative } from '@/utils/aiClinicalNarrative';
 import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
+import { calculateACWR, calculateWellnessACWRDecision } from '@/utils/acwrEngine';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -81,12 +85,31 @@ export async function GET(request: Request) {
     }
 
     // 2. Carregar todas as coleções do aluno em paralelo
-    const [physicalAssessments, physioReports, strengthTests, clientTestRecords] = await Promise.all([
+    const date28DaysAgo = new Date();
+    date28DaysAgo.setDate(date28DaysAgo.getDate() - 30);
+    const date28DaysAgoStr = date28DaysAgo.toISOString().split('T')[0];
+
+    const [
+      physicalAssessments,
+      physioReports,
+      strengthTests,
+      clientTestRecords,
+      recentAppointments,
+      clientWorkoutDoc,
+      recentWellnessLogs
+    ] = await Promise.all([
       PhysicalAssessment.find(clientQuery).sort({ data: -1, createdAt: -1 }).lean().maxTimeMS(8000),
       PhysioReport.find(clientQuery).sort({ data: -1, createdAt: -1 }).lean().maxTimeMS(8000),
       StrengthTest.find(clientQuery).sort({ data: -1, createdAt: -1 }).lean().maxTimeMS(8000),
-      ClientTestRecord.find(clientQuery).sort({ data: -1, createdAt: -1 }).lean().maxTimeMS(8000)
+      ClientTestRecord.find(clientQuery).sort({ data: -1, createdAt: -1 }).lean().maxTimeMS(8000),
+      Appointment.find({ ...clientQuery, data: { $gte: date28DaysAgoStr } }).lean().maxTimeMS(8000),
+      ClientWorkout.findOne(clientQuery).lean().maxTimeMS(8000),
+      WellnessLog.find(clientQuery).sort({ data: -1, createdAt: -1 }).limit(30).lean().maxTimeMS(8000)
     ]);
+
+    const acwrResult = calculateACWR(recentAppointments, clientWorkoutDoc);
+    const latestWellness = recentWellnessLogs && recentWellnessLogs.length > 0 ? recentWellnessLogs[0] : null;
+    const decisionMatrix = calculateWellnessACWRDecision(latestWellness, acwrResult);
 
     // 3. Montar Linha do Tempo Unificada (Timeline)
     const timeline: any[] = [];
@@ -412,8 +435,11 @@ export async function GET(request: Request) {
           physioReports: physioReports.length,
           strengthTests: strengthTests.length,
           clientTestRecords: clientTestRecords.length,
+          wellnessLogs: recentWellnessLogs.length,
           totalTimeline: timeline.length
         },
+        acwr: acwrResult,
+        matrizDecisao: decisionMatrix,
         timeline,
         longitudinal: {
           t1Id: t1Doc?._id?.toString() || null,
@@ -431,7 +457,8 @@ export async function GET(request: Request) {
         evolutionSeries: {
           goniometria: gonioSeries,
           eva: evaSeries,
-          strength: strengthSeries
+          strength: strengthSeries,
+          wellness: recentWellnessLogs
         }
       }
     }, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } });

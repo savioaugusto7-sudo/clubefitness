@@ -268,6 +268,25 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   </div>
   ` : ''}
 
+  ${(computed as any).acwr && (computed as any).matrizDecisao ? `
+  <!-- MONITORAMENTO DE CARGA ACWR & WELLNESS -->
+  <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid ${(computed as any).matrizDecisao.semaforoCor}; border-radius:6px; padding:10px 14px; margin-bottom:18px; font-size:8.5pt;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <strong style="color:#0f172a; text-transform:uppercase;">Monitoramento de Carga (ACWR) e Prontidão de Treino (Wellness)</strong>
+      <span style="font-weight:700; color:${(computed as any).matrizDecisao.semaforoCor};">${(computed as any).matrizDecisao.semaforoLabel}</span>
+    </div>
+    <p style="margin:0 0 4px; color:#334155;">
+      <strong>Razão ACWR:</strong> ${(computed as any).acwr.acwr.toFixed(2)} (${(computed as any).acwr.zonaLabel}) • 
+      <strong>Carga Aguda 7d:</strong> ${(computed as any).acwr.cargaAguda7d} UA • 
+      <strong>Carga Crônica 28d:</strong> ${(computed as any).acwr.cargaCronica28dMediaSemanal} UA • 
+      <strong>Score Wellness:</strong> ${(computed as any).matrizDecisao.wellnessScore}/30 (${(computed as any).matrizDecisao.wellnessStatusLabel}).
+    </p>
+    <p style="margin:0; color:${(computed as any).matrizDecisao.semaforoCor}; font-weight:700;">
+      🎯 <strong>Diretriz Interdisciplinar para o Treinador:</strong> ${(computed as any).matrizDecisao.diretrizTreinador}
+    </p>
+  </div>
+  ` : ''}
+
   <!-- 4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10) -->
   <div class="section-title">4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10)</div>
   ${tabelaEVA.rows.length === 0 ? `

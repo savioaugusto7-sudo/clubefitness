@@ -159,6 +159,8 @@ export interface LongitudinalComputedResult {
   tabelaTestesOrtopedicos: TableRowTesteOrtopedico[];
   clusters?: any[];
   razoesAvancadas?: AdvancedStrengthRatioItem[];
+  acwr?: any;
+  matrizDecisao?: any;
 }
 
 /** Formata data BR DD/MM/AAAA */

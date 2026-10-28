@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import QueixaFisioterapiaCard from '@/components/fisioterapia/QueixaFisioterapiaCard';
 import { QueixaFisioterapicaItem } from '@/utils/fisioterapiaQueixasCatalog';
 import { calculateHopBatteryAnalysis } from '@/utils/biomechanicsEngine';
+import { calculateWellness } from '@/utils/wellnessHelper';
 
 interface AvulsoTestModalProps {
   clientId: string;
@@ -18,6 +19,7 @@ type TestCategory =
   | 'Y_TEST'
   | 'STEP_DOWN'
   | 'HOP_TEST'
+  | 'WELLNESS'
   | 'GONIOMETRIA'
   | 'DINAMOMETRIA'
   | 'PERIMETRIA'
@@ -68,6 +70,11 @@ export default function AvulsoTestModal({
   const [hopCrossE, setHopCrossE] = useState<number | ''>('');
   const [hopTimedD, setHopTimedD] = useState<number | ''>('');
   const [hopTimedE, setHopTimedE] = useState<number | ''>('');
+
+  // 2.6 Wellness & Prontidão Form State (Sono, Fadiga, Dor 1-10)
+  const [wellSono, setWellSono] = useState<number>(3);
+  const [wellFadiga, setWellFadiga] = useState<number>(3);
+  const [wellDor, setWellDor] = useState<number>(3);
 
   // 3. Goniometria Form State (Padrão Canônico Oficial)
   const [gDorsi1D, setGDorsi1D] = useState<number | ''>('');
@@ -157,6 +164,10 @@ export default function AvulsoTestModal({
     });
   }, [hopMembroAfetado, hopSingleD, hopSingleE, hopTripleD, hopTripleE, hopCrossD, hopCrossE, hopTimedD, hopTimedE]);
 
+  const wellnessCalc = React.useMemo(() => {
+    return calculateWellness(wellSono, wellFadiga, wellDor);
+  }, [wellSono, wellFadiga, wellDor]);
+
   const dinamometriaAssimetria = React.useMemo(() => {
     const vd = Number(stValorD) || 0;
     const ve = Number(stValorE) || 0;
@@ -171,7 +182,25 @@ export default function AvulsoTestModal({
       let payloadDados: any = {};
       let payloadMetricas: any = {};
 
-      if (selectedCategory === 'Y_TEST') {
+      if (selectedCategory === 'WELLNESS') {
+        const resWell = await fetch('/api/wellness', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clienteId: clientId,
+            data: dataTeste,
+            sono: wellSono,
+            fadiga: wellFadiga,
+            dorMuscular: wellDor
+          })
+        });
+        const jsonWell = await resWell.json();
+        if (!jsonWell.success) throw new Error(jsonWell.error || 'Falha ao salvar wellness');
+        alert('Check-in de Wellness registrado com sucesso!');
+        onSaved();
+        onClose();
+        return;
+      } else if (selectedCategory === 'Y_TEST') {
         payloadDados = {
           comprimentoMembroCm: yMembroCm,
           alcanceAnteriorD: yAntD,
@@ -451,6 +480,7 @@ export default function AvulsoTestModal({
             { id: 'Y_TEST', label: 'Y-Test', icon: 'fa-shoe-prints' },
             { id: 'STEP_DOWN', label: 'Step Down', icon: 'fa-sort-amount-down' },
             { id: 'HOP_TEST', label: 'Hop Tests (LSI)', icon: 'fa-person-running' },
+            { id: 'WELLNESS', label: 'Wellness & ACWR', icon: 'fa-battery-half' },
             { id: 'GONIOMETRIA', label: 'Goniometria', icon: 'fa-ruler-combined' },
             { id: 'DINAMOMETRIA', label: 'Força Kinology', icon: 'fa-weight-hanging' },
             { id: 'QUEIXAS_EVA', label: 'Dor EVA', icon: 'fa-heartbeat' },
@@ -810,6 +840,117 @@ export default function AvulsoTestModal({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 2.6 CHECK-IN DE WELLNESS & PRONTIDÃO */}
+          {selectedCategory === 'WELLNESS' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ padding: '10px 14px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                <small style={{ color: '#38bdf8', fontWeight: 600 }}>
+                  <i className="fas fa-heart-pulse" style={{ marginRight: '6px' }} />
+                  Monitoramento Psicofisiológico e Prontidão de Treino (Hooper / Foster / Gabbett). Escala de 1 (Ótimo) a 10 (Crítico).
+                </small>
+              </div>
+
+              {/* Sliders ou Seletores dos 3 Pilares */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                {/* 1. Sono */}
+                <div style={{ background: '#161f30', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                      <i className="fas fa-moon" style={{ color: '#818cf8', marginRight: '5px' }} />
+                      Qualidade do Sono
+                    </span>
+                    <strong style={{ color: wellSono <= 3 ? '#10b981' : wellSono <= 6 ? '#f59e0b' : '#ef4444' }}>
+                      {wellSono}/10
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    value={wellSono}
+                    onChange={e => setWellSono(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: wellSono <= 3 ? '#10b981' : wellSono <= 6 ? '#f59e0b' : '#ef4444' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>
+                    <span>1 (Reparador)</span>
+                    <span>10 (Insônia)</span>
+                  </div>
+                </div>
+
+                {/* 2. Fadiga */}
+                <div style={{ background: '#161f30', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                      <i className="fas fa-battery-half" style={{ color: '#f59e0b', marginRight: '5px' }} />
+                      Nível de Fadiga
+                    </span>
+                    <strong style={{ color: wellFadiga <= 3 ? '#10b981' : wellFadiga <= 6 ? '#f59e0b' : '#ef4444' }}>
+                      {wellFadiga}/10
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    value={wellFadiga}
+                    onChange={e => setWellFadiga(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: wellFadiga <= 3 ? '#10b981' : wellFadiga <= 6 ? '#f59e0b' : '#ef4444' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>
+                    <span>1 (Descansado)</span>
+                    <span>10 (Exaustão)</span>
+                  </div>
+                </div>
+
+                {/* 3. Dor Muscular */}
+                <div style={{ background: '#161f30', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                      <i className="fas fa-person-dots-from-line" style={{ color: '#ef4444', marginRight: '5px' }} />
+                      Dor Muscular (DOMS)
+                    </span>
+                    <strong style={{ color: wellDor <= 3 ? '#10b981' : wellDor <= 6 ? '#f59e0b' : '#ef4444' }}>
+                      {wellDor}/10
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    value={wellDor}
+                    onChange={e => setWellDor(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: wellDor <= 3 ? '#10b981' : wellDor <= 6 ? '#f59e0b' : '#ef4444' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>
+                    <span>1 (Sem dor)</span>
+                    <span>10 (Incapacitante)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview do Wellness e Matriz de Decisão */}
+              <div style={{ background: '#0a0f1d', border: `1px solid ${wellnessCalc.statusColor}`, borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc' }}>
+                      Score de Sobrecarga Wellness:
+                    </span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: wellnessCalc.statusColor }}>
+                      {wellnessCalc.score}/30
+                    </span>
+                  </div>
+                  <span style={{ padding: '3px 10px', borderRadius: '6px', background: wellnessCalc.statusBadgeBg, color: wellnessCalc.statusColor, fontSize: '0.8rem', fontWeight: 700, border: `1px solid ${wellnessCalc.statusColor}` }}>
+                    {wellnessCalc.statusLabel}
+                  </span>
+                </div>
+
+                <div style={{ padding: '8px 10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                  <strong style={{ color: wellnessCalc.statusColor }}>🎯 Conduta Imediata:</strong> {wellnessCalc.conduta}
+                </div>
+              </div>
             </div>
           )}
 
