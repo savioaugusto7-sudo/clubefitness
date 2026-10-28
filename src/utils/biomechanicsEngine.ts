@@ -2036,4 +2036,232 @@ export function calculateAdvancedStrengthRatios(
   return results;
 }
 
+// ==============================================================================
+// 12. BATERIA DE HOP TESTS & CÁLCULO DE LSI (LIMB SYMMETRY INDEX ≥ 90%)
+// ==============================================================================
+
+export interface HopTestItem {
+  id: 'single_hop' | 'triple_hop' | 'crossover_hop' | 'timed_hop';
+  nome: string;
+  subtitulo: string;
+  unidade: 'cm' | 's';
+  valorD: number;
+  valorE: number;
+  lsiPct: number;
+  referenciaCorte: number;
+  status: 'otimo' | 'atencao' | 'critico';
+  ladoDominante: 'D > E' | 'E > D' | 'Simétrico';
+  interpretacao: string;
+}
+
+export interface HopBatteryResult {
+  realizou: boolean;
+  data?: string;
+  membroAfetado?: 'Direito' | 'Esquerdo' | 'Bilateral' | 'Nenhum';
+  testes: HopTestItem[];
+  lsiMedio: number;
+  statusGeral: 'liberado' | 'fase_intermediaria' | 'retencao';
+  badgeStatus: string;
+  badgeBg: string;
+  badgeCor: string;
+  parecerRTS: string;
+  diretrizTreinador: string;
+}
+
+export interface HopBatteryInput {
+  membroAfetado?: 'Direito' | 'Esquerdo' | 'Bilateral' | 'Nenhum';
+  singleHopD?: number | string;
+  singleHopE?: number | string;
+  tripleHopD?: number | string;
+  tripleHopE?: number | string;
+  crossoverHopD?: number | string;
+  crossoverHopE?: number | string;
+  timedHopD?: number | string;
+  timedHopE?: number | string;
+  data?: string;
+}
+
+export function calculateHopBatteryAnalysis(input: HopBatteryInput | any): HopBatteryResult | null {
+  if (!input) return null;
+
+  const toN = (v: any) => {
+    if (v === null || v === undefined || v === '') return 0;
+    const n = Number(v);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const dObj = input.dados || input;
+  const membroAfetado = dObj.membroAfetado || 'Nenhum';
+
+  const sHopD = toN(dObj.singleHopD ?? dObj.singleHop?.d ?? dObj.singleHop?.direito);
+  const sHopE = toN(dObj.singleHopE ?? dObj.singleHop?.e ?? dObj.singleHop?.esquerdo);
+
+  const tHopD = toN(dObj.tripleHopD ?? dObj.tripleHop?.d ?? dObj.tripleHop?.direito);
+  const tHopE = toN(dObj.tripleHopE ?? dObj.tripleHop?.e ?? dObj.tripleHop?.esquerdo);
+
+  const cHopD = toN(dObj.crossoverHopD ?? dObj.crossoverHop?.d ?? dObj.crossoverHop?.direito);
+  const cHopE = toN(dObj.crossoverHopE ?? dObj.crossoverHop?.e ?? dObj.crossoverHop?.esquerdo);
+
+  const timedD = toN(dObj.timedHopD ?? dObj.timedHop?.d ?? dObj.timedHop?.direito ?? dObj.timed6mD);
+  const timedE = toN(dObj.timedHopE ?? dObj.timedHop?.e ?? dObj.timedHop?.esquerdo ?? dObj.timed6mE);
+
+  const testes: HopTestItem[] = [];
+
+  const calcLsiDist = (vD: number, vE: number): number => {
+    if (vD <= 0 || vE <= 0) return 0;
+    if (membroAfetado === 'Direito') return Math.round((vD / vE) * 1000) / 10;
+    if (membroAfetado === 'Esquerdo') return Math.round((vE / vD) * 1000) / 10;
+    return Math.round((Math.min(vD, vE) / Math.max(vD, vE)) * 1000) / 10;
+  };
+
+  const calcLsiTime = (tD: number, tE: number): number => {
+    if (tD <= 0 || tE <= 0) return 0;
+    if (membroAfetado === 'Direito') return Math.round((tE / tD) * 1000) / 10;
+    if (membroAfetado === 'Esquerdo') return Math.round((tD / tE) * 1000) / 10;
+    return Math.round((Math.min(tD, tE) / Math.max(tD, tE)) * 1000) / 10;
+  };
+
+  const getDominance = (vD: number, vE: number, isTimed = false): 'D > E' | 'E > D' | 'Simétrico' => {
+    const diff = Math.abs(vD - vE);
+    if (diff < (isTimed ? 0.05 : 2)) return 'Simétrico';
+    if (isTimed) return vD < vE ? 'D > E' : 'E > D';
+    return vD > vE ? 'D > E' : 'E > D';
+  };
+
+  const getStatus = (lsi: number): 'otimo' | 'atencao' | 'critico' => {
+    if (lsi >= 90) return 'otimo';
+    if (lsi >= 80) return 'atencao';
+    return 'critico';
+  };
+
+  // 1. Single Hop for Distance
+  if (sHopD > 0 && sHopE > 0) {
+    const lsi = calcLsiDist(sHopD, sHopE);
+    const status = getStatus(lsi);
+    testes.push({
+      id: 'single_hop',
+      nome: 'Single Hop for Distance',
+      subtitulo: 'Salto unipodal simples para distância horizontal',
+      unidade: 'cm',
+      valorD: sHopD,
+      valorE: sHopE,
+      lsiPct: lsi,
+      referenciaCorte: 90,
+      status,
+      ladoDominante: getDominance(sHopD, sHopE),
+      interpretacao: status === 'otimo'
+        ? 'Potência horizontal simétrica no salto simples.'
+        : `Déficit de simetria de ${Math.round(100 - lsi)}% no salto simples.`
+    });
+  }
+
+  // 2. Triple Hop for Distance
+  if (tHopD > 0 && tHopE > 0) {
+    const lsi = calcLsiDist(tHopD, tHopE);
+    const status = getStatus(lsi);
+    testes.push({
+      id: 'triple_hop',
+      nome: 'Triple Hop for Distance',
+      subtitulo: 'Três saltos consecutivos lineares em sequência',
+      unidade: 'cm',
+      valorD: tHopD,
+      valorE: tHopE,
+      lsiPct: lsi,
+      referenciaCorte: 90,
+      status,
+      ladoDominante: getDominance(tHopD, tHopE),
+      interpretacao: status === 'otimo'
+        ? 'Capacidade reativa e acumulação elástica simétrica.'
+        : `Fadiga desacelerativa evidente entre saltos consecutivos (LSI ${lsi}%).`
+    });
+  }
+
+  // 3. Crossover Hop for Distance
+  if (cHopD > 0 && cHopE > 0) {
+    const lsi = calcLsiDist(cHopD, cHopE);
+    const status = getStatus(lsi);
+    testes.push({
+      id: 'crossover_hop',
+      nome: 'Crossover Hop for Distance',
+      subtitulo: 'Três saltos cruzando faixa central de 15 cm',
+      unidade: 'cm',
+      valorD: cHopD,
+      valorE: cHopE,
+      lsiPct: lsi,
+      referenciaCorte: 90,
+      status,
+      ladoDominante: getDominance(cHopD, cHopE),
+      interpretacao: status === 'otimo'
+        ? 'Excelente estabilização no plano frontal/transverso em saltos cruzados.'
+        : `Instabilidade e receio de rotação/valgo dinâmico nos saltos cruzados (LSI ${lsi}%).`
+    });
+  }
+
+  // 4. 6-Meter Timed Hop
+  if (timedD > 0 && timedE > 0) {
+    const lsi = calcLsiTime(timedD, timedE);
+    const status = getStatus(lsi);
+    testes.push({
+      id: 'timed_hop',
+      nome: '6-Meter Timed Hop',
+      subtitulo: 'Salto unipodal contínuo por 6 metros cronometrado',
+      unidade: 's',
+      valorD: timedD,
+      valorE: timedE,
+      lsiPct: lsi,
+      referenciaCorte: 90,
+      status,
+      ladoDominante: getDominance(timedD, timedE, true),
+      interpretacao: status === 'otimo'
+        ? 'Velocidade e cadência de salto plenamente simétricas.'
+        : `Lentificação motora e tempo de contato aumentado no membro afetado (LSI ${lsi}%).`
+    });
+  }
+
+  if (testes.length === 0) return null;
+
+  const somaLsi = testes.reduce((acc, t) => acc + t.lsiPct, 0);
+  const lsiMedio = Math.round((somaLsi / testes.length) * 10) / 10;
+
+  const hasCritico = testes.some(t => t.status === 'critico') || lsiMedio < 80;
+  const hasAtencao = testes.some(t => t.status === 'atencao') || (lsiMedio >= 80 && lsiMedio < 90);
+
+  let statusGeral: 'liberado' | 'fase_intermediaria' | 'retencao' = 'liberado';
+  let badgeStatus = '🟢 Apto para Corrida / RTS (LSI ≥ 90%)';
+  let badgeBg = 'rgba(16, 185, 129, 0.18)';
+  let badgeCor = '#10b981';
+  let parecerRTS = `Índice de Simetria de Membros (LSI Médio: ${lsiMedio}%) atinge o padrão ouro internacional de 90%. O aluno demonstra simetria de potência horizontal, capacidade de frenagem e estabilidade rotacional suficientes para liberação segura de corrida na esteira e exercícios pliométricos controlados.`;
+  let diretrizTreinador = 'Liberado para treinos de corrida contínua, agachamento dinâmico e pliometria moderada. Manter controle de volume load e monitoramento do relato de dor pós-treino.';
+
+  if (hasCritico) {
+    statusGeral = 'retencao';
+    badgeStatus = `🔴 Retenção de Impacto (LSI ${lsiMedio}%)`;
+    badgeBg = 'rgba(239, 68, 68, 0.18)';
+    badgeCor = '#ef4444';
+    parecerRTS = `Assimetria funcional severa nos saltos unipodais (LSI Médio: ${lsiMedio}% vs meta ≥ 90%). Déficit mecânico de desaceleração que eleva expressivamente o risco de relesão (LCA, menisco ou entorse de tornozelo) e sobrecarga patelofemoral.`;
+    diretrizTreinador = 'VEDADO: Corrida na esteira, saltos unipodais e exercícios de impacto/pliometria. Foco exclusivo em força muscular em cadeia cinética fechada (leg press, cadeira extensora isométrica, agachamento bipodal estável) até normalizar simetria.';
+  } else if (hasAtencao) {
+    statusGeral = 'fase_intermediaria';
+    badgeStatus = `🟡 Fase Intermediária (LSI ${lsiMedio}%)`;
+    badgeBg = 'rgba(245, 158, 11, 0.18)';
+    badgeCor = '#f59e0b';
+    parecerRTS = `Simetria funcional em fase de transição (LSI Médio: ${lsiMedio}%). Embora haja boa resposta estática, o membro acometido ainda não tolera cargas excêntricas máximas de desaceleração.`;
+    diretrizTreinador = 'Permitido trote linear leve (máx 8 km/h na esteira). PROIBIDOS: Sprints de alta velocidade, saltos de profundidade (drop jumps) e paradas bruscas com mudança de direção. Priorizar potência unipodal progressiva.';
+  }
+
+  return {
+    realizou: true,
+    data: dObj.data || new Date().toISOString().split('T')[0],
+    membroAfetado,
+    testes,
+    lsiMedio,
+    statusGeral,
+    badgeStatus,
+    badgeBg,
+    badgeCor,
+    parecerRTS,
+    diretrizTreinador
+  };
+}
+
 

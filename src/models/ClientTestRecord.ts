@@ -15,7 +15,8 @@ const ClientTestRecordSchema = new Schema({
       'OBER',
       'MAIGNE',
       'COMPOSICAO_CORPORAL',
-      'PERIMETRIA'
+      'PERIMETRIA',
+      'HOP_TEST'
     ],
     required: true,
     index: true

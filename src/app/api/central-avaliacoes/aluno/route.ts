@@ -33,6 +33,7 @@ function toValidObjectId(val: any): mongoose.Types.ObjectId | null {
 const TEST_TYPE_LABELS: Record<string, string> = {
   Y_TEST: 'Y-Test (Equilíbrio Dinâmico)',
   STEP_DOWN: 'Step Down Test',
+  HOP_TEST: 'Bateria de Hop Tests (Simetria LSI)',
   GONIOMETRIA: 'Goniometria Pontual',
   DINAMOMETRIA: 'Dinamometria / Força',
   THOMAS: 'Teste de Thomas',

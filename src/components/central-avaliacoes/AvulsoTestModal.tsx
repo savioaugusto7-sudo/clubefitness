@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import QueixaFisioterapiaCard from '@/components/fisioterapia/QueixaFisioterapiaCard';
 import { QueixaFisioterapicaItem } from '@/utils/fisioterapiaQueixasCatalog';
+import { calculateHopBatteryAnalysis } from '@/utils/biomechanicsEngine';
 
 interface AvulsoTestModalProps {
   clientId: string;
@@ -16,6 +17,7 @@ interface AvulsoTestModalProps {
 type TestCategory =
   | 'Y_TEST'
   | 'STEP_DOWN'
+  | 'HOP_TEST'
   | 'GONIOMETRIA'
   | 'DINAMOMETRIA'
   | 'PERIMETRIA'
@@ -55,6 +57,17 @@ export default function AvulsoTestModal({
   const [sdApoioAntepeE, setSdApoioAntepeE] = useState<boolean>(false);
   const [sdPontuacaoD, setSdPontuacaoD] = useState<number | ''>('');
   const [sdPontuacaoE, setSdPontuacaoE] = useState<number | ''>('');
+
+  // 2.5 Hop Tests Form State (Bateria de Saltos Canônica LSI >= 90%)
+  const [hopMembroAfetado, setHopMembroAfetado] = useState<'Direito' | 'Esquerdo' | 'Bilateral' | 'Nenhum'>('Nenhum');
+  const [hopSingleD, setHopSingleD] = useState<number | ''>('');
+  const [hopSingleE, setHopSingleE] = useState<number | ''>('');
+  const [hopTripleD, setHopTripleD] = useState<number | ''>('');
+  const [hopTripleE, setHopTripleE] = useState<number | ''>('');
+  const [hopCrossD, setHopCrossD] = useState<number | ''>('');
+  const [hopCrossE, setHopCrossE] = useState<number | ''>('');
+  const [hopTimedD, setHopTimedD] = useState<number | ''>('');
+  const [hopTimedE, setHopTimedE] = useState<number | ''>('');
 
   // 3. Goniometria Form State (Padrão Canônico Oficial)
   const [gDorsi1D, setGDorsi1D] = useState<number | ''>('');
@@ -130,6 +143,20 @@ export default function AvulsoTestModal({
     return { difAnt, scoreCompD, scoreCompE, assimetria };
   }, [yMembroCm, yAntD, yAntE, yPmD, yPmE, yPlD, yPlE]);
 
+  const hopCalc = React.useMemo(() => {
+    return calculateHopBatteryAnalysis({
+      membroAfetado: hopMembroAfetado,
+      singleHopD: hopSingleD,
+      singleHopE: hopSingleE,
+      tripleHopD: hopTripleD,
+      tripleHopE: hopTripleE,
+      crossoverHopD: hopCrossD,
+      crossoverHopE: hopCrossE,
+      timedHopD: hopTimedD,
+      timedHopE: hopTimedE
+    });
+  }, [hopMembroAfetado, hopSingleD, hopSingleE, hopTripleD, hopTripleE, hopCrossD, hopCrossE, hopTimedD, hopTimedE]);
+
   const dinamometriaAssimetria = React.useMemo(() => {
     const vd = Number(stValorD) || 0;
     const ve = Number(stValorE) || 0;
@@ -175,6 +202,25 @@ export default function AvulsoTestModal({
         payloadMetricas = {
           scorePrincipal: Number(sdPontuacaoD) || 0,
           classificacao: (Number(sdPontuacaoD) > 2 || Number(sdPontuacaoE) > 2) ? 'Déficit de controle dinâmico' : 'Excelente'
+        };
+      } else if (selectedCategory === 'HOP_TEST') {
+        payloadDados = {
+          membroAfetado: hopMembroAfetado,
+          singleHopD: hopSingleD,
+          singleHopE: hopSingleE,
+          tripleHopD: hopTripleD,
+          tripleHopE: hopTripleE,
+          crossoverHopD: hopCrossD,
+          crossoverHopE: hopCrossE,
+          timedHopD: hopTimedD,
+          timedHopE: hopTimedE,
+          testes: hopCalc?.testes || []
+        };
+        payloadMetricas = {
+          scorePrincipal: hopCalc?.lsiMedio || 0,
+          lsiMedio: hopCalc?.lsiMedio || 0,
+          statusGeral: hopCalc?.statusGeral || 'retencao',
+          classificacao: hopCalc?.badgeStatus || 'Pendente'
         };
       } else if (selectedCategory === 'GONIOMETRIA') {
         payloadDados = {
@@ -404,6 +450,7 @@ export default function AvulsoTestModal({
           {[
             { id: 'Y_TEST', label: 'Y-Test', icon: 'fa-shoe-prints' },
             { id: 'STEP_DOWN', label: 'Step Down', icon: 'fa-sort-amount-down' },
+            { id: 'HOP_TEST', label: 'Hop Tests (LSI)', icon: 'fa-person-running' },
             { id: 'GONIOMETRIA', label: 'Goniometria', icon: 'fa-ruler-combined' },
             { id: 'DINAMOMETRIA', label: 'Força Kinology', icon: 'fa-weight-hanging' },
             { id: 'QUEIXAS_EVA', label: 'Dor EVA', icon: 'fa-heartbeat' },
@@ -572,6 +619,197 @@ export default function AvulsoTestModal({
                   </tr>
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 2.5 HOP TESTS (BATERIA DE SALTOS UNIPODAIS - NOYES ET AL. - LSI ≥ 90%) */}
+          {selectedCategory === 'HOP_TEST' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <small style={{ color: '#818cf8', fontWeight: 600 }}>
+                    <i className="fas fa-info-circle" style={{ marginRight: '6px' }} />
+                    Bateria de Saltos Unipodais (Noyes): LSI ≥ 90% é o corte padrão-ouro para liberação de corrida, agilidade e retorno ao esporte (RTS).
+                  </small>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: 0, fontWeight: 600 }}>Membro Lesionado/Afetado:</label>
+                    <select
+                      value={hopMembroAfetado}
+                      onChange={e => setHopMembroAfetado(e.target.value as any)}
+                      className="form-control form-control-sm"
+                      style={{ width: '150px', background: '#0f172a', color: '#fff', borderColor: '#475569' }}
+                    >
+                      <option value="Nenhum">Nenhum / Profilático</option>
+                      <option value="Direito">Direito (Lesionado)</option>
+                      <option value="Esquerdo">Esquerdo (Lesionado)</option>
+                      <option value="Bilateral">Bilateral</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
+                <thead>
+                  <tr>
+                    <th>Teste Funcional de Salto</th>
+                    <th style={{ textAlign: 'center' }}>Referência</th>
+                    <th style={{ textAlign: 'center' }}>Direito (D)</th>
+                    <th style={{ textAlign: 'center' }}>Esquerdo (E)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>1. Single Hop for Distance</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Salto unipodal simples para frente (cm)</div>
+                    </td>
+                    <td style={{ textAlign: 'center', color: '#10b981', fontWeight: 600 }}>LSI ≥ 90%</td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Ex: 145"
+                        className="form-control form-control-sm"
+                        value={hopSingleD}
+                        onChange={e => setHopSingleD(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Ex: 140"
+                        className="form-control form-control-sm"
+                        value={hopSingleE}
+                        onChange={e => setHopSingleE(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>2. Triple Hop for Distance</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>3 saltos contínuos em linha reta (cm)</div>
+                    </td>
+                    <td style={{ textAlign: 'center', color: '#10b981', fontWeight: 600 }}>LSI ≥ 90%</td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Ex: 420"
+                        className="form-control form-control-sm"
+                        value={hopTripleD}
+                        onChange={e => setHopTripleD(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Ex: 405"
+                        className="form-control form-control-sm"
+                        value={hopTripleE}
+                        onChange={e => setHopTripleE(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>3. Crossover Hop for Distance</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>3 saltos cruzando faixa central de 15 cm (cm)</div>
+                    </td>
+                    <td style={{ textAlign: 'center', color: '#10b981', fontWeight: 600 }}>LSI ≥ 90%</td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Ex: 380"
+                        className="form-control form-control-sm"
+                        value={hopCrossD}
+                        onChange={e => setHopCrossD(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Ex: 360"
+                        className="form-control form-control-sm"
+                        value={hopCrossE}
+                        onChange={e => setHopCrossE(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>4. 6-Meter Timed Hop</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Salto contínuo por 6 metros cronometrado (segundos)</div>
+                    </td>
+                    <td style={{ textAlign: 'center', color: '#10b981', fontWeight: 600 }}>LSI ≥ 90%</td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.05"
+                        placeholder="Ex: 2.15"
+                        className="form-control form-control-sm"
+                        value={hopTimedD}
+                        onChange={e => setHopTimedD(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.05"
+                        placeholder="Ex: 2.22"
+                        className="form-control form-control-sm"
+                        value={hopTimedE}
+                        onChange={e => setHopTimedE(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Live Preview Inteligente de Simetria e Parecer RTS */}
+              {hopCalc && hopCalc.testes.length > 0 && (
+                <div style={{ background: '#0a0f1d', border: `1px solid ${hopCalc.badgeCor}`, borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc' }}>
+                        Simetria Global (LSI Médio):
+                      </span>
+                      <span style={{ fontSize: '1.15rem', fontWeight: 800, color: hopCalc.badgeCor }}>
+                        {hopCalc.lsiMedio}%
+                      </span>
+                    </div>
+                    <span style={{ padding: '3px 10px', borderRadius: '6px', background: hopCalc.badgeBg, color: hopCalc.badgeCor, fontSize: '0.8rem', fontWeight: 700, border: `1px solid ${hopCalc.badgeCor}` }}>
+                      {hopCalc.badgeStatus}
+                    </span>
+                  </div>
+
+                  {/* Resumo por teste */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+                    {hopCalc.testes.map(t => (
+                      <div key={t.id} style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t.nome}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '2px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: t.status === 'otimo' ? '#10b981' : t.status === 'atencao' ? '#f59e0b' : '#ef4444' }}>
+                            {t.lsiPct}%
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{t.ladoDominante}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    <strong>Parecer RTS:</strong> {hopCalc.parecerRTS}
+                  </div>
+
+                  <div style={{ padding: '8px 10px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '6px', fontSize: '0.8rem', color: '#10b981' }}>
+                    <strong>🎯 Diretriz para o Treinador:</strong> {hopCalc.diretrizTreinador}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

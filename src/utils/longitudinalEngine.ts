@@ -4,7 +4,7 @@
  */
 
 import { identifyClinicalClusters, ClinicalCluster, ClientClinicalProfile } from './clinicalClustersEngine';
-import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem } from './biomechanicsEngine';
+import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from './biomechanicsEngine';
 
 export interface EvaluatorInfo {
   nome: string;
@@ -152,6 +152,7 @@ export interface LongitudinalComputedResult {
   testesFuncionais: {
     yTeste: YTestComparison | null;
     stepDown: StepDownComparisonRow[];
+    hopTest?: HopBatteryResult | null;
   };
   tabelaGoniometria: TableRowGoniometria[];
   tabelaColuna: TableRowColuna[];
@@ -811,6 +812,12 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     addSDRow('Queda pélvica direita', 'até 5°', sdT1?.quedaPelvicaD, sdT2?.quedaPelvicaD, false);
   }
 
+  // Hop Tests (Bateria de Saltos Unipodais & LSI)
+  const hopRaw = t2Report?.hopTest || t2Report?.dados?.hopTest || t2Report?.testesOrtopedicos?.hopTest ||
+                 t2Report?.dadosMedidos?.testesEspeciais?.hopTest ||
+                 t1Report?.hopTest || t1Report?.dados?.hopTest || t1Report?.testesOrtopedicos?.hopTest;
+  const hopTestResult = calculateHopBatteryAnalysis(hopRaw);
+
   // 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA - Com referências cinesiológicas completas)
   const g1 = t1Report?.goniometria || {};
   const g2 = t2Report?.goniometria || {};
@@ -1033,7 +1040,8 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     tabelaSimetria: rowsSimetria,
     testesFuncionais: {
       yTeste: yTestResult,
-      stepDown: sdRows
+      stepDown: sdRows,
+      hopTest: hopTestResult
     },
     tabelaGoniometria: goniometriaRows,
     tabelaColuna: tabelaColunaRows,

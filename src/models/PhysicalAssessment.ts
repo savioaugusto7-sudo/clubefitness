@@ -36,7 +36,8 @@ const TestesEspeciaisSchema = new Schema({
   termografia: String,
   yTest: String,
   stepDown: String,
-  maigne: String
+  maigne: String,
+  hopTest: Schema.Types.Mixed
 }, { _id: false });
 
 const DadosMedidosSchema = new Schema({

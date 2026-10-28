@@ -15,7 +15,7 @@ import {
 } from 'chart.js';
 import { Radar, Line, Bar } from 'react-chartjs-2';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
-import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem } from '@/utils/biomechanicsEngine';
+import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from '@/utils/biomechanicsEngine';
 import { detectCompartment, COMPARTIMENTOS_METADATA } from '@/utils/fisioterapiaQueixasCatalog';
 
 ChartJS.register(
@@ -75,6 +75,9 @@ export default function AlunoEvolutionDashboard({
   const [strengthViewMode, setStrengthViewMode] = React.useState<'bilateral' | 'radar' | 'razoes'>('bilateral');
   const [gonioArticulacao, setGonioArticulacao] = React.useState<'tornozelo' | 'joelho' | 'ombro'>('tornozelo');
 
+  // 1. DADOS DE DINAMOMETRIA (AVALIAÇÃO MAIS RECENTE)
+  const latestStrengthDoc = evolutionSeries.strength[evolutionSeries.strength.length - 1];
+
   // 🌟 CÁLCULO DAS RAZÕES MUSCULARES E FORÇA RELATIVA (% PESO CORPORAL)
   const advancedStrengthRatios = React.useMemo(() => {
     if (longitudinal?.computed?.razoesAvancadas && longitudinal.computed.razoesAvancadas.length > 0) {
@@ -84,6 +87,11 @@ export default function AlunoEvolutionDashboard({
     return calculateAdvancedStrengthRatios(testList, client.peso || 70, (client.sexo as any) || 'M');
   }, [longitudinal, latestStrengthDoc, client]);
 
+  // 🌟 DADOS DA BATERIA DE HOP TESTS (SIMETRIA LSI & RETORNO AO ESPORTE)
+  const hopTestData: HopBatteryResult | null = React.useMemo(() => {
+    return longitudinal?.computed?.testesFuncionais?.hopTest || null;
+  }, [longitudinal]);
+
   // Formatador de data abreviada
   const formatShortDate = (dStr?: string) => {
     if (!dStr) return '';
@@ -91,9 +99,6 @@ export default function AlunoEvolutionDashboard({
     if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
     return dStr;
   };
-
-  // 1. DADOS DE DINAMOMETRIA (AVALIAÇÃO MAIS RECENTE)
-  const latestStrengthDoc = evolutionSeries.strength[evolutionSeries.strength.length - 1];
 
   // 1A. CÁLCULO DAS BARRAS DE FORÇA BILATERAL D vs E COM ZONAS DE SIMETRIA (≤10%, 10-15%, >15%)
   const strengthMovements = React.useMemo(() => {
@@ -1343,6 +1348,115 @@ export default function AlunoEvolutionDashboard({
           </div>
         </div>
       </div>
+
+      {/* 🌟 PAINEL HOP TESTS (SIMETRIA LSI & RTS) */}
+      {hopTestData && (
+        <div
+          style={{
+            background: 'var(--bg-card, #1e293b)',
+            borderRadius: '14px',
+            border: `1px solid ${hopTestData.badgeCor}40`,
+            borderLeft: `4px solid ${hopTestData.badgeCor}`,
+            padding: '16px 18px',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <strong style={{ fontSize: '0.92rem', color: 'var(--text-main, #fff)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <i className="fas fa-person-running" style={{ color: hopTestData.badgeCor }} />
+                Bateria de Hop Tests (Simetria LSI ≥ 90% para RTS)
+              </strong>
+              <small style={{ color: 'var(--text-dim, #94a3b8)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+                Bateria canônica de Noyes para liberação de corrida, saltos e retorno ao esporte
+                {hopTestData.membroAfetado && hopTestData.membroAfetado !== 'Nenhum' ? ` • Membro acometido: ${hopTestData.membroAfetado}` : ''}
+              </small>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                LSI Médio: <strong style={{ color: hopTestData.badgeCor, fontSize: '1.05rem' }}>{hopTestData.lsiMedio}%</strong>
+              </span>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  background: hopTestData.badgeBg,
+                  color: hopTestData.badgeCor,
+                  border: `1px solid ${hopTestData.badgeCor}50`
+                }}
+              >
+                {hopTestData.badgeStatus}
+              </span>
+            </div>
+          </div>
+
+          {/* Cards dos 4 testes */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+            {hopTestData.testes.map((t: any, idx: number) => {
+              const tCor = t.status === 'otimo' ? '#10b981' : t.status === 'atencao' ? '#f59e0b' : '#ef4444';
+              const tBg = t.status === 'otimo' ? 'rgba(16, 185, 129, 0.1)' : t.status === 'atencao' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: '10px',
+                    border: `1px solid ${tCor}30`,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc', display: 'block' }}>{t.nome}</span>
+                      <small style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{t.subtitulo}</small>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 6px', borderRadius: '6px', background: tBg, color: tCor }}>
+                      LSI {t.lsiPct}%
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#cbd5e1', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: '4px' }}>
+                    <span><strong>D:</strong> {t.valorD} {t.unidade}</span>
+                    <span><strong>E:</strong> {t.valorE} {t.unidade}</span>
+                    <span style={{ color: '#94a3b8' }}>{t.ladoDominante}</span>
+                  </div>
+
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.3 }}>
+                    {t.interpretacao}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Parecer RTS e Diretriz do Treinador */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '10px', marginTop: '2px' }}>
+            <div style={{ padding: '10px 12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.06)', fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+              <strong style={{ color: '#f8fafc', display: 'block', marginBottom: '3px' }}>
+                <i className="fas fa-stethoscope" style={{ marginRight: '5px', color: '#818cf8' }} />
+                Parecer Clínico RTS (Return to Sport):
+              </strong>
+              {hopTestData.parecerRTS}
+            </div>
+
+            <div style={{ padding: '10px 12px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.78rem', color: '#10b981', lineHeight: 1.45 }}>
+              <strong style={{ color: '#10b981', display: 'block', marginBottom: '3px' }}>
+                <i className="fas fa-bullseye" style={{ marginRight: '5px' }} />
+                Diretriz para o Treinador de Musculação:
+              </strong>
+              {hopTestData.diretrizTreinador}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 4. MAPEAMENTO ANATÔMICO DAS QUEIXAS & ESCALA EVA */}
       <div

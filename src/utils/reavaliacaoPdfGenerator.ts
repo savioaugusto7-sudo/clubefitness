@@ -431,7 +431,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   `}
 
   <!-- 8. TESTES FUNCIONAIS -->
-  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0) ? `
+  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 || testesFuncionais.hopTest) ? `
     <div class="section-title">8. TESTES FUNCIONAIS</div>
 
     ${testesFuncionais.yTeste ? `
@@ -513,6 +513,69 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
           `).join('')}
         </tbody>
       </table>
+    ` : ''}
+
+    ${testesFuncionais.hopTest ? `
+      <div class="subsection-title">${(testesFuncionais.yTeste ? 1 : 0) + (testesFuncionais.stepDown.length > 0 ? 1 : 0) === 2 ? '8.3' : (testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 ? '8.2' : '8.1')} Bateria de Hop Tests (Simetria LSI ≥ 90% — Noyes et al.)</div>
+      <p style="font-size:9pt; color:#475569; margin-bottom:8px;">
+        Avaliação canônica de potência horizontal, capacidade de frenagem e estabilidade neuromuscular unipodal para critérios de Liberação de Corrida e Retorno ao Esporte (<em>Return to Sport - RTS</em>).
+        ${testesFuncionais.hopTest.membroAfetado && testesFuncionais.hopTest.membroAfetado !== 'Nenhum' ? `<strong>Membro Acometido:</strong> ${testesFuncionais.hopTest.membroAfetado}.` : ''}
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Teste de Salto Unipodal</th>
+            <th class="text-center">Direito (D)</th>
+            <th class="text-center">Esquerdo (E)</th>
+            <th class="text-center">LSI (%)</th>
+            <th class="text-center">Dominância</th>
+            <th>Classificação</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${testesFuncionais.hopTest.testes.map(t => `
+            <tr>
+              <td>
+                <div class="font-bold">${t.nome}</div>
+                <div style="font-size:7.5pt; color:#64748b;">${t.subtitulo}</div>
+              </td>
+              <td class="text-center font-bold">${t.valorD.toFixed(t.unidade === 's' ? 2 : 1).replace('.', ',')} ${t.unidade}</td>
+              <td class="text-center font-bold">${t.valorE.toFixed(t.unidade === 's' ? 2 : 1).replace('.', ',')} ${t.unidade}</td>
+              <td class="text-center font-bold" style="color:${t.status === 'otimo' ? '#059669' : t.status === 'atencao' ? '#d97706' : '#dc2626'}">
+                ${t.lsiPct.toFixed(1).replace('.', ',')}%
+              </td>
+              <td class="text-center" style="font-size:8pt; font-weight:600; color:#475569;">${t.ladoDominante}</td>
+              <td>
+                <span style="display:inline-block; padding:1px 6px; border-radius:3px; font-size:7.5pt; font-weight:700; ${
+                  t.status === 'otimo' 
+                    ? 'background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;' 
+                    : t.status === 'atencao'
+                    ? 'background:#fffbeb; color:#92400e; border:1px solid #fde68a;'
+                    : 'background:#fef2f2; color:#991b1b; border:1px solid #fecaca;'
+                }">
+                  ${t.status === 'otimo' ? 'Apto (≥ 90%)' : t.status === 'atencao' ? 'Atenção (80–89%)' : 'Retenção (< 80%)'}
+                </span>
+              </td>
+            </tr>
+          `).join('')}
+          <tr style="background:#f8fafc; font-weight:700; border-top:2px solid #cbd5e1;">
+            <td>Índice de Simetria Médio (LSI Global)</td>
+            <td colspan="2" class="text-center" style="font-size:8.5pt; color:#475569;">${testesFuncionais.hopTest.testes.length} de 4 testes calculados</td>
+            <td class="text-center font-bold" style="font-size:10pt; color:${testesFuncionais.hopTest.lsiMedio >= 90 ? '#059669' : testesFuncionais.hopTest.lsiMedio >= 80 ? '#d97706' : '#dc2626'};">
+              ${testesFuncionais.hopTest.lsiMedio.toFixed(1).replace('.', ',')}%
+            </td>
+            <td colspan="2" class="text-center">
+              <span style="font-weight:800; font-size:8.5pt; color:${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#047857' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#b45309' : '#b91c1c'};">
+                ${testesFuncionais.hopTest.statusGeral === 'liberado' ? '✅ LIBERADO' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '⚠️ FASE INTERMEDIÁRIA' : '🛑 RETENÇÃO'}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px; padding:10px 12px; background:${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#ecfdf5' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#fffbeb' : '#fef2f2'}; border:1px solid ${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#a7f3d0' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#fde68a' : '#fecaca'}; border-radius:6px; font-size:8.5pt;">
+        <div style="margin-bottom:4px; color:#1e293b;"><strong>Parecer Clínico RTS:</strong> ${testesFuncionais.hopTest.parecerRTS}</div>
+        <div style="color:${testesFuncionais.hopTest.statusGeral === 'liberado' ? '#047857' : testesFuncionais.hopTest.statusGeral === 'fase_intermediaria' ? '#92400e' : '#991b1b'}; font-weight:700;"><strong>🎯 Diretriz para o Treinador:</strong> ${testesFuncionais.hopTest.diretrizTreinador}</div>
+      </div>
     ` : ''}
   ` : ''}
 
