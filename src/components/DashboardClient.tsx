@@ -760,6 +760,11 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     });
   }, [appointments]);
 
+  // Reconciliação Dinâmica de Créditos por Ciclo Mensal (SSOT baseado em agendamentos reais - Hook no topo incondicional)
+  const cycleLedger = useMemo(() => {
+    return calculateCycleCredits(client, appointments);
+  }, [client, appointments]);
+
   const toggleMonthCollapse = (monthKey: string) => {
     setCollapsedMonths(prev => ({
       ...prev,
@@ -1009,11 +1014,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   // Find pending Asaas contract
   const pendingAsaasContract = contracts.find(c => c.asaasPaymentId && c.status === 'pendente');
 
-  // Reconciliação Dinâmica de Créditos por Ciclo Mensal (SSOT baseado em agendamentos reais)
-  const cycleLedger = useMemo(() => {
-    return calculateCycleCredits(client, appointments);
-  }, [client, appointments]);
-
+  // Variáveis extraídas do cycleLedger (calculado incondicionalmente no topo)
   const credTotal = cycleLedger.academia.total;
   const credUsados = cycleLedger.academia.usados;
   const credReservados = cycleLedger.academia.reservados;
