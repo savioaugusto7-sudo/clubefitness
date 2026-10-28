@@ -10355,13 +10355,27 @@ goniometria: {
                                 const repCid = rep.clienteId?._id || rep.clienteId;
                                 setGeneratingPdfId(`reav_${rep._id}`);
                                 try {
-                                  const res = await fetch(`/api/reports/reavaliacao?clientId=${repCid}`);
+                                  const controller = new AbortController();
+                                  const timer = setTimeout(() => controller.abort(), 12000);
+                                  let res: Response;
+                                  try {
+                                    res = await fetch(`/api/reports/reavaliacao?clientId=${repCid}`, {
+                                      cache: 'no-store',
+                                      signal: controller.signal
+                                    });
+                                  } catch {
+                                    res = await fetch(`/api/reports/reavaliacao?clientId=${repCid}&fast=true`, {
+                                      cache: 'no-store'
+                                    });
+                                  } finally {
+                                    clearTimeout(timer);
+                                  }
                                   const data = await res.json();
                                   if (!data.success) {
                                     alert(data.error || 'Não foi possível gerar a reavaliação.');
                                     return;
                                   }
-                                  downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
+                                  await downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
                                 } catch (err: any) {
                                   console.error('Erro ao gerar reavaliação:', err);
                                   alert('Erro ao processar laudo de reavaliação: ' + err.message);

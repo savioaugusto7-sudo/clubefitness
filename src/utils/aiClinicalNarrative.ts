@@ -9,10 +9,13 @@ import { LongitudinalComputedResult } from './longitudinalEngine';
 import { ClinicalCluster } from './clinicalClustersEngine';
 
 export interface SegmentalAnalysisItem {
+  segmento?: string;
   titulo: string;
+  diagnosticoFuncional?: string;
   icone?: string;
   introducao: string;
   itens: string[];
+  recomendacao?: string;
 }
 
 export interface PersonalizedClinicalNarrative {
@@ -28,60 +31,73 @@ export interface PersonalizedClinicalNarrative {
 
 const FALLBACK_MODELS = [
   'gemini-2.5-flash',
-  'gemini-flash-latest',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-pro'
+  'gemini-2.5-flash-lite'
 ];
 
 /**
- * Gera a narrativa clínica personalizada usando IA (com fallback determinístico robusto)
+ * Gera a narrativa clínica personalizada usando IA (com timeout estrito de 4.5s e fallback determinístico imediato)
  */
 export async function generatePersonalizedClinicalNarrative(
   computed: LongitudinalComputedResult,
-  customClustersOrBaseNarrative?: any
+  customClustersOrBaseNarrative?: any,
+  options?: { fastMode?: boolean; timeoutMs?: number }
 ): Promise<PersonalizedClinicalNarrative> {
   const clusters: ClinicalCluster[] = Array.isArray(customClustersOrBaseNarrative)
     ? customClustersOrBaseNarrative
     : (Array.isArray(computed.clusters) ? computed.clusters : []);
 
   const apiKey = process.env.GEMINI_API_KEY;
+  const timeoutMs = options?.timeoutMs ?? 4500;
 
-  if (apiKey) {
+  if (apiKey && !options?.fastMode) {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const prompt = buildClinicalPrompt(computed, clusters);
 
-      for (const modelName of FALLBACK_MODELS) {
-        try {
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: prompt,
-            config: {
-              responseMimeType: 'application/json',
-              temperature: 0.2
-            }
-          });
+      const aiTask = (async (): Promise<PersonalizedClinicalNarrative | null> => {
+        for (const modelName of FALLBACK_MODELS) {
+          try {
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents: prompt,
+              config: {
+                responseMimeType: 'application/json',
+                temperature: 0.2
+              }
+            });
 
-          const rawText = response.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            if (isValidNarrativeStructure(parsed)) {
-              return {
-                ...parsed,
-                isAiGenerated: true
-              };
+            const rawText = response.text;
+            if (rawText) {
+              const parsed = JSON.parse(rawText);
+              if (isValidNarrativeStructure(parsed)) {
+                return {
+                  ...parsed,
+                  isAiGenerated: true
+                };
+              }
             }
+          } catch (mErr: any) {
+            console.warn(`[aiClinicalNarrative] Modelo ${modelName} falhou:`, mErr?.message || mErr);
           }
-        } catch (mErr: any) {
-          console.warn(`[aiClinicalNarrative] Modelo ${modelName} falhou:`, mErr?.message || mErr);
         }
+        return null;
+      })();
+
+      const timeoutPromise = new Promise<null>(resolve => {
+        setTimeout(() => resolve(null), timeoutMs);
+      });
+
+      const aiResult = await Promise.race([aiTask, timeoutPromise]);
+      if (aiResult) {
+        return aiResult;
       }
+      console.warn(`[aiClinicalNarrative] Timeout (${timeoutMs}ms) ou falha na IA — acionando motor determinístico instantâneo.`);
     } catch (apiErr) {
       console.warn('[aiClinicalNarrative] Falha na chamada da API Gemini, usando fallback determinístico:', apiErr);
     }
   }
 
-  // Fallback determinístico inteligente estruturado por segmento
+  // Fallback determinístico inteligente estruturado por segmento (execução < 5ms)
   return generateDeterministicSegmentalNarrative(computed, clusters);
 }
 

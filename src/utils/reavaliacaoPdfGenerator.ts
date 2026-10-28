@@ -826,22 +826,105 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   `.trim();
 }
 
-/** Abre iframe e dispara impressão / salvar como PDF nativo do navegador */
-export function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): void {
-  const htmlContent = generateReavaliacaoHTML(computed, narrative);
+function triggerDirectDownload(blob: Blob, filename: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+  } catch (error) {
+    console.error('Erro no download direto do PDF:', error);
+  }
+}
 
+/** Gera e baixa diretamente o arquivo PDF do Laudo de Reavaliação (com fallback de impressão nativo) */
+export async function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const htmlContent = generateReavaliacaoHTML(computed, narrative);
+  const html2pdf = (window as any).html2pdf;
+
+  const safeName = (computed?.identificacao?.paciente || 'Paciente')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_');
+  const safeDate = (computed?.identificacao?.dataReavaliacao || new Date().toISOString().split('T')[0]).replace(/\//g, '-');
+  const filename = `Laudo_Reavaliacao_${safeName}_${safeDate}.pdf`;
+
+  if (html2pdf) {
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.position = 'absolute';
+    pdfWrapper.style.left = '0px';
+    pdfWrapper.style.top = `${window.scrollY || 0}px`;
+    pdfWrapper.style.width = '794px';
+    pdfWrapper.style.opacity = '0';
+    pdfWrapper.style.zIndex = '-9999';
+    pdfWrapper.style.pointerEvents = 'none';
+
+    const pdfContainer = document.createElement('div');
+    pdfContainer.style.background = '#ffffff';
+    pdfContainer.style.color = '#0f172a';
+    pdfContainer.style.padding = '10px 24px';
+    pdfContainer.style.margin = '0';
+    pdfContainer.style.width = '794px';
+    pdfContainer.style.boxSizing = 'border-box';
+    pdfContainer.innerHTML = htmlContent;
+
+    pdfWrapper.appendChild(pdfContainer);
+    document.body.appendChild(pdfWrapper);
+
+    try {
+      const options = {
+        margin: [10, 8, 12, 8],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2.2,
+          useCORS: true,
+          letterRendering: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 794,
+          width: 794,
+          x: 0,
+          y: 0
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+
+      const blob: Blob = await html2pdf().set(options).from(pdfContainer).output('blob');
+      triggerDirectDownload(blob, filename);
+      return;
+    } catch (err) {
+      console.warn('[downloadReavaliacaoLaudoPDF] Falha no html2pdf, acionando fallback de impressão:', err);
+    } finally {
+      if (pdfWrapper.parentNode) {
+        pdfWrapper.parentNode.removeChild(pdfWrapper);
+      }
+    }
+  }
+
+  // Fallback: Impressão via iframe persistente
   const printIframe = document.createElement('iframe');
   printIframe.style.position = 'fixed';
   printIframe.style.right = '0';
   printIframe.style.bottom = '0';
-  printIframe.style.width = '0';
-  printIframe.style.height = '0';
+  printIframe.style.width = '1px';
+  printIframe.style.height = '1px';
+  printIframe.style.opacity = '0.01';
   printIframe.style.border = 'none';
   document.body.appendChild(printIframe);
 
   const doc = printIframe.contentWindow?.document || printIframe.contentDocument;
   if (!doc) {
-    alert('Erro ao abrir janela de impressão do PDF.');
+    alert('Erro ao abrir gerador do PDF.');
     return;
   }
 
@@ -849,16 +932,21 @@ export function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputedResult
   doc.write(htmlContent);
   doc.close();
 
-  setTimeout(() => {
-    try {
-      printIframe.contentWindow?.focus();
-      printIframe.contentWindow?.print();
-    } catch (e) {
-      console.error('Erro ao acionar impressão:', e);
-    } finally {
-      setTimeout(() => {
-        document.body.removeChild(printIframe);
-      }, 2000);
-    }
-  }, 500);
+  await new Promise<void>(resolve => {
+    setTimeout(() => {
+      try {
+        printIframe.contentWindow?.focus();
+        printIframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Erro ao acionar impressão:', e);
+      } finally {
+        setTimeout(() => {
+          if (printIframe.parentNode) {
+            printIframe.parentNode.removeChild(printIframe);
+          }
+        }, 60000);
+        resolve();
+      }
+    }, 350);
+  });
 }
