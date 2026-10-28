@@ -576,10 +576,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [workoutSearch, setWorkoutSearch] = useState('');
   const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
 
-  // Cloud Auto-Save states for Physical Assessments
+  // Cloud Auto-Save states for Physical & Physiotherapy Assessments
   const [cloudSaveStatus, setCloudSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [cloudLastSavedTime, setCloudLastSavedTime] = useState<string>('');
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [activeReportDraftId, setActiveReportDraftId] = useState<string | null>(null);
+  const [cloudDrafts, setCloudDrafts] = useState<any[]>([]);
+  const [isLoadingCloudDrafts, setIsLoadingCloudDrafts] = useState<boolean>(false);
 
   // Client Test Memory (Time-Series & Comparative Records)
   const [clientTestMemory, setClientTestMemory] = useState<Record<string, any>>({});
@@ -1192,6 +1195,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const handleDiscardReportDraft = () => {
     localStorage.removeItem('draft_report');
     setRepDraftSavedAt(null);
+    const profId = repAvaliador || professionalId || (session?.user as any)?.id;
+    if (activeReportDraftId || (profId && repClient)) {
+      fetch(`/api/drafts?profissionalId=${profId}&clienteId=${repClient}&tipo=relatorio_fisioterapia`, { method: 'DELETE' }).catch(() => {});
+      setActiveReportDraftId(null);
+      fetchActiveCloudDrafts();
+    }
     setRepContent('');
     setRepPain(5);
     setRepExercicios('');
@@ -1216,6 +1225,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setRepExamesList([]);
     setRepDeRealizou('nao');
     setRepMaigneRealizou('nao');
+    setMFlex(25); setMFlexEVA(0);
+    setMExt(25); setMExtEVA(0);
+    setMIncD(25); setMIncDEVA(0);
+    setMIncE(25); setMIncEEVA(0);
+    setMRotD(25); setMRotDEVA(0);
+    setMRotE(25); setMRotEEVA(0);
     setYRealizou('nao');
     setYLenD(0); setYLenE(0);
     setYAntD(0); setYAntD1(''); setYAntD2(''); setYAntD3('');
@@ -1820,6 +1835,328 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     };
   }, [showAssessmentModal, showReportModal, showStModal, showProntuarioModal, showWorkoutReaderModal]);
 
+  // ─── CLOUD DRAFTS ENGINE ──────────────────────────────────────────────────
+  const fetchActiveCloudDrafts = useCallback(async () => {
+    const profId = professionalId || (session?.user as any)?.id || repAvaliador;
+    try {
+      setIsLoadingCloudDrafts(true);
+      const url = profId ? `/api/drafts?profissionalId=${profId}` : '/api/drafts';
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setCloudDrafts(json.data);
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar rascunhos na nuvem:', err);
+    } finally {
+      setIsLoadingCloudDrafts(false);
+    }
+  }, [professionalId, session, repAvaliador]);
+
+  useEffect(() => {
+    fetchActiveCloudDrafts();
+  }, [fetchActiveCloudDrafts, activeTab]);
+
+  const resumeCloudDraft = (draft: any) => {
+    if (!draft) return;
+
+    if (draft.tipo === 'relatorio_fisioterapia') {
+      const d = draft.dados || {};
+      const cid = String(draft.clienteId?._id || draft.clienteId || '');
+      setActiveReportDraftId(draft._id);
+      setRepClient(cid);
+      if (draft.profissionalId) {
+        setRepAvaliador(typeof draft.profissionalId === 'object' ? draft.profissionalId._id : draft.profissionalId);
+      }
+      setRepDate(d.repDate || new Date().toISOString().split('T')[0]);
+      setRepType(d.repType || 'simplificado');
+      setRepContent(d.repContent || '');
+      setIncluirConduta(!!d.repContent);
+      setRepPain(d.repPain ?? 5);
+      setRepExercicios(d.repExercicios || '');
+      setIncluirPrescricao(!!d.repExercicios);
+      if (d.gGonio) setGGonio(d.gGonio);
+      if (d.repQueixas) setRepQueixas(d.repQueixas);
+      if (d.repTraumas) setRepTraumas(d.repTraumas);
+      setRepCirurgiasRealizou(d.repCirurgiasRealizou || 'nao');
+      if (d.repCirurgiasList) setRepCirurgiasList(d.repCirurgiasList);
+      if (d.repDoencas) setRepDoencas(d.repDoencas);
+      if (d.repTraumasEmo) setRepTraumasEmo(d.repTraumasEmo);
+      if (d.repMedicao) setRepMedicao(d.repMedicao);
+      if (d.repDrogas) setRepDrogas(d.repDrogas);
+      setRepSonoHoras(d.repSonoHoras ?? 8);
+      setRepSonoTipo(d.repSonoTipo || 'continuo');
+      setRepSonoQualidade(d.repSonoQualidade || 'Bom');
+      if (d.repAlimentacaoDor) setRepAlimentacaoDor(d.repAlimentacaoDor);
+      if (d.repAtividadeFisicaQual) setRepAtividadeFisicaQual(d.repAtividadeFisicaQual);
+      if (d.repAtividadeFisicaInterfere) setRepAtividadeFisicaInterfere(d.repAtividadeFisicaInterfere);
+      setRepStress(d.repStress ?? 5);
+      if (d.repControleStress) setRepControleStress(d.repControleStress);
+      setRepAtividadeFisica(d.repAtividadeFisica || 'nao');
+      setRepTermografiaRealizou(d.repTermografiaRealizou || 'nao');
+      setRepTermografiaImgB64(d.repTermografiaImgB64 || '');
+      if (d.repExamesList) setRepExamesList(d.repExamesList);
+      setRepDeRealizou(d.repDeRealizou || 'nao');
+      setRepDeTipo(d.repDeTipo || 'Tipo IV');
+      setRepDeAbdBilateral(d.repDeAbdBilateral || 'nao');
+      setRepDeAbdUnilateral(d.repDeAbdUnilateral || 'nao');
+      setRepDeDorAbd(d.repDeDorAbd || 'nao');
+      setRepMaigneRealizou(d.repMaigneRealizou || 'nao');
+      if (d.repCirc) setRepCirc(d.repCirc);
+
+      // Spine mobility restore (Fix for previously omitted fields!)
+      if (d.mFlex !== undefined) setMFlex(d.mFlex);
+      if (d.mFlexEVA !== undefined) setMFlexEVA(d.mFlexEVA);
+      if (d.mExt !== undefined) setMExt(d.mExt);
+      if (d.mExtEVA !== undefined) setMExtEVA(d.mExtEVA);
+      if (d.mIncD !== undefined) setMIncD(d.mIncD);
+      if (d.mIncDEVA !== undefined) setMIncDEVA(d.mIncDEVA);
+      if (d.mIncE !== undefined) setMIncE(d.mIncE);
+      if (d.mIncEEVA !== undefined) setMIncEEVA(d.mIncEEVA);
+      if (d.mRotD !== undefined) setMRotD(d.mRotD);
+      if (d.mRotDEVA !== undefined) setMRotDEVA(d.mRotDEVA);
+      if (d.mRotE !== undefined) setMRotE(d.mRotE);
+      if (d.mRotEEVA !== undefined) setMRotEEVA(d.mRotEEVA);
+
+      if (d.tThomasIliopsoasDStatus) setTThomasIliopsoasDStatus(d.tThomasIliopsoasDStatus);
+      if (d.tThomasIliopsoasEStatus) setTThomasIliopsoasEStatus(d.tThomasIliopsoasEStatus);
+      if (d.tThomasRetofemoralDStatus) setTThomasRetofemoralDStatus(d.tThomasRetofemoralDStatus);
+      if (d.tThomasRetofemoralEStatus) setTThomasRetofemoralEStatus(d.tThomasRetofemoralEStatus);
+      if (d.tThomasIliopsoasD !== undefined) setTThomasIliopsoasD(d.tThomasIliopsoasD);
+      if (d.tThomasIliopsoasE !== undefined) setTThomasIliopsoasE(d.tThomasIliopsoasE);
+      if (d.tThomasRetofemoralD !== undefined) setTThomasRetofemoralD(d.tThomasRetofemoralD);
+      if (d.tThomasRetofemoralE !== undefined) setTThomasRetofemoralE(d.tThomasRetofemoralE);
+
+      setYRealizou(d.yRealizou || 'nao');
+      if (d.yLenD !== undefined) setYLenD(d.yLenD);
+      if (d.yLenE !== undefined) setYLenE(d.yLenE);
+      if (d.yAntD !== undefined) setYAntD(d.yAntD);
+      if (d.yAntE !== undefined) setYAntE(d.yAntE);
+      if (d.yPMD !== undefined) setYPMD(d.yPMD);
+      if (d.yPME !== undefined) setYPME(d.yPME);
+      if (d.yPLD !== undefined) setYPLD(d.yPLD);
+      if (d.yPLE !== undefined) setYPLE(d.yPLE);
+      if (d.yAntD1 !== undefined) setYAntD1(d.yAntD1);
+      if (d.yAntD2 !== undefined) setYAntD2(d.yAntD2);
+      if (d.yAntD3 !== undefined) setYAntD3(d.yAntD3);
+      if (d.yPMD1 !== undefined) setYPMD1(d.yPMD1);
+      if (d.yPMD2 !== undefined) setYPMD2(d.yPMD2);
+      if (d.yPMD3 !== undefined) setYPMD3(d.yPMD3);
+      if (d.yPLD1 !== undefined) setYPLD1(d.yPLD1);
+      if (d.yPLD2 !== undefined) setYPLD2(d.yPLD2);
+      if (d.yPLD3 !== undefined) setYPLD3(d.yPLD3);
+      if (d.yAntE1 !== undefined) setYAntE1(d.yAntE1);
+      if (d.yAntE2 !== undefined) setYAntE2(d.yAntE2);
+      if (d.yAntE3 !== undefined) setYAntE3(d.yAntE3);
+      if (d.yPME1 !== undefined) setYPME1(d.yPME1);
+      if (d.yPME2 !== undefined) setYPME2(d.yPME2);
+      if (d.yPME3 !== undefined) setYPME3(d.yPME3);
+      if (d.yPLE1 !== undefined) setYPLE1(d.yPLE1);
+      if (d.yPLE2 !== undefined) setYPLE2(d.yPLE2);
+      if (d.yPLE3 !== undefined) setYPLE3(d.yPLE3);
+
+      setSdRealizou(d.sdRealizou || 'nao');
+      if (d.sdPelvicaD !== undefined) setSdPelvicaD(d.sdPelvicaD);
+      if (d.sdPelvicaE !== undefined) setSdPelvicaE(d.sdPelvicaE);
+      if (d.sdAducaoD !== undefined) setSdAducaoD(d.sdAducaoD);
+      if (d.sdAducaoE !== undefined) setSdAducaoE(d.sdAducaoE);
+      if (d.sdValgoD !== undefined) setSdValgoD(d.sdValgoD);
+      if (d.sdValgoE !== undefined) setSdValgoE(d.sdValgoE);
+      if (d.sdVaroD !== undefined) setSdVaroD(d.sdVaroD);
+      if (d.sdVaroE !== undefined) setSdVaroE(d.sdVaroE);
+      if (d.sdPrpsD !== undefined) setSdPrpsD(d.sdPrpsD);
+      if (d.sdPrpsE !== undefined) setSdPrpsE(d.sdPrpsE);
+
+      if (d.repCustomTests) setRepCustomTests(d.repCustomTests);
+      if (d.repPdfUrl) setRepPdfUrl(d.repPdfUrl);
+      if (d.repPdfAttachName) setRepPdfAttachName(d.repPdfAttachName);
+      if (d.repIncluirAnexoNoPdf !== undefined) setRepIncluirAnexoNoPdf(d.repIncluirAnexoNoPdf);
+      if (d.repTimerSeconds) setRepTimerSeconds(d.repTimerSeconds);
+
+      setRepActiveStep(draft.etapaAtual || 2);
+      setRepDraftSavedAt(draft.savedAt || new Date().toISOString());
+      setCheckedRepDraftClient(cid);
+      setShowReportModal(true);
+    } else if (draft.tipo === 'avaliacao_fisica') {
+      const cid = String(draft.clienteId?._id || draft.clienteId || '');
+      setActiveDraftId(draft._id);
+      setAsClient(cid);
+      if (draft.dados) {
+        loadAssessmentDraft(true, draft.dados);
+      }
+      setAsStep(draft.etapaAtual || 1);
+      setAsDraftSavedAt(draft.savedAt || new Date().toISOString());
+      setShowAssessmentModal(true);
+    }
+  };
+
+  const handleDiscardCloudDraft = async (draftId: string) => {
+    if (!window.confirm('Tem certeza que deseja descartar este rascunho salvo na nuvem? Os dados não salvos serão excluídos permanentemente.')) return;
+    try {
+      const res = await fetch(`/api/drafts?id=${draftId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        if (activeReportDraftId === draftId) {
+          setActiveReportDraftId(null);
+          handleDiscardReportDraft();
+        }
+        if (activeDraftId === draftId) {
+          setActiveDraftId(null);
+          handleDiscardAssessmentDraft();
+        }
+        await fetchActiveCloudDrafts();
+      }
+    } catch (e) {
+      console.error('Erro ao excluir rascunho:', e);
+    }
+  };
+
+  const renderCloudDraftsBanner = (filterTipo?: string) => {
+    const matchingDrafts = cloudDrafts.filter(d => !filterTipo || d.tipo === filterTipo);
+    if (!matchingDrafts || matchingDrafts.length === 0) return null;
+
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.20) 100%)',
+        border: '1.5px solid rgba(245, 158, 11, 0.5)',
+        borderRadius: '16px',
+        padding: '16px 20px',
+        marginBottom: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        boxShadow: '0 8px 24px rgba(245, 158, 11, 0.14)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'rgba(245, 158, 11, 0.25)',
+              color: '#f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.1rem'
+            }}>
+              <i className="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.96rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Avaliação em Andamento Encontrada na Nuvem</span>
+                <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.3)', color: '#fef3c7', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                  {matchingDrafts.length} {matchingDrafts.length === 1 ? 'rascunho ativo' : 'rascunhos ativos'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#d1d5db', marginTop: '2px' }}>
+                Uma avaliação foi interrompida ou salva automaticamente. Você pode continuar exatamente de onde parou ou descartá-la.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {matchingDrafts.map(draft => {
+            const clientName = draft.clienteId?.dadosPessoais?.nome ||
+                               clients.find(c => String(c._id) === String(draft.clienteId?._id || draft.clienteId))?.dadosPessoais?.nome ||
+                               'Aluno';
+            const tipoLabel = draft.tipo === 'relatorio_fisioterapia' ? 'Relatório Fisioterápico' :
+                              draft.tipo === 'avaliacao_fisica' ? 'Avaliação Física' : 'Teste de Força';
+            const stepLabel = draft.etapaAtual ? `Etapa ${draft.etapaAtual}` : 'Em andamento';
+            const savedTime = draft.savedAt ? formatDateTimeBR(draft.savedAt) : 'Recentemente';
+
+            return (
+              <div
+                key={draft._id}
+                style={{
+                  background: 'rgba(15, 23, 42, 0.7)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    color: '#38bdf8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '0.84rem'
+                  }}>
+                    {clientName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc' }}>
+                      {clientName}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ color: '#38bdf8', fontWeight: 600 }}>{tipoLabel}</span>
+                      <span>•</span>
+                      <span style={{ color: '#a78bfa', fontWeight: 600 }}>{stepLabel}</span>
+                      <span>•</span>
+                      <span>Salvo em {savedTime}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => resumeCloudDraft(draft)}
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 750,
+                      fontSize: '0.82rem',
+                      padding: '8px 14px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <i className="fa-solid fa-play"></i> Continuar Avaliação
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleDiscardCloudDraft(draft._id)}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      color: '#fca5a5',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      padding: '8px 12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Descartar este rascunho"
+                  >
+                    <i className="fa-solid fa-trash"></i> Descartar
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // LocalStorage Auto-save effects (without 1s timer re-triggering)
   useEffect(() => {
     if (showAssessmentModal && asClient) {
@@ -2149,6 +2486,79 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     asPostura, asMeta2Meses, asMeta1Ano, asObs, asTimerSeconds
   ]);
 
+  // Continuous Cloud Auto-Save Debounce Effect for Physiotherapy Reports (2s)
+  useEffect(() => {
+    if (!showReportModal || !repClient || isSubmitting) return;
+
+    setCloudSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      try {
+        const profId = repAvaliador || professionalId || (session?.user as any)?.id;
+        if (!profId) return;
+
+        const draftData = {
+          repClient, repAvaliador: profId, repDate, repType, repContent, repPain, repExercicios,
+          gGonio, repTimerSeconds, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList,
+          repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade,
+          repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress,
+          repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou,
+          repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA,
+          mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou,
+          yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE,
+          yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3,
+          yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3,
+          sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE,
+          repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus,
+          tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE,
+          repCustomTests, repPdfUrl, repPdfAttachName, repIncluirAnexoNoPdf,
+          savedAt: new Date().toISOString()
+        };
+
+        const res = await fetch('/api/drafts', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profissionalId: profId,
+            clienteId: repClient,
+            tipo: 'relatorio_fisioterapia',
+            etapaAtual: repActiveStep,
+            dados: draftData
+          })
+        });
+
+        const json = await res.json();
+        if (json.success && json.data?._id) {
+          setActiveReportDraftId(json.data._id);
+          setCloudSaveStatus('saved');
+          const now = new Date();
+          setCloudLastSavedTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`);
+          setRepDraftSavedAt(json.data.savedAt || now.toISOString());
+        } else {
+          setCloudSaveStatus('error');
+        }
+      } catch (err) {
+        console.warn('Auto-save cloud draft error:', err);
+        setCloudSaveStatus('error');
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [
+    showReportModal, repClient, repAvaliador, repActiveStep, repDate, repType, repContent, repPain, repExercicios,
+    gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao,
+    repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual,
+    repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou,
+    repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral,
+    repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA,
+    mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE,
+    yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3, yAntE1, yAntE2, yAntE3,
+    yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE,
+    sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus,
+    tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD,
+    tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE, repCustomTests, repPdfUrl,
+    repPdfAttachName, repIncluirAnexoNoPdf, isSubmitting
+  ]);
+
   useEffect(() => {
     if (!showStModal) {
       setCheckedStDraftClient(null);
@@ -2186,6 +2596,26 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       loadClientTestMemory(repClient);
       const loadReportData = async () => {
         let loadedDraft = false;
+
+        // 1. Verificar Rascunho na Nuvem primeiro (AssessmentDraft)
+        try {
+          const profId = repAvaliador || professionalId || (session?.user as any)?.id;
+          const qUrl = profId 
+            ? `/api/drafts?profissionalId=${profId}&clienteId=${repClient}&tipo=relatorio_fisioterapia`
+            : `/api/drafts?clienteId=${repClient}&tipo=relatorio_fisioterapia`;
+          const cRes = await fetch(qUrl);
+          const cJson = await cRes.json();
+          if (cJson.success && Array.isArray(cJson.data) && cJson.data.length > 0) {
+            const cloudDraft = cJson.data[0];
+            resumeCloudDraft(cloudDraft);
+            loadedDraft = true;
+            return;
+          }
+        } catch (cErr) {
+          console.warn('Erro ao verificar rascunho de relatório na nuvem:', cErr);
+        }
+
+        // 2. Fallback: LocalStorage
         const draft = localStorage.getItem('draft_report');
         if (draft) {
           try {
@@ -2227,6 +2657,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 setRepDeDorAbd(p.repDeDorAbd || 'nao');
                 setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
                 if (p.repCirc) setRepCirc(p.repCirc);
+
+                // Spine mobility restore
+                if (p.mFlex !== undefined) setMFlex(p.mFlex);
+                if (p.mFlexEVA !== undefined) setMFlexEVA(p.mFlexEVA);
+                if (p.mExt !== undefined) setMExt(p.mExt);
+                if (p.mExtEVA !== undefined) setMExtEVA(p.mExtEVA);
+                if (p.mIncD !== undefined) setMIncD(p.mIncD);
+                if (p.mIncDEVA !== undefined) setMIncDEVA(p.mIncDEVA);
+                if (p.mIncE !== undefined) setMIncE(p.mIncE);
+                if (p.mIncEEVA !== undefined) setMIncEEVA(p.mIncEEVA);
+                if (p.mRotD !== undefined) setMRotD(p.mRotD);
+                if (p.mRotDEVA !== undefined) setMRotDEVA(p.mRotDEVA);
+                if (p.mRotE !== undefined) setMRotE(p.mRotE);
+                if (p.mRotEEVA !== undefined) setMRotEEVA(p.mRotEEVA);
+
                 const defaultTIlioDStatus = p.tThomasIliopsoasDStatus !== undefined ? p.tThomasIliopsoasDStatus : ((p.tThomasD === 'Positivo' || p.tThomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
                 const defaultTIlioEStatus = p.tThomasIliopsoasEStatus !== undefined ? p.tThomasIliopsoasEStatus : ((p.tThomasE === 'Positivo' || p.tThomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
                 const defaultTRetoDStatus = p.tThomasRetofemoralDStatus !== undefined ? p.tThomasRetofemoralDStatus : ((p.tThomasD === 'Positivo' || p.tThomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
@@ -4411,6 +4856,12 @@ goniometria: {
 
           if (data.success) {
             localStorage.removeItem('draft_report');
+            const profId = repAvaliador || professionalId || (session?.user as any)?.id;
+            if (profId && repClient) {
+              fetch(`/api/drafts?profissionalId=${profId}&clienteId=${repClient}&tipo=relatorio_fisioterapia`, { method: 'DELETE' }).catch(() => {});
+            }
+            setActiveReportDraftId(null);
+            fetchActiveCloudDrafts();
             setShowReportModal(false);
             // Reset states
             setRepActiveStep(1);
@@ -7856,15 +8307,18 @@ goniometria: {
 
       {/* 1. View: Agenda Completa / Dashboard */}
       {activeTab === 'dashboard' && (
-        <AgendaCompletaPanel 
-          clients={clients} 
-          professionals={professionals} 
-          userRole="professional"
-          professionalId={professionalId}
-          userName={currentProf?.nome || (session?.user as any)?.nome || session?.user?.name || ''}
-          isColetivo={isColetivo}
-          onOpenEmergencyFinalization={handleOpenEmergencyFinalization}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {renderCloudDraftsBanner()}
+          <AgendaCompletaPanel 
+            clients={clients} 
+            professionals={professionals} 
+            userRole="professional"
+            professionalId={professionalId}
+            userName={currentProf?.nome || (session?.user as any)?.nome || session?.user?.name || ''}
+            isColetivo={isColetivo}
+            onOpenEmergencyFinalization={handleOpenEmergencyFinalization}
+          />
+        </div>
       )}
 
       {/* 1.1 View: Agendamento Direto pelo Profissional */}
@@ -8991,22 +9445,25 @@ goniometria: {
 
       {/* 4b. View: Central de Avaliações */}
       {activeTab === 'central_avaliacoes' && (
-        <CentralAvaliacoesPanel
-          onOpenCompletaPhysical={() => {
-            setAsClient('');
-            setAsStep(1);
-            setAsDraftSavedAt(null);
-            setAsDate(new Date().toISOString().split('T')[0]);
-            setShowAssessmentModal(true);
-          }}
-          onOpenCompletaPhysio={() => {
-            setRepClient('');
-            setRepActiveStep(1);
-            setRepDraftSavedAt(null);
-            setRepDate(new Date().toISOString().split('T')[0]);
-            setShowReportModal(true);
-          }}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {renderCloudDraftsBanner()}
+          <CentralAvaliacoesPanel
+            onOpenCompletaPhysical={() => {
+              setAsClient('');
+              setAsStep(1);
+              setAsDraftSavedAt(null);
+              setAsDate(new Date().toISOString().split('T')[0]);
+              setShowAssessmentModal(true);
+            }}
+            onOpenCompletaPhysio={() => {
+              setRepClient('');
+              setRepActiveStep(1);
+              setRepDraftSavedAt(null);
+              setRepDate(new Date().toISOString().split('T')[0]);
+              setShowReportModal(true);
+            }}
+          />
+        </div>
       )}
 
       {/* 5. View: Avaliações Físicas */}
@@ -9238,6 +9695,9 @@ goniometria: {
                 </button>
               </div>
             </div>
+
+            {/* BANNER PROATIVO DE RASCUNHOS NA NUVEM */}
+            {renderCloudDraftsBanner('avaliacao_fisica')}
 
             {/* Cards Grid */}
             <div>
@@ -9707,6 +10167,9 @@ goniometria: {
                 </button>
               </div>
             </div>
+
+            {/* BANNER PROATIVO DE RASCUNHOS NA NUVEM */}
+            {renderCloudDraftsBanner('relatorio_fisioterapia')}
 
             {/* Cards Grid */}
             <div>
@@ -14085,6 +14548,21 @@ goniometria: {
                 <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                   ⏱️ Tempo: {formatTimer(repTimerSeconds)}
                 </span>
+                {cloudSaveStatus === 'saving' && (
+                  <span style={{ padding: '4px 10px', background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-arrows-rotate fa-spin"></i> Salvando na nuvem...
+                  </span>
+                )}
+                {cloudSaveStatus === 'saved' && (
+                  <span style={{ padding: '4px 10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-cloud-check"></i> Salvo na nuvem {cloudLastSavedTime ? `às ${cloudLastSavedTime}` : ''}
+                  </span>
+                )}
+                {cloudSaveStatus === 'error' && (
+                  <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-triangle-exclamation"></i> Falha no salvamento
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
