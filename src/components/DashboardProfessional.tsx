@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useTransition, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useTransition, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
