@@ -7,6 +7,9 @@ import {
   FATORES_ALIVIO_SUGESTOES,
   TIPOS_CARACTERISTICA_DOR,
   QueixaFisioterapicaItem,
+  CompartimentoAnatomico,
+  COMPARTIMENTOS_METADATA,
+  detectCompartment,
   getEvaColor,
   getEvaLabel,
   synthesizeLegacyFields
@@ -51,6 +54,16 @@ export default function QueixaFisioterapiaCard({
     if (!regDef) return true;
     return !regDef.subRegioes.some(s => s.nome.toLowerCase() === queixa.subRegiao.toLowerCase());
   });
+
+  // Filtro ativo de compartimento para articulações compartimentalizadas (Joelho / Tornozelo)
+  const [compartimentoFilter, setCompartimentoFilter] = useState<'TODOS' | CompartimentoAnatomico>(() => {
+    return queixa.compartimento || detectCompartment(queixa.subRegiao || queixa.dorOnde) || 'TODOS';
+  });
+
+  // Compartimento ativo atual detectado
+  const activeCompartment: CompartimentoAnatomico | undefined = useMemo(() => {
+    return queixa.compartimento || detectCompartment(queixa.subRegiao || queixa.dorOnde);
+  }, [queixa.compartimento, queixa.subRegiao, queixa.dorOnde]);
 
   // Região anatômica selecionada atualmente (com detecção inteligente para queixas legadas e texto livre)
   const selectedRegiaoDef = useMemo(() => {
@@ -98,7 +111,20 @@ export default function QueixaFisioterapiaCard({
         }
         if (!isCustomSubRegiao) {
           updated.subRegiao = regDef.subRegioes[0]?.nome || '';
+          updated.compartimento = regDef.subRegioes[0]?.compartimento;
+          setCompartimentoFilter('TODOS');
         }
+      }
+    }
+
+    // Se mudou a sub-região, detecta e atualiza o compartimento automaticamente
+    if (field === 'subRegiao') {
+      const regDef = REGIOES_ANATOMICAS.find(r => r.nome === (updated.regiao || queixa.regiao));
+      const matched = regDef?.subRegioes.find(sr => sr.nome === value);
+      const detected = matched?.compartimento || detectCompartment(value);
+      if (detected) {
+        updated.compartimento = detected;
+        setCompartimentoFilter(detected);
       }
     }
 
@@ -238,6 +264,27 @@ export default function QueixaFisioterapiaCard({
           >
             EVA: {queixa.dorIntensidade}/10
           </span>
+
+          {/* Badge de Compartimento Anatômico */}
+          {activeCompartment && (
+            <span
+              style={{
+                fontSize: '0.78rem',
+                padding: '3px 9px',
+                borderRadius: '12px',
+                background: COMPARTIMENTOS_METADATA[activeCompartment]?.bg,
+                color: COMPARTIMENTOS_METADATA[activeCompartment]?.cor,
+                border: `1px solid ${COMPARTIMENTOS_METADATA[activeCompartment]?.border}`,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <i className={`fas ${COMPARTIMENTOS_METADATA[activeCompartment]?.icone}`} style={{ fontSize: '0.72rem' }} />
+              {activeCompartment}
+            </span>
+          )}
 
           {/* Botão de Manter Queixa Anterior */}
           {prevQueixa && onKeepPrev && (
@@ -437,6 +484,69 @@ export default function QueixaFisioterapiaCard({
             )}
           </div>
 
+          {/* Barra de Filtro Rápido por Compartimento (Joelho e Tornozelo) */}
+          {selectedRegiaoDef.temCompartimentos && !isCustomRegiao && (
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => setCompartimentoFilter('TODOS')}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    fontSize: '0.74rem',
+                    fontWeight: compartimentoFilter === 'TODOS' ? 700 : 500,
+                    background: compartimentoFilter === 'TODOS' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.04)',
+                    color: compartimentoFilter === 'TODOS' ? '#a5b4fc' : '#94a3b8',
+                    border: '1px solid',
+                    borderColor: compartimentoFilter === 'TODOS' ? '#6366f1' : 'rgba(255,255,255,0.1)',
+                    cursor: readOnly ? 'default' : 'pointer'
+                  }}
+                >
+                  Todos
+                </button>
+                {(['Anterior', 'Medial', 'Lateral', 'Posterior'] as CompartimentoAnatomico[]).map(comp => {
+                  const meta = COMPARTIMENTOS_METADATA[comp];
+                  const isSelected = compartimentoFilter === comp;
+                  return (
+                    <button
+                      key={comp}
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => {
+                        setCompartimentoFilter(comp);
+                        updateField('compartimento', comp);
+                        const firstInComp = selectedRegiaoDef.subRegioes.find(sr => sr.compartimento === comp);
+                        if (firstInComp) {
+                          updateField('subRegiao', firstInComp.nome);
+                        }
+                      }}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '5px',
+                        fontSize: '0.74rem',
+                        fontWeight: isSelected ? 700 : 500,
+                        background: isSelected ? meta.bg : 'rgba(255,255,255,0.04)',
+                        color: isSelected ? meta.cor : '#cbd5e1',
+                        border: '1px solid',
+                        borderColor: isSelected ? meta.cor : 'rgba(255,255,255,0.1)',
+                        cursor: readOnly ? 'default' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <i className={`fas ${meta.icone}`} style={{ fontSize: '0.65rem' }} />
+                      {comp}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {isCustomSubRegiao || isCustomRegiao ? (
             <div style={{ display: 'flex', gap: '6px' }}>
               <input
@@ -480,7 +590,10 @@ export default function QueixaFisioterapiaCard({
                 fontWeight: 500
               }}
             >
-              {selectedRegiaoDef.subRegioes.map(sr => (
+              {(selectedRegiaoDef.temCompartimentos && compartimentoFilter !== 'TODOS'
+                ? selectedRegiaoDef.subRegioes.filter(sr => sr.compartimento === compartimentoFilter)
+                : selectedRegiaoDef.subRegioes
+              ).map(sr => (
                 <option key={sr.id} value={sr.nome}>
                   {sr.nome}
                 </option>

@@ -8,9 +8,12 @@
  * 4. Tipos e Características da Dor
  */
 
+export type CompartimentoAnatomico = 'Anterior' | 'Medial' | 'Lateral' | 'Posterior';
+
 export interface SubRegiaoAnatomica {
   id: string;
   nome: string;
+  compartimento?: CompartimentoAnatomico;
   descricao?: string;
 }
 
@@ -18,6 +21,7 @@ export interface RegiaoAnatomica {
   id: string;
   nome: string;
   icone: string;
+  temCompartimentos?: boolean;
   lateralidadePermitida: ('Direito' | 'Esquerdo' | 'Bilateral' | 'Central / Axial')[];
   subRegioes: SubRegiaoAnatomica[];
 }
@@ -41,6 +45,7 @@ export interface QueixaFisioterapicaItem {
   // Localização padronizada
   regiao: string;
   subRegiao: string;
+  compartimento?: CompartimentoAnatomico;
   lateralidade: 'Direito' | 'Esquerdo' | 'Bilateral' | 'Central / Axial';
 
   // Intensidade da dor (EVA 0-10)
@@ -175,27 +180,66 @@ export const REGIOES_ANATOMICAS: RegiaoAnatomica[] = [
     id: 'joelho',
     nome: 'Joelho',
     icone: 'fa-socks',
+    temCompartimentos: true,
     lateralidadePermitida: ['Direito', 'Esquerdo', 'Bilateral'],
     subRegioes: [
-      { id: 'patelofemoral', nome: 'Anterior / Patelofemoral (Retropatelar / Tróclea)' },
-      { id: 'tendao_patelar', nome: 'Tendão Patelar (Polo Inferior / Tuberosidade da Tíbia)' },
-      { id: 'joelho_medial', nome: 'Compartimento Medial (Menisco / Pata de Ganso / LCM)' },
-      { id: 'joelho_lateral', nome: 'Compartimento Lateral (Trato Iliotibial / Menisco / LCL)' },
-      { id: 'fossa_poplitea', nome: 'Posterior / Fossa Poplítea (Gastrocnêmios / Isquiotibiais)' }
+      // 1. Compartimento Anterior
+      { id: 'dor_femoropatelar', nome: 'Anterior: Dor Femoropatelar / SDFP (Retropatelar / Tróclea)', compartimento: 'Anterior' },
+      { id: 'tendao_patelar', nome: 'Anterior: Tendinopatia Patelar (Polo Inferior / Jumper\'s Knee)', compartimento: 'Anterior' },
+      { id: 'tendao_quadricipital', nome: 'Anterior: Tendinopatia Quadricipital (Polo Superior)', compartimento: 'Anterior' },
+      { id: 'hoffite', nome: 'Anterior: Hoffite (Gordura Infrapatelar / Dor ao Apoio)', compartimento: 'Anterior' },
+      { id: 'osgood_schlatter', nome: 'Anterior: Apofisite Tibial (Osgood-Schlatter / Sinding-Larsen)', compartimento: 'Anterior' },
+
+      // 2. Compartimento Medial
+      { id: 'pata_ganso', nome: 'Medial: Pata de Ganso / Tendinopatia Anserina', compartimento: 'Medial' },
+      { id: 'lcm', nome: 'Medial: Ligamento Colateral Medial (LCM / Entorse em Valgo)', compartimento: 'Medial' },
+      { id: 'menisco_medial', nome: 'Medial: Menisco Medial (Corno Posterior / Raiz / Cisalhamento)', compartimento: 'Medial' },
+      { id: 'plica_mediopatelar', nome: 'Medial: Plica Sinovial Mediopatelar', compartimento: 'Medial' },
+
+      // 3. Compartimento Lateral
+      { id: 'stit_trato_iliotibial', nome: 'Lateral: Síndrome do Trato Iliotibial (STIT / Fricção no Epicôndilo)', compartimento: 'Lateral' },
+      { id: 'biceps_femoral', nome: 'Lateral: Tendinopatia do Bíceps Femoral (Cabeça da Fíbula)', compartimento: 'Lateral' },
+      { id: 'lcl', nome: 'Lateral: Ligamento Colateral Lateral (LCL / Estresse em Varo)', compartimento: 'Lateral' },
+      { id: 'menisco_lateral', nome: 'Lateral: Menisco Lateral (Interlinha Articular Lateral)', compartimento: 'Lateral' },
+      { id: 'canto_posterolateral', nome: 'Lateral: Canto Posterolateral (CPL / Instabilidade Rotatória)', compartimento: 'Lateral' },
+
+      // 4. Compartimento Posterior
+      { id: 'cisto_baker', nome: 'Posterior: Cisto de Baker / Fossa Poplítea', compartimento: 'Posterior' },
+      { id: 'tendao_popliteo', nome: 'Posterior: Tendinopatia do Poplíteo', compartimento: 'Posterior' },
+      { id: 'isquiotibiais_distais', nome: 'Posterior: Isquiotibiais Distais (Semimembranoso / Semitendíneo)', compartimento: 'Posterior' },
+      { id: 'lcp', nome: 'Posterior: Ligamento Cruzado Posterior (LCP / Gaveta Posterior)', compartimento: 'Posterior' }
     ]
   },
   {
     id: 'tornozelo_pe',
     nome: 'Tornozelo e Pé',
     icone: 'fa-shoe-prints',
+    temCompartimentos: true,
     lateralidadePermitida: ['Direito', 'Esquerdo', 'Bilateral'],
     subRegioes: [
-      { id: 'tornozelo_anterior', nome: 'Anterior / Interlinha Articular Tibiotársica' },
-      { id: 'maleolo_lateral', nome: 'Lateral (Maléolo Lateral / Ligamento Talofibular)' },
-      { id: 'maleolo_medial', nome: 'Medial (Maléolo Medial / Tendão Tibial Posterior)' },
-      { id: 'tendao_aquiles', nome: 'Posterior (Tendão de Aquiles / Inserção Calcânea)' },
-      { id: 'fascia_plantar', nome: 'Plantar (Fáscia Plantar / Calcanhar)' },
-      { id: 'antepe_dedos', nome: 'Antepé (Metatarsos / Dedos / Joanete)' }
+      // 1. Compartimento Anterior
+      { id: 'impacto_anterior', nome: 'Anterior: Impacto Tibiotársico Anterior (Ósseo / Tecidual)', compartimento: 'Anterior' },
+      { id: 'restricao_dorsiflexao', nome: 'Anterior: Restrição de Dorsiflexão (WBLT / Teste de Lunge <10cm)', compartimento: 'Anterior' },
+      { id: 'tibial_anterior', nome: 'Anterior: Tendinopatia do Tibial Anterior', compartimento: 'Anterior' },
+      { id: 'loca_talus', nome: 'Anterior: Lesão Osteocondral do Tálus (LOCA / Cúpula Talar)', compartimento: 'Anterior' },
+
+      // 2. Compartimento Lateral
+      { id: 'entorse_lateral', nome: 'Lateral: Entorse Lateral / Instabilidade Crônica (TALF / TCF)', compartimento: 'Lateral' },
+      { id: 'tendao_fibulares', nome: 'Lateral: Tendinopatia dos Fibulares (Longo / Curto / Retromaleolar)', compartimento: 'Lateral' },
+      { id: 'sindesmose_alta', nome: 'Lateral: Lesão de Sindesmose Tibiofibular (Entorse Alta)', compartimento: 'Lateral' },
+
+      // 3. Compartimento Medial
+      { id: 'tibial_posterior', nome: 'Medial: Tendinopatia do Tibial Posterior (Pé Plano / Queda do Arco)', compartimento: 'Medial' },
+      { id: 'ligamento_deltoide', nome: 'Medial: Ligamento Deltoide (Entorse em Eversão / Pronação)', compartimento: 'Medial' },
+      { id: 'tunel_tarso', nome: 'Medial: Síndrome do Túnel do Tarso (Compressão do Nervo Tibial)', compartimento: 'Medial' },
+      { id: 'flexor_longo_halux', nome: 'Medial: Tendinopatia do Flexor Longo do Hálux (FHL)', compartimento: 'Medial' },
+
+      // 4. Compartimento Posterior e Plantar
+      { id: 'aquiles_medio', nome: 'Posterior: Tendinopatia de Aquiles (Porção Média 2–6 cm)', compartimento: 'Posterior' },
+      { id: 'aquiles_insercional', nome: 'Posterior: Tendinopatia de Aquiles Insercional / Bursite Retrocalcânea', compartimento: 'Posterior' },
+      { id: 'impacto_posterior', nome: 'Posterior: Impacto Posterior do Tornozelo (Os Trigonum)', compartimento: 'Posterior' },
+      { id: 'fascia_plantar', nome: 'Plantar: Fascite Plantar / Dor no Calcanhar', compartimento: 'Posterior' },
+      { id: 'antepe_dedos', nome: 'Antepé: Metatarsalgia / Neuroma de Morton / Hálux Valgo', compartimento: 'Anterior' }
     ]
   }
 ];
@@ -307,7 +351,6 @@ export function synthesizeLegacyFields(q: Partial<QueixaFisioterapicaItem>): {
   desencadeiaPiora: string;
   melhoraDesaparece: string;
 } {
-  // dorOnde: "Joelho Direito (Compartimento Medial)" ou "Região Livre Direito (Estrutura Livre)"
   const regiaoVal = (q.regiao && q.regiao !== '__OUTRA__') ? q.regiao.trim() : '';
   const subRegiaoVal = (q.subRegiao && q.subRegiao !== '__OUTRA_SUB__') ? q.subRegiao.trim() : '';
 
@@ -337,6 +380,33 @@ export function synthesizeLegacyFields(q: Partial<QueixaFisioterapicaItem>): {
     desencadeiaPiora: piora,
     melhoraDesaparece: melhora
   };
+}
+
+// 6. METADADOS E CORES DOS COMPARTIMENTOS ANATÔMICOS
+export const COMPARTIMENTOS_METADATA: Record<CompartimentoAnatomico, { nome: string; cor: string; icone: string; bg: string; border: string }> = {
+  Anterior: { nome: 'Anterior', cor: '#0284c7', icone: 'fa-arrow-up', bg: 'rgba(2, 132, 199, 0.12)', border: 'rgba(2, 132, 199, 0.4)' },
+  Medial: { nome: 'Medial', cor: '#059669', icone: 'fa-arrow-left', bg: 'rgba(5, 150, 105, 0.12)', border: 'rgba(5, 150, 105, 0.4)' },
+  Lateral: { nome: 'Lateral', cor: '#9333ea', icone: 'fa-arrow-right', bg: 'rgba(147, 51, 234, 0.12)', border: 'rgba(147, 51, 234, 0.4)' },
+  Posterior: { nome: 'Posterior', cor: '#d97706', icone: 'fa-arrow-down', bg: 'rgba(217, 119, 6, 0.12)', border: 'rgba(217, 119, 6, 0.4)' }
+};
+
+// 7. HELPER: DETECTA COMPARTIMENTO ANATÔMICO AUTOMATICAMENTE
+export function detectCompartment(text?: string): CompartimentoAnatomico | undefined {
+  if (!text) return undefined;
+  const s = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (s.includes('lateral') || s.includes('trato iliotibial') || s.includes('stit') || s.includes('biceps femoral') || s.includes('lcl') || s.includes('fibul')) {
+    return 'Lateral';
+  }
+  if (s.includes('medial') || s.includes('pata de ganso') || s.includes('anserina') || s.includes('lcm') || s.includes('tibial posterior') || s.includes('deltoide')) {
+    return 'Medial';
+  }
+  if (s.includes('anterior') || s.includes('femoropatelar') || s.includes('patelar') || s.includes('hoffite') || s.includes('dorsiflexao') || s.includes('tibial anterior')) {
+    return 'Anterior';
+  }
+  if (s.includes('posterior') || s.includes('baker') || s.includes('popliteo') || s.includes('aquiles') || s.includes('calcaneo') || s.includes('fascia plantar')) {
+    return 'Posterior';
+  }
+  return undefined;
 }
 
 // 6. HELPER: RETORNA COR DA ESCALA EVA

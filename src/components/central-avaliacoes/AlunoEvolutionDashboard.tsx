@@ -16,6 +16,7 @@ import {
 import { Radar, Line, Bar } from 'react-chartjs-2';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem } from '@/utils/biomechanicsEngine';
+import { detectCompartment, COMPARTIMENTOS_METADATA } from '@/utils/fisioterapiaQueixasCatalog';
 
 ChartJS.register(
   RadialLinearScale,
@@ -631,6 +632,8 @@ export default function AlunoEvolutionDashboard({
       const t2 = Number(topEva.t2) || 0;
       const delta = topEva.delta != null ? Number(topEva.delta) : (t2 - t1);
       const isResolvida = t2 === 0 || topEva.status === 'Resolvida';
+      const comp = detectCompartment(topEva.queixa);
+      const compMeta = comp ? COMPARTIMENTOS_METADATA[comp] : null;
 
       if (isResolvida) {
         return {
@@ -639,7 +642,10 @@ export default function AlunoEvolutionDashboard({
           subtitulo: `${topEva.queixa} (Resolvida)`,
           cor: '#10b981',
           badge: '🟢 Sintoma Resolvido',
-          badgeBg: 'rgba(16, 185, 129, 0.18)'
+          badgeBg: 'rgba(16, 185, 129, 0.18)',
+          compartimento: comp,
+          compartimentoCor: compMeta?.cor,
+          compartimentoBg: compMeta?.bg
         };
       }
 
@@ -651,7 +657,10 @@ export default function AlunoEvolutionDashboard({
         subtitulo: `${topEva.queixa.length > 22 ? topEva.queixa.substring(0, 22) + '...' : topEva.queixa}`,
         cor,
         badge: deltaTxt,
-        badgeBg: delta <= 0 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)'
+        badgeBg: delta <= 0 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)',
+        compartimento: comp,
+        compartimentoCor: compMeta?.cor,
+        compartimentoBg: compMeta?.bg
       };
     }
 
@@ -659,13 +668,18 @@ export default function AlunoEvolutionDashboard({
       const last = evolutionSeries.eva[evolutionSeries.eva.length - 1];
       const val = Number(last.dorIntensidade || last.valor) || 0;
       const reg = last.regiao || 'Local';
+      const comp = detectCompartment(reg);
+      const compMeta = comp ? COMPARTIMENTOS_METADATA[comp] : null;
       return {
         label: 'Última Queixa EVA',
         valor: `${val}/10`,
         subtitulo: reg,
         cor: val <= 2 ? '#10b981' : (val <= 5 ? '#f59e0b' : '#ef4444'),
         badge: val === 0 ? 'Sem dor' : `Intensidade ${val}`,
-        badgeBg: val <= 2 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)'
+        badgeBg: val <= 2 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)',
+        compartimento: comp,
+        compartimentoCor: compMeta?.cor,
+        compartimentoBg: compMeta?.bg
       };
     }
 
@@ -834,9 +848,26 @@ export default function AlunoEvolutionDashboard({
             <span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
               {kpiDor.label}
             </span>
-            <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '12px', background: kpiDor.badgeBg, color: kpiDor.cor, fontWeight: 700 }}>
-              {kpiDor.badge}
-            </span>
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+              {(kpiDor as any).compartimento && (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '2px 7px',
+                    borderRadius: '10px',
+                    background: (kpiDor as any).compartimentoBg,
+                    color: (kpiDor as any).compartimentoCor,
+                    fontWeight: 700,
+                    border: `1px solid ${(kpiDor as any).compartimentoCor}50`
+                  }}
+                >
+                  {(kpiDor as any).compartimento}
+                </span>
+              )}
+              <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '12px', background: kpiDor.badgeBg, color: kpiDor.cor, fontWeight: 700 }}>
+                {kpiDor.badge}
+              </span>
+            </div>
           </div>
           <div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: kpiDor.cor, lineHeight: 1.1 }}>

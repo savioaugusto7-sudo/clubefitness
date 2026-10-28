@@ -5,6 +5,7 @@
 
 import { LongitudinalComputedResult } from './longitudinalEngine';
 import { ClinicalNarrative } from './clinicalReasoningEngine';
+import { detectCompartment, COMPARTIMENTOS_METADATA } from './fisioterapiaQueixasCatalog';
 
 export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): string {
   const { identificacao, objetivoDoLaudo, historicoClinicoBase, tabelaEVA, tabelaForca, tabelaRazoes, tabelaSimetria, testesFuncionais, tabelaGoniometria, tabelaTestesOrtopedicos } = computed;
@@ -285,15 +286,22 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         </tr>
       </thead>
       <tbody>
-        ${tabelaEVA.rows.map(r => `
+        ${tabelaEVA.rows.map(r => {
+          const comp = detectCompartment(r.queixa);
+          const meta = comp ? COMPARTIMENTOS_METADATA[comp] : null;
+          return `
           <tr>
-            <td class="font-bold">${r.queixa}</td>
+            <td class="font-bold">
+              ${r.queixa}
+              ${meta ? `<span style="background:${meta.bg}; color:${meta.cor}; border:1px solid ${meta.border}; padding:1px 5px; border-radius:3px; font-size:7.5pt; font-weight:700; margin-left:6px; display:inline-block;">${comp}</span>` : ''}
+            </td>
             <td class="text-center">${r.t1}</td>
             <td class="text-center">${r.t2}</td>
             <td class="text-center font-bold" style="color:${r.variacao < 0 ? '#059669' : '#0f172a'}">${r.variacao > 0 ? `+${r.variacao}` : r.variacao}</td>
             <td>${r.situacao}</td>
           </tr>
-        `).join('')}
+        `;
+        }).join('')}
         <tr style="background:#f1f5f9; font-weight:700;">
           <td>Soma das queixas</td>
           <td class="text-center">${tabelaEVA.somaQueixasT1}</td>

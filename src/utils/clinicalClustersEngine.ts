@@ -290,10 +290,30 @@ export function identifyClinicalClusters(profile: ClientClinicalProfile): Clinic
 
     const dorJoelho = profile.queixasEVA.filter(q => normalize(q.queixa).includes('joelho'));
     dorJoelho.forEach(d => {
+      const qNorm = normalize(d.queixa);
       if (d.delta < 0) {
-        achados.push(`Redução importante da dor no joelho (${d.t1}/10 para ${d.t2}/10).`);
+        achados.push(`Redução expressiva dos sintomas dolorosos em ${d.queixa} (de ${d.t1}/10 para ${d.t2}/10 na escala EVA).`);
       } else if (d.t2 > 0) {
-        atencao.push(`Dor persistente no joelho (EVA ${d.t2}/10), indicando sobrecarga articular em tarefas de flexão.`);
+        atencao.push(`Sintoma doloroso ativo em ${d.queixa} (${d.t2}/10 no teste atual).`);
+      }
+
+      // Análise compartimental cirúrgica (Dra. Rutchelia Novais)
+      if (qNorm.includes('lateral') || qNorm.includes('trato iliotibial') || qNorm.includes('stit') || qNorm.includes('biceps femoral')) {
+        achados.push('Comprometimento focado no Compartimento Lateral do Joelho (fricção da banda iliotibial no epicôndilo femoral lateral / tendinopatia do bíceps).');
+        atencao.push('Zona de vulnerabilidade mecânica próximo a 30° de flexão (zona de fricção de Noble), com atrito intensificado em desacelerações.');
+        recomendacoes.push('Prescrição Sala de Musculação: Liberação miofascial e alongamento do TFL/trato iliotibial. Fortalecimento intensivo de abdutores de quadril (glúteo médio) para conter adução fêmur-joelho. Evitar agachamentos repetitivos com pausa na zona crítica de 30° de flexão.');
+      } else if (qNorm.includes('anterior') || qNorm.includes('patel') || qNorm.includes('hoffite') || qNorm.includes('femoropatelar')) {
+        achados.push('Sobrecarga no Compartimento Anterior do Joelho (estresse patelofemoral / tendão patelar).');
+        atencao.push('Pressão de contato retropatelar acentuada em agachamentos profundos e tarefas excêntricas de desaceleração.');
+        recomendacoes.push('Prescrição Sala de Musculação: Fortalecimento isométrico do quadríceps na cadeira extensora (60°–45° para tendão, 90°–60° para SDPF). Ativação de glúteo máximo e médio para controle do vetor de valgo dinâmico. Adiar treinos pliométricos e saltos até que a força extensora atinja o limiar protetor (≥ 70% PC).');
+      } else if (qNorm.includes('medial') || qNorm.includes('pata de ganso') || qNorm.includes('anserina') || qNorm.includes('lcm') || qNorm.includes('menisco medial')) {
+        achados.push('Tensão concentrada no Compartimento Medial do Joelho (estresse sobre a pata de ganso, LCM ou cisalhamento de menisco medial).');
+        atencao.push('Predisposição a colapso medial em valgo dinâmico, frequentemente agravado por restrição de rotação de quadril ou pronação excessiva do pé.');
+        recomendacoes.push('Prescrição Sala de Musculação: Equilíbrio de adutores e rotadores de quadril. Manter alinhamento joelho-segundo dedo durante o agachamento e leg press. Avaliar estabilidade do arco medial do pé.');
+      } else if (qNorm.includes('posterior') || qNorm.includes('baker') || qNorm.includes('popliteo') || qNorm.includes('isquio')) {
+        achados.push('Sobrecarga no Compartimento Posterior do Joelho (fossa poplítea / tendinopatia do poplíteo / cisto de Baker).');
+        atencao.push('Sensibilidade mecânica terminal na flexão/extensão completa sob carga axial.');
+        recomendacoes.push('Prescrição Sala de Musculação: Fortalecimento excêntrico controlado de isquiotibiais sem sobrecarga no arco articular final. Descompressão miofascial da fossa poplítea.');
       }
     });
 
@@ -316,14 +336,49 @@ export function identifyClinicalClusters(profile: ClientClinicalProfile): Clinic
   // ──────────────────────────────────────────────────────────────────────────
   const isTornozeloQueixa = queixasText.includes('tornozelo') || queixasText.includes('pe') || 
                             queixasText.includes('aquiles') || queixasText.includes('fascite') ||
-                            queixasText.includes('fascia') || queixasText.includes('calcaneo');
+                            queixasText.includes('fascia') || queixasText.includes('calcaneo') ||
+                            queixasText.includes('talus') || queixasText.includes('fibul');
 
   const hasTornozeloGonio = Object.keys(profile.goniometriaArticular).some(k => k.toLowerCase().includes('tornozelo'));
 
   if (isTornozeloQueixa || hasTornozeloGonio) {
     const achados: string[] = [];
     const atencao: string[] = [];
+    const recomendacoes: string[] = [];
     const metricas: ClinicalCluster['metricas'] = [];
+
+    const dorTornozelo = profile.queixasEVA.filter(q => {
+      const n = normalize(q.queixa);
+      return n.includes('tornozelo') || n.includes('pe') || n.includes('aquiles') || n.includes('fascia') || n.includes('calcaneo');
+    });
+
+    dorTornozelo.forEach(d => {
+      const qNorm = normalize(d.queixa);
+      if (d.delta < 0) {
+        achados.push(`Melhora clínica na queixa de ${d.queixa} (redução de ${d.t1}/10 para ${d.t2}/10).`);
+      } else if (d.t2 > 0) {
+        atencao.push(`Sintoma ativo em ${d.queixa} (${d.t2}/10 na escala EVA).`);
+      }
+
+      // Análise compartimental de tornozelo
+      if (qNorm.includes('anterior') || qNorm.includes('dorsiflexao') || qNorm.includes('impacto') || qNorm.includes('talus')) {
+        achados.push('Comprometimento no Compartimento Anterior do Tornozelo (impacto tibiotársico / restrição de dorsiflexão).');
+        atencao.push('Déficit no teste de lunge (WBLT < 10 cm / < 35°), provocando sobrecarga compensatória ascendente no joelho durante o agachamento.');
+        recomendacoes.push('Prescrição: Mobilização articular com deslizamento talar posterior, liberação do músculo sóleo e progressão no teste de lunge com carga.');
+      } else if (qNorm.includes('lateral') || qNorm.includes('entorse') || qNorm.includes('fibul') || qNorm.includes('talf')) {
+        achados.push('Instabilidade / estresse no Compartimento Lateral do Tornozelo (complexo ligamentar lateral TALF/TCF e tendões fibulares).');
+        atencao.push('Tempo de reação e força de eversão deficitários, elevando risco de recidiva em saltos e mudanças de direção.');
+        recomendacoes.push('Prescrição: Treinamento neuromuscular e fortalecimento de fibulares longo e curto. Treino de propriocepção unipodal e bateria de Hop Tests (meta de LSI ≥ 90%) antes de liberação para corrida intensa.');
+      } else if (qNorm.includes('medial') || qNorm.includes('tibial posterior') || qNorm.includes('deltoide') || qNorm.includes('tunel do tarso')) {
+        achados.push('Sobrecarga no Compartimento Medial do Tornozelo (insuficiência do tibial posterior / estresse em pronação).');
+        atencao.push('Colapso do arco plantar medial induzindo rotação interna da tíbia e estresse no joelho.');
+        recomendacoes.push('Prescrição: Fortalecimento excêntrico do tibial posterior com elevação plantar associada à inversão do retropé. Exercícios de short foot para ativação de musculatura intrínseca do pé.');
+      } else if (qNorm.includes('posterior') || qNorm.includes('aquiles') || qNorm.includes('calcaneo') || qNorm.includes('fascia')) {
+        achados.push('Tensão no Compartimento Posterior / Fáscia Plantar (tendinopatia de Aquiles ou fascite plantar).');
+        atencao.push('Rigidez no complexo gastrocnêmio-sóleo e baixa tolerância à deformação elástica.');
+        recomendacoes.push('Prescrição: Protocolo de carga pesada e lenta (HSR - Heavy Slow Resistance) para o tendão de Aquiles. Liberação miofascial plantar e fortalecimento de flexores plantares.');
+      }
+    });
 
     clusters.push({
       id: 'tornozelo',
@@ -331,10 +386,10 @@ export function identifyClinicalClusters(profile: ClientClinicalProfile): Clinic
       tituloLaudo: 'ANÁLISE ARTICULAR DO COMPLEXO PÉ-TORNOZELO E DORSICOMPRESSÃO',
       icone: 'fa-shoe-prints',
       prioridade: isTornozeloQueixa ? 1 : 3,
-      queixasAssociadas: profile.queixasEVA.filter(q => normalize(q.queixa).includes('tornozelo') || normalize(q.queixa).includes('pe')).map(q => q.queixa),
+      queixasAssociadas: dorTornozelo.map(q => q.queixa),
       achadosClinicos: achados.length > 0 ? achados : ['Mobilidade e resposta proprioceptiva do retropé preservadas.'],
       pontosDeAtencao: atencao.length > 0 ? atencao : ['Manter dorsiflexão com joelho estendido acima de 20°.'],
-      recomendacoesTerapeuticas: ['Mobilização articular tibiotársica e liberação miofascial do tríceps sural.'],
+      recomendacoesTerapeuticas: recomendacoes.length > 0 ? recomendacoes : ['Mobilização articular tibiotársica e liberação miofascial do tríceps sural.'],
       metricas
     });
   }
