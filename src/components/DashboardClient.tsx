@@ -677,6 +677,98 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     return processStudentEvolution(assessments, strengthTests, reports, wellnessLogs, workoutCyclesHistory);
   }, [assessments, strengthTests, reports, wellnessLogs, workoutCyclesHistory]);
 
+  // Próximo agendamento futuro
+  const nextAppointment = useMemo(() => {
+    const now = new Date();
+    return appointments
+      .filter((a: any) => {
+        if (a.status !== 'agendado') return false;
+        const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
+        return aptDateTime.getTime() >= now.getTime();
+      })
+      .sort((a: any, b: any) => {
+        const dateA = `${a.data}T${a.horario}`;
+        const dateB = `${b.data}T${b.horario}`;
+        return dateA.localeCompare(dateB);
+      })[0] || null;
+  }, [appointments]);
+
+  // Treinos realizados no mês atual (presença)
+  const currentMonthAttendances = useMemo(() => {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return appointments.filter((a: any) => a.data?.startsWith(currentMonthKey) && a.status === 'presenca').length;
+  }, [appointments]);
+
+  // Agrupamento de agendamentos por mês com estatísticas
+  const appointmentsByMonth = useMemo(() => {
+    const groups: Record<string, {
+      monthKey: string;
+      monthLabel: string;
+      items: any[];
+      futuros: any[];
+      historico: any[];
+      presencas: number;
+      faltas: number;
+      cancelados: number;
+    }> = {};
+
+    const now = new Date();
+
+    appointments.forEach((a: any) => {
+      if (!a.data) return;
+      const monthKey = a.data.substring(0, 7); // "YYYY-MM"
+      if (!groups[monthKey]) {
+        const [ano, mes] = monthKey.split('-');
+        const d = new Date(Number(ano), Number(mes) - 1, 1);
+        const rawLabel = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const monthLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
+        groups[monthKey] = {
+          monthKey,
+          monthLabel,
+          items: [],
+          futuros: [],
+          historico: [],
+          presencas: 0,
+          faltas: 0,
+          cancelados: 0
+        };
+      }
+
+      const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
+      const isFuture = aptDateTime.getTime() >= now.getTime() && a.status === 'agendado';
+
+      groups[monthKey].items.push(a);
+
+      if (isFuture) {
+        groups[monthKey].futuros.push(a);
+      } else {
+        groups[monthKey].historico.push(a);
+        if (a.status === 'presenca') groups[monthKey].presencas++;
+        else if (a.status === 'falta') groups[monthKey].faltas++;
+        else if (a.status === 'cancelado') groups[monthKey].cancelados++;
+      }
+    });
+
+    const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+    return sortedKeys.map(k => {
+      const g = groups[k];
+      g.futuros.sort((a, b) => `${a.data}T${a.horario}`.localeCompare(`${b.data}T${b.horario}`));
+      g.historico.sort((a, b) => `${b.data}T${b.horario}`.localeCompare(`${a.data}T${a.horario}`));
+      return g;
+    });
+  }, [appointments]);
+
+  const toggleMonthCollapse = (monthKey: string) => {
+    setCollapsedMonths(prev => ({
+      ...prev,
+      [monthKey]: !prev[monthKey]
+    }));
+  };
+
+  // Detect saturday from selected booking date
+  const bookDateIsSaturday = bookDate ? new Date(bookDate + 'T12:00:00').getDay() === 6 : false;
+
   // Reset bookTime when date or service changes
   useEffect(() => {
     setBookTime('');
@@ -931,98 +1023,6 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const emergUsados = client.dadosComerciais?.creditosEmergenciaUsados || 0;
   const emergReservados = client.dadosComerciais?.creditosEmergenciaReservados || 0;
   const emergDisp = Math.max(0, emergTotal - emergUsados - emergReservados);
-
-  // Próximo agendamento futuro
-  const nextAppointment = useMemo(() => {
-    const now = new Date();
-    return appointments
-      .filter((a: any) => {
-        if (a.status !== 'agendado') return false;
-        const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
-        return aptDateTime.getTime() >= now.getTime();
-      })
-      .sort((a: any, b: any) => {
-        const dateA = `${a.data}T${a.horario}`;
-        const dateB = `${b.data}T${b.horario}`;
-        return dateA.localeCompare(dateB);
-      })[0] || null;
-  }, [appointments]);
-
-  // Treinos realizados no mês atual (presença)
-  const currentMonthAttendances = useMemo(() => {
-    const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    return appointments.filter((a: any) => a.data?.startsWith(currentMonthKey) && a.status === 'presenca').length;
-  }, [appointments]);
-
-  // Agrupamento de agendamentos por mês com estatísticas
-  const appointmentsByMonth = useMemo(() => {
-    const groups: Record<string, {
-      monthKey: string;
-      monthLabel: string;
-      items: any[];
-      futuros: any[];
-      historico: any[];
-      presencas: number;
-      faltas: number;
-      cancelados: number;
-    }> = {};
-
-    const now = new Date();
-
-    appointments.forEach((a: any) => {
-      if (!a.data) return;
-      const monthKey = a.data.substring(0, 7); // "YYYY-MM"
-      if (!groups[monthKey]) {
-        const [ano, mes] = monthKey.split('-');
-        const d = new Date(Number(ano), Number(mes) - 1, 1);
-        const rawLabel = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-        const monthLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
-        groups[monthKey] = {
-          monthKey,
-          monthLabel,
-          items: [],
-          futuros: [],
-          historico: [],
-          presencas: 0,
-          faltas: 0,
-          cancelados: 0
-        };
-      }
-
-      const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
-      const isFuture = aptDateTime.getTime() >= now.getTime() && a.status === 'agendado';
-
-      groups[monthKey].items.push(a);
-
-      if (isFuture) {
-        groups[monthKey].futuros.push(a);
-      } else {
-        groups[monthKey].historico.push(a);
-        if (a.status === 'presenca') groups[monthKey].presencas++;
-        else if (a.status === 'falta') groups[monthKey].faltas++;
-        else if (a.status === 'cancelado') groups[monthKey].cancelados++;
-      }
-    });
-
-    const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-    return sortedKeys.map(k => {
-      const g = groups[k];
-      g.futuros.sort((a, b) => `${a.data}T${a.horario}`.localeCompare(`${b.data}T${b.horario}`));
-      g.historico.sort((a, b) => `${b.data}T${b.horario}`.localeCompare(`${a.data}T${a.horario}`));
-      return g;
-    });
-  }, [appointments]);
-
-  const toggleMonthCollapse = (monthKey: string) => {
-    setCollapsedMonths(prev => ({
-      ...prev,
-      [monthKey]: !prev[monthKey]
-    }));
-  };
-
-  // Detect saturday from selected booking date
-  const bookDateIsSaturday = bookDate ? new Date(bookDate + 'T12:00:00').getDay() === 6 : false;
 
   return (
     <div>
