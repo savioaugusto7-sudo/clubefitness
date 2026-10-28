@@ -3662,9 +3662,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '14px' }}>
                       {assessments.map((a: any) => {
-                        const peso = a.dadosMedidos?.composicaoCorporal?.peso || a.peso;
-                        const gordura = a.dadosMedidos?.composicaoCorporal?.percGordura || a.percGordura;
-                        const massa = a.dadosMedidos?.composicaoCorporal?.massaMagra || a.massaMagra;
+                        const rawPeso = a.dadosMedidos?.peso ?? a.peso;
+                        const peso = rawPeso ? Number(rawPeso) : null;
+                        const rawGordura = a.resultadosCalculados?.percentualGordura ?? a.dadosMedidos?.gordura ?? a.percGordura;
+                        const gordura = rawGordura ? Number(rawGordura) : null;
+                        let rawMassa = a.resultadosCalculados?.massaMagra ?? a.dadosMedidos?.massaMagra ?? a.massaMagra;
+                        if (!rawMassa && peso && gordura) {
+                          rawMassa = peso * (1 - gordura / 100);
+                        }
+                        const massa = rawMassa ? Number(rawMassa) : null;
 
                         return (
                           <div
@@ -3692,15 +3698,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', marginBottom: '14px', textAlign: 'center' }}>
                                 <div>
                                   <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase' }}>Peso</div>
-                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>{peso ? `${peso} kg` : '-'}</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>{peso !== null ? `${peso.toFixed(1).replace('.0', '')} kg` : '-'}</div>
                                 </div>
                                 <div>
                                   <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase' }}>Gordura</div>
-                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8' }}>{gordura ? `${gordura}%` : '-'}</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8' }}>{gordura !== null ? `${gordura.toFixed(1)}%` : '-'}</div>
                                 </div>
                                 <div>
                                   <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase' }}>M. Magra</div>
-                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#10b981' }}>{massa ? `${massa} kg` : '-'}</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#10b981' }}>{massa !== null ? `${massa.toFixed(1)} kg` : '-'}</div>
                                 </div>
                               </div>
                             </div>
@@ -3891,26 +3897,30 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
           position: 'fixed',
           top: 0,
           left: 0,
+          right: 0,
+          bottom: 0,
           width: '100vw',
           height: '100vh',
-          background: 'rgba(0, 0, 0, 0.8)',
-          zIndex: 10000,
+          background: 'rgba(0, 0, 0, 0.85)',
+          zIndex: 1000000,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          backdropFilter: 'blur(6px)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
           padding: '16px'
         }}>
           <div style={{
             background: 'var(--bg-dark, #0e131f)',
             border: '1px solid rgba(37, 211, 102, 0.35)',
             borderRadius: '16px',
-            padding: '24px',
+            padding: '24px 20px',
+            paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 16px))',
             width: '100%',
             maxWidth: '540px',
-            maxHeight: '90vh',
+            maxHeight: '92vh',
             overflowY: 'auto',
-            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.7)',
             color: '#f8fafc',
             position: 'relative'
           }}>
@@ -4196,14 +4206,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
           position: 'fixed',
           top: 0,
           left: 0,
+          right: 0,
+          bottom: 0,
           width: '100vw',
           height: '100vh',
-          background: 'rgba(0, 0, 0, 0.75)',
-          zIndex: 9999,
+          background: 'rgba(0, 0, 0, 0.85)',
+          zIndex: 1000000,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          backdropFilter: 'blur(4px)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
           padding: '20px'
         }}>
           <div style={{

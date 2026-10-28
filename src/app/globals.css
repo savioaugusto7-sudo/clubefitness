@@ -58,6 +58,9 @@ html {
   font-size: 12.5px;
   overflow-x: auto;
   width: 100%;
+  background-color: var(--bg-darker, #080b11) !important;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 @media (max-width: 768px) {
@@ -3845,13 +3848,18 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     overflow-x: hidden !important;
     overflow-y: auto !important;
     height: auto !important;
-    min-height: 100% !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    background-color: #080b11 !important;
     touch-action: pan-y !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
   body {
     display: block !important;
+    background-color: #080b11 !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
   }
 
   .app-container {
@@ -3859,7 +3867,9 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     flex-direction: column !important;
     width: 100% !important;
     height: auto !important;
-    min-height: auto !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    background-color: #080b11 !important;
     overflow: visible !important;
   }
 
@@ -3873,7 +3883,9 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     margin-left: 0 !important;
     width: 100% !important;
     height: auto !important;
-    min-height: auto !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    background-color: #080b11 !important;
     overflow: visible !important;
     padding: calc(14px + var(--safe-top)) 14px var(--mobile-bottom-clearance) 14px !important;
     box-sizing: border-box !important;
