@@ -11,6 +11,8 @@ import DashboardClient from '@/components/DashboardClient';
 import AiCopilotWidget from '@/components/AiCopilotWidget';
 import GabiChatPage from '@/components/GabiChatPage';
 import GabiIntelligenceStudio from '@/components/GabiIntelligenceStudio';
+import SavioAgendaPanel from '@/components/SavioAgendaPanel';
+import { isSavioAdmin } from '@/lib/auth-savio';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -154,6 +156,18 @@ export default function DashboardPage() {
         );
       }
       return <GabiIntelligenceStudio user={user} />;
+    }
+
+    if (activeTab === 'agenda_savio') {
+      if (!isSavioAdmin(user)) {
+        return (
+          <div style={{ padding: '32px', textAlign: 'center', color: '#ef4444' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Acesso Restrito</h2>
+            <p style={{ color: '#94a3b8' }}>A Agenda Pessoal Administrativa é de uso exclusivo do Administrador Sávio Augusto Oliveira.</p>
+          </div>
+        );
+      }
+      return <SavioAgendaPanel user={user} />;
     }
 
     if (effectiveRole === 'admin') {

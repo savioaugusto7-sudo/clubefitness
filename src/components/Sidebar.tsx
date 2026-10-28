@@ -233,6 +233,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [pendingExercisesCount, setPendingExercisesCount] = useState<number>(0);
+  const [agendaAlerts, setAgendaAlerts] = useState<{ count: number; hasCritical: boolean }>({ count: 0, hasCritical: false });
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   const isSavio = 
@@ -248,18 +249,19 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
         tabs: cat.tabs.filter(t => t.id !== 'trancamento')
       }));
     }
-    if (isSavio) {
-      const gabiCat: SidebarCategory = {
-        title: 'INTELIGÊNCIA EXECUTIVA',
-        icon: 'fa-brain',
+    if (isSavio && role === 'admin') {
+      const executivaCat: SidebarCategory = {
+        title: 'GESTÃO EXECUTIVA',
+        icon: 'fa-user-tie',
         tabs: [
+          { id: 'agenda_savio', label: 'Minha Agenda & Tarefas', icon: 'fa-calendar-check' },
           { id: 'gabi_intelligence', label: '✨ Gabi Intelligence Studio', icon: 'fa-wand-magic-sparkles' }
         ]
       };
       if (base.length > 0) {
-        base = [base[0], gabiCat, ...base.slice(1)];
+        base = [base[0], executivaCat, ...base.slice(1)];
       } else {
-        base = [gabiCat];
+        base = [executivaCat];
       }
     }
     return base;
@@ -305,6 +307,38 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
       clearInterval(interval);
     };
   }, [role]);
+
+  // Consultar contagem de alertas de tarefas exclusivas do Sávio
+  useEffect(() => {
+    if (!isSavio || role !== 'admin') return;
+
+    let isMounted = true;
+    const fetchAgendaSummary = async () => {
+      try {
+        const res = await fetch('/api/admin/savio-agenda/summary');
+        const json = await res.json();
+        if (isMounted && json.success && json.summary) {
+          setAgendaAlerts({
+            count: json.summary.badgeCount || 0,
+            hasCritical: Boolean(json.summary.hasCriticalAlert)
+          });
+        }
+      } catch (_) {}
+    };
+
+    fetchAgendaSummary();
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchAgendaSummary();
+      }
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isSavio, role]);
 
   // Automatically ensure category of active tab is expanded
   useEffect(() => {
@@ -514,6 +548,8 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
                   <div style={{ marginTop: '2px', padding: '0 6px 4px 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {matchingTabs.map((tab) => {
                       const isPendingEx = tab.id === 'solicitacoes_exercicios' && pendingExercisesCount > 0;
+                      const isAgendaSavio = tab.id === 'agenda_savio' && agendaAlerts.count > 0;
+
                       return (
                         <div
                           key={tab.id}
@@ -527,8 +563,8 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                            <i className={`fa-solid ${tab.icon}`} style={isPendingEx ? { color: '#fbbf24' } : {}}></i>
-                            <span style={isPendingEx ? { color: '#fbbf24', fontWeight: 700 } : {}}>{tab.label}</span>
+                            <i className={`fa-solid ${tab.icon}`} style={isPendingEx ? { color: '#fbbf24' } : isAgendaSavio ? { color: agendaAlerts.hasCritical ? '#f87171' : '#fbbf24' } : {}}></i>
+                            <span style={isPendingEx ? { color: '#fbbf24', fontWeight: 700 } : isAgendaSavio ? { color: agendaAlerts.hasCritical ? '#f87171' : '#e2e8f0', fontWeight: 700 } : {}}>{tab.label}</span>
                           </div>
                           {isPendingEx && (
                             <span style={{
@@ -541,6 +577,22 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
                               boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)'
                             }}>
                               {pendingExercisesCount}
+                            </span>
+                          )}
+                          {isAgendaSavio && (
+                            <span
+                              style={{
+                                background: agendaAlerts.hasCritical ? '#ef4444' : '#f59e0b',
+                                color: '#fff',
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                borderRadius: '10px',
+                                padding: '1px 6px',
+                                boxShadow: agendaAlerts.hasCritical ? '0 0 8px rgba(239, 68, 68, 0.6)' : '0 2px 4px rgba(245, 158, 11, 0.3)'
+                              }}
+                              title={agendaAlerts.hasCritical ? `${agendaAlerts.count} tarefa(s) atrasada(s)` : `${agendaAlerts.count} tarefa(s) pendente(s)`}
+                            >
+                              {agendaAlerts.count}
                             </span>
                           )}
                         </div>
