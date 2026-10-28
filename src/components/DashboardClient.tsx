@@ -84,6 +84,24 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const [evoViewMode, setEvoViewMode] = useState<'recente' | 'historico'>('recente');
   const [wellnessLogs, setWellnessLogs] = useState<any[]>([]);
 
+  // Estados para Triagem de Emergência via WhatsApp
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [emergRegiaoCorpo, setEmergRegiaoCorpo] = useState('');
+  const [emergTipoDor, setEmergTipoDor] = useState('');
+  const [emergDiasDisponiveis, setEmergDiasDisponiveis] = useState<string[]>([]);
+  const [emergTurnosDisponiveis, setEmergTurnosDisponiveis] = useState<string[]>([]);
+  const [emergObs, setEmergObs] = useState('');
+
+  // Controle de expansão de meses na tela de créditos
+  const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>({});
+
+  // Redirecionamento da aba antiga 'agendamentos' para 'creditos'
+  useEffect(() => {
+    if (activeTab === 'agendamentos') {
+      setActiveTab('creditos');
+    }
+  }, [activeTab, setActiveTab]);
+
   const getSchedulingLimitDate = () => {
     const now = new Date();
     // Forçar cálculo no fuso horário do Brasil/São Paulo
@@ -914,145 +932,822 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const emergReservados = client.dadosComerciais?.creditosEmergenciaReservados || 0;
   const emergDisp = Math.max(0, emergTotal - emergUsados - emergReservados);
 
+  // Próximo agendamento futuro
+  const nextAppointment = useMemo(() => {
+    const now = new Date();
+    return appointments
+      .filter((a: any) => {
+        if (a.status !== 'agendado') return false;
+        const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
+        return aptDateTime.getTime() >= now.getTime();
+      })
+      .sort((a: any, b: any) => {
+        const dateA = `${a.data}T${a.horario}`;
+        const dateB = `${b.data}T${b.horario}`;
+        return dateA.localeCompare(dateB);
+      })[0] || null;
+  }, [appointments]);
+
+  // Treinos realizados no mês atual (presença)
+  const currentMonthAttendances = useMemo(() => {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return appointments.filter((a: any) => a.data?.startsWith(currentMonthKey) && a.status === 'presenca').length;
+  }, [appointments]);
+
+  // Agrupamento de agendamentos por mês com estatísticas
+  const appointmentsByMonth = useMemo(() => {
+    const groups: Record<string, {
+      monthKey: string;
+      monthLabel: string;
+      items: any[];
+      futuros: any[];
+      historico: any[];
+      presencas: number;
+      faltas: number;
+      cancelados: number;
+    }> = {};
+
+    const now = new Date();
+
+    appointments.forEach((a: any) => {
+      if (!a.data) return;
+      const monthKey = a.data.substring(0, 7); // "YYYY-MM"
+      if (!groups[monthKey]) {
+        const [ano, mes] = monthKey.split('-');
+        const d = new Date(Number(ano), Number(mes) - 1, 1);
+        const rawLabel = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const monthLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
+        groups[monthKey] = {
+          monthKey,
+          monthLabel,
+          items: [],
+          futuros: [],
+          historico: [],
+          presencas: 0,
+          faltas: 0,
+          cancelados: 0
+        };
+      }
+
+      const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
+      const isFuture = aptDateTime.getTime() >= now.getTime() && a.status === 'agendado';
+
+      groups[monthKey].items.push(a);
+
+      if (isFuture) {
+        groups[monthKey].futuros.push(a);
+      } else {
+        groups[monthKey].historico.push(a);
+        if (a.status === 'presenca') groups[monthKey].presencas++;
+        else if (a.status === 'falta') groups[monthKey].faltas++;
+        else if (a.status === 'cancelado') groups[monthKey].cancelados++;
+      }
+    });
+
+    const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+    return sortedKeys.map(k => {
+      const g = groups[k];
+      g.futuros.sort((a, b) => `${a.data}T${a.horario}`.localeCompare(`${b.data}T${b.horario}`));
+      g.historico.sort((a, b) => `${b.data}T${b.horario}`.localeCompare(`${a.data}T${a.horario}`));
+      return g;
+    });
+  }, [appointments]);
+
+  const toggleMonthCollapse = (monthKey: string) => {
+    setCollapsedMonths(prev => ({
+      ...prev,
+      [monthKey]: !prev[monthKey]
+    }));
+  };
+
   // Detect saturday from selected booking date
   const bookDateIsSaturday = bookDate ? new Date(bookDate + 'T12:00:00').getDay() === 6 : false;
 
   return (
     <div>
-      {/* 1. View: Painel do Aluno */}
-      {activeTab === 'dashboard' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Olá, {client.dadosPessoais?.nome}!</h1>
-              <p>{client.dadosComerciais?.status === 'pendente' ? 'Seu cadastro foi recebido. Aguarde a ativação do seu plano.' : 'Confira seu plano, créditos e próximos treinos.'}</p>
-            </div>
-          </div>
+      {/* 1. View: Painel do Aluno - Home Premium */}
+      {activeTab === 'dashboard' && (() => {
+        const hour = new Date().getHours();
+        const greeting = hour >= 5 && hour < 12 ? 'Bom dia' : hour >= 12 && hour < 18 ? 'Boa tarde' : 'Boa noite';
+        const firstName = client.dadosPessoais?.nome ? client.dadosPessoais.nome.split(' ')[0] : 'Aluno';
+        const planoNome = client.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : (client.dadosComerciais?.planoId?.nome || 'Plano Personalizado');
+        const planoFreq = client.dadosComerciais?.frequencia || 0;
+        const planoStatus = client.dadosComerciais?.status || 'ativo';
 
-          {/* Painel pendente ou aguardando pagamento */}
-          {pendingAsaasContract ? (
-            <div className="content-panel" style={{ marginTop: '24px', padding: '32px 24px', background: 'var(--bg-secondary)', border: '2.5px solid var(--color-primary)', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <i className="fa-solid fa-file-invoice-dollar" style={{ fontSize: '24px', color: 'var(--color-primary)' }}></i>
+        const getFriendlyDate = (dateStr: string) => {
+          if (!dateStr) return '';
+          try {
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            const y = Number(parts[0]);
+            const m = Number(parts[1]) - 1;
+            const d = Number(parts[2]);
+            const dateObj = new Date(y, m, d, 12, 0, 0);
+            const now = new Date();
+            const todayStr = formatDateISO(now);
+            const tom = new Date(now);
+            tom.setDate(tom.getDate() + 1);
+            const tomStr = formatDateISO(tom);
+
+            let prefix = '';
+            if (dateStr === todayStr) prefix = 'Hoje, ';
+            else if (dateStr === tomStr) prefix = 'Amanhã, ';
+            else {
+              const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+              prefix = weekday.charAt(0).toUpperCase() + weekday.slice(1) + ', ';
+            }
+            const dayAndMonth = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+            return `${prefix}${dayAndMonth}`;
+          } catch (err) {
+            return dateStr;
+          }
+        };
+
+        const activeSheets = workout ? [
+          ...(workout.fichasMonitorado || []).filter((f: any) => f.exercicios?.length > 0).map((f: any) => ({ ...f, categoria: 'Monitorado' })),
+          ...(workout.fichasLivre || []).filter((f: any) => f.exercicios?.length > 0).map((f: any) => ({ ...f, categoria: 'Livre' }))
+        ] : [];
+        const primarySheet = activeSheets[0] || null;
+
+        const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+        const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+        const credProgressPercent = credTotal > 0 ? Math.min(100, Math.round(((credUsados + credReservados) / credTotal) * 100)) : 0;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header VIP com Saudação por Turno */}
+            <div className="view-header" style={{ marginBottom: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div className="view-title-group">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '1.7rem' }}>
+                    {hour >= 5 && hour < 12 ? '🌅' : hour >= 12 && hour < 18 ? '☀️' : '🌙'}
+                  </span>
+                  <h1 style={{ 
+                    fontFamily: 'var(--font-title)', 
+                    fontSize: '1.9rem', 
+                    fontWeight: 800, 
+                    margin: 0,
+                    background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    {greeting}, {firstName}!
+                  </h1>
                 </div>
-                <div style={{ flexGrow: 1 }}>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-main)' }}>Seu plano está aguardando pagamento</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-                    Identificamos uma cobrança pendente para ativação do seu plano <strong>{pendingAsaasContract.planoNome}</strong>.
-                  </p>
-                </div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', textAlign: 'right' }}>
-                  R$ {pendingAsaasContract.valorLiquido?.toFixed(2).replace('.', ',')}
-                  <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-dim)' }}>
-                    vencimento: {pendingAsaasContract.dataPrimeiroVencimento ? new Date(pendingAsaasContract.dataPrimeiroVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}
-                  </div>
-                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', margin: 0 }}>
+                  {planoStatus === 'pendente' 
+                    ? 'Seu cadastro foi recebido com sucesso. Aguarde a ativação do seu plano.'
+                    : 'Pronto para treinar hoje? Mantenha sua constância e alcance sua melhor versão.'}
+                </p>
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
+              {/* Badges de Status do Aluno */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.4px',
+                  background: planoStatus === 'ativo' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                  border: `1px solid ${planoStatus === 'ativo' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                  color: planoStatus === 'ativo' ? '#34d399' : '#fbbf24',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: planoStatus === 'ativo' ? '#10b981' : '#f59e0b', boxShadow: planoStatus === 'ativo' ? '0 0 8px #10b981' : 'none' }}></span>
+                  {planoStatus === 'ativo' ? 'Plano Ativo' : planoStatus === 'pendente' ? 'Aguardando Ativação' : 'Vencido'}
+                </span>
+                <span style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'var(--text-muted)'
+                }}>
+                  {planoNome} {planoFreq > 0 ? `• ${planoFreq}x/sem` : ''}
+                </span>
+              </div>
+            </div>
 
-              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-                {pendingAsaasContract.formaPagamento === 'pix' && pendingAsaasContract.asaasPixCopyPaste && (
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', flexGrow: 1 }}>
-                    {pendingAsaasContract.asaasPixQrCode && (
-                      <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '120px', height: '120px' }}>
-                        <img src={`data:image/png;base64,${pendingAsaasContract.asaasPixQrCode}`} alt="QR Code Pix" style={{ width: '100%', height: '100%' }} />
-                      </div>
-                    )}
-                    <div style={{ flexGrow: 1, maxWidth: '400px' }}>
-                      <label style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIX COPIA E COLA</label>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <input
-                          type="text"
-                          readOnly
-                          className="form-control"
-                          value={pendingAsaasContract.asaasPixCopyPaste}
-                          style={{ fontSize: '0.75rem', background: 'var(--bg-darker)' }}
-                        />
-                        <button
-                          className="btn btn-primary"
-                          onClick={() => {
-                            navigator.clipboard.writeText(pendingAsaasContract.asaasPixCopyPaste);
-                            alert('Copiado para a área de transferência!');
-                          }}
-                        >
-                          <i className="fa-solid fa-copy"></i>
-                        </button>
-                      </div>
+            {/* Alerta de Fatura Pendente Asaas (se houver) */}
+            {pendingAsaasContract && (
+              <div className="content-panel" style={{ padding: '28px 24px', background: 'var(--bg-secondary)', border: '2px solid var(--color-primary)', borderRadius: '16px', boxShadow: '0 8px 24px rgba(59,130,246,0.15)' }}>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <i className="fa-solid fa-file-invoice-dollar" style={{ fontSize: '24px', color: 'var(--color-primary)' }}></i>
+                  </div>
+                  <div style={{ flexGrow: 1 }}>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-main)' }}>Seu plano está aguardando pagamento</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                      Identificamos uma cobrança pendente para ativação do seu plano <strong>{pendingAsaasContract.planoNome}</strong>.
+                    </p>
+                  </div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', textAlign: 'right' }}>
+                    R$ {pendingAsaasContract.valorLiquido?.toFixed(2).replace('.', ',')}
+                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-dim)' }}>
+                      vencimento: {pendingAsaasContract.dataPrimeiroVencimento ? new Date(pendingAsaasContract.dataPrimeiroVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}
                     </div>
                   </div>
-                )}
+                </div>
 
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginLeft: 'auto' }}>
-                  {pendingAsaasContract.asaasBoletoPdf && (
-                    <a href={pendingAsaasContract.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar Boleto PDF
-                    </a>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '18px 0' }} />
+
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {pendingAsaasContract.formaPagamento === 'pix' && pendingAsaasContract.asaasPixCopyPaste && (
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', flexGrow: 1 }}>
+                      {pendingAsaasContract.asaasPixQrCode && (
+                        <div style={{ background: '#fff', padding: '6px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '110px', height: '110px' }}>
+                          <img src={`data:image/png;base64,${pendingAsaasContract.asaasPixQrCode}`} alt="QR Code Pix" style={{ width: '100%', height: '100%' }} />
+                        </div>
+                      )}
+                      <div style={{ flexGrow: 1, maxWidth: '380px' }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIX COPIA E COLA</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            readOnly
+                            className="form-control"
+                            value={pendingAsaasContract.asaasPixCopyPaste}
+                            style={{ fontSize: '0.75rem', background: 'var(--bg-darker)' }}
+                          />
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => {
+                              navigator.clipboard.writeText(pendingAsaasContract.asaasPixCopyPaste);
+                              alert('Código PIX copiado com sucesso!');
+                            }}
+                          >
+                            <i className="fa-solid fa-copy"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                  <a href={pendingAsaasContract.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className="fa-solid fa-arrow-up-right-from-square"></i> Pagar no Asaas
-                  </a>
-                </div>
-              </div>
-            </div>
-          ) : client.dadosComerciais?.status === 'pendente' ? (
-            <div className="content-panel" style={{ marginTop: '24px', textAlign: 'center', padding: '48px 32px' }}>
-              <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                <i className="fa-solid fa-clock" style={{ fontSize: '28px', color: 'var(--color-warning)' }}></i>
-              </div>
-              <h2 style={{ fontFamily: 'var(--font-title)', color: 'var(--color-warning)', marginBottom: '12px' }}>Aguardando Ativação do Plano</h2>
-              <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto', lineHeight: 1.7 }}>
-                Seu cadastro foi recebido com sucesso! A equipe irá analisar seus dados e ativar seu plano em breve.
-                <br /><br />
-                <strong style={{ color: 'var(--text-main)' }}>Em caso de dúvidas, entre em contato com a recepção.</strong>
-              </p>
-            </div>
-          ) : (
-            <>
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Créditos Disponíveis</h3>
-                <div className="value">{credDisp}</div>
-                <small style={{ color: 'var(--text-dim)' }}>de {credTotal} totais no mês</small>
-              </div>
-              <div className="metric-icon"><i className="fa-solid fa-coins"></i></div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Treinos Agendados</h3>
-                <div className="value">{credReservados}</div>
-              </div>
-              <div className="metric-icon indigo"><i className="fa-solid fa-clock"></i></div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Status do Plano</h3>
-                <div className="value" style={{ 
-                  color: client.dadosComerciais?.status === 'ativo' ? 'var(--color-success)' : 'var(--color-danger)' 
-                }}>
-                  {client.dadosComerciais?.status === 'ativo' ? 'Ativo' : client.dadosComerciais?.status === 'pendente' ? 'Pendente' : 'Vencido'}
-                </div>
-              </div>
-              <div className="metric-icon"><i className="fa-solid fa-calendar-check"></i></div>
-            </div>
-          </div>
 
-          <div className="content-panel" style={{ marginTop: '24px' }}>
-            <div className="panel-header">
-              <h2>Detalhes do seu Plano</h2>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginLeft: 'auto' }}>
+                    {pendingAsaasContract.asaasBoletoPdf && (
+                      <a href={pendingAsaasContract.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                        <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar Boleto PDF
+                      </a>
+                    )}
+                    <a href={pendingAsaasContract.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                      <i className="fa-solid fa-arrow-up-right-from-square"></i> Pagar no Asaas
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CARD HERO VIP: Próximo Treino Confirmado OU Convite para Agendamento */}
+            {nextAppointment ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                border: '1.5px solid rgba(16, 185, 129, 0.35)',
+                borderRadius: '20px',
+                padding: '24px 28px',
+                boxShadow: '0 12px 36px -10px rgba(16, 185, 129, 0.25)',
+                backdropFilter: 'blur(12px)',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '-30px',
+                  right: '-30px',
+                  width: '180px',
+                  height: '180px',
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)',
+                  pointerEvents: 'none'
+                }}></div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 12px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.18)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }}></span>
+                    <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#34d399', letterSpacing: '0.5px' }}>
+                      PRÓXIMO TREINO CONFIRMADO
+                    </span>
+                  </div>
+
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: 'var(--text-main)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    {nextAppointment.tipoServico || 'Treino Monitorado'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '4px' }}>
+                      {getFriendlyDate(nextAppointment.data)}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '1.6rem', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <i className="fa-solid fa-clock" style={{ fontSize: '1.25rem' }}></i> {nextAppointment.horario}
+                      </span>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                        • Vaga reservada na unidade Clube Fitness
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('creditos')}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '10px 18px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderRadius: '10px'
+                      }}
+                    >
+                      <i className="fa-solid fa-calendar-check" style={{ color: '#10b981' }}></i> Ver em Créditos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelAppointment(nextAppointment._id)}
+                      className="btn"
+                      style={{
+                        padding: '10px 16px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        color: '#f87171',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                border: '1.5px dashed rgba(255, 255, 255, 0.14)',
+                borderRadius: '20px',
+                padding: '28px 24px',
+                textAlign: 'center',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '18px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}>
+                  <i className="fa-regular fa-calendar-plus" style={{ fontSize: '1.8rem', color: '#10b981' }}></i>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px 0' }}>
+                  Você ainda não tem treinos agendados para os próximos dias
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: '520px', margin: '0 auto 20px', lineHeight: 1.6 }}>
+                  Garanta sua vaga com antecedência na grade para manter seus créditos ativos e não perder a evolução conquistada.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('agendar')}
+                  className="btn btn-primary"
+                  style={{
+                    padding: '12px 28px',
+                    fontSize: '0.92rem',
+                    fontWeight: 700,
+                    borderRadius: '12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 8px 20px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <i className="fa-solid fa-calendar-plus"></i> Agendar Meu Horário Agora
+                </button>
+              </div>
+            )}
+
+            {/* DUAS COLUNAS CENTRAIS: Ficha de Treino + Constância & Frequência */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              {/* Card da Ficha de Treino Ativa */}
+              <div style={{
+                background: 'rgba(22, 29, 45, 0.55)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '18px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                backdropFilter: 'blur(12px)',
+                position: 'relative'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="fa-solid fa-dumbbell" style={{ fontSize: '1.2rem', color: '#60a5fa' }}></i>
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>Minha Ficha de Treino</h3>
+                        <small style={{ color: 'var(--text-dim)', fontSize: '0.76rem' }}>Rotina personalizada de exercícios</small>
+                      </div>
+                    </div>
+                    {primarySheet && (
+                      <span style={{
+                        padding: '3px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        background: 'rgba(59, 130, 246, 0.15)',
+                        color: '#93c5fd',
+                        border: '1px solid rgba(59, 130, 246, 0.25)'
+                      }}>
+                        {primarySheet.categoria}
+                      </span>
+                    )}
+                  </div>
+
+                  {primarySheet ? (
+                    <div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+                        {primarySheet.nome}
+                      </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '0 0 16px 0' }}>
+                        Contém <strong>{primarySheet.exercicios?.length || 0} exercícios</strong> prescritos com séries, repetições e orientações técnicas.
+                      </p>
+
+                      {/* Prévia dos primeiros exercícios */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '20px' }}>
+                        {(primarySheet.exercicios || []).slice(0, 3).map((ex: any, idx: number) => {
+                          const exData = exercises.find((e: any) => e._id === ex.exercicioId || e.nome === ex.nome);
+                          const name = exData?.nome || ex.nome || `Exercício ${idx + 1}`;
+                          return (
+                            <span key={idx} style={{
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.07)',
+                              color: 'var(--text-muted)'
+                            }}>
+                              • {name}
+                            </span>
+                          );
+                        })}
+                        {(primarySheet.exercicios?.length || 0) > 3 && (
+                          <span style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                            +{(primarySheet.exercicios?.length || 0) - 3} outros
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '16px 0 24px 0' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                        Sua ficha técnica está sendo preparada pelos professores. Acesse a área de treinos para conferir seu histórico.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('treino')}
+                  className="btn btn-secondary"
+                  style={{
+                    width: '100%',
+                    padding: '11px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className="fa-solid fa-play" style={{ color: '#60a5fa', fontSize: '0.85rem' }}></i> Acessar Ficha Completa
+                </button>
+              </div>
+
+              {/* Card de Frequência & Assiduidade do Mês */}
+              <div style={{
+                background: 'rgba(22, 29, 45, 0.55)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '18px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                backdropFilter: 'blur(12px)'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="fa-solid fa-fire" style={{ fontSize: '1.2rem', color: '#fbbf24' }}></i>
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>Constância & Créditos</h3>
+                        <small style={{ color: 'var(--text-dim)', fontSize: '0.76rem' }}>Desempenho em {capitalizedMonth}</small>
+                      </div>
+                    </div>
+                    <span style={{
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      color: '#fbbf24',
+                      border: '1px solid rgba(245, 158, 11, 0.25)'
+                    }}>
+                      {capitalizedMonth}
+                    </span>
+                  </div>
+
+                  {/* Números em destaque */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '18px' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.25)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginBottom: '4px' }}>Treinos no Mês</span>
+                      <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                        {currentMonthAttendances}
+                      </div>
+                      <small style={{ color: '#10b981', fontSize: '0.72rem', fontWeight: 600 }}>presenças confirmadas</small>
+                    </div>
+
+                    <div style={{ background: 'rgba(0,0,0,0.25)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginBottom: '4px' }}>Créditos Disponíveis</span>
+                      <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fbbf24' }}>
+                        {credDisp}
+                      </div>
+                      <small style={{ color: 'var(--text-dim)', fontSize: '0.72rem' }}>de {credTotal} no ciclo</small>
+                    </div>
+                  </div>
+
+                  {/* Barra de Progresso de Consumo de Créditos */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                      <span>Consumo do Plano no Ciclo</span>
+                      <span>{credProgressPercent}% ({credUsados + credReservados}/{credTotal})</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${credProgressPercent}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #10b981 0%, #fbbf24 100%)',
+                        borderRadius: '4px',
+                        transition: 'width 0.4s ease'
+                      }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <i className="fa-solid fa-award" style={{ color: '#10b981', fontSize: '1.1rem' }}></i>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                    {currentMonthAttendances >= 8 
+                      ? 'Sensacional! Sua disciplina e constância estão no topo!' 
+                      : currentMonthAttendances >= 4 
+                      ? 'Excelente ritmo de treinos! Continue firme na rotina!' 
+                      : 'Cada treino faz a diferença! Agende seus dias da semana.'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div style={{ marginTop: '12px', lineHeight: '1.6' }}>
-              <p>Plano Contratado: <strong>{client.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : (client.dadosComerciais?.planoId?.nome || 'Plano Personalizado')}</strong></p>
-              <p>Frequência Contratada: <strong>{client.dadosComerciais?.frequencia} vezes por semana</strong></p>
-              <p>Término da Vigência: <strong>{formatDateBR(client.dadosComerciais?.vencimento)}</strong></p>
+
+            {/* SEÇÃO DE ACESSO RÁPIDO (Quick Actions Grid) */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <i className="fa-solid fa-bolt" style={{ color: '#f59e0b', fontSize: '0.9rem' }}></i>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', letterSpacing: '0.3px' }}>
+                  Acesso Rápido
+                </h3>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                gap: '14px'
+              }}>
+                {/* 1. Agendar */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('agendar')}
+                  style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 14px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(8px)',
+                    color: 'inherit'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-calendar-plus"></i>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>Agendar Horário</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Reserve seus treinos</div>
+                </button>
+
+                {/* 2. Ficha de Treino */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('treino')}
+                  style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 14px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(8px)',
+                    color: 'inherit'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-dumbbell"></i>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>Ficha de Treino</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Exercícios & cargas</div>
+                </button>
+
+                {/* 3. Meus Créditos & Agendas */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('creditos')}
+                  style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 14px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(8px)',
+                    color: 'inherit'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-coins"></i>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>Meus Créditos</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Histórico & saldo</div>
+                </button>
+
+                {/* 4. Minha Evolução */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('evolucao')}
+                  style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 14px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(8px)',
+                    color: 'inherit'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-chart-line"></i>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>Minha Evolução</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Gráficos corporais</div>
+                </button>
+
+                {/* 5. Meus Laudos */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('documentos')}
+                  style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 14px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(8px)',
+                    color: 'inherit'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-file-pdf"></i>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>Meus Laudos</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Avaliações & PDFs</div>
+                </button>
+              </div>
+            </div>
+
+            {/* BARRA DISCRETA DE DETALHES DO PLANO */}
+            <div style={{
+              background: 'rgba(14, 19, 31, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRadius: '14px',
+              padding: '14px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              fontSize: '0.84rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-id-card" style={{ color: 'var(--color-primary)' }}></i>
+                <span style={{ color: 'var(--text-dim)' }}>Plano:</span>
+                <strong style={{ color: 'var(--text-main)' }}>{planoNome}</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-repeat" style={{ color: '#10b981' }}></i>
+                <span style={{ color: 'var(--text-dim)' }}>Frequência:</span>
+                <strong style={{ color: 'var(--text-main)' }}>{planoFreq}x por semana</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-calendar-day" style={{ color: '#fbbf24' }}></i>
+                <span style={{ color: 'var(--text-dim)' }}>Vencimento:</span>
+                <strong style={{ color: 'var(--text-main)' }}>{formatDateBR(client.dadosComerciais?.vencimento) || 'Indeterminado'}</strong>
+              </div>
             </div>
           </div>
-            </>
-          )}
-        </>
-      )}
+        );
+      })()}
 
       {/* 2. View: Agendar Horário */}
       {activeTab === 'agendar' && (
@@ -1101,7 +1796,6 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       <>
                         <option value="Treino Monitorado">Treino Monitorado</option>
                         <option value="Treino Livre">Treino Livre</option>
-                        <option value="Emergência">Atendimento de Emergência</option>
                       </>
                     )}
                   </select>
@@ -1257,193 +1951,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         </>
       )}
 
-      {/* 3. View: Meus Agendamentos */}
-      {activeTab === 'agendamentos' && (() => {
-        const now = new Date();
-        const futureApts = appointments.filter((a: any) => {
-          const aptDateTime = new Date(`${a.data}T${a.horario}:00-03:00`);
-          return aptDateTime.getTime() >= now.getTime();
-        }).sort((a: any, b: any) => {
-          const dateA = `${a.data}T${a.horario}`;
-          const dateB = `${b.data}T${b.horario}`;
-          return dateA.localeCompare(dateB);
-        });
-
-        return (
-          <>
-            <div className="view-header" style={{ marginBottom: '20px' }}>
-              <div className="view-title-group">
-                <h1 style={{ 
-                  fontFamily: 'var(--font-title)', 
-                  fontSize: '1.8rem', 
-                  fontWeight: 800, 
-                  background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
-                  WebkitBackgroundClip: 'text', 
-                  WebkitTextFillColor: 'transparent',
-                  marginBottom: '4px'
-                }}>
-                  Meus Agendamentos
-                </h1>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Histórico e acompanhamento de agendamentos futuros.</p>
-              </div>
-
-            </div>
-
-            {(() => {
-              const listKey = 'appointments';
-              const size = getPageSize(listKey);
-              const totalPages = Math.ceil(futureApts.length / size);
-              const activeP = getPage(listKey);
-              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-              const paginated = futureApts.slice((curP - 1) * size, curP * size);
-
-              if (paginated.length === 0) {
-                return (
-                  <div className="empty-state-card" style={{ 
-                    padding: '48px 24px', 
-                    background: 'rgba(22, 29, 45, 0.45)', 
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                    borderRadius: '14px',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                    textAlign: 'center'
-                  }}>
-                    <i className="fa-solid fa-calendar-xmark empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '16px' }}></i>
-                    <div className="empty-state-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>Nenhum agendamento futuro</div>
-                    <div className="empty-state-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '20px', maxWidth: '360px', margin: '0 auto 20px' }}>Você não possui aulas ou consultas agendadas para os próximos dias.</div>
-                    <button type="button" className="btn btn-primary" onClick={() => setActiveTab('agendar')} style={{ padding: '10px 24px', fontSize: '0.85rem', fontWeight: 700 }}>
-                      <i className="fa-solid fa-calendar-plus" style={{ marginRight: '6px' }}></i> Agendar Agora
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '20px' }}>
-                    {paginated.map(a => {
-                      const isAcademia = a.tipo === 'academia';
-                      const cardGlow = isAcademia ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)';
-                      const cardBorder = isAcademia ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)';
-                      const statusColors: Record<string, { bg: string, text: string, border: string }> = {
-                        presenca: { bg: 'rgba(16,185,129,0.1)', text: 'var(--color-success)', border: 'rgba(16,185,129,0.2)' },
-                        falta: { bg: 'rgba(239,68,68,0.1)', text: 'var(--color-danger)', border: 'rgba(239,68,68,0.2)' },
-                        cancelado: { bg: 'rgba(239,68,68,0.1)', text: 'var(--color-danger)', border: 'rgba(239,68,68,0.2)' },
-                        agendado: { bg: 'rgba(245,158,11,0.1)', text: 'var(--color-warning)', border: 'rgba(245,158,11,0.2)' }
-                      };
-                      const status = statusColors[a.status] || statusColors.agendado;
-                      return (
-                        <div 
-                          key={a._id}
-                          style={{
-                            background: 'rgba(22, 29, 45, 0.45)',
-                            backdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255, 255, 255, 0.05)',
-                            borderRadius: '14px',
-                            padding: '20px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                            transition: 'all 0.3s ease',
-                            position: 'relative',
-                            overflow: 'hidden'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-3px)';
-                            e.currentTarget.style.borderColor = isAcademia ? 'var(--color-primary)' : 'var(--color-info)';
-                            e.currentTarget.style.boxShadow = `0 10px 30px 0 ${cardGlow}`;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-                            e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.15)';
-                          }}
-                        >
-                          {/* Ticket punch holes visual effect */}
-                          <div style={{ position: 'absolute', left: '-8px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#000', borderRight: '1px solid rgba(255,255,255,0.05)' }}></div>
-                          <div style={{ position: 'absolute', right: '-8px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#000', borderLeft: '1px solid rgba(255,255,255,0.05)' }}></div>
-                          
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                              <span style={{ 
-                                background: isAcademia ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)',
-                                color: isAcademia ? 'var(--color-success)' : 'var(--color-info)',
-                                border: `1px solid ${cardBorder}`,
-                                padding: '2px 8px',
-                                borderRadius: '8px',
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                textTransform: 'uppercase'
-                              }}>
-                                {isAcademia ? 'Academia' : 'Fisioterapia'}
-                              </span>
-                              <span style={{
-                                background: status.bg,
-                                color: status.text,
-                                border: `1px solid ${status.border}`,
-                                padding: '2px 8px',
-                                borderRadius: '8px',
-                                fontSize: '0.68rem',
-                                fontWeight: 700
-                              }}>
-                                {a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
-                              </span>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px dashed rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-                              <div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Data</div>
-                                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{formatDateBR(a.data)}</div>
-                              </div>
-                              <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Horário</div>
-                                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)' }}>{a.horario}</div>
-                              </div>
-                            </div>
-
-                            <div style={{ marginBottom: '20px' }}>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Serviço</div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{a.servico}</div>
-                            </div>
-                          </div>
-
-                          <div>
-                            {a.status === 'agendado' ? (
-                              <button 
-                                className="btn btn-danger btn-sm" 
-                                onClick={() => handleCancelAppointment(a._id)} 
-                                style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                              >
-                                <i className="fa-solid fa-calendar-minus"></i> Cancelar Agendamento
-                              </button>
-                            ) : (
-                              <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.78rem', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '10px' }}>
-                                Ações Indisponíveis
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {futureApts.length > size && (
-                    <div style={{ marginTop: '24px' }}>
-                      <Pagination
-                        currentPage={curP}
-                        totalItems={futureApts.length}
-                        itemsPerPage={size}
-                        onPageChange={page => setPage(listKey, page)}
-                      />
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </>
-        );
-      })()}
+      {/* 3. Redirecionamento da antiga aba Meus Agendamentos para Meus Créditos */}
+      {activeTab === 'agendamentos' && (
+        <div className="content-panel" style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div className="spinner"></div>
+          <p style={{ color: 'var(--text-muted)', marginTop: '12px' }}>Redirecionando para Meus Créditos e Agendamentos...</p>
+        </div>
+      )}
 
       {activeTab === 'treino' && (
         <>
@@ -2286,55 +2800,6 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     </div>
                   </div>
                 )}
-
-                {/* 4. HISTÓRICO DETALHADO DE LAUDOS E AVALIAÇÕES PARA DOWNLOAD */}
-                {assessments.length > 0 && (
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.65) 100%)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: '16px',
-                    padding: '20px',
-                    marginTop: '10px'
-                  }}>
-                    <h4 style={{ margin: '0 0 14px', fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i>
-                      Laudos Oficiais Emitidos ({assessments.length})
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
-                      {assessments.map(a => (
-                        <div
-                          key={a._id}
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.03)',
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            borderRadius: '12px',
-                            padding: '12px 14px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>
-                              📅 {formatDateBR(a.data)}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                              {a.avaliadorId?.nome || 'Avaliador Técnico'}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '6px 10px', fontSize: '0.72rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                            onClick={() => downloadAssessmentPDF(a, assessments)}
-                          >
-                            <i className="fa-solid fa-download"></i> PDF
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })()}
@@ -2738,11 +3203,11 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               );
             })()}
 
-            {/* Emergência */}
+            {/* Emergência - Exibido somente se houver créditos cadastrados */}
             {(() => {
-              const pct = emergTotal > 0 ? Math.round(((emergUsados + emergReservados) / emergTotal) * 100) : 0;
-              const esgotado = emergDisp <= 0 && emergTotal > 0;
-              const semPlano = emergTotal === 0;
+              if (emergTotal <= 0) return null;
+              const pct = Math.round(((emergUsados + emergReservados) / emergTotal) * 100);
+              const esgotado = emergDisp <= 0;
               return (
                 <div style={{ 
                   background: 'rgba(22, 29, 45, 0.45)',
@@ -2751,62 +3216,80 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   borderRadius: '14px',
                   padding: '24px',
                   boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#f59e0b'}`,
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.borderColor = esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#f59e0b';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : '#f59e0b'}`,
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#f59e0b' }}></i>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#f59e0b' }}></i>
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Atendimento de Emergência</h3>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Consultas de urgência (Seg–Sex)</p>
+                      </div>
+                      {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
                     </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos de Emergência</h3>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agendamentos extras (Seg–Sex)</p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
+                      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: emergDisp > 0 ? '#f59e0b' : 'var(--color-danger)' }}>{emergDisp}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{emergUsados}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{emergReservados}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
+                      </div>
                     </div>
-                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                    <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#f59e0b', borderRadius: '6px', transition: 'width 0.4s' }}></div>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {emergTotal} crédito(s)/mês</div>
                   </div>
-                  {semPlano ? (
-                    <div style={{ background: 'rgba(0,0,0,0.1)', borderRadius: '10px', padding: '20px', border: '1px dashed rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '105px' }}>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: 0, fontWeight: 500 }}>Seu plano atual não inclui créditos de emergência.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
-                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: emergDisp > 0 ? '#f59e0b' : 'var(--color-danger)' }}>{emergDisp}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{emergUsados}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{emergReservados}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
-                        </div>
-                      </div>
-                      <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#f59e0b', borderRadius: '6px', transition: 'width 0.4s' }}></div>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {emergTotal} crédito(s)/mês</div>
-                    </>
-                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowEmergencyModal(true)}
+                    style={{
+                      marginTop: '16px',
+                      width: '100%',
+                      padding: '11px 14px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      fontSize: '0.82rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 14px rgba(37, 211, 102, 0.25)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                    onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+                  >
+                    <i className="fa-brands fa-whatsapp" style={{ fontSize: '1.15rem' }}></i>
+                    <span>Agendar Atendimento de Emergência via Whatsapp</span>
+                  </button>
                 </div>
               );
             })()}
 
-            {/* Massagem */}
+            {/* Massagem - Exibido somente se houver créditos cadastrados */}
             {(() => {
-              const pct = massTotal > 0 ? Math.round(((massUsados + massReservados) / massTotal) * 100) : 0;
-              const esgotado = massDisp <= 0 && massTotal > 0;
-              const semPlano = massTotal === 0;
+              if (massTotal <= 0) return null;
+              const pct = Math.round(((massUsados + massReservados) / massTotal) * 100);
+              const esgotado = massDisp <= 0;
               return (
                 <div style={{ 
                   background: 'rgba(22, 29, 45, 0.45)',
@@ -2815,16 +3298,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   borderRadius: '14px',
                   padding: '24px',
                   boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#a855f7'}`,
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : '#a855f7'}`,
                   transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.borderColor = esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#a855f7';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
                     <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(168,85,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2836,96 +3311,874 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     </div>
                     {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
                   </div>
-                  {semPlano ? (
-                    <div style={{ background: 'rgba(0,0,0,0.1)', borderRadius: '10px', padding: '20px', border: '1px dashed rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '105px' }}>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: 0, fontWeight: 500 }}>Seu plano atual não inclui créditos de massagem.</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: massDisp > 0 ? '#a855f7' : 'var(--color-danger)' }}>{massDisp}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
                     </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
-                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: massDisp > 0 ? '#a855f7' : 'var(--color-danger)' }}>{massDisp}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{massUsados}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{massReservados}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
-                        </div>
-                      </div>
-                      <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#a855f7', borderRadius: '6px', transition: 'width 0.4s' }}></div>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {massTotal} crédito(s)/mês</div>
-                    </>
-                  )}
+                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{massUsados}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{massReservados}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
+                    </div>
+                  </div>
+                  <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#a855f7', borderRadius: '6px', transition: 'width 0.4s' }}></div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {massTotal} crédito(s)/mês</div>
                 </div>
               );
             })()}
           </div>
 
-          {/* Histórico por tipo */}
-          <div className="content-panel" style={{ 
-            marginTop: '24px',
-            background: 'rgba(22, 29, 45, 0.45)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-            padding: '24px'
-          }}>
-            <div className="panel-header" style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Histórico de Uso</h2>
+          {/* Gestão Integrada de Agendamentos e Consumo Colapsável por Mês */}
+          <div style={{ marginTop: '28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)' }}></i>
+                  Agendamentos & Consumo de Créditos
+                </h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Acompanhe seus horários futuros e o histórico de frequência mês a mês.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setActiveTab('agendar')}
+                style={{ fontSize: '0.8rem', fontWeight: 700, padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-calendar-plus"></i> Agendar Novo Horário
+              </button>
             </div>
-            {appointments.filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum').length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center', fontSize: '0.85rem' }}>Nenhum agendamento com crédito encontrado.</p>
-            ) : (
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Serviço</th>
-                      <th>Tipo de Crédito</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appointments
-                      .filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum')
-                      .sort((a: any, b: any) => b.data.localeCompare(a.data))
-                      .map((a: any) => {
-                        const tipoCor: Record<string, string> = { academia: 'var(--color-primary)', emergencia: '#f59e0b', massagem: '#a855f7' };
-                        const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
-                        
-                        let badgeClass = 'badge-success';
-                        if (a.status === 'agendado') badgeClass = 'badge-info';
-                        else if (a.status === 'cancelado') badgeClass = 'badge-danger';
-                        else if (a.status === 'falta') badgeClass = 'badge-warning';
 
-                        return (
-                          <tr key={a._id}>
-                            <td><strong>{formatDateBR(a.data)} {a.horario}</strong></td>
-                            <td>{a.servico}</td>
-                            <td>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}15`, border: `1px solid ${tipoCor[a.tipoCredito] || 'var(--text-muted)'}30`, padding: '2px 8px', borderRadius: '8px' }}>
-                                {tipoLabel[a.tipoCredito] || a.tipoCredito}
+            {appointmentsByMonth.length === 0 ? (
+              <div style={{
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '14px',
+                padding: '40px 20px',
+                textAlign: 'center'
+              }}>
+                <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '14px' }}></i>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>Nenhum agendamento encontrado</div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '360px', margin: '0 auto 16px' }}>
+                  Você ainda não possui aulas ou treinos agendados no sistema.
+                </p>
+                <button type="button" className="btn btn-primary" onClick={() => setActiveTab('agendar')}>
+                  Agendar Primeiro Treino
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {appointmentsByMonth.map((m, mIdx) => {
+                  // Mês atual ou primeiro mês fica aberto por padrão; outros fechados a menos que expandidos
+                  const isCurrentMonth = m.monthKey === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                  const isCollapsed = collapsedMonths[m.monthKey] !== undefined 
+                    ? collapsedMonths[m.monthKey] 
+                    : (!isCurrentMonth && mIdx > 0);
+
+                  return (
+                    <div 
+                      key={m.monthKey}
+                      style={{
+                        background: 'rgba(22, 29, 45, 0.55)',
+                        backdropFilter: 'blur(12px)',
+                        border: isCurrentMonth ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '14px',
+                        overflow: 'hidden',
+                        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      {/* Cabeçalho do Mês (Accordion) */}
+                      <div 
+                        onClick={() => toggleMonthCollapse(m.monthKey)}
+                        style={{
+                          padding: '16px 20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          background: isCurrentMonth ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                          userSelect: 'none',
+                          borderBottom: !isCollapsed ? '1px solid rgba(255, 255, 255, 0.06)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 800, color: isCurrentMonth ? 'var(--color-primary)' : '#ffffff' }}>
+                            {m.monthLabel}
+                          </span>
+                          {isCurrentMonth && (
+                            <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '10px' }}>
+                              MÊS ATUAL
+                            </span>
+                          )}
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {m.futuros.length > 0 && (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-primary)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                {m.futuros.length} futuro(s)
                               </span>
-                            </td>
-                            <td>
-                              <span className={`badge ${badgeClass}`}>{a.status}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
+                            )}
+                            {m.presencas > 0 && (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                {m.presencas} realizado(s)
+                              </span>
+                            )}
+                            {m.faltas > 0 && (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f87171', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                {m.faltas} falta(s)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                          <span style={{ fontSize: '0.74rem' }}>{isCollapsed ? 'Ver detalhes' : 'Recolher'}</span>
+                          <i className={`fa-solid fa-chevron-${isCollapsed ? 'down' : 'up'}`} style={{ fontSize: '0.82rem' }}></i>
+                        </div>
+                      </div>
+
+                      {/* Corpo do Mês Expandido */}
+                      {!isCollapsed && (
+                        <div style={{ padding: '20px' }}>
+                          {/* 1. Próximos Agendamentos Futuros do Mês */}
+                          {m.futuros.length > 0 && (
+                            <div style={{ marginBottom: '22px' }}>
+                              <h4 style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-clock"></i> Próximos Agendamentos Confirmados ({m.futuros.length})
+                              </h4>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+                                {m.futuros.map((a: any) => (
+                                  <div 
+                                    key={a._id}
+                                    style={{
+                                      background: 'rgba(0, 0, 0, 0.25)',
+                                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                                      borderRadius: '12px',
+                                      padding: '16px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      justifyContent: 'space-between'
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-primary)', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', padding: '2px 8px', borderRadius: '6px', textTransform: 'uppercase' }}>
+                                          {a.servico || 'Treino'}
+                                        </span>
+                                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '2px 8px', borderRadius: '6px' }}>
+                                          Agendado
+                                        </span>
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
+                                          📅 {formatDateBR(a.data)}
+                                        </div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-primary)' }}>
+                                          {a.horario}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      className="btn btn-danger btn-sm"
+                                      onClick={() => handleCancelAppointment(a._id)}
+                                      style={{ marginTop: '12px', width: '100%', padding: '7px', fontSize: '0.76rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                    >
+                                      <i className="fa-solid fa-xmark"></i> Cancelar Agendamento
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2. Histórico de Treinos e Atendimentos do Mês */}
+                          {m.historico.length > 0 ? (
+                            <div>
+                              <h4 style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Sessões ({m.historico.length})
+                              </h4>
+                              <div className="table-responsive" style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px' }}>
+                                <table className="data-table" style={{ margin: 0, fontSize: '0.82rem' }}>
+                                  <thead>
+                                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                      <th>Data e Horário</th>
+                                      <th>Serviço</th>
+                                      <th>Crédito Consumido</th>
+                                      <th style={{ textAlign: 'center' }}>Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {m.historico.map((a: any) => {
+                                      const tipoCor: Record<string, string> = { academia: 'var(--color-primary)', emergencia: '#f59e0b', massagem: '#a855f7' };
+                                      const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
+
+                                      let badgeClass = 'badge-success';
+                                      let statusLabel = 'Presença';
+                                      if (a.status === 'agendado') { badgeClass = 'badge-info'; statusLabel = 'Agendado'; }
+                                      else if (a.status === 'cancelado') { badgeClass = 'badge-danger'; statusLabel = 'Cancelado'; }
+                                      else if (a.status === 'falta') { badgeClass = 'badge-warning'; statusLabel = 'Falta'; }
+
+                                      return (
+                                        <tr key={a._id}>
+                                          <td><strong>{formatDateBR(a.data)} às {a.horario}</strong></td>
+                                          <td>{a.servico}</td>
+                                          <td>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}15`, border: `1px solid ${tipoCor[a.tipoCredito] || 'var(--text-muted)'}30`, padding: '2px 8px', borderRadius: '8px' }}>
+                                              {tipoLabel[a.tipoCredito] || (a.tipo === 'academia' ? 'Academia' : a.tipo)}
+                                            </span>
+                                          </td>
+                                          <td style={{ textAlign: 'center' }}>
+                                            <span className={`badge ${badgeClass}`}>{statusLabel}</span>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : m.futuros.length === 0 ? (
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: 0, padding: '16px' }}>
+                              Nenhum histórico registrado neste mês.
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </>
+      )}
+
+      {/* View: Laudos Oficiais Emitidos */}
+      {activeTab === 'documentos' && (() => {
+        const hasAssessments = assessments.length > 0;
+        const hasReports = reports.length > 0;
+        const hasStrength = strengthTests.length > 0;
+        const hasAnyDocument = hasAssessments || hasReports || hasStrength;
+
+        return (
+          <>
+            <div className="view-header" style={{ marginBottom: '20px' }}>
+              <div className="view-title-group">
+                <h1 style={{ 
+                  fontFamily: 'var(--font-title)', 
+                  fontSize: '1.8rem', 
+                  fontWeight: 800, 
+                  background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                  WebkitBackgroundClip: 'text', 
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '4px'
+                }}>
+                  Meus Laudos Clínicos & Avaliações
+                </h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Acesse e baixe os documentos e relatórios oficiais emitidos pela equipe técnica do Clube Fitness.
+                </p>
+              </div>
+            </div>
+
+            {!hasAnyDocument ? (
+              <div style={{
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '14px',
+                padding: '48px 24px',
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'rgba(56, 189, 248, 0.1)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  color: '#38bdf8',
+                  fontSize: '1.8rem'
+                }}>
+                  <i className="fa-solid fa-file-medical"></i>
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', marginBottom: '8px' }}>
+                  Nenhum laudo clínico emitido até o momento
+                </h3>
+                <p style={{ fontSize: '0.84rem', color: '#94a3b8', maxWidth: '440px', margin: '0 auto 20px', lineHeight: 1.5 }}>
+                  Assim que sua Avaliação Física, Relatório Fisioterápico ou Teste de Força for realizado e assinado pela nossa equipe técnica, o laudo em PDF estará disponível para download aqui.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setActiveTab('agendar')}
+                  style={{ padding: '8px 18px', fontSize: '0.8rem', fontWeight: 700 }}
+                >
+                  <i className="fa-solid fa-calendar-plus" style={{ marginRight: '6px' }}></i> Agendar Próxima Sessão
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* 1. AVALIAÇÕES FÍSICAS (Apenas se houver) */}
+                {hasAssessments && (
+                  <div style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                          <i className="fa-solid fa-weight-scale"></i>
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
+                            Avaliações Físicas & Composição Corporal
+                          </h3>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                            Bioimpedância, perimetria e histórico antropométrico
+                          </span>
+                        </div>
+                      </div>
+                      <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>
+                        {assessments.length} laudo(s)
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '14px' }}>
+                      {assessments.map((a: any) => {
+                        const peso = a.dadosMedidos?.composicaoCorporal?.peso || a.peso;
+                        const gordura = a.dadosMedidos?.composicaoCorporal?.percGordura || a.percGordura;
+                        const massa = a.dadosMedidos?.composicaoCorporal?.massaMagra || a.massaMagra;
+
+                        return (
+                          <div
+                            key={a._id}
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between'
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981' }}>
+                                  📅 {formatDateBR(a.data)}
+                                </span>
+                                <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                  {a.avaliadorId?.nome || 'Avaliador Técnico'}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', marginBottom: '14px', textAlign: 'center' }}>
+                                <div>
+                                  <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase' }}>Peso</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>{peso ? `${peso} kg` : '-'}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase' }}>Gordura</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8' }}>{gordura ? `${gordura}%` : '-'}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase' }}>M. Magra</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#10b981' }}>{massa ? `${massa} kg` : '-'}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => downloadAssessmentPDF(a, assessments)}
+                              style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                            >
+                              <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Avaliação Física (PDF)
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. RELATÓRIOS FISIOTERÁPICOS (Apenas se houver) */}
+                {hasReports && (
+                  <div style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                          <i className="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
+                            Relatórios Fisioterápicos Clínicos
+                          </h3>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                            Anamnese, diagnóstico funcional e evolução do tratamento
+                          </span>
+                        </div>
+                      </div>
+                      <span className="badge badge-info" style={{ fontSize: '0.72rem' }}>
+                        {reports.length} laudo(s)
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '14px' }}>
+                      {reports.map((r: any) => {
+                        const queixa = r.conteudo?.queixaPrincipal || r.queixaPrincipal || 'Sessão de Fisioterapia Clínica';
+                        const dor = r.conteudo?.dorEscala !== undefined ? r.conteudo.dorEscala : null;
+
+                        return (
+                          <div
+                            key={r._id}
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between'
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8' }}>
+                                  📅 {formatDateBR(r.data)}
+                                </span>
+                                <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                  {r.profissionalId?.nome || 'Fisioterapeuta'}
+                                </span>
+                              </div>
+
+                              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', marginBottom: '14px' }}>
+                                <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '3px' }}>Queixa / Região Tratada:</div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc', lineHeight: 1.3 }}>
+                                  {queixa}
+                                </div>
+                                {dor !== null && (
+                                  <div style={{ marginTop: '6px', fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>
+                                    Escala de Dor EVA: {dor}/10
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => downloadReportPDF(r)}
+                              style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                            >
+                              <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Relatório Fisioterápico (PDF)
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. TESTES DE FORÇA DINAMOMÉTRICA (Apenas se houver) */}
+                {hasStrength && (
+                  <div style={{
+                    background: 'rgba(22, 29, 45, 0.55)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                          <i className="fa-solid fa-dumbbell"></i>
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
+                            Testes de Força Dinamométrica
+                          </h3>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                            Assimetria, pico de torque e equilíbrio neuromuscular
+                          </span>
+                        </div>
+                      </div>
+                      <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>
+                        {strengthTests.length} laudo(s)
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '14px' }}>
+                      {strengthTests.map((st: any) => (
+                        <div
+                          key={st._id}
+                          style={{
+                            background: 'rgba(0, 0, 0, 0.25)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f59e0b' }}>
+                                📅 {formatDateBR(st.data)}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                {st.profissionalId?.nome || 'Avaliador Técnico'}
+                              </span>
+                            </div>
+
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', marginBottom: '14px' }}>
+                              <div style={{ fontSize: '0.64rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '3px' }}>Grupo Muscular Testado:</div>
+                              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc' }}>
+                                {st.grupoMuscular || st.tipo || 'Geral'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => downloadStrengthTestPDF(st)}
+                            style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          >
+                            <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Teste de Força (PDF)
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* Modal de Triagem de Atendimento de Emergência via WhatsApp */}
+      {showEmergencyModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 10000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backdropFilter: 'blur(6px)',
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-dark, #0e131f)',
+            border: '1px solid rgba(37, 211, 102, 0.35)',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '540px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+            color: '#f8fafc',
+            position: 'relative'
+          }}>
+            {/* Header do Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: 'rgba(37, 211, 102, 0.15)',
+                  border: '1px solid rgba(37, 211, 102, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#25D366',
+                  fontSize: '1.3rem'
+                }}>
+                  <i className="fa-brands fa-whatsapp"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#f8fafc' }}>
+                    Agendamento de Emergência
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Triagem rápida para direcionar à equipe no WhatsApp
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-sm" 
+                style={{ padding: '4px 8px', borderRadius: '6px' }}
+                onClick={() => setShowEmergencyModal(false)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            {/* 1. Região / Parte do Corpo */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>
+                1. Onde você está sentindo dor/desconforto? *
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {[
+                  'Coluna Lombar', 'Coluna Cervical', 'Coluna Torácica',
+                  'Ombro Direito', 'Ombro Esquerdo',
+                  'Joelho Direito', 'Joelho Esquerdo',
+                  'Quadril', 'Tornozelo / Pé', 'Punho / Mão', 'Outra Região'
+                ].map(r => {
+                  const sel = emergRegiaoCorpo === r;
+                  return (
+                    <button
+                      type="button"
+                      key={r}
+                      onClick={() => setEmergRegiaoCorpo(r)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.74rem',
+                        fontWeight: sel ? 800 : 500,
+                        background: sel ? 'rgba(37, 211, 102, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        color: sel ? '#25D366' : '#cbd5e1',
+                        border: sel ? '1px solid #25D366' : '1px solid rgba(255, 255, 255, 0.08)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {sel ? `✓ ${r}` : r}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Tipo de Dor */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>
+                2. Qual a principal característica da dor? *
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {[
+                  'Travamento / Limitação súbita',
+                  'Dor aguda e pontual',
+                  'Queimação / Fisgada',
+                  'Dor muscular pós-esforço',
+                  'Desconforto articular / Inchaço',
+                  'Outro tipo de dor'
+                ].map(t => {
+                  const sel = emergTipoDor === t;
+                  return (
+                    <button
+                      type="button"
+                      key={t}
+                      onClick={() => setEmergTipoDor(t)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.74rem',
+                        fontWeight: sel ? 800 : 500,
+                        background: sel ? 'rgba(37, 211, 102, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        color: sel ? '#25D366' : '#cbd5e1',
+                        border: sel ? '1px solid #25D366' : '1px solid rgba(255, 255, 255, 0.08)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {sel ? `✓ ${t}` : t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Disponibilidade de Dias */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px', color: '#e2e8f0' }}>
+                3. Quais dias você tem disponibilidade para o atendimento?
+              </label>
+              <small style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block', marginBottom: '8px' }}>
+                Selecione todas as opções viáveis para facilitar o encaixe com nossa equipe.
+              </small>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {['Hoje', 'Amanhã', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'].map(dia => {
+                  const sel = emergDiasDisponiveis.includes(dia);
+                  return (
+                    <button
+                      type="button"
+                      key={dia}
+                      onClick={() => {
+                        if (sel) {
+                          setEmergDiasDisponiveis(emergDiasDisponiveis.filter(d => d !== dia));
+                        } else {
+                          setEmergDiasDisponiveis([...emergDiasDisponiveis, dia]);
+                        }
+                      }}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: '16px',
+                        fontSize: '0.74rem',
+                        fontWeight: sel ? 800 : 500,
+                        background: sel ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        color: sel ? '#38bdf8' : '#cbd5e1',
+                        border: sel ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {sel ? `✓ ${dia}` : dia}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 4. Disponibilidade de Turnos */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>
+                4. Em quais períodos/turnos desses dias você pode?
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+                {[
+                  { id: 'Manhã (06h às 12h)', label: 'Manhã', horario: '06h às 12h', icon: 'fa-sun' },
+                  { id: 'Tarde (14h às 18h)', label: 'Tarde', horario: '14h às 18h', icon: 'fa-cloud-sun' },
+                  { id: 'Noite (18h às 21h)', label: 'Noite', horario: '18h às 21h', icon: 'fa-moon' }
+                ].map(turn => {
+                  const sel = emergTurnosDisponiveis.includes(turn.id);
+                  return (
+                    <button
+                      type="button"
+                      key={turn.id}
+                      onClick={() => {
+                        if (sel) {
+                          setEmergTurnosDisponiveis(emergTurnosDisponiveis.filter(t => t !== turn.id));
+                        } else {
+                          setEmergTurnosDisponiveis([...emergTurnosDisponiveis, turn.id]);
+                        }
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        fontSize: '0.78rem',
+                        textAlign: 'left',
+                        fontWeight: sel ? 800 : 500,
+                        background: sel ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                        color: sel ? '#f59e0b' : '#cbd5e1',
+                        border: sel ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.08)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}
+                    >
+                      <i className={`fa-solid ${turn.icon}`} style={{ fontSize: '1.1rem' }}></i>
+                      <div>
+                        <div style={{ fontWeight: 700 }}>{turn.label}</div>
+                        <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{turn.horario}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 5. Observações adicionais */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
+                Observações adicionais (opcional):
+              </label>
+              <textarea
+                className="form-control form-control-sm"
+                rows={2}
+                value={emergObs}
+                onChange={e => setEmergObs(e.target.value)}
+                placeholder="Ex: Começou após treino ontem, sinto limitação ao dobrar o joelho..."
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#ffffff', fontSize: '0.8rem' }}
+              />
+            </div>
+
+            {/* Botão de Envio para o WhatsApp */}
+            <button
+              type="button"
+              onClick={() => {
+                const alunoNome = client?.dadosPessoais?.nome || user?.name || 'Aluno';
+                const regiao = emergRegiaoCorpo || 'Não informada';
+                const dor = emergTipoDor || 'Não informado';
+                const dias = emergDiasDisponiveis.length > 0 ? emergDiasDisponiveis.join(', ') : 'Flexível';
+                const turnos = emergTurnosDisponiveis.length > 0 ? emergTurnosDisponiveis.join(', ') : 'Qualquer turno';
+                
+                let msg = `Olá! Gostaria de agendar um atendimento de emergência no Clube Fitness.\n\n`;
+                msg += `👤 *Aluno:* ${alunoNome}\n\n`;
+                msg += `📋 *Resumo da Queixa:*\n`;
+                msg += `• Região: ${regiao}\n`;
+                msg += `• Tipo de dor: ${dor}\n`;
+                if (emergObs.trim()) {
+                  msg += `• Detalhes: ${emergObs.trim()}\n`;
+                }
+                msg += `\n🗓️ *Minha Disponibilidade:*\n`;
+                msg += `• Dias: ${dias}\n`;
+                msg += `• Períodos: ${turnos}\n\n`;
+                msg += `Aguardo o retorno para confirmarmos o melhor horário. Obrigado!`;
+
+                const url = `https://wa.me/553198662485?text=${encodeURIComponent(msg)}`;
+                window.open(url, '_blank');
+                setShowEmergencyModal(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                boxShadow: '0 4px 18px rgba(37, 211, 102, 0.3)'
+              }}
+            >
+              <i className="fa-brands fa-whatsapp" style={{ fontSize: '1.25rem' }}></i>
+              <span>Abrir WhatsApp com Resumo Coletado (+55 31 9866-2485)</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Default Fallback for other tabs */}

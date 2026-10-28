@@ -181,10 +181,9 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'dashboard', label: 'Painel do Aluno', icon: 'fa-home' },
         { id: 'agendar', label: 'Agendar Horário', icon: 'fa-calendar-plus' },
-        { id: 'agendamentos', label: 'Meus Agendamentos', icon: 'fa-clock' },
-        { id: 'evolucao', label: 'Minha Evolução', icon: 'fa-chart-line' },
         { id: 'treino', label: 'Ficha de Treino', icon: 'fa-dumbbell' },
-        { id: 'documentos', label: 'Meus Documentos', icon: 'fa-file-pdf' },
+        { id: 'evolucao', label: 'Minha Evolução', icon: 'fa-chart-line' },
+        { id: 'documentos', label: 'Laudos', icon: 'fa-file-pdf' },
         { id: 'creditos', label: 'Meus Créditos', icon: 'fa-coins' },
         { id: 'trancamento', label: 'Trancar Plano', icon: 'fa-snowflake' }
       ]
@@ -224,6 +223,7 @@ const bottomNavConfigs: Record<string, TabConfig[]> = {
     { id: 'dashboard', label: 'Início', icon: 'fa-home' },
     { id: 'agendar', label: 'Agendar', icon: 'fa-calendar-plus' },
     { id: 'treino', label: 'Treino', icon: 'fa-dumbbell' },
+    { id: 'creditos', label: 'Créditos', icon: 'fa-coins' },
     { id: 'documentos', label: 'Laudos', icon: 'fa-file-pdf' }
   ]
 };
