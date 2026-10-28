@@ -174,6 +174,34 @@ export async function GET(request: Request) {
           }
         }
       });
+
+      // Reconciliação Dinâmica de Créditos do Ciclo Vigente (SSOT)
+      try {
+        const currentMonthStr = new Date().toISOString().slice(0, 7);
+        const Appointment = (await import('@/models/Appointment')).default;
+        const apts = await Appointment.find({
+          clienteId: { $in: clientIds },
+          data: new RegExp('^' + currentMonthStr)
+        }).lean();
+
+        const { calculateCycleCredits } = await import('@/utils/creditReconciliation');
+
+        clients.forEach((c: any) => {
+          if (!c || !c.dadosComerciais) return;
+          const clientApts = apts.filter((a: any) => a.clienteId?.toString() === c._id.toString());
+          const cycle = calculateCycleCredits(c, clientApts, currentMonthStr);
+
+          c.dadosComerciais.creditosUsados = cycle.academia.usados;
+          c.dadosComerciais.creditosReservados = cycle.academia.reservados;
+          c.dadosComerciais.creditosMassagemUsados = cycle.massagem.usados;
+          c.dadosComerciais.creditosMassagemReservados = cycle.massagem.reservados;
+          c.dadosComerciais.creditosEmergenciaUsados = cycle.emergencia.usados;
+          c.dadosComerciais.creditosEmergenciaReservados = cycle.emergencia.reservados;
+          c.cycleLedger = cycle;
+        });
+      } catch (cycleErr: any) {
+        console.warn('[clients GET] Error calculating cycle credits:', cycleErr?.message);
+      }
     } catch (loopErr: any) {
       console.warn('[clients GET] Error resolving official contracts:', loopErr?.message);
     }

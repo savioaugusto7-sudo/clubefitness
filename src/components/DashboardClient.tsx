@@ -9,6 +9,7 @@ import { processStudentEvolution } from '@/utils/studentEvolutionEngine';
 import EvolutionMetricCard from './evolution/EvolutionMetricCard';
 import EvolutionSplineChart from './evolution/EvolutionSplineChart';
 import EvolutionSymmetryGauge from './evolution/EvolutionSymmetryGauge';
+import { calculateCycleCredits } from '@/utils/creditReconciliation';
 
 interface DashboardClientProps {
   activeTab: string;
@@ -1008,21 +1009,26 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   // Find pending Asaas contract
   const pendingAsaasContract = contracts.find(c => c.asaasPaymentId && c.status === 'pendente');
 
-  // Calculate credits — all 3 types
-  const credTotal = client.dadosComerciais?.creditosTotal || 0;
-  const credUsados = client.dadosComerciais?.creditosUsados || 0;
-  const credReservados = client.dadosComerciais?.creditosReservados || 0;
-  const credDisp = Math.max(0, credTotal - credUsados - credReservados);
+  // Reconciliação Dinâmica de Créditos por Ciclo Mensal (SSOT baseado em agendamentos reais)
+  const cycleLedger = useMemo(() => {
+    return calculateCycleCredits(client, appointments);
+  }, [client, appointments]);
 
-  const massTotal = client.dadosComerciais?.creditosMassagemTotal || 0;
-  const massUsados = client.dadosComerciais?.creditosMassagemUsados || 0;
-  const massReservados = client.dadosComerciais?.creditosMassagemReservados || 0;
-  const massDisp = Math.max(0, massTotal - massUsados - massReservados);
+  const credTotal = cycleLedger.academia.total;
+  const credUsados = cycleLedger.academia.usados;
+  const credReservados = cycleLedger.academia.reservados;
+  const credDisp = cycleLedger.academia.disponiveis;
+  const credProgressPercent = cycleLedger.academia.percent;
 
-  const emergTotal = client.dadosComerciais?.creditosEmergenciaTotal || 0;
-  const emergUsados = client.dadosComerciais?.creditosEmergenciaUsados || 0;
-  const emergReservados = client.dadosComerciais?.creditosEmergenciaReservados || 0;
-  const emergDisp = Math.max(0, emergTotal - emergUsados - emergReservados);
+  const massTotal = cycleLedger.massagem.total;
+  const massUsados = cycleLedger.massagem.usados;
+  const massReservados = cycleLedger.massagem.reservados;
+  const massDisp = cycleLedger.massagem.disponiveis;
+
+  const emergTotal = cycleLedger.emergencia.total;
+  const emergUsados = cycleLedger.emergencia.usados;
+  const emergReservados = cycleLedger.emergencia.reservados;
+  const emergDisp = cycleLedger.emergencia.disponiveis;
 
   return (
     <div>
@@ -3176,8 +3182,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       <i className="fa-solid fa-dumbbell" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : 'var(--color-primary)' }}></i>
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos de Academia</h3>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Treino Monitorado e Avaliações</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos de Academia</h3>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '1px 8px', borderRadius: '6px' }}>
+                          Ciclo: {cycleLedger.monthLabel}
+                        </span>
+                      </div>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Treino Monitorado e Avaliações</p>
                     </div>
                     {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
                   </div>
@@ -3198,7 +3209,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : 'var(--color-primary)', borderRadius: '6px', transition: 'width 0.4s' }}></div>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {credTotal} créditos/mês</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {credTotal} créditos no ciclo</div>
                 </div>
               );
             })()}
@@ -3382,6 +3393,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   const isCollapsed = collapsedMonths[m.monthKey] !== undefined 
                     ? collapsedMonths[m.monthKey] 
                     : (!isCurrentMonth && mIdx > 0);
+                  const monthLedger = calculateCycleCredits(client, appointments, m.monthKey);
 
                   return (
                     <div 
@@ -3414,26 +3426,46 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           <span style={{ fontSize: '1rem', fontWeight: 800, color: isCurrentMonth ? 'var(--color-primary)' : '#ffffff' }}>
                             {m.monthLabel}
                           </span>
-                          {isCurrentMonth && (
+                          {isCurrentMonth ? (
                             <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '10px' }}>
                               MÊS ATUAL
                             </span>
+                          ) : (
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
+                              MÊS ENCERRADO
+                            </span>
                           )}
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {m.futuros.length > 0 && (
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-primary)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                                {m.futuros.length} futuro(s)
-                              </span>
-                            )}
-                            {m.presencas > 0 && (
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                                {m.presencas} realizado(s)
-                              </span>
-                            )}
-                            {m.faltas > 0 && (
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f87171', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                                {m.faltas} falta(s)
-                              </span>
+                            {isCurrentMonth ? (
+                              <>
+                                {m.futuros.length > 0 && (
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-primary)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                    {m.futuros.length} futuro(s)
+                                  </span>
+                                )}
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                  {monthLedger.academia.usados} realizado(s)
+                                </span>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+                                  {monthLedger.academia.disponiveis} livre(s)
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                  {monthLedger.academia.usados} de {monthLedger.academia.total} utilizados
+                                </span>
+                                {monthLedger.academia.disponiveis > 0 && (
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.05)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                                    {monthLedger.academia.disponiveis} não utilizado(s)
+                                  </span>
+                                )}
+                                {m.faltas > 0 && (
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f87171', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                    {m.faltas} falta(s)
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -3523,7 +3555,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                                       let badgeClass = 'badge-success';
                                       let statusLabel = 'Presença';
-                                      if (a.status === 'agendado') { badgeClass = 'badge-info'; statusLabel = 'Agendado'; }
+                                      if (a.status === 'agendado') {
+                                        const aptDateTime = new Date(`${a.data}T${a.horario || '00:00'}:00-03:00`);
+                                        const isPast = aptDateTime.getTime() < new Date().getTime();
+                                        if (isPast) {
+                                          badgeClass = 'badge-secondary';
+                                          statusLabel = 'Pendente de Check-in';
+                                        } else {
+                                          badgeClass = 'badge-info';
+                                          statusLabel = 'Agendado';
+                                        }
+                                      }
                                       else if (a.status === 'cancelado') { badgeClass = 'badge-danger'; statusLabel = 'Cancelado'; }
                                       else if (a.status === 'falta') { badgeClass = 'badge-warning'; statusLabel = 'Falta'; }
 

@@ -7,6 +7,7 @@ import AgendaConfig from '@/models/AgendaConfig';
 import Appointment from '@/models/Appointment';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { getUsedCreditsInMonth, reconcileClientCreditsInDb } from '@/utils/serverCreditReconciliation';
 
 export const maxDuration = 30;
 
@@ -423,35 +424,37 @@ export async function POST(request: Request) {
 
     let isEmergenciaExtra = false;
 
-    // --- Validar créditos conforme tipoCredito ---
+    // --- Validar créditos conforme tipoCredito (baseado no Mês do Agendamento - SSOT) ---
     if (tipoCredito !== 'nenhum' && !bypassRestrictions && !isRemanejamento) {
       const com = client.dadosComerciais || {};
+      const mesAgendamento = data.slice(0, 7);
 
       if (tipoCredito === 'academia') {
         let total = com.creditosTotal || 0;
-        let usados = com.creditosUsados || 0;
         if (isDynamus && !com.planoId) {
           total = com.creditosDynamusTotal || com.creditosTotal || 0;
-          usados = com.creditosDynamusUsados || com.creditosUsados || 0;
         }
-        const mesAgendamento = data.slice(0, 7);
+        if (total === 0 && com.frequencia) {
+          total = Math.round(Number(com.frequencia) * 4.33);
+        }
+        const usados = await getUsedCreditsInMonth(clienteId, tipoCredito, mesAgendamento, isDynamus);
         const reservados = await getReservadosCredits(clienteId, tipoCredito, mesAgendamento);
         const disponiveis = Math.max(0, total - usados - reservados);
         if (disponiveis < cost) {
-          return NextResponse.json({ success: false, error: `Créditos insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
+          return NextResponse.json({ success: false, error: `Créditos insuficientes para ${mesAgendamento}! O agendamento requer ${cost} crédito(s) e o aluno possui ${disponiveis} crédito(s) disponível(is) neste mês (${usados} usados, ${reservados} reservados de ${total} no plano).` }, { status: 400 });
         }
       } else if (tipoCredito === 'massagem') {
         const total = com.creditosMassagemTotal || 0;
-        const usados = com.creditosMassagemUsados || 0;
-        const reservados = await getReservadosCredits(clienteId, tipoCredito);
+        const usados = await getUsedCreditsInMonth(clienteId, tipoCredito, mesAgendamento, isDynamus);
+        const reservados = await getReservadosCredits(clienteId, tipoCredito, mesAgendamento);
         const disponiveis = Math.max(0, total - usados - reservados);
         if (disponiveis < cost) {
-          return NextResponse.json({ success: false, error: `Créditos de massagem insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
+          return NextResponse.json({ success: false, error: `Créditos de massagem insuficientes para ${mesAgendamento}! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
         }
       } else if (tipoCredito === 'emergencia') {
         const total = com.creditosEmergenciaTotal || 0;
-        const usados = com.creditosEmergenciaUsados || 0;
-        const reservados = await getReservadosCredits(clienteId, tipoCredito);
+        const usados = await getUsedCreditsInMonth(clienteId, tipoCredito, mesAgendamento, isDynamus);
+        const reservados = await getReservadosCredits(clienteId, tipoCredito, mesAgendamento);
         const disponiveis = Math.max(0, total - usados - reservados);
         if (disponiveis < cost) {
           const isClientBooking = session && session.user && (session.user as any).role === 'client';
@@ -694,6 +697,12 @@ export async function POST(request: Request) {
       await appointment.save();
     }
 
+    try {
+      await reconcileClientCreditsInDb(clienteId);
+    } catch (recErr) {
+      console.warn('Erro ao reconciliar créditos após agendamento:', recErr);
+    }
+
     return NextResponse.json({ success: true, data: appointment });
   } catch (error: any) {
     if (error.code === 11000 || (error.message && error.message.includes('unique_active_client_slot'))) {
@@ -881,6 +890,13 @@ export async function PUT(request: Request) {
 
     await appointment.populate('profissionalId', 'nome email especialidade');
     await appointment.populate('profissionalDesignadoId', 'nome email especialidade');
+
+    try {
+      await reconcileClientCreditsInDb(appointment.clienteId.toString());
+    } catch (recErr) {
+      console.warn('Erro ao reconciliar créditos após PUT:', recErr);
+    }
+
     return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -936,6 +952,13 @@ export async function DELETE(request: Request) {
     }
 
     await Appointment.findByIdAndDelete(id);
+
+    try {
+      await reconcileClientCreditsInDb(appointment.clienteId.toString());
+    } catch (recErr) {
+      console.warn('Erro ao reconciliar créditos após DELETE:', recErr);
+    }
+
     return NextResponse.json({ success: true, message: 'Appointment deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
