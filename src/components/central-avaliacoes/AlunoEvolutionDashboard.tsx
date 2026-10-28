@@ -1375,34 +1375,96 @@ export default function AlunoEvolutionDashboard({
 
       {/* 4. FATORES CLÍNICOS DE DESTAQUE (DO LAUDO DE REAVALIAÇÃO) */}
       {longitudinal?.narrative && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
-          {longitudinal.narrative.fatoresEvolucao?.length > 0 && (
-            <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: '4px solid #10b981' }}>
-              <strong style={{ fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <i className="fas fa-arrow-trend-up" />
-                Fatores de Evolução Clínica
-              </strong>
-              <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {longitudinal.narrative.fatoresEvolucao.map((f: string, idx: number) => (
-                  <li key={idx}>{f}</li>
-                ))}
-              </ul>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Seção de Discussão Clínica & Síntese */}
+          {longitudinal.narrative.discussaoClinica && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                border: '1px solid rgba(129, 140, 248, 0.25)',
+                borderLeft: '4px solid #818cf8',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <strong style={{ fontSize: '0.88rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fas fa-brain" />
+                  Parecer Clínico Longitudinal Personalizado
+                </strong>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-dim, #94a3b8)', background: 'rgba(129, 140, 248, 0.12)', padding: '2px 8px', borderRadius: '10px' }}>
+                  Inteligência Clínica & Biomecânica
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #fff)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                {longitudinal.narrative.discussaoClinica}
+              </p>
             </div>
           )}
 
-          {longitudinal.narrative.fatoresComInvolucao?.length > 0 && (
-            <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: '4px solid #ef4444' }}>
-              <strong style={{ fontSize: '0.85rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <i className="fas fa-triangle-exclamation" />
-                Fatores que Requerem Atenção / Involução
-              </strong>
-              <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {longitudinal.narrative.fatoresComInvolucao.map((f: string, idx: number) => (
-                  <li key={idx}>{f}</li>
-                ))}
-              </ul>
+          {/* Cards de Análises Segmentares (Específicos para este Aluno) */}
+          {longitudinal.narrative.analisesSegmentares && longitudinal.narrative.analisesSegmentares.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+              {longitudinal.narrative.analisesSegmentares.map((seg: any, sIdx: number) => (
+                <div
+                  key={sIdx}
+                  style={{
+                    background: 'var(--bg-card, #1e293b)',
+                    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+                    borderRadius: '10px',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <strong style={{ fontSize: '0.82rem', color: 'var(--primary, #38bdf8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fas fa-bone" /> {seg.titulo}
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-main, #fff)', lineHeight: 1.45 }}>
+                    {seg.diagnosticoFuncional}
+                  </p>
+                  {seg.recomendacao && (
+                    <div style={{ fontSize: '0.74rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.08)', padding: '6px 8px', borderRadius: '6px', marginTop: '4px' }}>
+                      <i className="fas fa-check-circle" style={{ marginRight: '4px' }} />
+                      {seg.recomendacao}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+            {longitudinal.narrative.fatoresEvolucao?.length > 0 && (
+              <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: '4px solid #10b981' }}>
+                <strong style={{ fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <i className="fas fa-arrow-trend-up" />
+                  Fatores de Evolução Clínica
+                </strong>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {longitudinal.narrative.fatoresEvolucao.map((f: string, idx: number) => (
+                    <li key={idx}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {longitudinal.narrative.fatoresComInvolucao?.length > 0 && (
+              <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)', borderLeft: '4px solid #ef4444' }}>
+                <strong style={{ fontSize: '0.85rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <i className="fas fa-triangle-exclamation" />
+                  Fatores que Requerem Atenção / Involução
+                </strong>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {longitudinal.narrative.fatoresComInvolucao.map((f: string, idx: number) => (
+                    <li key={idx}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -10,6 +10,7 @@ import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { computeLongitudinalReassessment } from '@/utils/longitudinalEngine';
 import { generateClinicalNarrative } from '@/utils/clinicalReasoningEngine';
+import { generatePersonalizedClinicalNarrative } from '@/utils/aiClinicalNarrative';
 import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
 
 export const dynamic = 'force-dynamic';
@@ -251,7 +252,8 @@ export async function GET(request: Request) {
           t2Strength: st2
         });
 
-        const narrative = generateClinicalNarrative(computed);
+        const baseNarrative = generateClinicalNarrative(computed);
+        const narrative = await generatePersonalizedClinicalNarrative(computed, baseNarrative);
         longitudinalComputed = computed;
         clinicalNarrative = narrative;
       } catch (err: any) {

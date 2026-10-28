@@ -6,6 +6,7 @@ import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { computeLongitudinalReassessment } from '@/utils/longitudinalEngine';
 import { generateClinicalNarrative } from '@/utils/clinicalReasoningEngine';
+import { generatePersonalizedClinicalNarrative } from '@/utils/aiClinicalNarrative';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -120,13 +121,22 @@ export async function GET(request: Request) {
       avaliadorT2
     });
 
-    // 6. Executar Motor de Raciocínio Clínico e Riscos
-    const narrative = generateClinicalNarrative(computed);
+    // 6. Executar Motor de Raciocínio Clínico Hiper-Personalizado por Segmento (com IA)
+    const baseNarrative = generateClinicalNarrative(computed);
+    const personalizedNarrative = await generatePersonalizedClinicalNarrative(computed, computed.clusters || []);
+
+    const enrichedNarrative = {
+      ...baseNarrative,
+      ...personalizedNarrative,
+      riscoCompartimentoMedialJoelho: baseNarrative.riscoCompartimentoMedialJoelho,
+      riscoCompartimentoMedialTornozelo: baseNarrative.riscoCompartimentoMedialTornozelo
+    };
 
     return NextResponse.json({
       success: true,
       computed,
-      narrative,
+      narrative: enrichedNarrative,
+      clusters: computed.clusters || [],
       t1ReportId: t1Report._id,
       t2ReportId: t2Report._id,
       t1StrengthId: t1Strength?._id,

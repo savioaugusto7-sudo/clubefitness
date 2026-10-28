@@ -257,6 +257,16 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     <strong>Diagnóstico Inicial:</strong> ${historicoClinicoBase.queixaInicialDiagnostico}.
   </p>
 
+  ${(narrative as any).discussaoClinica ? `
+  <!-- SÍNTESE CLÍNICA E EVOLUÇÃO DIAGNÓSTICA -->
+  <div class="section-title" style="background:#0f172a; color:#38bdf8; border-left:4px solid #38bdf8;">
+    SÍNTESE CLÍNICA E EVOLUÇÃO DIAGNÓSTICA DO PACIENTE
+  </div>
+  <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 9.5pt; line-height: 1.6; color: #1e293b;">
+    ${(narrative as any).discussaoClinica.split('\n\n').map((p: string) => `<p style="margin: 0 0 8px 0;">${p.trim()}</p>`).join('')}
+  </div>
+  ` : ''}
+
   <!-- 4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10) -->
   <div class="section-title">4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10)</div>
   ${tabelaEVA.rows.length === 0 ? `
@@ -513,6 +523,37 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
+  <!-- 9.1 MOBILIDADE DA COLUNA VERTEBRAL -->
+  ${(computed.tabelaColuna && computed.tabelaColuna.length > 0) ? `
+    <div class="section-title">9.1 MOBILIDADE TRIDIMENSIONAL DA COLUNA VERTEBRAL (GONIOMETRIA E EVA)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Movimento</th>
+          <th class="text-center">Referência</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação (Graus)</th>
+          <th class="text-center">Dor (EVA)</th>
+          <th>Leitura</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${computed.tabelaColuna.map(r => `
+          <tr>
+            <td class="font-bold">${r.movimento}</td>
+            <td class="text-center">${r.referencia}</td>
+            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : '—'}</td>
+            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : '—'}</td>
+            <td class="text-center font-bold" style="color:${r.variacaoGraus.startsWith('+') ? '#059669' : '#0f172a'}">${r.variacaoGraus}</td>
+            <td class="text-center">${r.eva2 !== null ? `${r.eva2}/10` : '0/10'} (${r.variacaoEVA})</td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : ''}
+
   <!-- 10. TESTES ORTOPÉDICOS ESPECIAIS -->
   ${tabelaTestesOrtopedicos.length > 0 ? `
     <div class="section-title">10. TESTES ORTOPÉDICOS ESPECIAIS — COMPARATIVO</div>
@@ -557,19 +598,32 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     ${narrative.fatoresComInvolucao.map(item => `<li>${item}</li>`).join('')}
   </ul>
 
-  <!-- 14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO -->
-  <div class="section-title">14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO</div>
-  <p>${narrative.riscoCompartimentoMedialJoelho.introducao}</p>
-  <ul class="bullet-list">
-    ${narrative.riscoCompartimentoMedialJoelho.itens.map(item => `<li>${item}</li>`).join('')}
-  </ul>
+  <!-- 14. ANÁLISES SEGMENTARES BIOMECÂNICAS E FATORES DE RISCO -->
+  ${((narrative as any).analisesSegmentares && (narrative as any).analisesSegmentares.length > 0) ? `
+    ${(narrative as any).analisesSegmentares.map((seg: any, idx: number) => `
+      <div class="section-title">${14 + idx}. ${seg.titulo}</div>
+      <p>${seg.introducao}</p>
+      <ul class="bullet-list">
+        ${seg.itens.map((item: string) => `<li>${item}</li>`).join('')}
+      </ul>
+    `).join('')}
+  ` : `
+    ${(narrative.riscoCompartimentoMedialJoelho && narrative.riscoCompartimentoMedialJoelho.itens.length > 0 && !narrative.riscoCompartimentoMedialJoelho.itens[0].includes('Não foram identificados')) ? `
+      <div class="section-title">14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO</div>
+      <p>${narrative.riscoCompartimentoMedialJoelho.introducao}</p>
+      <ul class="bullet-list">
+        ${narrative.riscoCompartimentoMedialJoelho.itens.map(item => `<li>${item}</li>`).join('')}
+      </ul>
+    ` : ''}
 
-  <!-- 15. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO -->
-  <div class="section-title">15. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO</div>
-  <p>${narrative.riscoCompartimentoMedialTornozelo.introducao}</p>
-  <ul class="bullet-list">
-    ${narrative.riscoCompartimentoMedialTornozelo.itens.map(item => `<li>${item}</li>`).join('')}
-  </ul>
+    ${(narrative.riscoCompartimentoMedialTornozelo && narrative.riscoCompartimentoMedialTornozelo.itens.length > 0 && !narrative.riscoCompartimentoMedialTornozelo.itens[0].includes('Complexo articular')) ? `
+      <div class="section-title">15. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO</div>
+      <p>${narrative.riscoCompartimentoMedialTornozelo.introducao}</p>
+      <ul class="bullet-list">
+        ${narrative.riscoCompartimentoMedialTornozelo.itens.map(item => `<li>${item}</li>`).join('')}
+      </ul>
+    ` : ''}
+  `}
 
   <!-- 16. CONCLUSÃO -->
   <div class="section-title">16. CONCLUSÃO</div>

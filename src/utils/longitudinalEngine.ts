@@ -3,6 +3,8 @@
  * 100% Determinístico, Baseado Exclusivamente em Dados Reais do Prontuário e Livre de Fallbacks Fictícios.
  */
 
+import { identifyClinicalClusters, ClinicalCluster, ClientClinicalProfile } from './clinicalClustersEngine';
+
 export interface EvaluatorInfo {
   nome: string;
   registroProfissional?: string;
@@ -96,6 +98,18 @@ export interface TableRowTesteOrtopedico {
   leitura: string;
 }
 
+export interface TableRowColuna {
+  movimento: string;
+  referencia: string;
+  t1: number | null;
+  t2: number | null;
+  eva1: number | null;
+  eva2: number | null;
+  variacaoGraus: string;
+  variacaoEVA: string;
+  leitura: string;
+}
+
 export interface LongitudinalComputedResult {
   identificacao: {
     paciente: string;
@@ -139,7 +153,9 @@ export interface LongitudinalComputedResult {
     stepDown: StepDownComparisonRow[];
   };
   tabelaGoniometria: TableRowGoniometria[];
+  tabelaColuna: TableRowColuna[];
   tabelaTestesOrtopedicos: TableRowTesteOrtopedico[];
+  clusters?: any[];
 }
 
 /** Formata data BR DD/MM/AAAA */
@@ -243,8 +259,12 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
 
   // 4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA)
   const rowsEVA: TableRowEva[] = [];
-  const qList1 = Array.isArray(anamneseT1.queixas) ? anamneseT1.queixas : [];
-  const qList2 = Array.isArray(anamneseT2.queixas) ? anamneseT2.queixas : [];
+  const qList1 = Array.isArray(anamneseT1.queixas)
+    ? anamneseT1.queixas
+    : (Array.isArray(t1Report?.queixas) ? t1Report.queixas : []);
+  const qList2 = Array.isArray(anamneseT2.queixas)
+    ? anamneseT2.queixas
+    : (Array.isArray(t2Report?.queixas) ? t2Report.queixas : []);
 
   if (qList1.length > 0 || qList2.length > 0) {
     const cleanPainRegion = (text: string): string => (text || '').replace(/\s+/g, ' ').trim();
@@ -307,7 +327,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     };
 
     const getQueixaKey = (q: any): { baseSegment: string; displayName: string } => {
-      const clean = cleanPainRegion(q.dorOnde || '');
+      const clean = cleanPainRegion(q.dorOnde || q.queixa || q.descricao || '');
       if (q.regiao) {
         const lat = q.lateralidade && q.lateralidade !== 'Central / Axial' ? ` ${q.lateralidade}` : '';
         const sub = q.subRegiao ? ` (${q.subRegiao})` : '';
@@ -364,8 +384,8 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     });
 
     pairs.forEach(item => {
-      const v1 = Number(item.q1?.dorIntensidade ?? 0);
-      const v2 = Number(item.q2?.dorIntensidade ?? 0);
+      const v1 = Number(item.q1?.dorIntensidade ?? item.q1?.eva ?? item.q1?.dorNivel ?? 0);
+      const v2 = Number(item.q2?.dorIntensidade ?? item.q2?.eva ?? item.q2?.dorNivel ?? 0);
       const delta = v2 - v1;
 
       let sit = 'Estável';
@@ -746,25 +766,40 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     addSDRow('Queda pélvica direita', 'até 5°', sdT1?.quedaPelvicaD, sdT2?.quedaPelvicaD, false);
   }
 
-  // 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA - Com referências cinesiológicas corrigidas)
+  // 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA - Com referências cinesiológicas completas)
   const g1 = t1Report?.goniometria || {};
   const g2 = t2Report?.goniometria || {};
 
   const gonioConfigs: { mov: string; ref: string; key1: string; key2: string; minRef: number }[] = [
+    // Quadril e Joelho
     { mov: 'Flexão de quadril com joelho estendido — direito', ref: '70–80°', key1: 'quadrilFlexao1D', key2: 'quadrilFlexao1D', minRef: 70 },
     { mov: 'Flexão de quadril com joelho estendido — esquerdo', ref: '70–80°', key1: 'quadrilFlexao1E', key2: 'quadrilFlexao1E', minRef: 70 },
     { mov: 'Flexão de quadril com joelho fletido — direito', ref: '100–125°', key1: 'quadrilFlexao2D', key2: 'quadrilFlexao2D', minRef: 100 },
     { mov: 'Flexão de quadril com joelho fletido — esquerdo', ref: '100–125°', key1: 'quadrilFlexao2E', key2: 'quadrilFlexao2E', minRef: 100 },
+    { mov: 'Rotação interna de quadril — direito', ref: '35–45°', key1: 'quadrilRotIntD', key2: 'quadrilRotIntD', minRef: 35 },
+    { mov: 'Rotação interna de quadril — esquerdo', ref: '35–45°', key1: 'quadrilRotIntE', key2: 'quadrilRotIntE', minRef: 35 },
+    { mov: 'Rotação externa de quadril — direito', ref: '40–50°', key1: 'quadrilRotExtD', key2: 'quadrilRotExtD', minRef: 40 },
+    { mov: 'Rotação externa de quadril — esquerdo', ref: '40–50°', key1: 'quadrilRotExtE', key2: 'quadrilRotExtE', minRef: 40 },
     { mov: 'Flexão de joelho — direito', ref: '135–150°', key1: 'joelhoFlexaoD', key2: 'joelhoFlexaoD', minRef: 135 },
     { mov: 'Flexão de joelho — esquerdo', ref: '135–150°', key1: 'joelhoFlexaoE', key2: 'joelhoFlexaoE', minRef: 135 },
     { mov: 'Ângulo poplíteo — direito', ref: '155–160°', key1: 'joelhoPopliteoD', key2: 'joelhoPopliteoD', minRef: 155 },
     { mov: 'Ângulo poplíteo — esquerdo', ref: '155–160°', key1: 'joelhoPopliteoE', key2: 'joelhoPopliteoE', minRef: 155 },
+    // Tornozelo
     { mov: 'Dorsiflexão de tornozelo com joelho estendido — direito', ref: '20°', key1: 'tornozeloDorsi1D', key2: 'tornozeloDorsi1D', minRef: 20 },
     { mov: 'Dorsiflexão de tornozelo com joelho estendido — esquerdo', ref: '20°', key1: 'tornozeloDorsi1E', key2: 'tornozeloDorsi1E', minRef: 20 },
     { mov: 'Dorsiflexão de tornozelo com joelho fletido / Lunge — direito', ref: '35–45°', key1: 'tornozeloDorsi2D', key2: 'tornozeloDorsi2D', minRef: 35 },
     { mov: 'Dorsiflexão de tornozelo com joelho fletido / Lunge — esquerdo', ref: '35–45°', key1: 'tornozeloDorsi2E', key2: 'tornozeloDorsi2E', minRef: 35 },
     { mov: 'Flexão plantar de tornozelo — direito', ref: '40–50°', key1: 'tornozeloFlexaoPlantarD', key2: 'tornozeloFlexaoPlantarD', minRef: 40 },
-    { mov: 'Flexão plantar de tornozelo — esquerdo', ref: '40–50°', key1: 'tornozeloFlexaoPlantarE', key2: 'tornozeloFlexaoPlantarE', minRef: 40 }
+    { mov: 'Flexão plantar de tornozelo — esquerdo', ref: '40–50°', key1: 'tornozeloFlexaoPlantarE', key2: 'tornozeloFlexaoPlantarE', minRef: 40 },
+    // Ombro e Membros Superiores
+    { mov: 'Flexão de ombro — direito', ref: '160–180°', key1: 'ombroFlexaoD', key2: 'ombroFlexaoD', minRef: 160 },
+    { mov: 'Flexão de ombro — esquerdo', ref: '160–180°', key1: 'ombroFlexaoE', key2: 'ombroFlexaoE', minRef: 160 },
+    { mov: 'Abdução de ombro — direito', ref: '160–180°', key1: 'ombroAbducaoD', key2: 'ombroAbducaoD', minRef: 160 },
+    { mov: 'Abdução de ombro — esquerdo', ref: '160–180°', key1: 'ombroAbducaoE', key2: 'ombroAbducaoE', minRef: 160 },
+    { mov: 'Rotação externa de ombro — direito', ref: '80–90°', key1: 'ombroRotExtD', key2: 'ombroRotExtD', minRef: 80 },
+    { mov: 'Rotação externa de ombro — esquerdo', ref: '80–90°', key1: 'ombroRotExtE', key2: 'ombroRotExtE', minRef: 80 },
+    { mov: 'Rotação interna de ombro — direito', ref: '70–80°', key1: 'ombroRotIntD', key2: 'ombroRotIntD', minRef: 70 },
+    { mov: 'Rotação interna de ombro — esquerdo', ref: '70–80°', key1: 'ombroRotIntE', key2: 'ombroRotIntE', minRef: 70 }
   ];
 
   const goniometriaRows: TableRowGoniometria[] = [];
@@ -797,6 +832,58 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     });
   });
 
+  // 9.1 MOBILIDADE TRIDIMENSIONAL DA COLUNA VERTEBRAL
+  const getCol = (rep: any, k: string) => rep?.[k] ?? rep?.dados?.[k] ?? rep?.mobilidadeColuna?.[k];
+  const colConfigs = [
+    { mov: 'Flexão anterior de tronco (Coluna Lombar)', ref: '40–60°', keyGraus: 'mFlex', keyEva: 'mFlexEVA', minRef: 40 },
+    { mov: 'Extensão de tronco', ref: '20–35°', keyGraus: 'mExt', keyEva: 'mExtEVA', minRef: 20 },
+    { mov: 'Inclinação lateral direita', ref: '20–30°', keyGraus: 'mIncD', keyEva: 'mIncDEVA', minRef: 20 },
+    { mov: 'Inclinação lateral esquerda', ref: '20–30°', keyGraus: 'mIncE', keyEva: 'mIncEEVA', minRef: 20 },
+    { mov: 'Rotação axial direita', ref: '30–45°', keyGraus: 'mRotD', keyEva: 'mRotDEVA', minRef: 30 },
+    { mov: 'Rotação axial esquerda', ref: '30–45°', keyGraus: 'mRotE', keyEva: 'mRotEEVA', minRef: 30 }
+  ];
+
+  const tabelaColunaRows: TableRowColuna[] = [];
+  colConfigs.forEach(cfg => {
+    const g1Val = parseNumberOrNull(getCol(t1Report, cfg.keyGraus));
+    const g2Val = parseNumberOrNull(getCol(t2Report, cfg.keyGraus));
+    const e1Val = parseNumberOrNull(getCol(t1Report, cfg.keyEva));
+    const e2Val = parseNumberOrNull(getCol(t2Report, cfg.keyEva));
+
+    if (g1Val == null && g2Val == null && e1Val == null && e2Val == null) return;
+
+    let varGrausStr = '-';
+    let varEvaStr = '-';
+    let leitura = 'Estável';
+
+    if (g1Val != null && g2Val != null) {
+      const dG = g2Val - g1Val;
+      varGrausStr = `${dG >= 0 ? '+' : ''}${dG}°`;
+      if (dG > 3) leitura = 'Evoluiu';
+      else if (dG < -3) leitura = 'Involução';
+    } else if (g2Val != null) {
+      leitura = g2Val >= cfg.minRef ? 'Normalizou' : 'Avaliado';
+    }
+
+    if (e1Val != null && e2Val != null) {
+      const dE = e2Val - e1Val;
+      varEvaStr = dE === 0 ? 'Sem dor' : `${dE > 0 ? '+' : ''}${dE} EVA`;
+      if (dE < 0) leitura = leitura === 'Evoluiu' ? 'Evoluiu (alívio de dor)' : 'Alívio álgico';
+    }
+
+    tabelaColunaRows.push({
+      movimento: cfg.mov,
+      referencia: cfg.ref,
+      t1: g1Val,
+      t2: g2Val,
+      eva1: e1Val,
+      eva2: e2Val,
+      variacaoGraus: varGrausStr,
+      variacaoEVA: varEvaStr,
+      leitura
+    });
+  });
+
   // 10. TESTES ORTOPÉDICOS ESPECIAIS
   const te1 = t1Report?.testesOrtopedicos || t1Report?.testesEspeciais || {};
   const te2 = t2Report?.testesOrtopedicos || t2Report?.testesEspeciais || {};
@@ -807,13 +894,15 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     { label: 'Thomas (Retofemoral)', key: 'thomasRetofemoral' },
     { label: 'Discinesia Escapular', key: 'discinesiaEscapular' },
     { label: 'Teste de Ely', key: 'ely' },
-    { label: 'Teste KFBO (Cabeça da Fíbula)', key: 'kfbo' }
+    { label: 'Teste KFBO (Cabeça da Fíbula)', key: 'kfbo' },
+    { label: 'Teste de Maigne (Charneira Toracolombar)', key: 'maigne' },
+    { label: 'Diástase Abdominal', key: 'diastase' }
   ];
 
   const rowsTestesOrtopedicos: TableRowTesteOrtopedico[] = [];
   testsList.forEach(t => {
-    const val1 = te1[t.key] || (te1[`${t.key}D`] ? `${te1[`${t.key}D`] || ''} / ${te1[`${t.key}E`] || ''}`.trim() : null);
-    const val2 = te2[t.key] || (te2[`${t.key}D`] ? `${te2[`${t.key}D`] || ''} / ${te2[`${t.key}E`] || ''}`.trim() : null);
+    const val1 = te1[t.key] || (te1[`${t.key}D`] ? `${te1[`${t.key}D`] || ''} / ${te1[`${t.key}E`] || ''}`.trim() : null) || t1Report?.[t.key] || t1Report?.dados?.[t.key];
+    const val2 = te2[t.key] || (te2[`${t.key}D`] ? `${te2[`${t.key}D`] || ''} / ${te2[`${t.key}E`] || ''}`.trim() : null) || t2Report?.[t.key] || t2Report?.dados?.[t.key];
     if (!val1 && !val2) return;
 
     const s1 = String(val1 || 'Não registrado');
@@ -834,6 +923,38 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       leitura
     });
   });
+
+  // 11. DETECÇÃO DE CLUSTERS CLÍNICOS E ADAPTAÇÃO POR SEGMENTO
+  const clinicalProfile: ClientClinicalProfile = {
+    queixasEVA: rowsEVA.map(r => ({ queixa: r.queixa, t1: r.t1, t2: r.t2, delta: r.variacao })),
+    mobilidadeColuna: {
+      flexao: { t1: parseNumberOrNull(getCol(t1Report, 'mFlex')), t2: parseNumberOrNull(getCol(t2Report, 'mFlex')), eva1: parseNumberOrNull(getCol(t1Report, 'mFlexEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mFlexEVA')) },
+      extensao: { t1: parseNumberOrNull(getCol(t1Report, 'mExt')), t2: parseNumberOrNull(getCol(t2Report, 'mExt')), eva1: parseNumberOrNull(getCol(t1Report, 'mExtEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mExtEVA')) },
+      inclinacaoD: { t1: parseNumberOrNull(getCol(t1Report, 'mIncD')), t2: parseNumberOrNull(getCol(t2Report, 'mIncD')), eva1: parseNumberOrNull(getCol(t1Report, 'mIncDEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mIncDEVA')) },
+      inclinacaoE: { t1: parseNumberOrNull(getCol(t1Report, 'mIncE')), t2: parseNumberOrNull(getCol(t2Report, 'mIncE')), eva1: parseNumberOrNull(getCol(t1Report, 'mIncEEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mIncEEVA')) },
+      rotacaoD: { t1: parseNumberOrNull(getCol(t1Report, 'mRotD')), t2: parseNumberOrNull(getCol(t2Report, 'mRotD')), eva1: parseNumberOrNull(getCol(t1Report, 'mRotDEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mRotDEVA')) },
+      rotacaoE: { t1: parseNumberOrNull(getCol(t1Report, 'mRotE')), t2: parseNumberOrNull(getCol(t2Report, 'mRotE')), eva1: parseNumberOrNull(getCol(t1Report, 'mRotEEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mRotEEVA')) }
+    },
+    goniometriaArticular: {},
+    testesOrtopedicos: {},
+    dinamometria: rowsForca.map(f => ({ movimento: f.movimento, lado: f.lado, t1: f.t1, t2: f.t2, pct: f.variacaoPct })),
+    habitos: {
+      sonoHoras: t2Report?.sono?.horas || t2Report?.dados?.repSonoHoras,
+      sonoQualidade: t2Report?.sono?.qualidade || t2Report?.dados?.repSonoQualidade,
+      estresse: t2Report?.estresse || t2Report?.dados?.repStress,
+      atividadeFisica: t2Report?.atividadeFisica || t2Report?.dados?.repAtividadeFisica
+    }
+  };
+
+  goniometriaRows.forEach(g => {
+    clinicalProfile.goniometriaArticular[g.movimento] = { t1: g.t1, t2: g.t2 };
+  });
+
+  rowsTestesOrtopedicos.forEach(t => {
+    clinicalProfile.testesOrtopedicos[t.teste] = { t1: t.t1, t2: t.t2 };
+  });
+
+  const clusters = identifyClinicalClusters(clinicalProfile);
 
   return {
     identificacao: {
@@ -870,6 +991,8 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       stepDown: sdRows
     },
     tabelaGoniometria: goniometriaRows,
-    tabelaTestesOrtopedicos: rowsTestesOrtopedicos
+    tabelaColuna: tabelaColunaRows,
+    tabelaTestesOrtopedicos: rowsTestesOrtopedicos,
+    clusters
   };
 }
