@@ -854,10 +854,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         return false;
       }
     } else if (step === 2) {
-      if ((!repTraumas || !repTraumas.trim()) && (!repDoencas || !repDoencas.trim()) && (!repMedicao || !repMedicao.trim())) {
-        alert('Por favor, preencha o Histórico de Lesões e Hábitos do paciente antes de avançar.');
-        return false;
-      }
+      // Histórico clínico e hábitos de vida são opcionais (o paciente pode ser saudável ou não ter traumas)
+      return true;
     }
     return true;
   };
