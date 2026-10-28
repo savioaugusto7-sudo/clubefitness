@@ -1281,6 +1281,14 @@ export async function downloadReportPDF(report: any) {
     const ex = report.examesComplementares || [];
     const ort = report.testesOrtopedicos;
 
+    const rawCustomTests = (te && Array.isArray(te.customTests)) 
+      ? te.customTests 
+      : (ort && Array.isArray(ort.customTests)) 
+        ? ort.customTests 
+        : (Array.isArray(report.customTests) ? report.customTests : (Array.isArray(report.testesVariados) ? report.testesVariados : []));
+    
+    const validCustomTests = rawCustomTests.filter((t: any) => t && (String(t.nome || '').trim() !== '' || String(t.resultados || '').trim() !== ''));
+
     const checkPerimetriaAsymmetry = (valD: any, valE: any) => {
       const d = parseFloat(valD) || 0;
       const e = parseFloat(valE) || 0;
@@ -1352,7 +1360,10 @@ export async function downloadReportPDF(report: any) {
 
     let examesHtml = 'Nenhum exame complementar anexado.';
     if (ex && ex.length > 0) {
-      examesHtml = ex.map((e: any) => `• ${e.nome} (Laudo em PDF)`).join('<br>');
+      examesHtml = ex.map((e: any) => {
+        const noPdf = e.exibirNoPdf !== false;
+        return `• <strong>${e.nome}</strong> (${noPdf ? 'Anexo incluído nas páginas finais' : 'Salvo no prontuário digital'})`;
+      }).join('<br>');
     }
 
     let termografiaHtml = 'Não realizada.';
@@ -1973,14 +1984,14 @@ export async function downloadReportPDF(report: any) {
         </div>
         ` : ''}
 
-        ${(te && te.customTests && te.customTests.length > 0) ? `
-        <div class="section-card">
-          <div class="section-card-title">Outros Testes Realizados</div>
+        ${(validCustomTests.length > 0) ? `
+        <div class="section-card" style="margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
+          <div class="section-card-title">Testes Variados & Outros Testes Clínicos</div>
           <div class="section-card-content" style="padding: 10px;">
-            ${te.customTests.map((t: any) => `
-              <div style="margin-bottom: 8px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
-                <strong style="color: #0d9488; font-size: 8.5px; display: block; text-transform: uppercase;">${t.nome}</strong>
-                <p style="margin: 3px 0 0 0; font-size: 8px; line-height: 1.4; color: #334155;">${t.resultados}</p>
+            ${validCustomTests.map((t: any, idx: number) => `
+              <div style="margin-bottom: ${idx === validCustomTests.length - 1 ? '0' : '8px'}; border-bottom: ${idx === validCustomTests.length - 1 ? 'none' : '1px dashed #cbd5e1'}; padding-bottom: ${idx === validCustomTests.length - 1 ? '0' : '6px'};">
+                <strong style="color: #0d9488; font-size: 8.5px; display: block; text-transform: uppercase;">${t.nome || `Teste #${idx + 1}`}</strong>
+                <p style="margin: 3px 0 0 0; font-size: 8px; line-height: 1.4; color: #334155; white-space: pre-wrap;">${t.resultados || 'Sem achados clínicos informados.'}</p>
               </div>
             `).join('')}
           </div>
@@ -2022,8 +2033,8 @@ export async function downloadReportPDF(report: any) {
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
-  const hasAttachedPdf = !!report.pdf_url;
-  const hasExamesPdfs = report.examesComplementares && report.examesComplementares.length > 0;
+  const hasAttachedPdf = !!report.pdf_url && report.incluirAnexoNoPdf !== false && report.exibirPdfUrlNoPdf !== false;
+  const hasExamesPdfs = (report.examesComplementares || []).some((ex: any) => !!ex.pdfB64 && ex.exibirNoPdf !== false);
   const tImgVal = report.termografia;
   const rawTermoB64 = (tImgVal && tImgVal.realizou === 'sim' && (tImgVal.imagemB64 || tImgVal.imagemUrl)) ? (tImgVal.imagemB64 || tImgVal.imagemUrl) : '';
   const hasTermografiaImage = Boolean(rawTermoB64 && String(rawTermoB64).startsWith('data:image'));
@@ -2123,7 +2134,7 @@ export async function downloadReportPDF(report: any) {
         // 4. Exames Complementares (Laudos em PDF)
         if (hasExamesPdfs) {
           for (const exame of report.examesComplementares) {
-            if (exame.pdfB64) {
+            if (exame.pdfB64 && exame.exibirNoPdf !== false) {
               try {
                 const examBlob = base64ToBlob(exame.pdfB64, 'application/pdf');
                 const examPdfBuffer = await examBlob.arrayBuffer();

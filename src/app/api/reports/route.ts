@@ -107,7 +107,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'JSON inválido no corpo da requisição.' }, { status: 400 });
     }
 
-    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName, pdf_url, tempoGastoSegundos } = body;
+    const { 
+      clienteId, profissionalId, data, conteudo, anamnese, goniometria, 
+      testesEspeciais, termografia, testesOrtopedicos, perimetria, examesComplementares,
+      incluirAnexoNoPdf, exibirPdfUrlNoPdf, pdfName, pdf_url, tempoGastoSegundos 
+    } = body;
 
     if (!clienteId || !data || !conteudo) {
       return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes (cliente, data, conteúdo).' }, { status: 400 });
@@ -130,6 +134,10 @@ export async function POST(request: Request) {
       testesEspeciais,
       termografia,
       testesOrtopedicos,
+      perimetria,
+      examesComplementares,
+      incluirAnexoNoPdf: incluirAnexoNoPdf !== undefined ? Boolean(incluirAnexoNoPdf) : true,
+      exibirPdfUrlNoPdf: exibirPdfUrlNoPdf !== undefined ? Boolean(exibirPdfUrlNoPdf) : true,
       pdfName: pdfName || '',
       pdf_url: pdf_url || '',
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0

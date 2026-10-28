@@ -1099,6 +1099,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Physio Report PDF attachment state
   const [repPdfUrl, setRepPdfUrl] = useState('');
   const [repPdfAttachName, setRepPdfAttachName] = useState('');
+  const [repIncluirAnexoNoPdf, setRepIncluirAnexoNoPdf] = useState(true);
   const [asMaigneData, setAsMaigneData] = useState({
     flexao: 25, flexaoEVA: 0,
     extensao: 25, extensaoEVA: 0,
@@ -1852,11 +1853,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3,
         sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE,
         repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE,
+        repCustomTests, repPdfUrl, repPdfAttachName, repIncluirAnexoNoPdf,
         savedAt: new Date().toISOString()
       };
       localStorage.setItem('draft_report', JSON.stringify(data));
     }
-  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3, yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, yAntD1, yAntD2, yAntD3, yPMD1, yPMD2, yPMD3, yPLD1, yPLD2, yPLD3, yAntE1, yAntE2, yAntE3, yPME1, yPME2, yPME3, yPLE1, yPLE2, yPLE3, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdVaroD, sdVaroE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE, repCustomTests, repPdfUrl, repPdfAttachName, repIncluirAnexoNoPdf]);
 
   useEffect(() => {
     if (showStModal && stClient) {
@@ -2260,6 +2262,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 setSdVaroE(p.sdVaroE !== undefined ? p.sdVaroE : (p.sdVaro || 0));
                 setSdPrpsD(p.sdPrpsD !== undefined ? p.sdPrpsD : (p.sdPrps || 0));
                 setSdPrpsE(p.sdPrpsE !== undefined ? p.sdPrpsE : (p.sdPrps || 0));
+                if (p.repCustomTests) setRepCustomTests(p.repCustomTests);
+                if (p.repPdfUrl) setRepPdfUrl(p.repPdfUrl);
+                if (p.repPdfAttachName) setRepPdfAttachName(p.repPdfAttachName);
+                if (p.repIncluirAnexoNoPdf !== undefined) setRepIncluirAnexoNoPdf(p.repIncluirAnexoNoPdf);
                 if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
                 setRepPrefilledFields({});
                 loadedDraft = true;
@@ -3897,6 +3903,7 @@ goniometria: {
   const [tempExameNome, setTempExameNome] = useState('');
   const [tempExamePdfB64, setTempExamePdfB64] = useState('');
   const [tempExamePdfName, setTempExamePdfName] = useState('');
+  const [tempExameExibirNoPdf, setTempExameExibirNoPdf] = useState(true);
   
   const handleExameFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -4052,10 +4059,24 @@ goniometria: {
       alert('Por favor, digite o nome do exame e selecione o arquivo PDF.');
       return;
     }
-    setRepExamesList([...repExamesList, { nome: tempExameNome, pdfB64: tempExamePdfB64, fileName: tempExamePdfName }]);
+    setRepExamesList([...repExamesList, { 
+      nome: tempExameNome, 
+      pdfB64: tempExamePdfB64, 
+      fileName: tempExamePdfName, 
+      exibirNoPdf: tempExameExibirNoPdf 
+    }]);
     setTempExameNome('');
     setTempExamePdfB64('');
     setTempExamePdfName('');
+    setTempExameExibirNoPdf(true);
+  };
+
+  const toggleExameExibirNoPdf = (index: number) => {
+    const updated = [...repExamesList];
+    if (updated[index]) {
+      updated[index].exibirNoPdf = updated[index].exibirNoPdf === false ? true : false;
+      setRepExamesList(updated);
+    }
   };
   
   const removeExame = (index: number) => {
@@ -4258,6 +4279,8 @@ goniometria: {
         },
         pdfName: `Relatorio_Fisioterapia_${Date.now()}.pdf`,
         pdf_url: repPdfUrl || '',
+        incluirAnexoNoPdf: repIncluirAnexoNoPdf,
+        exibirPdfUrlNoPdf: repIncluirAnexoNoPdf,
         tempoGastoSegundos: repTimerSeconds
       };
 
@@ -4360,7 +4383,8 @@ goniometria: {
             abducaoBilateralCabecaFrente: repDeAbdBilateral,
             abducaoUnilateralToracicaCabeca: repDeAbdUnilateral,
             dorAbducaoUnilateralInclinacao: repDeDorAbd
-          }
+          },
+          customTests: repCustomTests
         };
       }
 
@@ -4465,6 +4489,8 @@ goniometria: {
             setIncluirConduta(false);
             setRepPdfUrl('');
             setRepPdfAttachName('');
+            setRepIncluirAnexoNoPdf(true);
+            setTempExameExibirNoPdf(true);
             setRepAvaliador(executorProfId);
 
             if (data.data) {
@@ -15321,16 +15347,43 @@ goniometria: {
                     )}
 
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Exames Complementares (Laudos em PDF)</h4>
-                    <div className="resp-grid-attach" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.75rem' }}>Nome do Exame</label>
-                        <input type="text" className="form-control form-control-sm" value={tempExameNome} onChange={e => setTempExameNome(e.target.value)} placeholder="Ex: Ressonância Coluna Lombar" />
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                      <div className="resp-grid-attach" style={{ marginBottom: '10px' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontSize: '0.75rem' }}>Nome do Exame</label>
+                          <input type="text" className="form-control form-control-sm" value={tempExameNome} onChange={e => setTempExameNome(e.target.value)} placeholder="Ex: Ressonância Coluna Lombar" />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontSize: '0.75rem' }}>Arquivo PDF</label>
+                          <input type="file" accept="application/pdf" className="form-control form-control-sm" onChange={handleExameFileSelect} />
+                        </div>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={addExame} style={{ height: '32px' }}><i className="fa-solid fa-plus"></i> Anexar</button>
                       </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.75rem' }}>Arquivo PDF</label>
-                        <input type="file" accept="application/pdf" className="form-control form-control-sm" onChange={handleExameFileSelect} />
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <label style={{ fontSize: '0.78rem', margin: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-primary)' }}></i>
+                          Exibir este anexo no PDF final gerado pelo sistema?
+                        </label>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${tempExameExibirNoPdf ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ fontSize: '0.74rem', padding: '2px 10px', height: '26px' }}
+                            onClick={() => setTempExameExibirNoPdf(true)}
+                          >
+                            <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i> Sim
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${!tempExameExibirNoPdf ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ fontSize: '0.74rem', padding: '2px 10px', height: '26px' }}
+                            onClick={() => setTempExameExibirNoPdf(false)}
+                          >
+                            <i className="fa-solid fa-xmark" style={{ marginRight: '4px' }}></i> Não
+                          </button>
+                        </div>
                       </div>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={addExame} style={{ height: '32px' }}><i className="fa-solid fa-plus"></i> Anexar</button>
                     </div>
 
                     {repExamesList.length > 0 && (
@@ -15340,22 +15393,49 @@ goniometria: {
                             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
                               <th>Nome do Exame</th>
                               <th>Nome do Arquivo</th>
-                              <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
+                              <th style={{ width: '130px', textAlign: 'center' }}>No PDF Final?</th>
+                              <th style={{ width: '110px', textAlign: 'center' }}>Ações</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {repExamesList.map((ex, exIdx) => (
-                              <tr key={exIdx}>
-                                <td><strong>{ex.nome}</strong></td>
-                                <td style={{ color: 'var(--text-muted)' }}>{ex.fileName}</td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadExame(exIdx)}><i className="fa-solid fa-download"></i></button>
-                                    <button type="button" className="btn btn-danger btn-sm" onClick={() => removeExame(exIdx)}><i className="fa-solid fa-trash"></i></button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {repExamesList.map((ex, exIdx) => {
+                              const apareceNoPdf = ex.exibirNoPdf !== false;
+                              return (
+                                <tr key={exIdx}>
+                                  <td><strong>{ex.nome}</strong></td>
+                                  <td style={{ color: 'var(--text-muted)' }}>{ex.fileName}</td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleExameExibirNoPdf(exIdx)}
+                                      title="Clique para alternar se este arquivo deve sair mesclado no PDF gerado"
+                                      className="btn btn-sm"
+                                      style={{
+                                        fontSize: '0.72rem',
+                                        padding: '2px 8px',
+                                        borderRadius: '12px',
+                                        background: apareceNoPdf ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                                        color: apareceNoPdf ? '#10b981' : '#94a3b8',
+                                        border: apareceNoPdf ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.3)',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {apareceNoPdf ? (
+                                        <span><i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i> Sim (no PDF)</span>
+                                      ) : (
+                                        <span><i className="fa-solid fa-xmark" style={{ marginRight: '4px' }}></i> Apenas Prontuário</span>
+                                      )}
+                                    </button>
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadExame(exIdx)}><i className="fa-solid fa-download"></i></button>
+                                      <button type="button" className="btn btn-danger btn-sm" onClick={() => removeExame(exIdx)}><i className="fa-solid fa-trash"></i></button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -16113,6 +16193,46 @@ goniometria: {
                           >
                             <i className="fa-solid fa-trash"></i> Remover
                           </button>
+                        </div>
+                      )}
+
+                      {repPdfUrl && (
+                        <div style={{
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '12px 16px',
+                          marginTop: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '10px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fa-solid fa-file-pdf" style={{ color: repIncluirAnexoNoPdf ? '#10b981' : '#94a3b8' }}></i>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
+                              Exibir este arquivo anexado no PDF final gerado pelo sistema?
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${repIncluirAnexoNoPdf ? 'btn-primary' : 'btn-secondary'}`}
+                              style={{ fontSize: '0.76rem', padding: '4px 12px' }}
+                              onClick={() => setRepIncluirAnexoNoPdf(true)}
+                            >
+                              <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i> Sim, incluir no PDF
+                            </button>
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${!repIncluirAnexoNoPdf ? 'btn-primary' : 'btn-secondary'}`}
+                              style={{ fontSize: '0.76rem', padding: '4px 12px' }}
+                              onClick={() => setRepIncluirAnexoNoPdf(false)}
+                            >
+                              <i className="fa-solid fa-xmark" style={{ marginRight: '4px' }}></i> Não (apenas prontuário)
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

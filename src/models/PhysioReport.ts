@@ -22,6 +22,9 @@ const PhysioReportSchema = new Schema({
   termografia: { type: Schema.Types.Mixed },
   testesOrtopedicos: { type: Schema.Types.Mixed },
   perimetria: { type: Schema.Types.Mixed },
+  examesComplementares: { type: Schema.Types.Mixed },
+  incluirAnexoNoPdf: { type: Boolean, default: true },
+  exibirPdfUrlNoPdf: { type: Boolean, default: true },
   pdfName: { type: String },
   pdf_url: { type: String, default: '' },
   tempoGastoSegundos: { type: Number, default: 0 }
