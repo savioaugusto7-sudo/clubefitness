@@ -306,10 +306,23 @@ export function identifyClinicalClusters(profile: ClientClinicalProfile): Clinic
         achados.push('Sobrecarga no Compartimento Anterior do Joelho (estresse patelofemoral / tendão patelar).');
         atencao.push('Pressão de contato retropatelar acentuada em agachamentos profundos e tarefas excêntricas de desaceleração.');
         recomendacoes.push('Prescrição Sala de Musculação: Fortalecimento isométrico do quadríceps na cadeira extensora (60°–45° para tendão, 90°–60° para SDPF). Ativação de glúteo máximo e médio para controle do vetor de valgo dinâmico. Adiar treinos pliométricos e saltos até que a força extensora atinja o limiar protetor (≥ 70% PC).');
-      } else if (qNorm.includes('medial') || qNorm.includes('pata de ganso') || qNorm.includes('anserina') || qNorm.includes('lcm') || qNorm.includes('menisco medial')) {
-        achados.push('Tensão concentrada no Compartimento Medial do Joelho (estresse sobre a pata de ganso, LCM ou cisalhamento de menisco medial).');
-        atencao.push('Predisposição a colapso medial em valgo dinâmico, frequentemente agravado por restrição de rotação de quadril ou pronação excessiva do pé.');
-        recomendacoes.push('Prescrição Sala de Musculação: Equilíbrio de adutores e rotadores de quadril. Manter alinhamento joelho-segundo dedo durante o agachamento e leg press. Avaliar estabilidade do arco medial do pé.');
+      } else if (qNorm.includes('medial') || qNorm.includes('pata de ganso') || qNorm.includes('anserina') || qNorm.includes('lcm') || qNorm.includes('menisco medial') || qNorm.includes('kam') || qNorm.includes('plica')) {
+        const isPressao = qNorm.includes('pressao') || qNorm.includes('menisco') || qNorm.includes('osteoartrite') || qNorm.includes('condral') || qNorm.includes('varo') || qNorm.includes('kam');
+        const isEstiramento = qNorm.includes('estiramento') || qNorm.includes('pata de ganso') || qNorm.includes('anserina') || qNorm.includes('lcm') || qNorm.includes('valgo') || qNorm.includes('plica');
+
+        if (isPressao) {
+          achados.push('Sobrecarga mecânica por COMPRESSÃO no Compartimento Medial do Joelho (elevação do Momento de Adução do Joelho - KAM / estresse axial fêmuro-tibial / menisco medial).');
+          atencao.push('Pressão compressiva e cisalhamento aumentados no platô tibial medial e menisco, agravados por padrão de genu varum, predomínio de quadríceps sobre isquiotibiais (I:Q reduzida) ou eventual perda de extensão terminal (flexo articular).');
+          recomendacoes.push('Terapia Manual & Conduta: Mobilização tibiofemoral em abertura medial (Graus I–III Maitland) e descompressão por tração longitudinal com mobilização meniscal. Prescrição Sala de Musculação: Fortalecimento excêntrico de isquiotibiais para frear cisalhamento anterior e absorver carga axial; priorizar cadeias cinéticas fechadas com alinhamento rigoroso; evitar pausas sob carga máxima em flexão profunda.');
+        } else if (isEstiramento) {
+          achados.push('Sobrecarga mecânica por ESTIRAMENTO no Compartimento Medial do Joelho (estresse tênsil decorrente de valgo dinâmico / sobrecarga na inserção anserina ou LCM).');
+          atencao.push('Vetor tênsil contínuo em plano frontal (valgo dinâmico), impulsionado por fraqueza estabilizadora de glúteo médio, encurtamento de adutores (teste KFBO com distância >15 cm ou assimetria >2 cm) e restrição de dorsiflexão no lunge test.');
+          recomendacoes.push('Terapia Manual & Conduta: Liberação miofascial profunda dos adutores (grácil) e músculos anserinos (sartório, semitendíneo); ganho de abdução passiva (teste KFBO). Prescrição Sala de Musculação: Fortalecimento excêntrico intensivo de glúteo médio e rotadores externos para extinção do valgo dinâmico no Step Down; restauração da dorsiflexão do tornozelo para eliminar a pronação compensatória ascendente.');
+        } else {
+          achados.push('Tensão concentrada no Compartimento Medial do Joelho (estresse sobre a pata de ganso, LCM ou cisalhamento de menisco medial).');
+          atencao.push('Predisposição a colapso medial em valgo dinâmico ou sobrecarga compressiva no KAM, frequentemente associado a desequilíbrio na razão adutor/abdutor.');
+          recomendacoes.push('Prescrição Sala de Musculação: Equilíbrio de adutores e rotadores de quadril. Manter alinhamento joelho-segundo dedo durante o agachamento e leg press. Avaliar estabilidade do arco medial do pé e teste KFBO.');
+        }
       } else if (qNorm.includes('posterior') || qNorm.includes('baker') || qNorm.includes('popliteo') || qNorm.includes('isquio')) {
         achados.push('Sobrecarga no Compartimento Posterior do Joelho (fossa poplítea / tendinopatia do poplíteo / cisto de Baker).');
         atencao.push('Sensibilidade mecânica terminal na flexão/extensão completa sob carga axial.');

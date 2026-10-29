@@ -189,26 +189,44 @@ export function generateClinicalNarrative(computed: LongitudinalComputedResult):
     fatoresComInvolucao.push('Nenhum fator de involução clinicamente significativo foi detectado no período avaliado.');
   }
 
-  // 14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO (Dinâmico)
+  // 14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO (Bifurcação: Estiramento vs. Pressão)
   const itensJoelho: string[] = [];
   const razaoIQ = tabelaRazoes.rows.find(r => r.indice.toLowerCase().includes('isquiotibiais'));
   if (razaoIQ && String(razaoIQ.t2).includes('%') && parseFloat(String(razaoIQ.t2)) < 60) {
-    itensJoelho.push(`Razão isquiotibiais/quadríceps em ${razaoIQ.t2} (referência: 60–75%) — o predomínio anterior do quadríceps reduz a proteção posterior e eleva a compressão patelofemoral e tibiofemoral.`);
+    itensJoelho.push(`[Mecanismo de Pressão] Razão isquiotibiais/quadríceps em ${razaoIQ.t2} (referência: 60–75%) — o predomínio anterior do quadríceps reduz a proteção posterior e eleva a compressão axial tibiofemoral e patelofemoral.`);
   }
 
   const razaoAdAbd = tabelaRazoes.rows.find(r => r.indice.toLowerCase().includes('adutor/abdutor'));
-  if (razaoAdAbd && typeof razaoAdAbd.t2 === 'number' && razaoAdAbd.t2 < 0.80) {
-    itensJoelho.push(`Razão adutor/abdutor em ${razaoAdAbd.t2} (referência: 0,80–1,15) — desequilíbrio na distribuição de forças no plano frontal.`);
+  if (razaoAdAbd && typeof razaoAdAbd.t2 === 'number') {
+    if (razaoAdAbd.t2 < 0.80) {
+      itensJoelho.push(`[Mecanismo de Estiramento] Razão adutor/abdutor em ${razaoAdAbd.t2} (referência: 0,80–1,15) — desequilíbrio na distribuição de forças no plano frontal.`);
+    } else if (razaoAdAbd.t2 > 1.15) {
+      itensJoelho.push(`[Mecanismo de Estiramento] Razão adutor/abdutor elevada em ${razaoAdAbd.t2} (adutores dominantes) — vetor que traciona o membro em adução femoral e estresse em valgo dinâmico.`);
+    }
   }
 
   const gMed = tabelaRazoes.rows.find(r => r.indice.toLowerCase().includes('glúteo'));
   if (gMed && String(gMed.t2).includes('%') && parseFloat(String(gMed.t2)) < 25) {
-    itensJoelho.push(`Glúteo médio relativo em ${gMed.t2} (referência: ≥25%) — déficit de estabilização pélvica em apoio unipodal, favorecendo vetor em valgo dinâmico.`);
+    itensJoelho.push(`[Mecanismo de Estiramento] Glúteo médio relativo em ${gMed.t2} (referência: ≥25%) — déficit de estabilização pélvica em apoio unipodal, favorecendo colapso medial em valgo dinâmico.`);
   }
 
   const stepValgoE = testesFuncionais.stepDown.find(s => s.variavel.toLowerCase().includes('valgo dinâmico de joelho esquerdo'));
-  if (stepValgoE && stepValgoE.t2 > 15) {
-    itensJoelho.push(`Valgo dinâmico de joelho esquerdo em ${stepValgoE.t2}° (acima do limite seguro de 15°) — acentua o vetor de sobrecarga compartimental.`);
+  const stepValgoD = testesFuncionais.stepDown.find(s => s.variavel.toLowerCase().includes('valgo dinâmico de joelho direito'));
+  if ((stepValgoE && stepValgoE.t2 > 15) || (stepValgoD && stepValgoD.t2 > 15)) {
+    const maiorValgo = Math.max(stepValgoE?.t2 || 0, stepValgoD?.t2 || 0);
+    itensJoelho.push(`[Mecanismo de Estiramento] Valgo dinâmico em Step Down atingindo ${maiorValgo}° (limite seguro: ≤15°) — gera sobrecarga tênsil sobre o ligamento colateral medial e pata de ganso.`);
+  }
+
+  // Restrição de rotação de quadril (preditor de sobrecarga medial)
+  const gRotInt = tabelaGoniometria.find(g => g.movimento.toLowerCase().includes('rotação interna de quadril'));
+  if (gRotInt && gRotInt.t2 != null && gRotInt.t2 < 35) {
+    itensJoelho.push(`[Sobrecarga Medial] Rotação interna de quadril limitada a ${gRotInt.t2}° (referência: 35–45°) — altera o eixo de transmissão de forças, elevando o momento de adução (KAM).`);
+  }
+
+  // Restrição de dorsiflexão no lunge (preditor ascendente)
+  const gLunge = tabelaGoniometria.find(g => g.movimento.toLowerCase().includes('lunge') || (g.movimento.toLowerCase().includes('dorsiflexão') && g.movimento.toLowerCase().includes('fletido')));
+  if (gLunge && gLunge.t2 != null && gLunge.t2 < 35) {
+    itensJoelho.push(`[Cadeia Ascendente] Dorsiflexão de tornozelo em ${gLunge.t2}° (referência: 35–45°) — restrição que induz pronação compensatória do pé e rotação tibial interna.`);
   }
 
   const dorJoelho = tabelaEVA.rows.find(r => r.queixa.toLowerCase().includes('joelho') && r.t2 > 0);
@@ -221,7 +239,7 @@ export function generateClinicalNarrative(computed: LongitudinalComputedResult):
   }
 
   const riscoCompartimentoMedialJoelho = {
-    introducao: 'Avaliação dos fatores biomecânicos e neuromusculares que governam a distribuição de cargas na articulação do joelho:',
+    introducao: 'Avaliação dos fatores biomecânicos e neuromusculares que governam a distribuição de cargas no Compartimento Medial do joelho (Estiramento vs. Pressão):',
     itens: itensJoelho
   };
 

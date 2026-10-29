@@ -8,12 +8,14 @@
  * 4. Tipos e Características da Dor
  */
 
-export type CompartimentoAnatomico = 'Anterior' | 'Medial' | 'Lateral' | 'Posterior';
+export type CompartimentoAnatomico = 'Anterior' | 'Medial' | 'Lateral' | 'Posterior' | 'Difuso / Intra-Articular';
 
 export interface SubRegiaoAnatomica {
   id: string;
   nome: string;
   compartimento?: CompartimentoAnatomico;
+  mecanismo?: 'pressao' | 'estiramento' | 'compressao' | 'tracao' | string;
+  subgrupo?: string;
   descricao?: string;
 }
 
@@ -186,18 +188,19 @@ export const REGIOES_ANATOMICAS: RegiaoAnatomica[] = [
       // 1. Compartimento Anterior
       { id: 'dor_femoropatelar', nome: 'Anterior: Dor Femoropatelar / SDFP (Retropatelar / Tróclea)', compartimento: 'Anterior' },
       { id: 'tendao_patelar', nome: 'Anterior: Tendinopatia Patelar (Polo Inferior / Jumper\'s Knee)', compartimento: 'Anterior' },
-      { id: 'tendao_quadricipital', nome: 'Anterior: Tendinopatia Quadricipital (Polo Superior)', compartimento: 'Anterior' },
-      { id: 'hoffite', nome: 'Anterior: Hoffite (Gordura Infrapatelar / Dor ao Apoio)', compartimento: 'Anterior' },
-      { id: 'osgood_schlatter', nome: 'Anterior: Apofisite Tibial (Osgood-Schlatter / Sinding-Larsen)', compartimento: 'Anterior' },
+      { id: 'tendao_quadricipital', nome: 'Anterior: Tendinopatia Quadricipital (Polo Superior / Junção Miotendínea)', compartimento: 'Anterior' },
+      { id: 'hoffite', nome: 'Anterior: Hoffite (Gordura Infrapatelar / Dor à Extensão e Apoio)', compartimento: 'Anterior' },
+      { id: 'osgood_schlatter', nome: 'Anterior: Apofisite Tibial / Sinding-Larsen (Tuberosidade Anterior)', compartimento: 'Anterior' },
 
-      // 2. Compartimento Medial
-      { id: 'pata_ganso', nome: 'Medial: Pata de Ganso / Tendinopatia Anserina', compartimento: 'Medial' },
-      { id: 'lcm', nome: 'Medial: Ligamento Colateral Medial (LCM / Entorse em Valgo)', compartimento: 'Medial' },
-      { id: 'menisco_medial', nome: 'Medial: Menisco Medial (Corno Posterior / Raiz / Cisalhamento)', compartimento: 'Medial' },
-      { id: 'plica_mediopatelar', nome: 'Medial: Plica Sinovial Mediopatelar', compartimento: 'Medial' },
+      // 2. Compartimento Medial - Bifurcação Canônica: Estiramento (Tração) vs. Pressão (Compressão)
+      { id: 'menisco_medial', nome: 'Medial (Pressão): Menisco Medial (Corno Posterior / Raiz / Carga Axial e Pivô)', compartimento: 'Medial', mecanismo: 'pressao' },
+      { id: 'osteoartrite_medial', nome: 'Medial (Pressão): Degeneração Condral Tibiofemoral / Sobrecarga em Varo (KAM)', compartimento: 'Medial', mecanismo: 'pressao' },
+      { id: 'pata_ganso', nome: 'Medial (Estiramento): Pata de Ganso / Tendinobursite Anserina (Sartório, Grácil, Semitendíneo)', compartimento: 'Medial', mecanismo: 'estiramento' },
+      { id: 'lcm', nome: 'Medial (Estiramento): Ligamento Colateral Medial (LCM / Entesopatia em Valgo Dinâmico)', compartimento: 'Medial', mecanismo: 'estiramento' },
+      { id: 'plica_mediopatelar', nome: 'Medial (Estiramento): Plica Sinovial Mediopatelar (Atrito em 30–60°)', compartimento: 'Medial', mecanismo: 'estiramento' },
 
       // 3. Compartimento Lateral
-      { id: 'stit_trato_iliotibial', nome: 'Lateral: Síndrome do Trato Iliotibial (STIT / Fricção no Epicôndilo)', compartimento: 'Lateral' },
+      { id: 'stit_trato_iliotibial', nome: 'Lateral: Síndrome do Trato Iliotibial (STIT / Atrito no Epicôndilo Lateral)', compartimento: 'Lateral' },
       { id: 'biceps_femoral', nome: 'Lateral: Tendinopatia do Bíceps Femoral (Cabeça da Fíbula)', compartimento: 'Lateral' },
       { id: 'lcl', nome: 'Lateral: Ligamento Colateral Lateral (LCL / Estresse em Varo)', compartimento: 'Lateral' },
       { id: 'menisco_lateral', nome: 'Lateral: Menisco Lateral (Interlinha Articular Lateral)', compartimento: 'Lateral' },
@@ -205,9 +208,14 @@ export const REGIOES_ANATOMICAS: RegiaoAnatomica[] = [
 
       // 4. Compartimento Posterior
       { id: 'cisto_baker', nome: 'Posterior: Cisto de Baker / Fossa Poplítea', compartimento: 'Posterior' },
-      { id: 'tendao_popliteo', nome: 'Posterior: Tendinopatia do Poplíteo', compartimento: 'Posterior' },
+      { id: 'tendao_popliteo', nome: 'Posterior: Tendinopatia do Poplíteo (Controle Rotacional)', compartimento: 'Posterior' },
       { id: 'isquiotibiais_distais', nome: 'Posterior: Isquiotibiais Distais (Semimembranoso / Semitendíneo)', compartimento: 'Posterior' },
-      { id: 'lcp', nome: 'Posterior: Ligamento Cruzado Posterior (LCP / Gaveta Posterior)', compartimento: 'Posterior' }
+      { id: 'lcp', nome: 'Posterior: Ligamento Cruzado Posterior (LCP / Translação Posterior)', compartimento: 'Posterior' },
+
+      // 5. Compartimento Difuso / Intra-Articular
+      { id: 'lca', nome: 'Intra-Articular: Ligamento Cruzado Anterior (LCA / Instabilidade Anterior)', compartimento: 'Difuso / Intra-Articular' },
+      { id: 'derrame_articular', nome: 'Intra-Articular: Derrame Articular / Sinovite Reativa', compartimento: 'Difuso / Intra-Articular' },
+      { id: 'artrose_global', nome: 'Intra-Articular: Osteoartrite Tricompartimental Global', compartimento: 'Difuso / Intra-Articular' }
     ]
   },
   {
@@ -387,13 +395,17 @@ export const COMPARTIMENTOS_METADATA: Record<CompartimentoAnatomico, { nome: str
   Anterior: { nome: 'Anterior', cor: '#0284c7', icone: 'fa-arrow-up', bg: 'rgba(2, 132, 199, 0.12)', border: 'rgba(2, 132, 199, 0.4)' },
   Medial: { nome: 'Medial', cor: '#059669', icone: 'fa-arrow-left', bg: 'rgba(5, 150, 105, 0.12)', border: 'rgba(5, 150, 105, 0.4)' },
   Lateral: { nome: 'Lateral', cor: '#9333ea', icone: 'fa-arrow-right', bg: 'rgba(147, 51, 234, 0.12)', border: 'rgba(147, 51, 234, 0.4)' },
-  Posterior: { nome: 'Posterior', cor: '#d97706', icone: 'fa-arrow-down', bg: 'rgba(217, 119, 6, 0.12)', border: 'rgba(217, 119, 6, 0.4)' }
+  Posterior: { nome: 'Posterior', cor: '#d97706', icone: 'fa-arrow-down', bg: 'rgba(217, 119, 6, 0.12)', border: 'rgba(217, 119, 6, 0.4)' },
+  'Difuso / Intra-Articular': { nome: 'Intra-Articular', cor: '#e11d48', icone: 'fa-bullseye', bg: 'rgba(225, 29, 72, 0.12)', border: 'rgba(225, 29, 72, 0.4)' }
 };
 
 // 7. HELPER: DETECTA COMPARTIMENTO ANATÔMICO AUTOMATICAMENTE
 export function detectCompartment(text?: string): CompartimentoAnatomico | undefined {
   if (!text) return undefined;
   const s = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (s.includes('intra-articular') || s.includes('intra articular') || s.includes('difus') || s.includes('derrame') || s.includes('sinovite') || s.includes('lca')) {
+    return 'Difuso / Intra-Articular';
+  }
   if (s.includes('lateral') || s.includes('trato iliotibial') || s.includes('stit') || s.includes('biceps femoral') || s.includes('lcl') || s.includes('fibul')) {
     return 'Lateral';
   }
