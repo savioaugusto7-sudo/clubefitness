@@ -14,6 +14,7 @@ import {
   BarElement
 } from 'chart.js';
 import { Radar, Line, Bar } from 'react-chartjs-2';
+import LiveClinicalAlert from '../LiveClinicalAlert';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
 import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from '@/utils/biomechanicsEngine';
 import { detectCompartment, COMPARTIMENTOS_METADATA } from '@/utils/fisioterapiaQueixasCatalog';
@@ -88,6 +89,10 @@ export default function AlunoEvolutionDashboard({
   const [strengthViewMode, setStrengthViewMode] = React.useState<'bilateral' | 'radar' | 'razoes'>('bilateral');
   const [gonioArticulacao, setGonioArticulacao] = React.useState<'tornozelo' | 'joelho' | 'ombro'>('tornozelo');
 
+  // 1. DADOS DE DINAMOMETRIA (AVALIAÇÃO MAIS RECENTE — declarado no topo para evitar TDZ)
+  const strengthList = Array.isArray(evolutionSeries?.strength) ? evolutionSeries.strength : [];
+  const latestStrengthDoc = strengthList.length > 0 ? strengthList[strengthList.length - 1] : null;
+
   // 🌟 MONITORAMENTO DE CARGA ACWR & MATRIZ DE DECISÃO DO WELLNESS (Gabbett / Hooper)
   const acwrData: ACWRResult = React.useMemo(() => {
     if (acwr) return acwr;
@@ -96,12 +101,9 @@ export default function AlunoEvolutionDashboard({
 
   const decisionMatrixData: DecisionMatrixResult = React.useMemo(() => {
     if (matrizDecisao) return matrizDecisao;
-    const lastWell = evolutionSeries.wellness && evolutionSeries.wellness.length > 0 ? evolutionSeries.wellness[0] : null;
+    const lastWell = evolutionSeries?.wellness && evolutionSeries.wellness.length > 0 ? evolutionSeries.wellness[0] : null;
     return calculateWellnessACWRDecision(lastWell, acwrData);
-  }, [matrizDecisao, evolutionSeries.wellness, acwrData]);
-
-  // 1. DADOS DE DINAMOMETRIA (AVALIAÇÃO MAIS RECENTE)
-  const latestStrengthDoc = evolutionSeries.strength[evolutionSeries.strength.length - 1];
+  }, [matrizDecisao, evolutionSeries?.wellness, acwrData]);
 
   // 🌟 CÁLCULO DAS RAZÕES MUSCULARES E FORÇA RELATIVA (% PESO CORPORAL)
   const advancedStrengthRatios = React.useMemo(() => {
@@ -429,8 +431,9 @@ export default function AlunoEvolutionDashboard({
       data?: string;
     }> = [];
 
-    if (longitudinal?.computed?.tabelaEVA?.rows?.length > 0) {
-      longitudinal.computed.tabelaEVA.rows.forEach((r: any) => {
+    const evaRows = longitudinal?.computed?.tabelaEVA?.rows;
+    if (Array.isArray(evaRows) && evaRows.length > 0) {
+      evaRows.forEach((r: any) => {
         list.push({
           regiao: r.queixa,
           intensidade: Number(r.t2 ?? r.t1 ?? 0),

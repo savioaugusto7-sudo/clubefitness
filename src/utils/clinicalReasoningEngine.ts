@@ -84,6 +84,26 @@ export function generateClinicalNarrative(computed: LongitudinalComputedResult):
     }
   });
 
+  // Composição Corporal e Antropometria
+  if (computed.tabelaComposicao && computed.tabelaComposicao.length > 0) {
+    computed.tabelaComposicao.forEach(c => {
+      if (c.leitura === 'Redução de gordura' || c.leitura === 'Ganho de massa magra' || c.leitura === 'Redução de medidas' || c.leitura === 'Redução de risco') {
+        fatoresEvolucao.push(`Composição corporal (${c.metrica}) — evolução de ${c.t1} ${c.unidade} para ${c.t2} ${c.unidade} (${c.variacao} ${c.unidade}, ${c.leitura}).`);
+      }
+    });
+  }
+
+  // Perimetria / Circunferências
+  if (computed.tabelaPerimetria && computed.tabelaPerimetria.length > 0) {
+    computed.tabelaPerimetria.forEach(p => {
+      if ((p.regiao === 'Cintura' || p.regiao === 'Abdômen') && p.deltaNum <= -1.0) {
+        fatoresEvolucao.push(`Perimetria (${p.regiao}) — redução de circunferência abdominal de ${p.t1} cm para ${p.t2} cm (${p.variacaoCm}).`);
+      } else if ((p.regiao.includes('Braço') || p.regiao.includes('Coxa') || p.regiao.includes('Panturrilha')) && p.deltaNum >= 0.5) {
+        fatoresEvolucao.push(`Perimetria (${p.regiao}) — ganho trófico de ${p.t1} cm para ${p.t2} cm (${p.variacaoCm}).`);
+      }
+    });
+  }
+
   if (fatoresEvolucao.length === 0) {
     fatoresEvolucao.push('Dados comparativos em consolidação terapêutica; ganhos funcionais em acompanhamento progressivo.');
   }

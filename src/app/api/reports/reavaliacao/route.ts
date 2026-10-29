@@ -84,44 +84,96 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Cliente não encontrado.' }, { status: 404 });
     }
 
-    // 2. Selecionar documentos T1 e T2
+    // 2. Selecionar documentos T1 e T2 (Universal: Relatório Fisio, Avaliação Física, Dinamometria ou Teste Avulso)
+    const allComparableDocs = [
+      ...physioReports,
+      ...physicalAssessments,
+      ...strengthTests,
+      ...clientTestRecords
+    ].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
+
     let t1Report: any = null;
     let t2Report: any = null;
 
     if (t1Id && t2Id) {
-      t1Report = physioReports.find((r: any) => String(r._id) === String(t1Id)) ||
-                 physicalAssessments.find((a: any) => String(a._id) === String(t1Id));
-      t2Report = physioReports.find((r: any) => String(r._id) === String(t2Id)) ||
-                 physicalAssessments.find((a: any) => String(a._id) === String(t2Id));
+      t1Report = allComparableDocs.find((r: any) => String(r._id) === String(t1Id));
+      t2Report = allComparableDocs.find((r: any) => String(r._id) === String(t2Id));
     }
 
     if (!t1Report || !t2Report) {
       if (physioReports.length >= 2) {
         t1Report = physioReports[0];
         t2Report = physioReports[physioReports.length - 1];
-      } else if (physioReports.length === 1 && physicalAssessments.length >= 1) {
-        t1Report = physicalAssessments[0];
-        t2Report = physioReports[0];
       } else if (physicalAssessments.length >= 2) {
         t1Report = physicalAssessments[0];
         t2Report = physicalAssessments[physicalAssessments.length - 1];
-      } else if (physioReports.length === 1) {
-        // Caso possua 1 relatório fisioterapêutico + testes de força/avulsos em datas distintas, permite gerar o laudo evolutivo
-        t1Report = physioReports[0];
-        t2Report = physioReports[0];
+      } else if (physioReports.length + physicalAssessments.length >= 2) {
+        const combinedEvals = [...physioReports, ...physicalAssessments].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
+        t1Report = combinedEvals[0];
+        t2Report = combinedEvals[combinedEvals.length - 1];
+      } else if (strengthTests.length >= 2) {
+        t1Report = strengthTests[0];
+        t2Report = strengthTests[strengthTests.length - 1];
+      } else if (allComparableDocs.length >= 2) {
+        t1Report = allComparableDocs[0];
+        t2Report = allComparableDocs[allComparableDocs.length - 1];
+      } else if (allComparableDocs.length === 1) {
+        t1Report = allComparableDocs[0];
+        t2Report = allComparableDocs[0];
       }
     }
 
     if (!t1Report || !t2Report) {
       return NextResponse.json({
         success: false,
-        error: 'O paciente ainda não possui avaliações fisioterapêuticas suficientes para gerar o laudo de reavaliação.'
+        error: 'O aluno ainda não possui registros suficientes para gerar o laudo comparativo.'
       }, { status: 400 });
     }
 
-    // 3. Testes de Força T1 e T2
-    const t1Strength = strengthTests.length > 0 ? strengthTests[0] : null;
-    const t2Strength = strengthTests.length > 1 ? strengthTests[strengthTests.length - 1] : t1Strength;
+    // Enriquecer T1 e T2 com testes avulsos da mesma época ou extremos cronológicos
+    const enrichReportWithAvulsos = (baseDoc: any, isT2: boolean) => {
+      if (!baseDoc) return baseDoc;
+      const cloned = { ...baseDoc };
+      const pickAvulso = (tipo: string) => {
+        const list = clientTestRecords.filter((tr: any) => tr.tipoTeste === tipo);
+        if (list.length === 0) return null;
+        if (isT2) {
+          return list.slice().reverse().find((tr: any) => !baseDoc.data || tr.data <= baseDoc.data) || list[list.length - 1];
+        }
+        return list.find((tr: any) => !baseDoc.data || tr.data <= baseDoc.data) || list[0];
+      };
+      const gAv = pickAvulso('GONIOMETRIA');
+      if (gAv?.dados && !cloned.goniometria && !cloned.dadosMedidos?.goniometria) {
+        cloned.goniometria = gAv.dados;
+      }
+      const compAv = pickAvulso('COMPOSICAO_CORPORAL');
+      if (compAv?.dados && !cloned.resultadosCalculados && !cloned.dadosMedidos?.composicao) {
+        cloned.dadosMedidos = { ...(cloned.dadosMedidos || {}), ...compAv.dados };
+      }
+      const perimAv = pickAvulso('PERIMETRIA');
+      if (perimAv?.dados && !cloned.dadosMedidos?.perimetria && !cloned.perimetria) {
+        cloned.perimetria = perimAv.dados;
+      }
+      const yAv = pickAvulso('Y_TEST');
+      const sdAv = pickAvulso('STEP_DOWN');
+      if ((yAv?.dados || sdAv?.dados) && !cloned.testesEspeciais && !cloned.dadosMedidos?.testesFuncionais) {
+        cloned.testesEspeciais = {
+          ...(cloned.testesEspeciais || {}),
+          ...(yAv?.dados ? { yTest: yAv.dados } : {}),
+          ...(sdAv?.dados ? { stepDown: sdAv.dados } : {})
+        };
+      }
+      return cloned;
+    };
+
+    t1Report = enrichReportWithAvulsos(t1Report, false);
+    t2Report = enrichReportWithAvulsos(t2Report, true);
+
+    // 3. Testes de Força T1 e T2 (incluindo dinamometria avulsa)
+    const dinAvulsos = clientTestRecords.filter((tr: any) => tr.tipoTeste === 'DINAMOMETRIA');
+    const allStrengthDocs = [...strengthTests, ...dinAvulsos].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
+    const t1Strength = allStrengthDocs.length > 0 ? allStrengthDocs[0] : (t1Report.testesRealizados ? t1Report : null);
+    const t2Strength = allStrengthDocs.length > 1 ? allStrengthDocs[allStrengthDocs.length - 1] : t1Strength;
 
     // 4. Carregar profissionais para CREFITO
     const rawProfIds = [

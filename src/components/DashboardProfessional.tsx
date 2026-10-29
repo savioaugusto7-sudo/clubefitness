@@ -10015,6 +10015,75 @@ goniometria: {
                                 </>
                               )}
                             </button>
+
+                            {row.assessments.length >= 2 && (
+                              <button
+                                type="button"
+                                title="Gerar Laudo Comparativo Pré/Pós (Avaliações Físicas, Força e Testes)"
+                                disabled={generatingPdfId === `reav_as_${as._id}`}
+                                style={{
+                                  flex: 1,
+                                  height: '40px',
+                                  background: 'rgba(16, 185, 129, 0.14)',
+                                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                                  color: '#34d399',
+                                  borderRadius: '10px',
+                                  fontWeight: 750,
+                                  fontSize: '0.8rem',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  touchAction: 'manipulation'
+                                }}
+                                onClick={async () => {
+                                  const cid = as.clienteId?._id || as.clienteId || row.clientId;
+                                  const sortedRowAs = [...row.assessments].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
+                                  const t1IdParam = sortedRowAs[0]?._id;
+                                  const t2IdParam = activeId && String(activeId) !== String(t1IdParam) ? activeId : sortedRowAs[sortedRowAs.length - 1]?._id;
+                                  setGeneratingPdfId(`reav_as_${as._id}`);
+                                  try {
+                                    const controller = new AbortController();
+                                    const timer = setTimeout(() => controller.abort(), 12000);
+                                    let res: Response;
+                                    try {
+                                      res = await fetch(`/api/reports/reavaliacao?clientId=${cid}&t1Id=${t1IdParam}&t2Id=${t2IdParam}`, {
+                                        cache: 'no-store',
+                                        signal: controller.signal
+                                      });
+                                    } catch {
+                                      res = await fetch(`/api/reports/reavaliacao?clientId=${cid}&t1Id=${t1IdParam}&t2Id=${t2IdParam}&fast=true`, {
+                                        cache: 'no-store'
+                                      });
+                                    } finally {
+                                      clearTimeout(timer);
+                                    }
+                                    const data = await res.json();
+                                    if (!data.success) {
+                                      alert(data.error || 'Não foi possível gerar o comparativo.');
+                                      return;
+                                    }
+                                    await downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
+                                  } catch (err: any) {
+                                    console.error('Erro ao gerar comparativo de avaliação física:', err);
+                                    alert('Erro ao processar laudo comparativo: ' + err.message);
+                                  } finally {
+                                    setGeneratingPdfId(null);
+                                  }
+                                }}
+                              >
+                                {generatingPdfId === `reav_as_${as._id}` ? (
+                                  <>
+                                    <i className="fa-solid fa-spinner fa-spin"></i> Comparando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fa-solid fa-code-compare"></i> Comparativo Pré/Pós
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

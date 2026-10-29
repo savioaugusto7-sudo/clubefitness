@@ -3918,7 +3918,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            onClick={() => downloadStrengthTestPDF(st)}
+                            onClick={() => downloadStrengthTestPDF(st, client, null)}
                             style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                           >
                             <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Teste de Força (PDF)

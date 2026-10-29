@@ -748,6 +748,62 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
+  <!-- 10.1 COMPOSIÇÃO CORPORAL E ANTROPOMETRIA -->
+  ${(computed.tabelaComposicao && computed.tabelaComposicao.length > 0) ? `
+    <div class="section-title">10.1 COMPOSIÇÃO CORPORAL E ANTROPOMETRIA — COMPARATIVO</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Indicador</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Interpretação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${computed.tabelaComposicao.map(r => `
+          <tr>
+            <td class="font-bold">${r.metrica || r.parametro}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} ${r.unidade}` : '—'}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} ${r.unidade}` : '—'}</td>
+            <td class="text-center font-bold" style="color:${r.leitura === 'Redução de gordura' || r.leitura === 'Ganho de massa magra' || r.leitura === 'Redução de medidas' || r.leitura === 'Redução de risco' ? '#059669' : '#0f172a'}">
+              ${r.variacao.replace('.', ',')} ${r.unidade} (${r.variacaoPct.replace('.', ',')})
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : ''}
+
+  <!-- 10.2 PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS -->
+  ${(computed.tabelaPerimetria && computed.tabelaPerimetria.length > 0) ? `
+    <div class="section-title">10.2 PERIMETRIA E CIRCUNFERÊNCIAS CORPORAIS (cm)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Segmento</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação (cm)</th>
+          <th>Interpretação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${computed.tabelaPerimetria.map(r => `
+          <tr>
+            <td class="font-bold">${r.regiao}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} cm` : '—'}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} cm` : '—'}</td>
+            <td class="text-center font-bold">${r.variacaoCm.replace('.', ',')}</td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : ''}
+
   <!-- 11. FATORES DE EVOLUÇÃO -->
   <div class="section-title">11. FATORES DE EVOLUÇÃO</div>
   <p>A análise comparativa entre as avaliações documentou os seguintes destaques evolutivos:</p>

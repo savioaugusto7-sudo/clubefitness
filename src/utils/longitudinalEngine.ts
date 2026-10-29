@@ -114,6 +114,26 @@ export interface TableRowColuna {
   leitura: string;
 }
 
+export interface TableRowComposicao {
+  parametro: string;
+  metrica: string;
+  unidade: string;
+  t1: number | null;
+  t2: number | null;
+  variacao: string;
+  variacaoPct: string;
+  leitura: string;
+}
+
+export interface TableRowPerimetria {
+  regiao: string;
+  t1: number | null;
+  t2: number | null;
+  variacaoCm: string;
+  deltaNum: number;
+  leitura: string;
+}
+
 export interface LongitudinalComputedResult {
   identificacao: {
     paciente: string;
@@ -161,6 +181,8 @@ export interface LongitudinalComputedResult {
   tabelaGoniometria: TableRowGoniometria[];
   tabelaColuna: TableRowColuna[];
   tabelaTestesOrtopedicos: TableRowTesteOrtopedico[];
+  tabelaComposicao?: TableRowComposicao[];
+  tabelaPerimetria?: TableRowPerimetria[];
   clusters?: any[];
   razoesAvancadas?: AdvancedStrengthRatioItem[];
   acwr?: any;
@@ -195,18 +217,27 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   const { client, t1Report, t2Report, t1Strength, t2Strength, avaliadorT1, avaliadorT2 } = input;
 
   // 1. IDENTIFICAÇÃO E DATAS
-  const rawPeso = Number(client.pesoKg) || Number(t1Strength?.pesoCliente) || Number(t2Strength?.pesoCliente) || 0;
+  const rawPeso =
+    Number(t2Report?.dadosMedidos?.peso) ||
+    Number(t2Report?.dados?.peso) ||
+    Number(client.pesoKg) ||
+    Number(t2Strength?.pesoCliente) ||
+    Number(t1Report?.dadosMedidos?.peso) ||
+    Number(t1Strength?.pesoCliente) ||
+    0;
   const pesoCorporalStr = rawPeso > 0 ? `${rawPeso} kg` : 'Não informado';
   const pesoKg = rawPeso > 0 ? rawPeso : 0;
 
-  const dtRelatorioT1 = formatDateBR(t1Report?.data);
+  const dtRelatorioT1 = formatDateBR(t1Report?.data || t1Strength?.data);
   const dtForcaT1 = formatDateBR(t1Strength?.data || t1Report?.data);
   const dtReavaliacao = formatDateBR(t2Report?.data || t2Strength?.data);
 
   let intervaloSemanas = 0;
-  if (t1Report?.data && t2Report?.data) {
-    const d1 = new Date(t1Report.data);
-    const d2 = new Date(t2Report.data);
+  const dStr1 = t1Report?.data || t1Strength?.data;
+  const dStr2 = t2Report?.data || t2Strength?.data;
+  if (dStr1 && dStr2) {
+    const d1 = new Date(dStr1);
+    const d2 = new Date(dStr2);
     const diffMs = Math.abs(d2.getTime() - d1.getTime());
     const weeks = Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
     if (weeks > 0) intervaloSemanas = weeks;
@@ -223,29 +254,31 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     : `Avaliações conduzidas pelo mesmo profissional avaliador (${nomeAvT1}), assegurando consistência intraexaminador nas mensurações.`;
 
   // 2. OBJETIVO DO LAUDO
-  const objetivoDoLaudo = `Este laudo apresenta a comparação longitudinal entre a avaliação fisioterapêutica inicial (${dtRelatorioT1 || 'T1'}) e a reavaliação de seguimento (${dtReavaliacao || 'T2'}), documentando objetivamente a evolução dos parâmetros dolorosos, amplitudes articulares, equilíbrio neuromuscular e testes funcionais ortopédicos.`;
+  const objetivoDoLaudo = `Este laudo apresenta a comparação longitudinal entre a avaliação inicial (${dtRelatorioT1 || 'T1'}) e a reavaliação de seguimento (${dtReavaliacao || 'T2'}), documentando objetivamente a evolução dos parâmetros físicos, antropométricos, dolorosos, amplitudes articulares, equilíbrio neuromuscular e testes funcionais.`;
 
-  // 3. HISTÓRICO CLÍNICO DE BASE (Exclusivamente dados reais informados pelo paciente/fisioterapeuta)
+  // 3. HISTÓRICO CLÍNICO DE BASE (Suporta tanto Relatório Fisioterápico quanto Avaliação Física)
   const anamneseT1 = t1Report?.anamnese || {};
   const anamneseT2 = t2Report?.anamnese || {};
-  const condutaT1 = t1Report?.conteudo?.conduta || '';
+  const saudeT1 = t1Report?.dadosMedidos?.saudeGeral || {};
+  const saudeT2 = t2Report?.dadosMedidos?.saudeGeral || {};
+  const condutaT1 = t1Report?.conteudo?.conduta || t1Report?.observacoes || '';
 
-  const med = (anamneseT2.historico?.medicacao || anamneseT1.historico?.medicacao || '').trim();
+  const med = (anamneseT2.historico?.medicacao || anamneseT1.historico?.medicacao || saudeT2.medicamentos || saudeT1.medicamentos || '').trim();
   const pat = (anamneseT2.historico?.doencasPregressasAtuais || anamneseT1.historico?.doencasPregressasAtuais || '').trim();
-  const cir = (anamneseT2.historico?.cirurgiasInternacoes || anamneseT1.historico?.cirurgiasInternacoes || '').trim();
-  const atv = (anamneseT2.historico?.atividadesPraticadas || anamneseT1.historico?.atividadesPraticadas || '').trim();
-  const qxDiag = (condutaT1 || t1Report?.conteudo?.diagnostico || t1Report?.conteudo?.queixaPrincipal || '').trim();
+  const cir = (anamneseT2.historico?.cirurgiasInternacoes || anamneseT1.historico?.cirurgiasInternacoes || saudeT2.cirurgias || saudeT1.cirurgias || '').trim();
+  const atv = (anamneseT2.historico?.atividadesPraticadas || anamneseT1.historico?.atividadesPraticadas || saudeT2.atividadeFisica || saudeT1.atividadeFisica || '').trim();
+  const qxDiag = (condutaT1 || t1Report?.conteudo?.diagnostico || t1Report?.conteudo?.queixaPrincipal || saudeT1.queixas || t1Report?.dadosMedidos?.objetivoPrincipal || '').trim();
 
-  const sono1 = anamneseT1.habitos?.sonoHoras;
-  const sono2 = anamneseT2.habitos?.sonoHoras;
+  const sono1 = anamneseT1.habitos?.sonoHoras ?? saudeT1.sono;
+  const sono2 = anamneseT2.habitos?.sonoHoras ?? saudeT2.sono;
   const stress1 = anamneseT1.habitos?.stressNivel;
   const stress2 = anamneseT2.habitos?.stressNivel;
 
   let sonoEEstresse = '';
   if (sono1 != null && sono2 != null && sono1 !== sono2) {
-    sonoEEstresse += `Qualidade do sono evoluiu de ${sono1}h para ${sono2}h contínuas. `;
+    sonoEEstresse += `Qualidade do sono evoluiu de ${sono1} para ${sono2}. `;
   } else if (sono2 != null) {
-    sonoEEstresse += `Qualidade do sono relatada em ${sono2}h contínuas. `;
+    sonoEEstresse += `Qualidade do sono relatada: ${sono2}. `;
   }
   if (stress1 != null && stress2 != null && stress1 !== stress2) {
     sonoEEstresse += `Nível de estresse autorreferido variou de ${stress1}/10 para ${stress2}/10.`;
@@ -257,23 +290,35 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   }
 
   const historicoClinicoBase = {
-    idade: client.idade || 'Não informada',
+    idade: client.idade || t2Report?.dadosMedidos?.idade || t1Report?.dadosMedidos?.idade || 'Não informada',
     medicamentos: med || 'Não informado / Em uso de medicação contínua não relatado',
     patologiasPregressas: pat || 'Nenhuma patologia crônica prévia relatada',
     historicoCirurgiasTraumas: cir || 'Sem histórico cirúrgico ou traumático prévio relatado',
     demandaEsportiva: atv || 'Atividade esportiva regular não informada',
-    queixaInicialDiagnostico: qxDiag || 'Quadro clínico inicial registrado em prontuário fisioterapêutico',
+    queixaInicialDiagnostico: qxDiag || 'Quadro inicial registrado em prontuário',
     sonoEEstresse
   };
 
   // 4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA)
   const rowsEVA: TableRowEva[] = [];
-  const qList1 = Array.isArray(anamneseT1.queixas)
-    ? anamneseT1.queixas
-    : (Array.isArray(t1Report?.queixas) ? t1Report.queixas : []);
-  const qList2 = Array.isArray(anamneseT2.queixas)
-    ? anamneseT2.queixas
-    : (Array.isArray(t2Report?.queixas) ? t2Report.queixas : []);
+  const extractQueixasList = (rep: any) => {
+    const anam = rep?.anamnese || {};
+    if (Array.isArray(anam.queixas) && anam.queixas.length > 0) return anam.queixas;
+    if (Array.isArray(rep?.queixas) && rep.queixas.length > 0) return rep.queixas;
+    if (Array.isArray(rep?.avulsoQueixas) && rep.avulsoQueixas.length > 0) return rep.avulsoQueixas;
+    if (rep?.tipoTeste === 'QUEIXAS_EVA' && rep?.dados) {
+      return [{
+        regiao: rep.dados.regiao,
+        subRegiao: rep.dados.subRegiao,
+        lateralidade: rep.dados.lateralidade,
+        dorOnde: rep.dados.dorOnde || rep.dados.regiao || 'Queixa Principal',
+        dorIntensidade: Number(rep.dados.intensidade ?? rep.metricas?.scorePrincipal ?? 0)
+      }];
+    }
+    return [];
+  };
+  const qList1 = extractQueixasList(t1Report);
+  const qList2 = extractQueixasList(t2Report);
 
   if (qList1.length > 0 || qList2.length > 0) {
     const cleanPainRegion = (text: string): string => (text || '').replace(/\s+/g, ' ').trim();
@@ -449,28 +494,45 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     observacoesClinicasEVA = 'Sem queixas dolorosas ativas quantificadas no ciclo.' + (sonoEEstresse ? ` ${sonoEEstresse}` : '');
   }
 
-  // 5. COMPARATIVO DE FORÇA MUSCULAR (NEWTONS - Exclusivamente dados reais de dinamometria)
-  const extractStrengthMap = (stDoc: any) => {
+  // 5. COMPARATIVO DE FORÇA MUSCULAR (NEWTONS - Suporta StrengthTest e Teste Avulso DINAMOMETRIA)
+  const extractStrengthMap = (stDoc: any, fallbackRepDoc?: any) => {
     const map: Record<string, number> = {};
-    const list = stDoc?.testesRealizados || stDoc?.exercicios || [];
-    if (Array.isArray(list)) {
-      list.forEach((item: any) => {
-        const art = (item.articulacao || '').trim();
-        const mov = (item.movimento || '').trim();
-        const lado = (item.lado || '').trim();
-        if (!art || !mov || !lado) return;
-        const key = `${mov} de ${art.toLowerCase()}_${lado}`;
-        const forcaN = Number(item.forcaN || item.forca || (Number(item.valorObtido || 0) * 9.81));
-        if (forcaN > 0) {
-          map[key] = Math.round(forcaN * 10) / 10;
-        }
-      });
-    }
+    const parseDoc = (doc: any) => {
+      if (!doc) return;
+      const list = doc?.testesRealizados || doc?.dados?.testesRealizados || doc?.exercicios || doc?.testes || [];
+      if (Array.isArray(list) && list.length > 0) {
+        list.forEach((item: any) => {
+          const art = (item.articulacao || '').trim();
+          const mov = (item.movimento || item.grupoMuscular || '').trim();
+          const lado = (item.lado || '').trim();
+          if (!mov || !lado) return;
+          const key = art ? `${mov} de ${art.toLowerCase()}_${lado}` : `${mov}_${lado}`;
+          const rawVal = Number(item.forcaN || item.forca || item.valorObtido || 0);
+          const isKgf = String(item.unidade || '').toLowerCase() === 'kgf' && !item.forcaN;
+          const forcaN = isKgf ? rawVal * 9.81 : (item.forcaN || item.forca ? rawVal : rawVal * 9.81);
+          if (forcaN > 0) {
+            map[key] = Math.round(forcaN * 10) / 10;
+          }
+        });
+      }
+      // Suporte para Teste Avulso de Dinamometria (ClientTestRecord)
+      const avulso = doc?.tipoTeste === 'DINAMOMETRIA' ? doc?.dados : doc?.avulsoDinamometria;
+      if (avulso && avulso.grupoMuscular) {
+        const isKgf = String(avulso.unidade || 'N').toLowerCase() === 'kgf';
+        const mult = isKgf ? 9.81 : 1;
+        const vd = Number(avulso.ladoDireito) || 0;
+        const ve = Number(avulso.ladoEsquerdo) || 0;
+        if (vd > 0) map[`${avulso.grupoMuscular}_Direito`] = Math.round(vd * mult * 10) / 10;
+        if (ve > 0) map[`${avulso.grupoMuscular}_Esquerdo`] = Math.round(ve * mult * 10) / 10;
+      }
+    };
+    parseDoc(fallbackRepDoc);
+    parseDoc(stDoc);
     return map;
   };
 
-  const mapT1 = extractStrengthMap(t1Strength);
-  const mapT2 = extractStrengthMap(t2Strength);
+  const mapT1 = extractStrengthMap(t1Strength, t1Report);
+  const mapT2 = extractStrengthMap(t2Strength, t2Report);
   const allStrengthKeys = Array.from(new Set([...Object.keys(mapT1), ...Object.keys(mapT2)]));
 
   const rowsForca: TableRowForca[] = [];
@@ -694,9 +756,37 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     });
   });
 
-  // 8. TESTES FUNCIONAIS: Y-TESTE & STEP DOWN
-  const yT1 = t1Report?.testesOrtopedicos?.yTeste;
-  const yT2 = t2Report?.testesOrtopedicos?.yTeste;
+  // 8. TESTES FUNCIONAIS: Y-TESTE & STEP DOWN (Suporta PhysioReport, PhysicalAssessment e ClientTestRecord)
+  const normalizeYTest = (rep: any) => {
+    const raw =
+      rep?.testesOrtopedicos?.yTeste ||
+      rep?.dadosMedidos?.testesEspeciais?.yTest ||
+      rep?.dadosMedidos?.testesEspeciais?.yTeste ||
+      (rep?.tipoTeste === 'Y_TEST' ? rep?.dados : rep?.avulsoYTest);
+    if (!raw || typeof raw !== 'object') return null;
+    if (raw.direita || raw.esquerda) return raw;
+    if (raw.alcanceAnteriorD != null || raw.alcanceAnteriorE != null) {
+      return {
+        realizou: 'sim',
+        direita: {
+          comprimentoMembro: Number(raw.comprimentoMembroCm || raw.comprimentoMembroD || 85),
+          anterior: Number(raw.alcanceAnteriorD) || 0,
+          posteromedial: Number(raw.alcancePosteromedialD) || 0,
+          posterolateral: Number(raw.alcancePosterolateralD) || 0
+        },
+        esquerda: {
+          comprimentoMembro: Number(raw.comprimentoMembroCm || raw.comprimentoMembroE || 85),
+          anterior: Number(raw.alcanceAnteriorE) || 0,
+          posteromedial: Number(raw.alcancePosteromedialE) || 0,
+          posterolateral: Number(raw.alcancePosterolateralE) || 0
+        }
+      };
+    }
+    return raw;
+  };
+
+  const yT1 = normalizeYTest(t1Report);
+  const yT2 = normalizeYTest(t2Report);
 
   const hasY1 = Boolean(yT1?.direita?.anterior || yT1?.realizou === 'sim');
   const hasY2 = Boolean(yT2?.direita?.anterior || yT2?.realizou === 'sim');
@@ -775,9 +865,30 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     };
   }
 
-  // Step Down Test
-  const sdT1 = t1Report?.testesOrtopedicos?.stepDown;
-  const sdT2 = t2Report?.testesOrtopedicos?.stepDown;
+  // Step Down Test (Suporta PhysioReport, PhysicalAssessment e ClientTestRecord)
+  const normalizeStepDown = (rep: any) => {
+    const raw =
+      rep?.testesOrtopedicos?.stepDown ||
+      rep?.dadosMedidos?.testesEspeciais?.stepDown ||
+      (rep?.tipoTeste === 'STEP_DOWN' ? rep?.dados : rep?.avulsoStepDown);
+    if (!raw || typeof raw !== 'object') return null;
+    if (raw.valgoDinamicoJoelhoD != null || raw.valgoDinamicoJoelhoE != null || raw.quedaPelvicaD != null) return raw;
+    return {
+      valgoDinamicoJoelhoD: typeof raw.valgoD === 'number' ? raw.valgoD : (raw.valgoD ? 15 : 0),
+      valgoDinamicoJoelhoE: typeof raw.valgoE === 'number' ? raw.valgoE : (raw.valgoE ? 15 : 0),
+      aducaoQuadrilD: raw.aducaoD ?? raw.aducaoQuadrilD ?? null,
+      aducaoQuadrilE: raw.aducaoE ?? raw.aducaoQuadrilE ?? null,
+      quedaPelvicaD: raw.quedaPelvicaD ?? raw.pelvicaD ?? null,
+      quedaPelvicaE: raw.quedaPelvicaE ?? raw.pelvicaE ?? null,
+      compExcentricoPrpsD: raw.prpsD ?? raw.compExcentricoPrpsD ?? null,
+      compExcentricoPrpsE: raw.prpsE ?? raw.compExcentricoPrpsE ?? null,
+      pontuacaoD: raw.pontuacaoD ?? null,
+      pontuacaoE: raw.pontuacaoE ?? null
+    };
+  };
+
+  const sdT1 = normalizeStepDown(t1Report);
+  const sdT2 = normalizeStepDown(t2Report);
   const hasSD = Boolean(sdT1 || sdT2);
 
   const sdRows: StepDownComparisonRow[] = [];
@@ -816,22 +927,36 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     addSDRow('Valgo dinâmico de joelho direito', 'até 15°', sdT1?.valgoDinamicoJoelhoD, sdT2?.valgoDinamicoJoelhoD, false);
     addSDRow('Adução de quadril direita', 'até 10°', sdT1?.aducaoQuadrilD, sdT2?.aducaoQuadrilD, false);
     addSDRow('Queda pélvica direita', 'até 5°', sdT1?.quedaPelvicaD, sdT2?.quedaPelvicaD, false);
+    addSDRow('Score Step Down — Membro Direito', '0 a 2 pts', sdT1?.pontuacaoD, sdT2?.pontuacaoD, false);
+    addSDRow('Score Step Down — Membro Esquerdo', '0 a 2 pts', sdT1?.pontuacaoE, sdT2?.pontuacaoE, false);
   }
 
   // Hop Tests (Bateria de Saltos Unipodais & LSI)
   const hopRaw = t2Report?.hopTest || t2Report?.dados?.hopTest || t2Report?.testesOrtopedicos?.hopTest ||
                  t2Report?.dadosMedidos?.testesEspeciais?.hopTest ||
-                 t1Report?.hopTest || t1Report?.dados?.hopTest || t1Report?.testesOrtopedicos?.hopTest;
+                 (t2Report?.tipoTeste === 'HOP_TEST' ? t2Report?.dados : null) ||
+                 t1Report?.hopTest || t1Report?.dados?.hopTest || t1Report?.testesOrtopedicos?.hopTest ||
+                 (t1Report?.tipoTeste === 'HOP_TEST' ? t1Report?.dados : null);
   const hopTestResult = calculateHopBatteryAnalysis(hopRaw);
 
   // VISA-P (Questionário Validado de Tendinopatia Patelar — MCID = 13 pts)
-  const visaRawT1 = input.t1VisaP || t1Report?.visaP || t1Report?.dados?.visaP || t1Report?.testesOrtopedicos?.visaP || t1Report?.dadosMedidos?.testesEspeciais?.visaP;
-  const visaRawT2 = input.t2VisaP || t2Report?.visaP || t2Report?.dados?.visaP || t2Report?.testesOrtopedicos?.visaP || t2Report?.dadosMedidos?.testesEspeciais?.visaP;
+  const visaRawT1 = input.t1VisaP || t1Report?.visaP || t1Report?.dados?.visaP || t1Report?.testesOrtopedicos?.visaP || t1Report?.dadosMedidos?.testesEspeciais?.visaP || (t1Report?.tipoTeste === 'VISA_P' ? t1Report?.dados : null);
+  const visaRawT2 = input.t2VisaP || t2Report?.visaP || t2Report?.dados?.visaP || t2Report?.testesOrtopedicos?.visaP || t2Report?.dadosMedidos?.testesEspeciais?.visaP || (t2Report?.tipoTeste === 'VISA_P' ? t2Report?.dados : null);
   const visaPResult = compareVisaPLongitudinal(visaRawT1, visaRawT2, dtRelatorioT1, dtReavaliacao);
 
-  // 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA - Com referências cinesiológicas completas)
-  const g1 = t1Report?.goniometria || {};
-  const g2 = t2Report?.goniometria || {};
+  // 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA - Suporta PhysioReport, PhysicalAssessment e ClientTestRecord)
+  const g1 = {
+    ...(t1Report?.tipoTeste === 'GONIOMETRIA' ? t1Report?.dados : {}),
+    ...(t1Report?.avulsoGoniometria || {}),
+    ...(t1Report?.dadosMedidos?.goniometria || {}),
+    ...(t1Report?.goniometria || {})
+  };
+  const g2 = {
+    ...(t2Report?.tipoTeste === 'GONIOMETRIA' ? t2Report?.dados : {}),
+    ...(t2Report?.avulsoGoniometria || {}),
+    ...(t2Report?.dadosMedidos?.goniometria || {}),
+    ...(t2Report?.goniometria || {})
+  };
 
   const gonioConfigs: { mov: string; ref: string; key1: string; key2: string; minRef: number }[] = [
     // Quadril e Joelho
@@ -896,7 +1021,34 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   });
 
   // 9.1 MOBILIDADE TRIDIMENSIONAL DA COLUNA VERTEBRAL
-  const getCol = (rep: any, k: string) => rep?.[k] ?? rep?.dados?.[k] ?? rep?.mobilidadeColuna?.[k];
+  const parseMaigneFromAssessment = (rep: any) => {
+    const rawMaigne = rep?.dadosMedidos?.testesEspeciais?.maigne;
+    if (typeof rawMaigne === 'string' && rawMaigne.trim().startsWith('{')) {
+      try {
+        return JSON.parse(rawMaigne);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+  const maigneMap: Record<string, string> = {
+    mFlex: 'flexao', mFlexEVA: 'flexaoEVA',
+    mExt: 'extensao', mExtEVA: 'extensaoEVA',
+    mIncD: 'inclinacaoD', mIncDEVA: 'inclinacaoDEVA',
+    mIncE: 'inclinacaoE', mIncEEVA: 'inclinacaoEEVA',
+    mRotD: 'rotacaoD', mRotDEVA: 'rotacaoDEVA',
+    mRotE: 'rotacaoE', mRotEEVA: 'rotacaoEEVA'
+  };
+  const getCol = (rep: any, k: string) => {
+    const direct = rep?.[k] ?? rep?.dados?.[k] ?? rep?.mobilidadeColuna?.[k];
+    if (direct !== undefined && direct !== null && direct !== '') return direct;
+    const parsedM = parseMaigneFromAssessment(rep);
+    if (parsedM && maigneMap[k] && parsedM[maigneMap[k]] !== undefined) {
+      return parsedM[maigneMap[k]];
+    }
+    return null;
+  };
   const colConfigs = [
     { mov: 'Flexão anterior de tronco (Coluna Lombar)', ref: '40–60°', keyGraus: 'mFlex', keyEva: 'mFlexEVA', minRef: 40 },
     { mov: 'Extensão de tronco', ref: '20–35°', keyGraus: 'mExt', keyEva: 'mExtEVA', minRef: 20 },
@@ -948,8 +1100,20 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   });
 
   // 10. TESTES ORTOPÉDICOS ESPECIAIS
-  const te1 = t1Report?.testesOrtopedicos || t1Report?.testesEspeciais || {};
-  const te2 = t2Report?.testesOrtopedicos || t2Report?.testesEspeciais || {};
+  const te1 = {
+    ...(t1Report?.tipoTeste === 'TESTES_ESPECIAIS' ? t1Report?.dados : {}),
+    ...(t1Report?.avulsoTestesEspeciais || {}),
+    ...(t1Report?.dadosMedidos?.testesEspeciais || {}),
+    ...(t1Report?.testesEspeciais || {}),
+    ...(t1Report?.testesOrtopedicos || {})
+  };
+  const te2 = {
+    ...(t2Report?.tipoTeste === 'TESTES_ESPECIAIS' ? t2Report?.dados : {}),
+    ...(t2Report?.avulsoTestesEspeciais || {}),
+    ...(t2Report?.dadosMedidos?.testesEspeciais || {}),
+    ...(t2Report?.testesEspeciais || {}),
+    ...(t2Report?.testesOrtopedicos || {})
+  };
 
   const testsList: { label: string; key: string }[] = [
     { label: 'Teste de Ober (TFL/Tracto Iliotibial)', key: 'ober' },
@@ -964,16 +1128,31 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
 
   const rowsTestesOrtopedicos: TableRowTesteOrtopedico[] = [];
   testsList.forEach(t => {
-    const val1 = te1[t.key] || (te1[`${t.key}D`] ? `${te1[`${t.key}D`] || ''} / ${te1[`${t.key}E`] || ''}`.trim() : null) || t1Report?.[t.key] || t1Report?.dados?.[t.key];
-    const val2 = te2[t.key] || (te2[`${t.key}D`] ? `${te2[`${t.key}D`] || ''} / ${te2[`${t.key}E`] || ''}`.trim() : null) || t2Report?.[t.key] || t2Report?.dados?.[t.key];
+    const resolveSpecialVal = (te: any, rep: any) => {
+      if (te[t.key]) return te[t.key];
+      if (te[`${t.key}DStatus`] || te[`${t.key}EStatus`]) {
+        const dStat = te[`${t.key}DStatus`] || 'Negativo';
+        const eStat = te[`${t.key}EStatus`] || 'Negativo';
+        const dDeg = te[`${t.key}D`] ? ` (${te[`${t.key}D`]}°)` : '';
+        const eDeg = te[`${t.key}E`] ? ` (${te[`${t.key}E`]}°)` : '';
+        return `D: ${dStat}${dDeg} / E: ${eStat}${eDeg}`;
+      }
+      if (te[`${t.key}D`] || te[`${t.key}E`]) {
+        return `D: ${te[`${t.key}D`] || '-'} / E: ${te[`${t.key}E`] || '-'}`;
+      }
+      return rep?.[t.key] || rep?.dados?.[t.key] || null;
+    };
+
+    const val1 = resolveSpecialVal(te1, t1Report);
+    const val2 = resolveSpecialVal(te2, t2Report);
     if (!val1 && !val2) return;
 
     const s1 = String(val1 || 'Não registrado');
     const s2 = String(val2 || 'Não registrado');
     let leitura = 'Acompanhamento clínico';
-    if (s1.toLowerCase().includes('positivo') && s2.toLowerCase().includes('negativo')) {
+    if (s1.toLowerCase().includes('positivo') && !s2.toLowerCase().includes('positivo') && s2.toLowerCase().includes('negativo')) {
       leitura = 'Resolvido (negativou)';
-    } else if (s1.toLowerCase().includes('negativo') && s2.toLowerCase().includes('positivo')) {
+    } else if (!s1.toLowerCase().includes('positivo') && s1.toLowerCase().includes('negativo') && s2.toLowerCase().includes('positivo')) {
       leitura = 'Surgimento de positividade';
     } else if (s1 === s2) {
       leitura = 'Estável';
@@ -987,16 +1166,173 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     });
   });
 
+  // 10.1 COMPOSIÇÃO CORPORAL & ANTROPOMETRIA (Avaliação Física e Testes Avulsos)
+  const extractBodyComp = (rep: any) => {
+    if (!rep) return {};
+    const dm = rep?.dadosMedidos || {};
+    const rc = rep?.resultadosCalculados || {};
+    const av = rep?.tipoTeste === 'COMPOSICAO_CORPORAL' ? (rep?.dados || {}) : (rep?.avulsoComposicao || {});
+    const peso = parseNumberOrNull(dm.peso ?? rc.peso ?? av.peso);
+    const altura = parseNumberOrNull(dm.altura ?? rc.altura);
+    const percGordura = parseNumberOrNull(rc.percentualGordura ?? dm.percentualGordura ?? av.percentualGordura);
+    let massaMagra = parseNumberOrNull(rc.massaMagra ?? dm.massaMagra ?? av.massaMagraKg ?? av.massaMagra);
+    let massaGorda = parseNumberOrNull(rc.massaGorda ?? dm.massaGorda ?? av.massaGordaKg ?? av.massaGorda);
+    if (peso && percGordura != null && percGordura > 0) {
+      if (!massaGorda) massaGorda = Math.round((peso * (percGordura / 100)) * 100) / 100;
+      if (!massaMagra && massaGorda) massaMagra = Math.round((peso - massaGorda) * 100) / 100;
+    }
+    let imc = parseNumberOrNull(rc.imc ?? dm.imc);
+    if (!imc && peso && altura && altura > 0) {
+      const hMeters = altura > 3 ? altura / 100 : altura;
+      imc = Math.round((peso / (hMeters * hMeters)) * 10) / 10;
+    }
+    let somaDobras = parseNumberOrNull(dm.somaDobras ?? rc.somaDobras);
+    if ((!somaDobras || somaDobras <= 0) && dm.dobras && typeof dm.dobras === 'object') {
+      const vals = Object.values(dm.dobras).map((v: any) => Number(v) || 0).filter(v => v > 0);
+      if (vals.length > 0) somaDobras = Math.round(vals.reduce((a, b) => a + b, 0) * 10) / 10;
+    }
+    const circ = dm.circunferencias || rep?.perimetria || (rep?.tipoTeste === 'PERIMETRIA' ? rep?.dados : rep?.avulsoPerimetria) || {};
+    const cintura = parseNumberOrNull(circ.cintura);
+    const quadril = parseNumberOrNull(circ.quadril);
+    const rcq = (cintura && quadril && quadril > 0) ? Math.round((cintura / quadril) * 100) / 100 : null;
+
+    return { peso, percGordura, massaMagra, massaGorda, imc, somaDobras, rcq };
+  };
+
+  const bc1 = extractBodyComp(t1Report);
+  const bc2 = extractBodyComp(t2Report);
+  const tabelaComposicao: TableRowComposicao[] = [];
+
+  const addCompRow = (
+    parametro: string,
+    unidade: string,
+    v1: number | null | undefined,
+    v2: number | null | undefined,
+    mode: 'higherBetter' | 'lowerBetter' | 'neutral'
+  ) => {
+    const n1 = v1 != null && v1 > 0 ? v1 : null;
+    const n2 = v2 != null && v2 > 0 ? v2 : null;
+    if (n1 == null && n2 == null) return;
+    let variacao = '-';
+    let variacaoPct = '-';
+    let leitura = 'Avaliado';
+    if (n1 != null && n2 != null) {
+      const delta = Math.round((n2 - n1) * 100) / 100;
+      const sign = delta > 0 ? '+' : '';
+      variacao = `${sign}${delta.toFixed(1).replace('.0', '')}`;
+      const pct = n1 > 0 ? Math.round(((n2 - n1) / n1) * 1000) / 10 : 0;
+      variacaoPct = `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`;
+      if (Math.abs(delta) < 0.1) {
+        leitura = 'Estável';
+      } else if (mode === 'higherBetter') {
+        leitura = delta > 0 ? 'Ganho de massa magra' : 'Redução de massa magra';
+      } else if (mode === 'lowerBetter') {
+        leitura = delta < 0 ? 'Redução de gordura' : 'Aumento de gordura';
+      } else {
+        leitura = delta > 0 ? `Aumento de ${delta.toFixed(1)} ${unidade}` : `Redução de ${Math.abs(delta).toFixed(1)} ${unidade}`;
+      }
+    }
+    tabelaComposicao.push({
+      parametro,
+      metrica: parametro,
+      unidade,
+      t1: n1,
+      t2: n2,
+      variacao,
+      variacaoPct,
+      leitura
+    });
+  };
+
+  addCompRow('Peso Corporal', 'kg', bc1.peso, bc2.peso, 'neutral');
+  addCompRow('Percentual de Gordura (%GC)', '%', bc1.percGordura, bc2.percGordura, 'lowerBetter');
+  addCompRow('Massa Magra (Livre de Gordura)', 'kg', bc1.massaMagra, bc2.massaMagra, 'higherBetter');
+  addCompRow('Massa Gorda (Adiposa)', 'kg', bc1.massaGorda, bc2.massaGorda, 'lowerBetter');
+  addCompRow('Índice de Massa Corporal (IMC)', 'kg/m²', bc1.imc, bc2.imc, 'neutral');
+  addCompRow('Soma de Dobras Cutâneas', 'mm', bc1.somaDobras, bc2.somaDobras, 'lowerBetter');
+  addCompRow('Relação Cintura-Quadril (RCQ)', '', bc1.rcq, bc2.rcq, 'lowerBetter');
+
+  // 10.2 PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS (cm)
+  const extractPerimetria = (rep: any) => {
+    if (!rep) return {};
+    return {
+      ...(rep?.tipoTeste === 'PERIMETRIA' ? rep?.dados : {}),
+      ...(rep?.avulsoPerimetria || {}),
+      ...(rep?.perimetria || {}),
+      ...(rep?.dadosMedidos?.circunferencias || {})
+    };
+  };
+
+  const p1 = extractPerimetria(t1Report);
+  const p2 = extractPerimetria(t2Report);
+  const tabelaPerimetria: TableRowPerimetria[] = [];
+
+  const perimConfigs: Array<{ label: string; keys: string[]; isCentral?: boolean }> = [
+    { label: 'Pescoço', keys: ['pescoco'] },
+    { label: 'Ombros', keys: ['ombros'] },
+    { label: 'Tórax', keys: ['torax'] },
+    { label: 'Cintura', keys: ['cintura'], isCentral: true },
+    { label: 'Abdômen', keys: ['abdomen'], isCentral: true },
+    { label: 'Quadril', keys: ['quadril'] },
+    { label: 'Braço Direito', keys: ['braçoD', 'bracoD'] },
+    { label: 'Braço Esquerdo', keys: ['braçoE', 'bracoE'] },
+    { label: 'Antebraço Direito', keys: ['antebraçoD', 'antebracoD'] },
+    { label: 'Antebraço Esquerdo', keys: ['antebraçoE', 'antebracoE'] },
+    { label: 'Coxa Direita', keys: ['coxaD'] },
+    { label: 'Coxa Esquerda', keys: ['coxaE'] },
+    { label: 'Panturrilha Direita', keys: ['panturrilhaD'] },
+    { label: 'Panturrilha Esquerda', keys: ['panturrilhaE'] }
+  ];
+
+  const getPerimVal = (obj: any, keys: string[]): number | null => {
+    for (const k of keys) {
+      const v = parseNumberOrNull(obj?.[k]);
+      if (v != null && v > 0) return v;
+    }
+    return null;
+  };
+
+  perimConfigs.forEach(cfg => {
+    const v1 = getPerimVal(p1, cfg.keys);
+    const v2 = getPerimVal(p2, cfg.keys);
+    if (v1 == null && v2 == null) return;
+    let variacaoCm = '-';
+    let deltaNum = 0;
+    let leitura = 'Medido';
+    if (v1 != null && v2 != null) {
+      const delta = Math.round((v2 - v1) * 10) / 10;
+      deltaNum = delta;
+      const sign = delta > 0 ? '+' : '';
+      variacaoCm = `${sign}${delta.toFixed(1)} cm`;
+      if (Math.abs(delta) <= 0.3) {
+        leitura = 'Estável';
+      } else if (cfg.isCentral) {
+        leitura = delta < 0 ? 'Redução de medida central (Favorável)' : 'Aumento de medida central';
+      } else {
+        leitura = delta > 0 ? 'Ganho perimétrico / Trofismo' : 'Redução perimétrica';
+      }
+    }
+    tabelaPerimetria.push({
+      regiao: cfg.label,
+      t1: v1,
+      t2: v2,
+      variacaoCm,
+      deltaNum,
+      leitura
+    });
+  });
+
   // 11. DETECÇÃO DE CLUSTERS CLÍNICOS E ADAPTAÇÃO POR SEGMENTO
+  const toUndef = (v: number | null) => (v === null ? undefined : v);
   const clinicalProfile: ClientClinicalProfile = {
     queixasEVA: rowsEVA.map(r => ({ queixa: r.queixa, t1: r.t1, t2: r.t2, delta: r.variacao })),
     mobilidadeColuna: {
-      flexao: { t1: parseNumberOrNull(getCol(t1Report, 'mFlex')), t2: parseNumberOrNull(getCol(t2Report, 'mFlex')), eva1: parseNumberOrNull(getCol(t1Report, 'mFlexEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mFlexEVA')) },
-      extensao: { t1: parseNumberOrNull(getCol(t1Report, 'mExt')), t2: parseNumberOrNull(getCol(t2Report, 'mExt')), eva1: parseNumberOrNull(getCol(t1Report, 'mExtEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mExtEVA')) },
-      inclinacaoD: { t1: parseNumberOrNull(getCol(t1Report, 'mIncD')), t2: parseNumberOrNull(getCol(t2Report, 'mIncD')), eva1: parseNumberOrNull(getCol(t1Report, 'mIncDEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mIncDEVA')) },
-      inclinacaoE: { t1: parseNumberOrNull(getCol(t1Report, 'mIncE')), t2: parseNumberOrNull(getCol(t2Report, 'mIncE')), eva1: parseNumberOrNull(getCol(t1Report, 'mIncEEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mIncEEVA')) },
-      rotacaoD: { t1: parseNumberOrNull(getCol(t1Report, 'mRotD')), t2: parseNumberOrNull(getCol(t2Report, 'mRotD')), eva1: parseNumberOrNull(getCol(t1Report, 'mRotDEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mRotDEVA')) },
-      rotacaoE: { t1: parseNumberOrNull(getCol(t1Report, 'mRotE')), t2: parseNumberOrNull(getCol(t2Report, 'mRotE')), eva1: parseNumberOrNull(getCol(t1Report, 'mRotEEVA')), eva2: parseNumberOrNull(getCol(t2Report, 'mRotEEVA')) }
+      flexao: { t1: toUndef(parseNumberOrNull(getCol(t1Report, 'mFlex'))), t2: toUndef(parseNumberOrNull(getCol(t2Report, 'mFlex'))), eva1: toUndef(parseNumberOrNull(getCol(t1Report, 'mFlexEVA'))), eva2: toUndef(parseNumberOrNull(getCol(t2Report, 'mFlexEVA'))) },
+      extensao: { t1: toUndef(parseNumberOrNull(getCol(t1Report, 'mExt'))), t2: toUndef(parseNumberOrNull(getCol(t2Report, 'mExt'))), eva1: toUndef(parseNumberOrNull(getCol(t1Report, 'mExtEVA'))), eva2: toUndef(parseNumberOrNull(getCol(t2Report, 'mExtEVA'))) },
+      inclinacaoD: { t1: toUndef(parseNumberOrNull(getCol(t1Report, 'mIncD'))), t2: toUndef(parseNumberOrNull(getCol(t2Report, 'mIncD'))), eva1: toUndef(parseNumberOrNull(getCol(t1Report, 'mIncDEVA'))), eva2: toUndef(parseNumberOrNull(getCol(t2Report, 'mIncDEVA'))) },
+      inclinacaoE: { t1: toUndef(parseNumberOrNull(getCol(t1Report, 'mIncE'))), t2: toUndef(parseNumberOrNull(getCol(t2Report, 'mIncE'))), eva1: toUndef(parseNumberOrNull(getCol(t1Report, 'mIncEEVA'))), eva2: toUndef(parseNumberOrNull(getCol(t2Report, 'mIncEEVA'))) },
+      rotacaoD: { t1: toUndef(parseNumberOrNull(getCol(t1Report, 'mRotD'))), t2: toUndef(parseNumberOrNull(getCol(t2Report, 'mRotD'))), eva1: toUndef(parseNumberOrNull(getCol(t1Report, 'mRotDEVA'))), eva2: toUndef(parseNumberOrNull(getCol(t2Report, 'mRotDEVA'))) },
+      rotacaoE: { t1: toUndef(parseNumberOrNull(getCol(t1Report, 'mRotE'))), t2: toUndef(parseNumberOrNull(getCol(t2Report, 'mRotE'))), eva1: toUndef(parseNumberOrNull(getCol(t1Report, 'mRotEEVA'))), eva2: toUndef(parseNumberOrNull(getCol(t2Report, 'mRotEEVA'))) }
     },
     goniometriaArticular: {},
     testesOrtopedicos: {},
@@ -1058,6 +1394,8 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     tabelaGoniometria: goniometriaRows,
     tabelaColuna: tabelaColunaRows,
     tabelaTestesOrtopedicos: rowsTestesOrtopedicos,
+    tabelaComposicao,
+    tabelaPerimetria,
     clusters,
     razoesAvancadas: calculateAdvancedStrengthRatios(
       t2Strength?.testesRealizados || t2Strength?.testes || t2Strength?.exercicios || t1Strength?.testesRealizados || t1Strength?.testes || t1Strength?.exercicios,

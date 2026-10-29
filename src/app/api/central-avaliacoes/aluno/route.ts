@@ -239,22 +239,86 @@ export async function GET(request: Request) {
       return bTime - aTime;
     });
 
-    // 4. Comparador Longitudinal (Laudo de Reavaliação T1 vs T2)
-    // Seletor de opções comparativas (todas as avaliações que possuem dados de goniometria ou testes funcionais)
-    const availableReports = [...physioReports].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+    // 4. Comparador Longitudinal Universal (Laudo de Reavaliação T1 vs T2 — Fisio, Avaliação Física, Força ou Teste Avulso)
+    const sortedPhysio = [...physioReports].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+    const sortedPhysical = [...physicalAssessments].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+    const sortedStrength = [...strengthTests].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+    const sortedAvulsos = [...clientTestRecords].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+
+    const availableReports: any[] = [
+      ...sortedPhysio.map(r => ({ ...r, _sourceLabel: 'Relatório Fisio' })),
+      ...sortedPhysical.map(a => ({ ...a, _sourceLabel: 'Avaliação Física' })),
+      ...sortedStrength.map(s => ({ ...s, _sourceLabel: 'Dinamometria' })),
+      ...sortedAvulsos.map(tr => ({ ...tr, _sourceLabel: TEST_TYPE_LABELS[tr.tipoTeste] || tr.tipoTeste }))
+    ].sort((a, b) => {
+      const cmp = (a.data || '').localeCompare(b.data || '');
+      if (cmp !== 0) return cmp;
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    });
+
     let t1Doc: any = null;
     let t2Doc: any = null;
 
     if (t1Id && t2Id) {
-      t1Doc = availableReports.find(r => r._id.toString() === t1Id) || physicalAssessments.find(a => a._id.toString() === t1Id);
-      t2Doc = availableReports.find(r => r._id.toString() === t2Id) || physicalAssessments.find(a => a._id.toString() === t2Id);
-    } else if (availableReports.length >= 2) {
-      t1Doc = availableReports[0];
-      t2Doc = availableReports[availableReports.length - 1];
-    } else if (availableReports.length === 1 && physicalAssessments.length >= 1) {
-      t1Doc = physicalAssessments[0];
-      t2Doc = availableReports[0];
+      t1Doc = availableReports.find(r => r._id.toString() === t1Id) || null;
+      t2Doc = availableReports.find(r => r._id.toString() === t2Id) || null;
     }
+
+    if (!t1Doc || !t2Doc) {
+      if (sortedPhysio.length >= 2) {
+        t1Doc = availableReports.find(r => r._id.toString() === sortedPhysio[0]._id.toString());
+        t2Doc = availableReports.find(r => r._id.toString() === sortedPhysio[sortedPhysio.length - 1]._id.toString());
+      } else if (sortedPhysical.length >= 2) {
+        t1Doc = availableReports.find(r => r._id.toString() === sortedPhysical[0]._id.toString());
+        t2Doc = availableReports.find(r => r._id.toString() === sortedPhysical[sortedPhysical.length - 1]._id.toString());
+      } else if (sortedPhysio.length + sortedPhysical.length >= 2) {
+        const combinedEvals = [...sortedPhysio, ...sortedPhysical].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        t1Doc = availableReports.find(r => r._id.toString() === combinedEvals[0]._id.toString());
+        t2Doc = availableReports.find(r => r._id.toString() === combinedEvals[combinedEvals.length - 1]._id.toString());
+      } else if (sortedStrength.length >= 2) {
+        t1Doc = availableReports.find(r => r._id.toString() === sortedStrength[0]._id.toString());
+        t2Doc = availableReports.find(r => r._id.toString() === sortedStrength[sortedStrength.length - 1]._id.toString());
+      } else if (availableReports.length >= 2) {
+        t1Doc = availableReports[0];
+        t2Doc = availableReports[availableReports.length - 1];
+      }
+    }
+
+    // Enriquecer T1 e T2 com testes avulsos da mesma época ou extremos cronológicos quando ausentes no documento principal
+    const enrichReportWithAvulsos = (baseDoc: any, isT2: boolean) => {
+      if (!baseDoc) return baseDoc;
+      const cloned = { ...baseDoc };
+      const pickAvulso = (tipo: string) => {
+        const list = sortedAvulsos.filter(tr => tr.tipoTeste === tipo);
+        if (list.length === 0) return null;
+        if (isT2) {
+          return list.slice().reverse().find(tr => !baseDoc.data || tr.data <= baseDoc.data) || list[list.length - 1];
+        }
+        return list.find(tr => !baseDoc.data || tr.data <= baseDoc.data) || list[0];
+      };
+      const gAv = pickAvulso('GONIOMETRIA');
+      if (gAv?.dados && !cloned.goniometria && !cloned.dadosMedidos?.goniometria) {
+        cloned.goniometria = gAv.dados;
+      }
+      const compAv = pickAvulso('COMPOSICAO_CORPORAL');
+      if (compAv?.dados && !cloned.resultadosCalculados && !cloned.dadosMedidos?.composicao) {
+        cloned.dadosMedidos = { ...(cloned.dadosMedidos || {}), ...compAv.dados };
+      }
+      const perimAv = pickAvulso('PERIMETRIA');
+      if (perimAv?.dados && !cloned.dadosMedidos?.perimetria && !cloned.perimetria) {
+        cloned.perimetria = perimAv.dados;
+      }
+      const yAv = pickAvulso('Y_TEST');
+      const sdAv = pickAvulso('STEP_DOWN');
+      if ((yAv?.dados || sdAv?.dados) && !cloned.testesEspeciais && !cloned.dadosMedidos?.testesFuncionais) {
+        cloned.testesEspeciais = {
+          ...(cloned.testesEspeciais || {}),
+          ...(yAv?.dados ? { yTest: yAv.dados } : {}),
+          ...(sdAv?.dados ? { stepDown: sdAv.dados } : {})
+        };
+      }
+      return cloned;
+    };
 
     let longitudinalComputed: any = null;
     let clinicalNarrative: any = null;
@@ -278,19 +342,25 @@ export async function GET(request: Request) {
 
     if (t1Doc && t2Doc && t1Doc._id.toString() !== t2Doc._id.toString()) {
       try {
-        // Buscar os testes de força mais próximos de t1 e t2
-        const sortedST = [...strengthTests].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
-        const st1 = sortedST.find(s => s.data && t1Doc.data && s.data <= t1Doc.data) || sortedST[0];
-        const st2 = sortedST.slice().reverse().find(s => s.data && t2Doc.data && s.data <= t2Doc.data) || sortedST[0];
+        // Buscar os testes de força mais próximos de t1 e t2 (incluindo dinamometria avulsa)
+        const dinAvulsos = sortedAvulsos.filter(tr => tr.tipoTeste === 'DINAMOMETRIA');
+        const allStrengthDocs = [...sortedStrength, ...dinAvulsos].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        const st1 = allStrengthDocs.find(s => s.data && t1Doc.data && s.data <= t1Doc.data) || allStrengthDocs[0] || (t1Doc.testesRealizados ? t1Doc : null);
+        const st2 = allStrengthDocs.slice().reverse().find(s => s.data && t2Doc.data && s.data <= t2Doc.data) || allStrengthDocs[allStrengthDocs.length - 1] || (t2Doc.testesRealizados ? t2Doc : null);
+
+        const enrichedT1 = enrichReportWithAvulsos(t1Doc, false);
+        const enrichedT2 = enrichReportWithAvulsos(t2Doc, true);
 
         const computed = computeLongitudinalReassessment({
           client: {
             nome: clientDoc.dadosPessoais?.nome || 'Aluno',
             idade: clientDoc.dadosPessoais?.idade || 30,
+            sexo: clientDoc.dadosPessoais?.sexo || 'Não informado',
+            cpf: clientDoc.dadosPessoais?.cpf || 'Não informado',
             pesoKg: clientDoc.dadosPessoais?.peso || 70
           },
-          t1Report: t1Doc,
-          t2Report: t2Doc,
+          t1Report: enrichedT1,
+          t2Report: enrichedT2,
           t1Strength: st1,
           t2Strength: st2,
           t1VisaP: visaT1Doc?.dados,
@@ -307,9 +377,8 @@ export async function GET(request: Request) {
         (computed as any).matrizDecisao = decisionMatrix;
 
         const baseNarrative = generateClinicalNarrative(computed);
-        const narrative = await generatePersonalizedClinicalNarrative(computed, baseNarrative);
         longitudinalComputed = computed;
-        clinicalNarrative = narrative;
+        clinicalNarrative = baseNarrative;
       } catch (err: any) {
         console.warn('Erro ao processar cálculo longitudinal:', err.message);
       }
@@ -476,7 +545,12 @@ export async function GET(request: Request) {
           t1Data: t1Doc?.data || null,
           t2Id: t2Doc?._id?.toString() || null,
           t2Data: t2Doc?.data || null,
-          availableReports: availableReports.map(r => ({ id: r._id.toString(), data: r.data })),
+          availableReports: availableReports.map(r => ({
+            id: r._id.toString(),
+            data: r.data,
+            tipo: r._sourceLabel || 'Avaliação',
+            label: `${r.data} — ${r._sourceLabel || 'Avaliação'}`
+          })),
           computed: longitudinalComputed,
           narrative: clinicalNarrative
         },

@@ -25,7 +25,7 @@ interface AlunoHistoryTimelineProps {
     t1Data: string | null;
     t2Id: string | null;
     t2Data: string | null;
-    availableReports: { id: string; data: string }[];
+    availableReports: { id: string; data: string; tipo?: string; label?: string }[];
     computed: any;
     narrative: any;
   } | null;
@@ -375,11 +375,11 @@ export default function AlunoHistoryTimeline({
                   value={longitudinal.t1Id || ''}
                   onChange={e => onSelectComparativeDates && onSelectComparativeDates(e.target.value, longitudinal.t2Id || '')}
                   className="form-control form-control-sm"
-                  style={{ width: '140px', background: 'var(--bg-dark)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
+                  style={{ minWidth: '185px', background: 'var(--bg-dark)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
                 >
                   {longitudinal.availableReports.map(r => (
                     <option key={r.id} value={r.id}>
-                      {formatDate(r.data)}
+                      {formatDate(r.data)}{r.tipo ? ` — ${r.tipo}` : ''}
                     </option>
                   ))}
                 </select>
@@ -393,11 +393,11 @@ export default function AlunoHistoryTimeline({
                   value={longitudinal.t2Id || ''}
                   onChange={e => onSelectComparativeDates && onSelectComparativeDates(longitudinal.t1Id || '', e.target.value)}
                   className="form-control form-control-sm"
-                  style={{ width: '140px', background: 'var(--bg-dark)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
+                  style={{ minWidth: '185px', background: 'var(--bg-dark)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
                 >
                   {longitudinal.availableReports.map(r => (
                     <option key={r.id} value={r.id}>
-                      {formatDate(r.data)}
+                      {formatDate(r.data)}{r.tipo ? ` — ${r.tipo}` : ''}
                     </option>
                   ))}
                 </select>
@@ -424,6 +424,93 @@ export default function AlunoHistoryTimeline({
           {/* Tabelas de Resultados Reais do Motor Longitudinal */}
           {longitudinal?.computed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* 0.A Tabela de Composição Corporal e Antropometria */}
+              {longitudinal.computed.tabelaComposicao?.length > 0 && (
+                <div style={{ background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', background: 'rgba(16, 185, 129, 0.06)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fas fa-user-check" style={{ color: '#10b981' }} />
+                    <strong style={{ fontSize: '0.9rem' }}>Composição Corporal & Antropometria</strong>
+                  </div>
+                  <div className="table-responsive" style={{ margin: 0 }}>
+                    <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Indicador</th>
+                          <th style={{ textAlign: 'center' }}>T1 ({formatDate(longitudinal.t1Data || '')})</th>
+                          <th style={{ textAlign: 'center' }}>T2 ({formatDate(longitudinal.t2Data || '')})</th>
+                          <th style={{ textAlign: 'center' }}>Variação</th>
+                          <th>Leitura Clínica</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {longitudinal.computed.tabelaComposicao.map((c: any, idx: number) => {
+                          const isFav = c.leitura === 'Redução de gordura' || c.leitura === 'Ganho de massa magra' || c.leitura === 'Redução de medidas' || c.leitura === 'Redução de risco';
+                          const isUnfav = c.leitura === 'Aumento de gordura' || c.leitura === 'Redução de massa magra' || c.leitura === 'Aumento de medidas' || c.leitura === 'Aumento de risco';
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{c.metrica || c.parametro}</strong></td>
+                              <td style={{ textAlign: 'center' }}>{c.t1 != null ? `${c.t1} ${c.unidade}` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{c.t2 != null ? `${c.t2} ${c.unidade}` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold', color: isFav ? '#10b981' : (isUnfav ? '#ef4444' : 'inherit') }}>
+                                {c.variacao !== '-' ? `${c.variacao} ${c.unidade} (${c.variacaoPct})` : '—'}
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: isFav ? 'rgba(16, 185, 129, 0.14)' : (isUnfav ? 'rgba(239, 68, 68, 0.14)' : 'rgba(148, 163, 184, 0.1)'),
+                                    color: isFav ? '#10b981' : (isUnfav ? '#ef4444' : 'var(--text-dim)')
+                                  }}
+                                >
+                                  {c.leitura}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 0.B Tabela de Perimetria / Circunferências */}
+              {longitudinal.computed.tabelaPerimetria?.length > 0 && (
+                <div style={{ background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', background: 'rgba(56, 189, 248, 0.06)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fas fa-tape" style={{ color: '#38bdf8' }} />
+                    <strong style={{ fontSize: '0.9rem' }}>Perimetria / Circunferências Corporais (cm)</strong>
+                  </div>
+                  <div className="table-responsive" style={{ margin: 0 }}>
+                    <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Segmento Corporal</th>
+                          <th style={{ textAlign: 'center' }}>T1 ({formatDate(longitudinal.t1Data || '')})</th>
+                          <th style={{ textAlign: 'center' }}>T2 ({formatDate(longitudinal.t2Data || '')})</th>
+                          <th style={{ textAlign: 'center' }}>Diferença (cm)</th>
+                          <th>Interpretação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {longitudinal.computed.tabelaPerimetria.map((p: any, idx: number) => (
+                          <tr key={idx}>
+                            <td><strong>{p.regiao}</strong></td>
+                            <td style={{ textAlign: 'center' }}>{p.t1 != null ? `${p.t1} cm` : '—'}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{p.t2 != null ? `${p.t2} cm` : '—'}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: p.deltaNum !== 0 ? '#38bdf8' : 'inherit' }}>
+                              {p.variacaoCm}
+                            </td>
+                            <td style={{ color: 'var(--text-dim)' }}>{p.leitura}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               {/* 1. Tabela de Força Muscular */}
               {longitudinal.computed.tabelaForca?.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
