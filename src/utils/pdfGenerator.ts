@@ -948,6 +948,458 @@ function buildPhysioAccumulativeEvolutionHtml(
   `;
 }
 
+/**
+ * Constrói a Página de Evolução Longitudinal Acumulativa da Avaliação Física
+ * (Composição Corporal, Dobras Cutâneas Pollock, Perimetria e KPIs Reais de Recomposição)
+ */
+function buildPhysicalAccumulativeEvolutionHtml(
+  historyList: any[],
+  client: any,
+  prof: any,
+  logoBase64: string | null
+): string {
+  if (!historyList || historyList.length < 2) return '';
+
+  // 1. Ordenação cronológica crescente (do mais antigo ao mais recente)
+  const sorted = [...historyList].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  const r0 = sorted[0];
+  const rLast = sorted[sorted.length - 1];
+
+  const firstDate = new Date(r0.data);
+  const lastDate = new Date(rLast.data);
+  const diffDays = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+  // Se houver mais de 4 relatórios no histórico, selecionar Linha de Base (r0) e as 3 mais recentes
+  const displayReports = sorted.length <= 4 
+    ? sorted 
+    : [r0, ...sorted.slice(sorted.length - 3)];
+
+  const numDateCols = displayReports.length;
+  const colWidth = (40 / numDateCols).toFixed(1);
+
+  // 2. Extração dos KPIs de Recomposição Corporal
+  const peso0 = Number(r0.dadosMedidos?.peso || 0);
+  const pesoLast = Number(rLast.dadosMedidos?.peso || 0);
+  const bf0 = Number(r0.resultadosCalculados?.percentualGordura || 0);
+  const bfLast = Number(rLast.resultadosCalculados?.percentualGordura || 0);
+
+  const mm0 = Number(r0.resultadosCalculados?.massaMagra || (peso0 > 0 && bf0 > 0 ? (peso0 * (1 - bf0 / 100)) : 0));
+  const mmLast = Number(rLast.resultadosCalculados?.massaMagra || (pesoLast > 0 && bfLast > 0 ? (pesoLast * (1 - bfLast / 100)) : 0));
+
+  const mg0 = Number(r0.resultadosCalculados?.massaGorda || (peso0 > 0 && bf0 > 0 ? (peso0 * bf0 / 100) : 0));
+  const mgLast = Number(rLast.resultadosCalculados?.massaGorda || (pesoLast > 0 && bfLast > 0 ? (pesoLast * bfLast / 100) : 0));
+
+  const gorduraEliminadaKg = (mg0 > 0 && mgLast > 0) ? (mg0 - mgLast) : null;
+  const massaMagraGanhaKg = (mm0 > 0 && mmLast > 0) ? (mmLast - mm0) : null;
+  const deltaPercentualGordura = (bf0 > 0 && bfLast > 0) ? (bfLast - bf0) : null;
+
+  // Soma de dobras
+  const sumDobras0 = Number(r0.dadosMedidos?.somaDobras || 0);
+  const sumDobrasLast = Number(rLast.dadosMedidos?.somaDobras || 0);
+  const deltaSomaDobras = (sumDobras0 > 0 && sumDobrasLast > 0) ? (sumDobrasLast - sumDobras0) : null;
+
+  // Medida central (Cintura)
+  const c0 = Number(r0.dadosMedidos?.circunferencias?.cintura || 0);
+  const cLast = Number(rLast.dadosMedidos?.circunferencias?.cintura || 0);
+  const deltaCintura = (c0 > 0 && cLast > 0) ? (cLast - c0) : null;
+
+  // Status de Recomposição
+  let statusBadge = '';
+  if (gorduraEliminadaKg != null && massaMagraGanhaKg != null) {
+    if (gorduraEliminadaKg > 0.5 && massaMagraGanhaKg >= 0) {
+      statusBadge = '<span style="background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid #10b981; font-size: 7.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">Excelente Recomposição (Perda de Gordura + Hipertrofia)</span>';
+    } else if (gorduraEliminadaKg > 0.5) {
+      statusBadge = '<span style="background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid #10b981; font-size: 7.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">Emagrecimento Efetivo</span>';
+    } else if (massaMagraGanhaKg > 0.5) {
+      statusBadge = '<span style="background: rgba(56, 189, 248, 0.15); color: #0284c7; border: 1px solid #38bdf8; font-size: 7.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">Hipertrofia Muscular</span>';
+    }
+  }
+
+  // 3. Montar cards de KPIs
+  const kpiCardsList: string[] = [];
+  if (gorduraEliminadaKg != null) {
+    const isLoss = gorduraEliminadaKg >= 0;
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">Gordura Eliminada</div>
+        <div class="kpi-value" style="color: ${isLoss ? '#059669' : '#dc2626'};">
+          ${isLoss ? `-${gorduraEliminadaKg.toFixed(1)} kg` : `+${Math.abs(gorduraEliminadaKg).toFixed(1)} kg`}
+        </div>
+        <div class="kpi-sub">${isLoss ? 'Redução de tecido adiposo' : 'Ganho de gordura'}</div>
+      </div>
+    `);
+  }
+  if (massaMagraGanhaKg != null) {
+    const isGain = massaMagraGanhaKg >= 0;
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">Massa Magra</div>
+        <div class="kpi-value" style="color: ${isGain ? '#059669' : '#dc2626'};">
+          ${isGain ? `+${massaMagraGanhaKg.toFixed(1)} kg` : `${massaMagraGanhaKg.toFixed(1)} kg`}
+        </div>
+        <div class="kpi-sub">${isGain ? 'Hipertrofia / Manutenção' : 'Catabolismo muscular'}</div>
+      </div>
+    `);
+  }
+  if (deltaPercentualGordura != null) {
+    const isLoss = deltaPercentualGordura <= 0;
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">% de Gordura</div>
+        <div class="kpi-value" style="color: ${isLoss ? '#059669' : '#dc2626'};">
+          ${bf0.toFixed(1)}% ➔ ${bfLast.toFixed(1)}%
+        </div>
+        <div class="kpi-sub">${deltaPercentualGordura > 0 ? `+${deltaPercentualGordura.toFixed(1)}%` : `${deltaPercentualGordura.toFixed(1)}%`} p.p.</div>
+      </div>
+    `);
+  }
+  if (deltaSomaDobras != null) {
+    const isLoss = deltaSomaDobras <= 0;
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">Soma Dobras Pollock</div>
+        <div class="kpi-value" style="color: ${isLoss ? '#059669' : '#dc2626'};">
+          ${sumDobras0.toFixed(1)} ➔ ${sumDobrasLast.toFixed(1)} mm
+        </div>
+        <div class="kpi-sub">${deltaSomaDobras > 0 ? `+${deltaSomaDobras.toFixed(1)} mm` : `${deltaSomaDobras.toFixed(1)} mm`}</div>
+      </div>
+    `);
+  } else if (deltaCintura != null) {
+    const isLoss = deltaCintura <= 0;
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">Cintura (Gordura Central)</div>
+        <div class="kpi-value" style="color: ${isLoss ? '#059669' : '#dc2626'};">
+          ${c0.toFixed(1)} ➔ ${cLast.toFixed(1)} cm
+        </div>
+        <div class="kpi-sub">${deltaCintura > 0 ? `+${deltaCintura.toFixed(1)} cm` : `${deltaCintura.toFixed(1)} cm`}</div>
+      </div>
+    `);
+  }
+
+  // 4. Tabela Acumulativa de Composição Corporal
+  const compMetrics = [
+    { label: 'Peso Corporal (kg)', getValue: (rep: any) => Number(rep.dadosMedidos?.peso || 0), unit: 'kg', favIfDecr: false },
+    { label: 'Percentual de Gordura (%)', getValue: (rep: any) => Number(rep.resultadosCalculados?.percentualGordura || 0), unit: '%', favIfDecr: true },
+    { label: 'Massa Magra (kg)', getValue: (rep: any) => Number(rep.resultadosCalculados?.massaMagra || 0), unit: 'kg', favIfDecr: false },
+    { label: 'Massa Gorda (kg)', getValue: (rep: any) => Number(rep.resultadosCalculados?.massaGorda || 0), unit: 'kg', favIfDecr: true },
+    { label: 'Índice de Massa Corporal (IMC)', getValue: (rep: any) => Number(rep.resultadosCalculados?.imc || 0), unit: 'kg/m²', favIfDecr: true },
+    { label: 'Relação Cintura-Quadril (RCQ)', getValue: (rep: any) => Number(rep.resultadosCalculados?.rcq || 0), unit: '', favIfDecr: true },
+    { label: 'Soma das Dobras (mm)', getValue: (rep: any) => Number(rep.dadosMedidos?.somaDobras || 0), unit: 'mm', favIfDecr: true }
+  ];
+
+  const activeCompMetrics = compMetrics.filter(m => displayReports.some(r => m.getValue(r) > 0));
+
+  const compRowsHtml = activeCompMetrics.map(m => {
+    const v0 = m.getValue(r0);
+    const vL = m.getValue(rLast);
+    const delta = (v0 > 0 && vL > 0) ? (vL - v0) : null;
+    let deltaHtml = '<span style="color: #94a3b8;">—</span>';
+    if (delta !== null) {
+      const isFav = m.favIfDecr ? (delta < 0) : (delta > 0);
+      const isUnfav = m.favIfDecr ? (delta > 0) : (delta < 0);
+      const sign = delta > 0 ? '+' : '';
+      const color = isFav ? '#059669' : (isUnfav ? '#dc2626' : '#64748b');
+      deltaHtml = `<span style="color: ${color}; font-weight: 700;">${sign}${delta.toFixed(1)} ${m.unit}</span>`;
+    }
+
+    const dateCells = displayReports.map(rep => {
+      const val = m.getValue(rep);
+      return `<td style="text-align: center; width: ${colWidth}%;">${val > 0 ? `${val.toFixed(1)} ${m.unit}` : '—'}</td>`;
+    }).join('');
+
+    return `
+      <tr>
+        <td style="font-weight: 600; width: 32%;">${m.label}</td>
+        ${dateCells}
+        <td style="text-align: center; width: 20%;">${deltaHtml}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 5. Tabela Acumulativa de Dobras Cutâneas (Pollock)
+  const dobrasDef = [
+    { key: 'peitoral', label: 'Peitoral' },
+    { key: 'triceps', label: 'Tríceps' },
+    { key: 'subescapular', label: 'Subescapular' },
+    { key: 'axilarMedia', label: 'Axilar Média' },
+    { key: 'suprailiaca', label: 'Supra-ilíaca' },
+    { key: 'abdomen', label: 'Abdômen' },
+    { key: 'coxa', label: 'Coxa' },
+    { key: 'panturrilhaMedial', label: 'Panturrilha Medial' }
+  ];
+
+  const getDobraVal = (rep: any, key: string): number => {
+    const d = rep.dadosMedidos?.dobras || {};
+    const dr = rep.dadosMedidos?.dobrasReadings || {};
+    const val = d[key] ?? dr[key];
+    if (val === undefined || val === null || val === '') return 0;
+    const n = parseFloat(String(val).replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+
+  const activeDobrasDef = dobrasDef.filter(d => displayReports.some(r => getDobraVal(r, d.key) > 0));
+  const hasAnyDobras = activeDobrasDef.length > 0;
+
+  const dobrasRowsHtml = activeDobrasDef.map(d => {
+    const v0 = getDobraVal(r0, d.key);
+    const vL = getDobraVal(rLast, d.key);
+    const delta = (v0 > 0 && vL > 0) ? (vL - v0) : null;
+    let deltaHtml = '<span style="color: #94a3b8;">—</span>';
+    let statusText = '—';
+    if (delta !== null) {
+      const sign = delta > 0 ? '+' : '';
+      const pct = v0 > 0 ? `${sign}${Math.round((delta / v0) * 100)}%` : '';
+      if (delta < -0.5) {
+        deltaHtml = `<span style="color: #059669; font-weight: 700;">${sign}${delta.toFixed(1)} mm (${pct})</span>`;
+        statusText = '<span style="color: #059669; font-weight: 600;">Redução favorável</span>';
+      } else if (delta > 0.5) {
+        deltaHtml = `<span style="color: #dc2626; font-weight: 700;">${sign}${delta.toFixed(1)} mm (${pct})</span>`;
+        statusText = '<span style="color: #dc2626; font-weight: 600;">Aumento</span>';
+      } else {
+        deltaHtml = `<span style="color: #64748b; font-weight: 600;">0.0 mm</span>`;
+        statusText = '<span style="color: #64748b;">Estável</span>';
+      }
+    }
+
+    const dateCells = displayReports.map(rep => {
+      const val = getDobraVal(rep, d.key);
+      return `<td style="text-align: center; width: ${colWidth}%;">${val > 0 ? `${val.toFixed(1)} mm` : '—'}</td>`;
+    }).join('');
+
+    return `
+      <tr>
+        <td style="font-weight: 600; width: 30%;">${d.label}</td>
+        ${dateCells}
+        <td style="text-align: center; width: 18%;">${deltaHtml}</td>
+        <td style="text-align: center; width: 16%;">${statusText}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 6. Tabela Acumulativa de Perimetria
+  const periDef = [
+    { key: 'pescoco', label: 'Pescoço', central: false },
+    { key: 'ombros', label: 'Ombros', central: false },
+    { key: 'torax', label: 'Tórax', central: false },
+    { key: 'cintura', label: 'Cintura (Visceral)', central: true },
+    { key: 'abdomen', label: 'Abdômen', central: true },
+    { key: 'quadril', label: 'Quadril', central: false },
+    { key: 'bracoD', label: 'Braço Direito', central: false },
+    { key: 'bracoE', label: 'Braço Esquerdo', central: false },
+    { key: 'antebracoD', label: 'Antebraço Direito', central: false },
+    { key: 'antebracoE', label: 'Antebraço Esquerdo', central: false },
+    { key: 'coxaD', label: 'Coxa Direita', central: false },
+    { key: 'coxaE', label: 'Coxa Esquerda', central: false },
+    { key: 'panturrilhaD', label: 'Panturrilha Direita', central: false },
+    { key: 'panturrilhaE', label: 'Panturrilha Esquerda', central: false }
+  ];
+
+  const getPeriVal = (rep: any, key: string): number => {
+    const c = rep.dadosMedidos?.circunferencias || {};
+    const val = c[key];
+    if (val === undefined || val === null || val === '') return 0;
+    const n = parseFloat(String(val).replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+
+  const activePeriDef = periDef.filter(p => displayReports.some(r => getPeriVal(r, p.key) > 0));
+  const hasAnyPeri = activePeriDef.length > 0;
+
+  const periRowsHtml = activePeriDef.map(p => {
+    const v0 = getPeriVal(r0, p.key);
+    const vL = getPeriVal(rLast, p.key);
+    const delta = (v0 > 0 && vL > 0) ? (vL - v0) : null;
+    let deltaHtml = '<span style="color: #94a3b8;">—</span>';
+    let statusText = '—';
+    if (delta !== null) {
+      const sign = delta > 0 ? '+' : '';
+      if (p.central) {
+        if (delta < -0.5) {
+          deltaHtml = `<span style="color: #059669; font-weight: 700;">${sign}${delta.toFixed(1)} cm</span>`;
+          statusText = '<span style="color: #059669; font-weight: 600;">Redução visceral</span>';
+        } else if (delta > 0.5) {
+          deltaHtml = `<span style="color: #dc2626; font-weight: 700;">${sign}${delta.toFixed(1)} cm</span>`;
+          statusText = '<span style="color: #dc2626; font-weight: 600;">Aumento central</span>';
+        } else {
+          deltaHtml = `<span style="color: #64748b;">0.0 cm</span>`;
+          statusText = '<span style="color: #64748b;">Estável</span>';
+        }
+      } else {
+        if (delta > 0.5) {
+          deltaHtml = `<span style="color: #059669; font-weight: 700;">${sign}${delta.toFixed(1)} cm</span>`;
+          statusText = '<span style="color: #059669; font-weight: 600;">Ganho trófico</span>';
+        } else if (delta < -0.5) {
+          deltaHtml = `<span style="color: #c2410c; font-weight: 700;">${sign}${delta.toFixed(1)} cm</span>`;
+          statusText = '<span style="color: #c2410c; font-weight: 600;">Redução perimétrica</span>';
+        } else {
+          deltaHtml = `<span style="color: #64748b;">0.0 cm</span>`;
+          statusText = '<span style="color: #64748b;">Estável</span>';
+        }
+      }
+    }
+
+    const dateCells = displayReports.map(rep => {
+      const val = getPeriVal(rep, p.key);
+      return `<td style="text-align: center; width: ${colWidth}%;">${val > 0 ? `${val.toFixed(1)} cm` : '—'}</td>`;
+    }).join('');
+
+    return `
+      <tr>
+        <td style="font-weight: 600; width: 30%;">
+          ${p.label}
+          ${p.central ? '<span style="display:inline-block; font-size:6.5px; background:rgba(245, 158, 11, 0.12); color:#b45309; border-radius:3px; padding:1px 4px; margin-left:4px; font-weight:600;">Central</span>' : ''}
+        </td>
+        ${dateCells}
+        <td style="text-align: center; width: 18%;">${deltaHtml}</td>
+        <td style="text-align: center; width: 16%;">${statusText}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 7. Renderização do HTML Completo
+  return `
+    <div class="pdf-page page-break-before" style="page-break-before: always; break-before: page; margin-top: 0; padding: 20px 30px;">
+      <!-- Header Evolução Acumulativa -->
+      <div class="grid-header">
+        <div class="logo-box">
+          ${logoBase64 
+            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+          }
+          <div>
+            <h1 class="logo-title font-outfit" style="font-size: 17px;">PAINEL LONGITUDINAL ACUMULATIVO</h1>
+            <p class="logo-subtitle">Composição Corporal, Antropometria & Recomposição Física</p>
+          </div>
+        </div>
+        <div class="date-box" style="border-color: #10b981;">
+          <span style="color: #10b981;">Histórico Acumulado</span>
+          <strong>${sorted.length} Avaliações</strong>
+        </div>
+      </div>
+
+      <!-- Barra do Aluno -->
+      <div class="client-bar">
+        <div class="client-bar-item">
+          <span>Aluno</span>
+          <strong>${client.dadosPessoais?.nome || 'Aluno'}</strong>
+        </div>
+        <div class="client-bar-item">
+          <span>Período Analisado</span>
+          <strong>${formatDate(r0.data)} a ${formatDate(rLast.data)}</strong>
+        </div>
+        <div class="client-bar-item">
+          <span>Tempo de Acompanhamento</span>
+          <strong>${diffDays} dias</strong>
+        </div>
+      </div>
+
+      <!-- Cards de KPIs de Recomposição Real -->
+      ${kpiCardsList.length > 0 ? `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-family: 'Outfit', sans-serif; font-size: 8.5px; font-weight: 700; color: #0f172a; text-transform: uppercase;">Balanço de Recomposição Corporal</span>
+        ${statusBadge}
+      </div>
+      <div class="kpi-grid" style="grid-template-columns: repeat(${kpiCardsList.length}, 1fr); margin-bottom: 10px;">
+        ${kpiCardsList.join('')}
+      </div>
+      ` : ''}
+
+      <!-- 1. Composição Corporal Acumulativa -->
+      <div class="section-card" style="margin-bottom: 10px;">
+        <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>1. Composição Corporal & Antropometria Acumulativa</span>
+          <span style="font-size: 7px; font-weight: normal; color: #94a3b8; text-transform: none;">
+            ${sorted.length > 4 ? `Linha de Base + últimas 3 sessões (Total: ${sorted.length})` : 'Histórico completo cronológico'}
+          </span>
+        </div>
+        <div class="section-card-content" style="padding: 6px 10px;">
+          <table class="table-data" style="font-size: 7.5px;">
+            <thead>
+              <tr style="font-weight: 700;">
+                <th style="width: 32%;">Métrica / Indicador</th>
+                ${displayReports.map(r => `
+                  <th style="text-align: center; width: ${colWidth}%;">
+                    ${formatDate(r.data)}
+                  </th>
+                `).join('')}
+                <th style="text-align: center; width: 20%;">Δ Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${compRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. Dobras Cutâneas Acumulativas (se houver dados medidos) -->
+      ${hasAnyDobras ? `
+      <div class="section-card" style="margin-bottom: 10px;">
+        <div class="section-card-title">
+          2. Dobras Cutâneas (Protocolo Pollock — mm)
+        </div>
+        <div class="section-card-content" style="padding: 6px 10px;">
+          <table class="table-data" style="font-size: 7.5px;">
+            <thead>
+              <tr style="font-weight: 700;">
+                <th style="width: 30%;">Dobra Cutânea</th>
+                ${displayReports.map(r => `
+                  <th style="text-align: center; width: ${colWidth}%;">
+                    ${formatDate(r.data)}
+                  </th>
+                `).join('')}
+                <th style="text-align: center; width: 18%;">Δ Total (mm)</th>
+                <th style="text-align: center; width: 16%;">Dinâmica</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dobrasRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- 3. Perimetria Acumulativa (se houver dados medidos) -->
+      ${hasAnyPeri ? `
+      <div class="section-card" style="margin-bottom: 10px;">
+        <div class="section-card-title">
+          3. Perimetria Corporal & Distribuição de Trofismo (cm)
+        </div>
+        <div class="section-card-content" style="padding: 6px 10px;">
+          <table class="table-data" style="font-size: 7.5px;">
+            <thead>
+              <tr style="font-weight: 700;">
+                <th style="width: 30%;">Segmento Corporal</th>
+                ${displayReports.map(r => `
+                  <th style="text-align: center; width: ${colWidth}%;">
+                    ${formatDate(r.data)}
+                  </th>
+                `).join('')}
+                <th style="text-align: center; width: 18%;">Δ Total (cm)</th>
+                <th style="text-align: center; width: 16%;">Interpretação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${periRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- Assinatura Profissional / Responsável Técnico -->
+      ${renderProfessionalSignatureHtml(prof)}
+
+      <!-- Footer Empresa -->
+      <div style="margin-top: 20px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 6px; font-size: 7.5px; color: #64748b;">
+        <span>Clube Fitness Fisio &nbsp;|&nbsp; Monitoramento Longitudinal de Avaliação Física & Composição &nbsp;|&nbsp; Emitido em ${formatDate(new Date().toISOString())}</span>
+      </div>
+    </div>
+  `;
+}
+
 export async function downloadReportPDF(report: any) {
   if (typeof window === 'undefined') return;
   const html2pdf = (window as any).html2pdf;
@@ -2725,13 +3177,15 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   }
 
   const currentClientId = typeof assessment.clienteId === 'object' ? assessment.clienteId?._id : assessment.clienteId;
-  const history = assessmentsList
+  const fullClientHistory = assessmentsList
     .filter((a: any) => {
       const aClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
       return aClientId === currentClientId && a.data <= assessment.data;
     })
-    .sort((a: any, b: any) => a.data.localeCompare(b.data))
-    .slice(-3);
+    .sort((a: any, b: any) => a.data.localeCompare(b.data));
+
+  const history = fullClientHistory.slice(-3);
+  const totalPages = fullClientHistory.length >= 2 ? 3 : 2;
 
   const dates = history.map((h: any) => formatDate(h.data).substring(0, 5));
   const weights = history.map((h: any) => h.dadosMedidos.peso);
@@ -3527,7 +3981,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
         <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
         <span>Sua saúde, nosso propósito.</span>
-        <span>Página 1 de 2</span>
+        <span>Página 1 de ${totalPages}</span>
       </div>
     </div>
 
@@ -3840,10 +4294,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
         <span>Clube Fitness Fisio &nbsp;|&nbsp; Telefone: (48) 99999-9999 &nbsp;|&nbsp; @clubefitnessfisio</span>
         <span>Sua saúde, nosso propósito.</span>
-        <span>Página 2 de 2</span>
+        <span>Página 2 de ${totalPages}</span>
       </div>
     </div>
   `;
+
+  if (fullClientHistory.length >= 2) {
+    pdfWrapper.innerHTML += buildPhysicalAccumulativeEvolutionHtml(fullClientHistory, client, prof, logoBase64);
+  }
 
   // Anexar temporariamente o wrapper ao body para desenhar os gráficos Chart.js
   document.body.appendChild(pdfWrapper);

@@ -815,6 +815,35 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
+  <!-- DOBRAS CUTÂNEAS (POLLOCK) -->
+  ${(computed.tabelaDobras && computed.tabelaDobras.length > 0) ? `
+    <div class="section-title">${nextSec()}. DOBRAS CUTÂNEAS (POLLOCK — mm)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Dobra Cutânea</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação (mm)</th>
+          <th>Interpretação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${computed.tabelaDobras.map(r => `
+          <tr>
+            <td class="font-bold">${r.dobra}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} mm` : ''}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} mm` : ''}</td>
+            <td class="text-center font-bold" style="color:${r.deltaNum < 0 ? '#059669' : (r.deltaNum > 0 ? '#dc2626' : '#0f172a')}">
+              ${r.variacaoMm.replace('.', ',')} ${r.variacaoPct ? `(${r.variacaoPct.replace('.', ',')})` : ''}
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : ''}
+
   <!-- PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS -->
   ${(computed.tabelaPerimetria && computed.tabelaPerimetria.length > 0) ? `
     <div class="section-title">${nextSec()}. PERIMETRIA E CIRCUNFERÊNCIAS CORPORAIS (cm)</div>
@@ -868,43 +897,43 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   ` : ''}
 
   <!-- ANÁLISES SEGMENTARES BIOMECÂNICAS E FATORES DE RISCO -->
-  ${((narrative as any).analisesSegmentares && (narrative as any).analisesSegmentares.length > 0) ? `
+  ${(Array.isArray((narrative as any).analisesSegmentares) && (narrative as any).analisesSegmentares.length > 0) ? `
     ${(narrative as any).analisesSegmentares.map((seg: any) => `
-      <div class="section-title">${nextSec()}. ${seg.titulo}</div>
-      <p>${seg.introducao}</p>
+      <div class="section-title">${nextSec()}. ${seg?.titulo || 'ANÁLISE SEGMENTAR'}</div>
+      <p>${seg?.introducao || ''}</p>
       <ul class="bullet-list">
-        ${seg.itens.map((item: string) => `<li>${item}</li>`).join('')}
+        ${(Array.isArray(seg?.itens) ? seg.itens : []).map((item: string) => `<li>${item}</li>`).join('')}
       </ul>
     `).join('')}
   ` : `
-    ${(narrative.riscoCompartimentoMedialJoelho && narrative.riscoCompartimentoMedialJoelho.itens.length > 0 && !narrative.riscoCompartimentoMedialJoelho.itens[0].includes('Não foram identificados')) ? `
+    ${(narrative.riscoCompartimentoMedialJoelho && Array.isArray(narrative.riscoCompartimentoMedialJoelho.itens) && narrative.riscoCompartimentoMedialJoelho.itens.length > 0 && !narrative.riscoCompartimentoMedialJoelho.itens[0]?.includes('Não foram identificados')) ? `
       <div class="section-title">${nextSec()}. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO</div>
-      <p>${narrative.riscoCompartimentoMedialJoelho.introducao}</p>
+      <p>${narrative.riscoCompartimentoMedialJoelho.introducao || ''}</p>
       <ul class="bullet-list">
-        ${narrative.riscoCompartimentoMedialJoelho.itens.map(item => `<li>${item}</li>`).join('')}
+        ${(narrative.riscoCompartimentoMedialJoelho.itens || []).map(item => `<li>${item}</li>`).join('')}
       </ul>
     ` : ''}
 
-    ${(narrative.riscoCompartimentoMedialTornozelo && narrative.riscoCompartimentoMedialTornozelo.itens.length > 0 && !narrative.riscoCompartimentoMedialTornozelo.itens[0].includes('Complexo articular')) ? `
+    ${(narrative.riscoCompartimentoMedialTornozelo && Array.isArray(narrative.riscoCompartimentoMedialTornozelo.itens) && narrative.riscoCompartimentoMedialTornozelo.itens.length > 0 && !narrative.riscoCompartimentoMedialTornozelo.itens[0]?.includes('Complexo articular')) ? `
       <div class="section-title">${nextSec()}. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO</div>
-      <p>${narrative.riscoCompartimentoMedialTornozelo.introducao}</p>
+      <p>${narrative.riscoCompartimentoMedialTornozelo.introducao || ''}</p>
       <ul class="bullet-list">
-        ${narrative.riscoCompartimentoMedialTornozelo.itens.map(item => `<li>${item}</li>`).join('')}
+        ${(narrative.riscoCompartimentoMedialTornozelo.itens || []).map(item => `<li>${item}</li>`).join('')}
       </ul>
     ` : ''}
   `}
 
   <!-- CONCLUSÃO -->
-  ${narrative.conclusao && narrative.conclusao.length > 0 ? `
+  ${(Array.isArray(narrative.conclusao) && narrative.conclusao.length > 0) ? `
   <div class="section-title">${nextSec()}. CONCLUSÃO</div>
-  ${narrative.conclusao.map(p => `<p>${p}</p>`).join('')}` : ''}
+  ${narrative.conclusao.map(p => `<p>${p}</p>`).join('')}` : (typeof narrative.conclusao === 'string' && (narrative.conclusao as string).trim() ? `<div class="section-title">${nextSec()}. CONCLUSÃO</div><p>${narrative.conclusao}</p>` : '')}
 
   <!-- PRIORIDADES TERAPÊUTICAS SUGERIDAS -->
-  ${narrative.prioridadesTerapeuticas && narrative.prioridadesTerapeuticas.length > 0 ? `
+  ${(Array.isArray(narrative.prioridadesTerapeuticas) && narrative.prioridadesTerapeuticas.length > 0) ? `
   <div class="section-title">${nextSec()}. PRIORIDADES TERAPÊUTICAS SUGERIDAS</div>
   <ol class="numbered-list">
     ${narrative.prioridadesTerapeuticas.map(item => `<li>${item}</li>`).join('')}
-  </ol>` : ''}
+  </ol>` : (typeof (narrative as any).prioridadesTerapeuticas === 'string' && (narrative.prioridadesTerapeuticas as any).trim() ? `<div class="section-title">${nextSec()}. PRIORIDADES TERAPÊUTICAS SUGERIDAS</div><p>${narrative.prioridadesTerapeuticas}</p>` : '')}
 
   <!-- ASSINATURA -->
   <div class="signature-section">
@@ -949,6 +978,16 @@ function triggerDirectDownload(blob: Blob, filename: string) {
 /** Gera e baixa diretamente o arquivo PDF do Laudo de Reavaliação (com fallback de impressão nativo) */
 export async function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  // Auto-delegação: se a comparação for de avaliação física (sem dor EVA nem dinamometria, mas com composição/dobras)
+  const isPhysicalAssessmentOnly =
+    (!computed.tabelaEVA?.rows || computed.tabelaEVA.rows.length === 0) &&
+    (!computed.tabelaForca || computed.tabelaForca.length === 0) &&
+    ((computed.tabelaComposicao && computed.tabelaComposicao.length > 0) || (computed.tabelaDobras && computed.tabelaDobras.length > 0));
+
+  if (isPhysicalAssessmentOnly) {
+    return downloadPhysicalComparisonPDF(computed, narrative);
+  }
 
   const htmlContent = generateReavaliacaoHTML(computed, narrative);
   const html2pdf = (window as any).html2pdf;
@@ -1015,6 +1054,587 @@ export async function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputed
   }
 
   // Fallback: Impressão via iframe persistente
+  const printIframe = document.createElement('iframe');
+  printIframe.style.position = 'fixed';
+  printIframe.style.right = '0';
+  printIframe.style.bottom = '0';
+  printIframe.style.width = '1px';
+  printIframe.style.height = '1px';
+  printIframe.style.opacity = '0.01';
+  printIframe.style.border = 'none';
+  document.body.appendChild(printIframe);
+
+  const doc = printIframe.contentWindow?.document || printIframe.contentDocument;
+  if (!doc) {
+    alert('Erro ao abrir gerador do PDF.');
+    return;
+  }
+
+  doc.open();
+  doc.write(htmlContent);
+  doc.close();
+
+  await new Promise<void>(resolve => {
+    setTimeout(() => {
+      try {
+        printIframe.contentWindow?.focus();
+        printIframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Erro ao acionar impressão:', e);
+      } finally {
+        setTimeout(() => {
+          if (printIframe.parentNode) {
+            printIframe.parentNode.removeChild(printIframe);
+          }
+        }, 60000);
+        resolve();
+      }
+    }, 350);
+  });
+}
+
+/**
+ * Gerador de Laudo Oficial Comparativo de Avaliação Física & Composição Corporal
+ * Foco exclusivo em Antropometria, Pollock 7/8 Dobras, Perimetria e Recomposição Corporal Real.
+ */
+export function generatePhysicalComparisonHTML(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): string {
+  const { identificacao, objetivoDoLaudo, tabelaComposicao = [], tabelaDobras = [], tabelaPerimetria = [], tabelaGoniometria = [], tabelaTestesOrtopedicos = [], kpisRecomposicao } = computed;
+
+  let secNum = 0;
+  const nextSec = () => ++secNum;
+
+  const isFilledField = (val: any) => {
+    if (val === undefined || val === null) return false;
+    const s = String(val).trim();
+    if (!s) return false;
+    const lower = s.toLowerCase();
+    return !['-', '—', 'n/a', 'n/r', 'não informado', 'nao informado', 'não realizada', 'nao realizada', 'nenhum', 'nenhuma'].includes(lower);
+  };
+
+  const idRows = [
+    { label: 'Aluno / Paciente', val: identificacao.paciente },
+    { label: 'Idade', val: identificacao.idade },
+    { label: 'Sexo', val: identificacao.sexo },
+    { label: 'CPF', val: identificacao.cpf },
+    { label: 'Peso Corporal (T1 ➔ T2)', val: identificacao.pesoCorporal },
+    { label: 'Data da Avaliação Inicial (T1)', val: identificacao.dataRelatorioInicial },
+    { label: 'Data da Reavaliação (T2)', val: identificacao.dataReavaliacao },
+    { label: 'Intervalo de Acompanhamento', val: identificacao.intervaloSemanas ? `${identificacao.intervaloSemanas} semanas (${kpisRecomposicao?.diasIntervalo || identificacao.intervaloSemanas * 7} dias)` : '' },
+    { label: 'Avaliador Inicial', val: identificacao.avaliadorInicial },
+    { label: 'Avaliador da Reavaliação', val: identificacao.avaliadorReavaliacao }
+  ].filter(r => isFilledField(r.val));
+
+  const kpis = kpisRecomposicao || {
+    gorduraEliminadaKg: 0,
+    massaMagraGanhaKg: 0,
+    deltaPercentualGordura: 0,
+    deltaSomaDobrasMm: 0,
+    deltaCinturaCm: 0,
+    diasIntervalo: 0,
+    statusRecomposicao: 'estavel' as const,
+    taxaSucessoLabel: 'Em monitoramento de composição corporal'
+  };
+
+  const realFatoresEvolucao = (narrative.fatoresEvolucao || []).filter(i => {
+    const l = (i || '').trim().toLowerCase();
+    return !l.startsWith('nenhum') && !l.startsWith('dados comparativos em consolidação');
+  });
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Laudo Comparativo de Avaliação Física — ${identificacao.paciente}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 18mm 20mm 18mm 20mm;
+    }
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      margin: 0;
+      padding: 0 4mm;
+      font-size: 10pt;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .laudo-container {
+      width: 100%;
+      max-width: 170mm;
+      margin: 0 auto;
+      padding: 0 4mm;
+      box-sizing: border-box;
+    }
+    .header-laudo {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #0f172a;
+    }
+    .header-laudo h1 {
+      font-size: 14pt;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      margin: 0 0 4px;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+    .header-laudo h2 {
+      font-size: 9.5pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      margin: 0 0 6px;
+      text-transform: uppercase;
+      color: #0d9488;
+    }
+    .header-laudo h3 {
+      font-size: 12pt;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin: 8px 0 4px;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+    .header-laudo p {
+      font-size: 8.5pt;
+      color: #475569;
+      margin: 0;
+      font-style: italic;
+    }
+    .section-title {
+      font-size: 10.5pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin: 18px 0 8px 0;
+      color: #0f172a;
+      letter-spacing: 0.02em;
+      page-break-after: avoid;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      font-size: 8.5pt;
+    }
+    table th, table td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    table th {
+      background: #f1f5f9;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .font-bold { font-weight: 700; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .kpi-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .kpi-label {
+      font-size: 7pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .kpi-val {
+      font-size: 13pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.1;
+    }
+    .kpi-sub {
+      font-size: 7pt;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .bullet-list {
+      margin: 0 0 14px 16px;
+      padding: 0;
+      font-size: 9pt;
+      color: #334155;
+      line-height: 1.6;
+    }
+    .signature-section {
+      margin-top: 30px;
+      page-break-inside: avoid;
+    }
+    .signature-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+    .signature-box {
+      width: 250px;
+      text-align: center;
+    }
+    .signature-line {
+      border-top: 1px solid #0f172a;
+      margin-bottom: 6px;
+    }
+    .signature-name {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .signature-role {
+      font-size: 7.5pt;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="laudo-container">
+
+    <!-- CABEÇALHO OFICIAL -->
+    <div class="header-laudo">
+      <h1>CLUBE FITNESS FISIO</h1>
+      <h2>Avaliação Física, Composição Corporal & Desempenho</h2>
+      <h3>LAUDO COMPARATIVO DE AVALIAÇÃO FÍSICA</h3>
+      <p>Análise longitudinal da composição corporal, antropometria, dobras cutâneas e perimetria</p>
+    </div>
+
+    <!-- IDENTIFICAÇÃO -->
+    <div class="section-title">${nextSec()}. IDENTIFICAÇÃO</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 45%;">Campo</th>
+          <th>Dado</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${idRows.map(r => `<tr><td class="font-bold">${r.label}</td><td>${r.val}</td></tr>`).join('')}
+      </tbody>
+    </table>
+
+    ${isFilledField(objetivoDoLaudo) ? `
+    <!-- OBJETIVO DA AVALIAÇÃO -->
+    <div class="section-title">${nextSec()}. OBJETIVO & METAS DO ALUNO</div>
+    <p style="font-size: 9pt; color: #334155; margin-bottom: 14px;">${objetivoDoLaudo}</p>
+    ` : ''}
+
+    <!-- PAINEL DE KPIS DE RECOMPOSIÇÃO CORPORAL REAL -->
+    <div class="kpi-grid">
+      <!-- Card 1: Perda de Gordura -->
+      <div class="kpi-card" style="border-left: 3.5px solid ${kpis.gorduraEliminadaKg > 0 ? '#10b981' : (kpis.gorduraEliminadaKg < 0 ? '#ef4444' : '#64748b')};">
+        <div class="kpi-label">Massa Adiposa</div>
+        <div class="kpi-val" style="color: ${kpis.gorduraEliminadaKg > 0 ? '#059669' : (kpis.gorduraEliminadaKg < 0 ? '#dc2626' : '#0f172a')};">
+          ${kpis.gorduraEliminadaKg > 0 ? `-${kpis.gorduraEliminadaKg.toFixed(1)} kg` : (kpis.gorduraEliminadaKg < 0 ? `+${Math.abs(kpis.gorduraEliminadaKg).toFixed(1)} kg` : 'Estável')}
+        </div>
+        <div class="kpi-sub">
+          ${kpis.deltaPercentualGordura !== 0 ? `Δ %GC: ${kpis.deltaPercentualGordura > 0 ? '+' : ''}${kpis.deltaPercentualGordura.toFixed(1)}%` : 'Percentual mantido'}
+        </div>
+      </div>
+
+      <!-- Card 2: Massa Magra -->
+      <div class="kpi-card" style="border-left: 3.5px solid ${kpis.massaMagraGanhaKg > 0 ? '#10b981' : (kpis.massaMagraGanhaKg < 0 ? '#f59e0b' : '#64748b')};">
+        <div class="kpi-label">Massa Magra</div>
+        <div class="kpi-val" style="color: ${kpis.massaMagraGanhaKg > 0 ? '#059669' : '#0f172a'};">
+          ${kpis.massaMagraGanhaKg > 0 ? `+${kpis.massaMagraGanhaKg.toFixed(1)} kg` : (kpis.massaMagraGanhaKg < 0 ? `${kpis.massaMagraGanhaKg.toFixed(1)} kg` : 'Preservada')}
+        </div>
+        <div class="kpi-sub">
+          ${kpis.massaMagraGanhaKg > 0 ? 'Ganho trófico muscular' : 'Manutenção de massa livre'}
+        </div>
+      </div>
+
+      <!-- Card 3: Dobras Cutâneas -->
+      <div class="kpi-card" style="border-left: 3.5px solid ${kpis.deltaSomaDobrasMm < 0 ? '#10b981' : (kpis.deltaSomaDobrasMm > 0 ? '#ef4444' : '#64748b')};">
+        <div class="kpi-label">Soma de Dobras</div>
+        <div class="kpi-val" style="color: ${kpis.deltaSomaDobrasMm < 0 ? '#059669' : (kpis.deltaSomaDobrasMm > 0 ? '#dc2626' : '#0f172a')};">
+          ${kpis.deltaSomaDobrasMm < 0 ? `${kpis.deltaSomaDobrasMm.toFixed(1)} mm` : (kpis.deltaSomaDobrasMm > 0 ? `+${kpis.deltaSomaDobrasMm.toFixed(1)} mm` : 'Estável')}
+        </div>
+        <div class="kpi-sub">Espessura subcutânea (Pollock)</div>
+      </div>
+
+      <!-- Card 4: Cintura / Gordura Central -->
+      <div class="kpi-card" style="border-left: 3.5px solid ${kpis.deltaCinturaCm < 0 ? '#10b981' : (kpis.deltaCinturaCm > 0 ? '#f59e0b' : '#64748b')};">
+        <div class="kpi-label">Cintura (Medida Central)</div>
+        <div class="kpi-val" style="color: ${kpis.deltaCinturaCm < 0 ? '#059669' : '#0f172a'};">
+          ${kpis.deltaCinturaCm < 0 ? `${kpis.deltaCinturaCm.toFixed(1)} cm` : (kpis.deltaCinturaCm > 0 ? `+${kpis.deltaCinturaCm.toFixed(1)} cm` : 'Estável')}
+        </div>
+        <div class="kpi-sub">Índice de risco metabólico</div>
+      </div>
+    </div>
+
+    <!-- BANNER DE SÍNTESE DE RECOMPOSIÇÃO CORPORAL -->
+    <div style="background: rgba(13, 148, 136, 0.08); border: 1px solid rgba(13, 148, 136, 0.25); border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; font-size: 8.5pt;">
+      <strong style="color: #0f766e;">🎯 Síntese de Desempenho e Recomposição Corporal:</strong>
+      <span style="color: #1e293b; margin-left: 4px;">${kpis.taxaSucessoLabel}</span>
+    </div>
+
+    <!-- 1. COMPOSIÇÃO CORPORAL E ANTROPOMETRIA -->
+    ${tabelaComposicao.length > 0 ? `
+    <div class="section-title">${nextSec()}. COMPOSIÇÃO CORPORAL E ANTROPOMETRIA — COMPARATIVO</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Indicador</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação Total</th>
+          <th>Interpretação Clínica</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tabelaComposicao.map(r => `
+          <tr>
+            <td class="font-bold">${r.metrica || r.parametro}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} ${r.unidade}` : ''}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} ${r.unidade}` : ''}</td>
+            <td class="text-center font-bold" style="color:${r.leitura === 'Redução de gordura' || r.leitura === 'Ganho de massa magra' || r.leitura === 'Redução de medidas' || r.leitura === 'Redução de risco' ? '#059669' : '#0f172a'}">
+              ${r.variacao.replace('.', ',')} ${r.unidade} (${r.variacaoPct.replace('.', ',')})
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
+
+    <!-- 2. DOBRAS CUTÂNEAS (POLLOCK — mm) -->
+    ${tabelaDobras.length > 0 ? `
+    <div class="section-title">${nextSec()}. DOBRAS CUTÂNEAS (POLLOCK — mm)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Dobra Cutânea</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação (mm)</th>
+          <th>Leitura da Gordura Subcutânea</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tabelaDobras.map(r => `
+          <tr>
+            <td class="font-bold">${r.dobra}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} mm` : ''}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} mm` : ''}</td>
+            <td class="text-center font-bold" style="color:${r.deltaNum < 0 ? '#059669' : (r.deltaNum > 0 ? '#dc2626' : '#0f172a')}">
+              ${r.variacaoMm.replace('.', ',')} ${r.variacaoPct ? `(${r.variacaoPct.replace('.', ',')})` : ''}
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
+
+    <!-- 3. PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS (cm) -->
+    ${tabelaPerimetria.length > 0 ? `
+    <div class="section-title">${nextSec()}. PERIMETRIA E CIRCUNFERÊNCIAS CORPORAIS (cm)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Segmento</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação (cm)</th>
+          <th>Efeito Trófico / Medida</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tabelaPerimetria.map(r => `
+          <tr>
+            <td class="font-bold">${r.regiao}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} cm` : ''}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} cm` : ''}</td>
+            <td class="text-center font-bold" style="color:${r.isCentral ? (r.deltaNum < 0 ? '#059669' : (r.deltaNum > 0 ? '#dc2626' : '#0f172a')) : (r.deltaNum > 0 ? '#059669' : '#0f172a')}">
+              ${r.variacaoCm.replace('.', ',')}
+            </td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
+
+    <!-- 4. FLEXIBILIDADE E MOBILIDADE ARTICULAR (GONIOMETRIA) -->
+    ${tabelaGoniometria.length > 0 ? `
+    <div class="section-title">${nextSec()}. FLEXIBILIDADE E MOBILIDADE ARTICULAR (GONIOMETRIA)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Movimento</th>
+          <th class="text-center">Referência</th>
+          <th class="text-center">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center">${identificacao.dataReavaliacao}</th>
+          <th class="text-center">Variação</th>
+          <th>Leitura Articular</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tabelaGoniometria.map(r => `
+          <tr>
+            <td>${r.movimento}</td>
+            <td class="text-center">${r.referencia}</td>
+            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : ''}</td>
+            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : ''}</td>
+            <td class="text-center">${r.variacao}</td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
+
+    <!-- 5. TESTES FUNCIONAIS E ORTOPÉDICOS ESPECIAIS (SE PREENCHIDOS) -->
+    ${tabelaTestesOrtopedicos.length > 0 ? `
+    <div class="section-title">${nextSec()}. TESTES ESPECIAIS E FUNCIONAIS</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:35%;">Teste</th>
+          <th class="text-center" style="width:25%;">${identificacao.dataRelatorioInicial}</th>
+          <th class="text-center" style="width:25%;">${identificacao.dataReavaliacao}</th>
+          <th style="width:15%;">Leitura</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tabelaTestesOrtopedicos.map(r => `
+          <tr>
+            <td class="font-bold">${r.teste}</td>
+            <td class="text-center">${r.t1}</td>
+            <td class="text-center">${r.t2}</td>
+            <td>${r.leitura}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
+
+    <!-- 6. DESTAQUES DE EVOLUÇÃO E RECOMPOSIÇÃO CORPORAL -->
+    ${realFatoresEvolucao.length > 0 ? `
+    <div class="section-title">${nextSec()}. DESTAQUES EVOLUTIVOS DA REAVALIAÇÃO</div>
+    <ul class="bullet-list">
+      ${realFatoresEvolucao.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- 7. DIRETRIZES DO AVALIADOR / TREINADOR -->
+    ${(Array.isArray(narrative.prioridadesTerapeuticas) && narrative.prioridadesTerapeuticas.length > 0) ? `
+    <div class="section-title">${nextSec()}. DIRETRIZES E CONDUTA PARA A PERIODIZAÇÃO DE TREINO</div>
+    <ul class="bullet-list">
+      ${narrative.prioridadesTerapeuticas.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+    ` : (typeof (narrative as any).prioridadesTerapeuticas === 'string' && (narrative.prioridadesTerapeuticas as any).trim() ? `
+    <div class="section-title">${nextSec()}. DIRETRIZES E CONDUTA PARA A PERIODIZAÇÃO DE TREINO</div>
+    <p>${narrative.prioridadesTerapeuticas}</p>
+    ` : '')}
+
+    <!-- ASSINATURA -->
+    <div class="signature-section">
+      <div class="section-title">${nextSec()}. RESPONSÁVEL TÉCNICO / AVALIADOR</div>
+      <div class="signature-container">
+        <div class="signature-box">
+          <div class="signature-line"></div>
+          <div class="signature-name">${identificacao.avaliadorReavaliacao.split('—')[0].trim()}</div>
+          ${identificacao.avaliadorReavaliacao.split('—')[1]?.trim() ? `<div class="signature-role">${identificacao.avaliadorReavaliacao.split('—')[1].trim()}</div>` : ''}
+          <div class="signature-role">Clube Fitness Fisio — Avaliação Física & Saúde</div>
+          ${isFilledField(identificacao.avaliadorInicial) ? `
+          <div class="signature-note" style="font-size: 7pt; color: #64748b; margin-top: 4px;">
+            Avaliação inicial por ${identificacao.avaliadorInicial} (${identificacao.dataRelatorioInicial}).
+          </div>` : ''}
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- fim .laudo-container -->
+</body>
+</html>
+  `.trim();
+}
+
+/** Gera e baixa diretamente o Laudo Comparativo Oficial de Avaliação Física & Composição Corporal */
+export async function downloadPhysicalComparisonPDF(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const htmlContent = generatePhysicalComparisonHTML(computed, narrative);
+  const html2pdf = (window as any).html2pdf;
+
+  const safeName = (computed?.identificacao?.paciente || 'Aluno')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_');
+  const safeDate = (computed?.identificacao?.dataReavaliacao || new Date().toISOString().split('T')[0]).replace(/\//g, '-');
+  const filename = `Comparativo_Avaliacao_Fisica_${safeName}_${safeDate}.pdf`;
+
+  if (html2pdf) {
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.position = 'absolute';
+    pdfWrapper.style.left = '0px';
+    pdfWrapper.style.top = `${window.scrollY || 0}px`;
+    pdfWrapper.style.width = '794px';
+    pdfWrapper.style.opacity = '0';
+    pdfWrapper.style.zIndex = '-9999';
+    pdfWrapper.style.pointerEvents = 'none';
+
+    const pdfContainer = document.createElement('div');
+    pdfContainer.style.background = '#ffffff';
+    pdfContainer.style.color = '#0f172a';
+    pdfContainer.style.padding = '10px 24px';
+    pdfContainer.style.margin = '0';
+    pdfContainer.style.width = '794px';
+    pdfContainer.style.boxSizing = 'border-box';
+    pdfContainer.innerHTML = htmlContent;
+
+    pdfWrapper.appendChild(pdfContainer);
+    document.body.appendChild(pdfWrapper);
+
+    try {
+      const options = {
+        margin: [10, 8, 12, 8],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2.2,
+          useCORS: true,
+          letterRendering: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 794,
+          width: 794,
+          x: 0,
+          y: 0
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+
+      const blob: Blob = await html2pdf().set(options).from(pdfContainer).output('blob');
+      triggerDirectDownload(blob, filename);
+      return;
+    } catch (err) {
+      console.warn('[downloadPhysicalComparisonPDF] Falha no html2pdf, acionando fallback:', err);
+    } finally {
+      if (pdfWrapper.parentNode) {
+        pdfWrapper.parentNode.removeChild(pdfWrapper);
+      }
+    }
+  }
+
+  // Fallback: Impressão via iframe
   const printIframe = document.createElement('iframe');
   printIframe.style.position = 'fixed';
   printIframe.style.right = '0';

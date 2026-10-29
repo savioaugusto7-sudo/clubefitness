@@ -424,6 +424,82 @@ export default function AlunoHistoryTimeline({
           {/* Tabelas de Resultados Reais do Motor Longitudinal */}
           {longitudinal?.computed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Painel de Recomposição Corporal Real (se houver dados calculados) */}
+              {longitudinal.computed.kpisRecomposicao && (
+                <div style={{ background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fas fa-fire-flame-curved" style={{ color: '#10b981', fontSize: '1.1rem' }} />
+                      <strong style={{ fontSize: '0.95rem' }}>Balanço de Recomposição Corporal</strong>
+                    </div>
+                    {longitudinal.computed.kpisRecomposicao.taxaSucessoLabel && (
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        background: longitudinal.computed.kpisRecomposicao.statusRecomposicao === 'otima' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                        color: longitudinal.computed.kpisRecomposicao.statusRecomposicao === 'otima' ? '#10b981' : '#38bdf8',
+                        border: '1px solid currentColor'
+                      }}>
+                        {longitudinal.computed.kpisRecomposicao.taxaSucessoLabel}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                    {longitudinal.computed.kpisRecomposicao.gorduraEliminadaKg != null && (
+                      <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Gordura Eliminada</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: longitudinal.computed.kpisRecomposicao.gorduraEliminadaKg >= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                          {longitudinal.computed.kpisRecomposicao.gorduraEliminadaKg >= 0 ? `-${longitudinal.computed.kpisRecomposicao.gorduraEliminadaKg.toFixed(1)} kg` : `+${Math.abs(longitudinal.computed.kpisRecomposicao.gorduraEliminadaKg).toFixed(1)} kg`}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
+                          {longitudinal.computed.kpisRecomposicao.gorduraEliminadaKg >= 0 ? 'Perda de gordura' : 'Aumento de gordura'}
+                        </div>
+                      </div>
+                    )}
+                    {longitudinal.computed.kpisRecomposicao.massaMagraGanhaKg != null && (
+                      <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Massa Magra</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: longitudinal.computed.kpisRecomposicao.massaMagraGanhaKg >= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                          {longitudinal.computed.kpisRecomposicao.massaMagraGanhaKg >= 0 ? `+${longitudinal.computed.kpisRecomposicao.massaMagraGanhaKg.toFixed(1)} kg` : `${longitudinal.computed.kpisRecomposicao.massaMagraGanhaKg.toFixed(1)} kg`}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
+                          {longitudinal.computed.kpisRecomposicao.massaMagraGanhaKg >= 0 ? 'Hipertrofia/Manutenção' : 'Redução muscular'}
+                        </div>
+                      </div>
+                    )}
+                    {longitudinal.computed.kpisRecomposicao.deltaPercentualGordura != null && (
+                      <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>% Gordura (Δ)</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: longitudinal.computed.kpisRecomposicao.deltaPercentualGordura <= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                          {longitudinal.computed.kpisRecomposicao.deltaPercentualGordura > 0 ? `+${longitudinal.computed.kpisRecomposicao.deltaPercentualGordura.toFixed(1)}%` : `${longitudinal.computed.kpisRecomposicao.deltaPercentualGordura.toFixed(1)}%`}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Variação em p.p.</div>
+                      </div>
+                    )}
+                    {longitudinal.computed.kpisRecomposicao.deltaSomaDobrasMm != null && (
+                      <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Soma Dobras (Δ)</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: longitudinal.computed.kpisRecomposicao.deltaSomaDobrasMm <= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                          {longitudinal.computed.kpisRecomposicao.deltaSomaDobrasMm > 0 ? `+${longitudinal.computed.kpisRecomposicao.deltaSomaDobrasMm.toFixed(1)} mm` : `${longitudinal.computed.kpisRecomposicao.deltaSomaDobrasMm.toFixed(1)} mm`}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Pollock subcutâneo</div>
+                      </div>
+                    )}
+                    {longitudinal.computed.kpisRecomposicao.deltaCinturaCm != null && (
+                      <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Cintura (Δ)</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: longitudinal.computed.kpisRecomposicao.deltaCinturaCm <= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                          {longitudinal.computed.kpisRecomposicao.deltaCinturaCm > 0 ? `+${longitudinal.computed.kpisRecomposicao.deltaCinturaCm.toFixed(1)} cm` : `${longitudinal.computed.kpisRecomposicao.deltaCinturaCm.toFixed(1)} cm`}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Medida central visceral</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* 0.A Tabela de Composição Corporal e Antropometria */}
               {longitudinal.computed.tabelaComposicao?.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
@@ -465,6 +541,58 @@ export default function AlunoHistoryTimeline({
                                   }}
                                 >
                                   {c.leitura}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 0.A2 Tabela de Dobras Cutâneas (Pollock) */}
+              {longitudinal.computed.tabelaDobras?.length > 0 && (
+                <div style={{ background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', background: 'rgba(245, 158, 11, 0.06)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fas fa-ruler-combined" style={{ color: '#f59e0b' }} />
+                    <strong style={{ fontSize: '0.9rem' }}>Dobras Cutâneas (Pollock — mm)</strong>
+                  </div>
+                  <div className="table-responsive" style={{ margin: 0 }}>
+                    <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Dobra Cutânea</th>
+                          <th style={{ textAlign: 'center' }}>T1 ({formatDate(longitudinal.t1Data || '')})</th>
+                          <th style={{ textAlign: 'center' }}>T2 ({formatDate(longitudinal.t2Data || '')})</th>
+                          <th style={{ textAlign: 'center' }}>Variação (mm)</th>
+                          <th>Leitura / Dinâmica</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {longitudinal.computed.tabelaDobras.map((d: any, idx: number) => {
+                          const isFav = d.deltaNum < 0;
+                          const isUnfav = d.deltaNum > 0;
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{d.dobra}</strong></td>
+                              <td style={{ textAlign: 'center' }}>{d.t1 != null ? `${d.t1} mm` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{d.t2 != null ? `${d.t2} mm` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold', color: isFav ? '#10b981' : (isUnfav ? '#ef4444' : 'inherit') }}>
+                                {d.variacaoMm} {d.variacaoPct ? `(${d.variacaoPct})` : ''}
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: isFav ? 'rgba(16, 185, 129, 0.14)' : (isUnfav ? 'rgba(239, 68, 68, 0.14)' : 'rgba(148, 163, 184, 0.1)'),
+                                    color: isFav ? '#10b981' : (isUnfav ? '#ef4444' : 'var(--text-dim)')
+                                  }}
+                                >
+                                  {d.leitura}
                                 </span>
                               </td>
                             </tr>

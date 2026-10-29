@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
-import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
+import { downloadReavaliacaoLaudoPDF, downloadPhysicalComparisonPDF } from '@/utils/reavaliacaoPdfGenerator';
 import {
   calculateGoniometryAlerts,
   calculateStrengthTestAlerts,
@@ -10074,7 +10074,7 @@ goniometria: {
                                       alert(data.error || 'Não foi possível gerar o comparativo.');
                                       return;
                                     }
-                                    await downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
+                                    await downloadPhysicalComparisonPDF(data.computed, data.narrative);
                                   } catch (err: any) {
                                     console.error('Erro ao gerar comparativo de avaliação física:', err);
                                     alert('Erro ao processar laudo comparativo: ' + err.message);

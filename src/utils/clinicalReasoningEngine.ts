@@ -93,6 +93,15 @@ export function generateClinicalNarrative(computed: LongitudinalComputedResult):
     });
   }
 
+  // Dobras Cutâneas (Pollock)
+  if (computed.tabelaDobras && computed.tabelaDobras.length > 0) {
+    computed.tabelaDobras.forEach(d => {
+      if (d.deltaNum <= -1.0) {
+        fatoresEvolucao.push(`Dobra cutânea (${d.dobra}) — redução de ${d.t1} mm para ${d.t2} mm (${d.variacaoMm}, ${d.variacaoPct}).`);
+      }
+    });
+  }
+
   // Perimetria / Circunferências
   if (computed.tabelaPerimetria && computed.tabelaPerimetria.length > 0) {
     computed.tabelaPerimetria.forEach(p => {

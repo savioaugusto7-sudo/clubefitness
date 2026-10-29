@@ -132,6 +132,28 @@ export interface TableRowPerimetria {
   variacaoCm: string;
   deltaNum: number;
   leitura: string;
+  isCentral?: boolean;
+}
+
+export interface TableRowDobra {
+  dobra: string;
+  t1: number | null;
+  t2: number | null;
+  variacaoMm: string;
+  deltaNum: number;
+  variacaoPct: string;
+  leitura: string;
+}
+
+export interface RecomposicaoCorporalKPIs {
+  gorduraEliminadaKg: number;
+  massaMagraGanhaKg: number;
+  deltaPercentualGordura: number;
+  deltaSomaDobrasMm: number;
+  deltaCinturaCm: number;
+  diasIntervalo: number;
+  statusRecomposicao: 'excelente' | 'otimo' | 'bom' | 'estavel' | 'atencao';
+  taxaSucessoLabel: string;
 }
 
 export interface LongitudinalComputedResult {
@@ -182,7 +204,9 @@ export interface LongitudinalComputedResult {
   tabelaColuna: TableRowColuna[];
   tabelaTestesOrtopedicos: TableRowTesteOrtopedico[];
   tabelaComposicao?: TableRowComposicao[];
+  tabelaDobras?: TableRowDobra[];
   tabelaPerimetria?: TableRowPerimetria[];
+  kpisRecomposicao?: RecomposicaoCorporalKPIs;
   clusters?: any[];
   razoesAvancadas?: AdvancedStrengthRatioItem[];
   acwr?: any;
@@ -1247,6 +1271,77 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   addCompRow('Soma de Dobras Cutâneas', 'mm', bc1.somaDobras, bc2.somaDobras, 'lowerBetter');
   addCompRow('Relação Cintura-Quadril (RCQ)', '', bc1.rcq, bc2.rcq, 'lowerBetter');
 
+  // 10.1B DOBRAS CUTÂNEAS INDIVIDUAIS (Pollock 7/8 Dobras em mm)
+  const extractDobras = (rep: any) => {
+    if (!rep) return {};
+    const dm = rep?.dadosMedidos || {};
+    const av = rep?.tipoTeste === 'COMPOSICAO_CORPORAL' ? (rep?.dados || {}) : (rep?.avulsoComposicao || {});
+    return {
+      ...(dm.dobras || {}),
+      ...(dm.dobrasReadings || {}),
+      ...(av.dobras || {}),
+      ...(av.dobrasReadings || {}),
+      ...(rep?.dobras || {})
+    };
+  };
+
+  const dObj1 = extractDobras(t1Report);
+  const dObj2 = extractDobras(t2Report);
+  const tabelaDobras: TableRowDobra[] = [];
+
+  const dobrasConfigs: Array<{ label: string; keys: string[] }> = [
+    { label: 'Peitoral', keys: ['peitoral'] },
+    { label: 'Tríceps', keys: ['triceps'] },
+    { label: 'Subescapular', keys: ['subescapular'] },
+    { label: 'Axilar Média', keys: ['subaxilar', 'axilarMedia', 'axilar'] },
+    { label: 'Supra-ilíaca', keys: ['suprailiaca', 'supraIliaca'] },
+    { label: 'Abdômen', keys: ['abdomen'] },
+    { label: 'Coxa', keys: ['coxa'] },
+    { label: 'Panturrilha Medial', keys: ['panturrilha'] }
+  ];
+
+  const getDobraValFromObj = (obj: any, keys: string[]): number | null => {
+    for (const k of keys) {
+      const v = parseNumberOrNull(obj?.[k]);
+      if (v != null && v > 0) return v;
+    }
+    return null;
+  };
+
+  dobrasConfigs.forEach(cfg => {
+    const v1 = getDobraValFromObj(dObj1, cfg.keys);
+    const v2 = getDobraValFromObj(dObj2, cfg.keys);
+    if (v1 == null && v2 == null) return;
+    let variacaoMm = '-';
+    let deltaNum = 0;
+    let variacaoPct = '-';
+    let leitura = 'Avaliado';
+    if (v1 != null && v2 != null) {
+      const delta = Math.round((v2 - v1) * 10) / 10;
+      deltaNum = delta;
+      const sign = delta > 0 ? '+' : '';
+      variacaoMm = `${sign}${delta.toFixed(1)} mm`;
+      const pct = v1 > 0 ? Math.round(((v2 - v1) / v1) * 1000) / 10 : 0;
+      variacaoPct = `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`;
+      if (Math.abs(delta) <= 0.5) {
+        leitura = 'Estável';
+      } else if (delta < 0) {
+        leitura = 'Redução de gordura subcutânea';
+      } else {
+        leitura = 'Aumento de dobra subcutânea';
+      }
+    }
+    tabelaDobras.push({
+      dobra: cfg.label,
+      t1: v1,
+      t2: v2,
+      variacaoMm,
+      deltaNum,
+      variacaoPct,
+      leitura
+    });
+  });
+
   // 10.2 PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS (cm)
   const extractPerimetria = (rep: any) => {
     if (!rep) return {};
@@ -1313,9 +1408,63 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
       t2: v2,
       variacaoCm,
       deltaNum,
-      leitura
+      leitura,
+      isCentral: cfg.isCentral
     });
   });
+
+  // 10.3 KPIS DE RECOMPOSIÇÃO CORPORAL REAL
+  const gorduraEliminadaKg = (bc1.massaGorda != null && bc2.massaGorda != null)
+    ? Math.round((bc1.massaGorda - bc2.massaGorda) * 10) / 10
+    : 0;
+  const massaMagraGanhaKg = (bc1.massaMagra != null && bc2.massaMagra != null)
+    ? Math.round((bc2.massaMagra - bc1.massaMagra) * 10) / 10
+    : 0;
+  const deltaPercentualGordura = (bc1.percGordura != null && bc2.percGordura != null)
+    ? Math.round((bc2.percGordura - bc1.percGordura) * 10) / 10
+    : 0;
+  const deltaSomaDobrasMm = (bc1.somaDobras != null && bc2.somaDobras != null)
+    ? Math.round((bc2.somaDobras - bc1.somaDobras) * 10) / 10
+    : 0;
+  const c1 = getPerimVal(p1, ['cintura']);
+  const c2 = getPerimVal(p2, ['cintura']);
+  const deltaCinturaCm = (c1 != null && c2 != null)
+    ? Math.round((c2 - c1) * 10) / 10
+    : 0;
+
+  const d1 = t1Report?.data ? new Date(t1Report.data).getTime() : 0;
+  const d2 = t2Report?.data ? new Date(t2Report.data).getTime() : 0;
+  const diasIntervalo = (d1 && d2) ? Math.max(1, Math.round(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24))) : (intervaloSemanas * 7 || 0);
+
+  let taxaSucessoLabel = 'Em monitoramento de composição corporal';
+  let statusRecomposicao: 'excelente' | 'otimo' | 'bom' | 'estavel' | 'atencao' = 'estavel';
+  if (gorduraEliminadaKg > 0.4 && massaMagraGanhaKg > 0.3) {
+    taxaSucessoLabel = 'Excelente recomposição corporal (perda adiposa concomitante a ganho muscular)';
+    statusRecomposicao = 'excelente';
+  } else if (gorduraEliminadaKg > 0.5) {
+    taxaSucessoLabel = `Redução adiposa consistente (-${gorduraEliminadaKg.toFixed(1)} kg de gordura)`;
+    statusRecomposicao = 'otimo';
+  } else if (massaMagraGanhaKg > 0.5) {
+    taxaSucessoLabel = `Hipertrofia e ganho trófico (+${massaMagraGanhaKg.toFixed(1)} kg de massa magra)`;
+    statusRecomposicao = 'otimo';
+  } else if (deltaSomaDobrasMm < -3) {
+    taxaSucessoLabel = `Redução da espessura das dobras cutâneas (${deltaSomaDobrasMm.toFixed(1)} mm)`;
+    statusRecomposicao = 'bom';
+  } else if (gorduraEliminadaKg < -1.0) {
+    taxaSucessoLabel = 'Aumento de gordura corporal acima do recomendado';
+    statusRecomposicao = 'atencao';
+  }
+
+  const kpisRecomposicao: RecomposicaoCorporalKPIs = {
+    gorduraEliminadaKg,
+    massaMagraGanhaKg,
+    deltaPercentualGordura,
+    deltaSomaDobrasMm,
+    deltaCinturaCm,
+    diasIntervalo,
+    statusRecomposicao,
+    taxaSucessoLabel
+  };
 
   // 11. DETECÇÃO DE CLUSTERS CLÍNICOS E ADAPTAÇÃO POR SEGMENTO
   const toUndef = (v: number | null) => (v === null ? undefined : v);
@@ -1390,7 +1539,9 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     tabelaColuna: tabelaColunaRows,
     tabelaTestesOrtopedicos: rowsTestesOrtopedicos,
     tabelaComposicao,
+    tabelaDobras,
     tabelaPerimetria,
+    kpisRecomposicao,
     clusters,
     razoesAvancadas: calculateAdvancedStrengthRatios(
       t2Strength?.testesRealizados || t2Strength?.testes || t2Strength?.exercicios || t1Strength?.testesRealizados || t1Strength?.testes || t1Strength?.exercicios,
