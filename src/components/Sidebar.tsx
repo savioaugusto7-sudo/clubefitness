@@ -35,6 +35,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
         { id: 'central_avaliacoes', label: 'Central de Avaliações', icon: 'fa-stethoscope' },
+        { id: 'relatorios_mensais', label: 'Relatórios Mensais', icon: 'fa-envelope-open-text' },
         { id: 'agenda_completa', label: 'Agenda Geral', icon: 'fa-calendar-alt' },
         { id: 'treinamento_prof', label: '🎓 Treinamento Profissional', icon: 'fa-graduation-cap' },
         { id: 'log_atividades', label: 'Log de Atividades', icon: 'fa-history' }
@@ -241,6 +242,10 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
     (userName || '').toLowerCase().includes('sávio') ||
     (userName || '').toLowerCase().includes('savio');
 
+  const isAlbert =
+    (userEmail || '').toLowerCase().trim() === 'albert.nunes.an@gmail.com' ||
+    (userName || '').toLowerCase().includes('albert');
+
   const categories = React.useMemo(() => {
     let base = categoryConfigs[role] || [];
     if (role === 'client' && hasAnnualContract === false) {
@@ -248,6 +253,21 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
         ...cat,
         tabs: cat.tabs.filter(t => t.id !== 'trancamento')
       }));
+    }
+    if (role === 'professional' && (isAlbert || activeRoles?.includes('admin'))) {
+      base = base.map(cat => {
+        if (cat.title === 'ATENDIMENTO & AGENDA' && !cat.tabs.some(t => t.id === 'relatorios_mensais')) {
+          return {
+            ...cat,
+            tabs: [
+              ...cat.tabs.slice(0, 3),
+              { id: 'relatorios_mensais', label: 'Relatórios Mensais', icon: 'fa-envelope-open-text' },
+              ...cat.tabs.slice(3)
+            ]
+          };
+        }
+        return cat;
+      });
     }
     if (isSavio && role === 'admin') {
       const executivaCat: SidebarCategory = {
@@ -265,7 +285,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
       }
     }
     return base;
-  }, [role, hasAnnualContract, isSavio]);
+  }, [role, hasAnnualContract, isSavio, isAlbert, activeRoles]);
   const allTabs = categories.flatMap(c => c.tabs);
 
   // Consultar contagem de exercícios pendentes para alerta visual na sidebar
@@ -701,7 +721,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userE
                     }
                   }}
                 >
-                  <span>{userCargo || (role === 'admin' ? 'Administrador' : role === 'receptionist' ? 'Recepção' : role === 'professional' ? 'Profissional' : 'Aluno')}</span>
+                  <span>{role === 'admin' ? 'Administrador' : role === 'receptionist' ? 'Recepção' : role === 'professional' ? (userCargo || 'Profissional') : 'Aluno'}</span>
                   {activeRoles && activeRoles.length > 1 && (
                     <i className="fa-solid fa-chevron-up" style={{ fontSize: '0.6rem', transition: 'transform 0.2s', transform: showRoleMenu ? 'rotate(180deg)' : 'none' }}></i>
                   )}

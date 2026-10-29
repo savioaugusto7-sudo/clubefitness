@@ -23,7 +23,7 @@ function formatPlanName(rawName?: string, rawTipo?: string): string {
 export async function GET(request: Request) {
   try {
     await dbConnect();
-    const { user } = await checkSessionPermission(['admin'], undefined, request);
+    const { user } = await checkSessionPermission(['admin', 'professional', 'profissional'], undefined, request);
 
     // Register models for safety
     const _plan = Plan;
@@ -123,7 +123,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await dbConnect();
-    const { user } = await checkSessionPermission(['admin'], undefined, request);
+    const { user } = await checkSessionPermission(['admin', 'professional', 'profissional'], undefined, request);
 
     const body = await request.json();
     const { clientId, habilitado } = body;
@@ -166,7 +166,7 @@ export async function PATCH(request: Request) {
 export async function PUT(request: Request) {
   try {
     await dbConnect();
-    const { user } = await checkSessionPermission(['admin'], undefined, request);
+    const { user } = await checkSessionPermission(['admin', 'professional', 'profissional'], undefined, request);
 
     const body = await request.json();
     const { clientIds, habilitado } = body;

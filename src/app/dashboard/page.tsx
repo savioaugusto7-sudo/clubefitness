@@ -12,6 +12,7 @@ import AiCopilotWidget from '@/components/AiCopilotWidget';
 import GabiChatPage from '@/components/GabiChatPage';
 import GabiIntelligenceStudio from '@/components/GabiIntelligenceStudio';
 import SavioAgendaPanel from '@/components/SavioAgendaPanel';
+import RelatoriosMensaisPanel from '@/components/RelatoriosMensaisPanel';
 import { isSavioAdmin } from '@/lib/auth-savio';
 
 export default function DashboardPage() {
@@ -139,6 +140,10 @@ export default function DashboardPage() {
   const renderContent = () => {
     if (activeTab === 'gabi') {
       return <GabiChatPage />;
+    }
+
+    if (activeTab === 'relatorios_mensais') {
+      return <RelatoriosMensaisPanel />;
     }
 
     if (activeTab === 'gabi_intelligence') {
