@@ -1281,11 +1281,14 @@ export function generatePhysicalComparisonHTML(computed: LongitudinalComputedRes
     }
     .signature-container {
       display: flex;
-      justify-content: flex-end;
-      margin-top: 20px;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      margin: 32px 0 12px 0;
     }
     .signature-box {
-      width: 250px;
+      min-width: 320px;
+      max-width: 420px;
       text-align: center;
     }
     .signature-line {

@@ -958,10 +958,10 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
 
   // Hop Tests (Bateria de Saltos Unipodais & LSI)
   const hopRaw = t2Report?.hopTest || t2Report?.dados?.hopTest || t2Report?.testesOrtopedicos?.hopTest ||
-                 t2Report?.dadosMedidos?.testesEspeciais?.hopTest ||
-                 (t2Report?.tipoTeste === 'HOP_TEST' ? t2Report?.dados : null) ||
-                 t1Report?.hopTest || t1Report?.dados?.hopTest || t1Report?.testesOrtopedicos?.hopTest ||
-                 (t1Report?.tipoTeste === 'HOP_TEST' ? t1Report?.dados : null);
+    t2Report?.dadosMedidos?.testesEspeciais?.hopTest ||
+    (t2Report?.tipoTeste === 'HOP_TEST' ? t2Report?.dados : null) ||
+    t1Report?.hopTest || t1Report?.dados?.hopTest || t1Report?.testesOrtopedicos?.hopTest ||
+    (t1Report?.tipoTeste === 'HOP_TEST' ? t1Report?.dados : null);
   const hopTestResult = calculateHopBatteryAnalysis(hopRaw);
 
   // VISA-P (Questionário Validado de Tendinopatia Patelar — MCID = 13 pts)
