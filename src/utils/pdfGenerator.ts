@@ -65,7 +65,8 @@ export function renderProfessionalSignatureHtml(profInput: any): string {
 
   // Profissional Formado
   const profNome = profInput.nome || nome || 'Profissional';
-  const profRegistro = profInput.registro && profInput.registro !== '-' ? profInput.registro : 'CREFITO / CREF';
+  const rawReg = String(profInput.registro || '').trim();
+  const hasValidRegistro = Boolean(rawReg && rawReg !== '-' && rawReg.toUpperCase() !== 'CREFITO' && rawReg.toUpperCase() !== 'CREF/CREFITO' && rawReg.toUpperCase() !== 'CREFITO / CREF');
   const profEsp = profInput.especialidade && profInput.especialidade !== '-' ? profInput.especialidade : 'Fisioterapeuta / Avaliador';
 
   return `
@@ -78,9 +79,11 @@ export function renderProfessionalSignatureHtml(profInput: any): string {
           <div style="font-size: 9px; color: #475569; font-weight: 600; margin-top: 2px;">
             ${profEsp}
           </div>
+          ${hasValidRegistro ? `
           <div style="font-size: 8.5px; color: #64748b; font-weight: 500;">
-            Registro: ${profRegistro}
+            Registro: ${rawReg}
           </div>
+          ` : ''}
         </div>
       </div>
     </div>
@@ -391,10 +394,16 @@ function buildPhysioAccumulativeEvolutionHtml(
     : 100;
 
   // 4. Linha do Tempo de Dor & Queixas
+  const hasAnyPainLocal = sorted.some(rep => {
+    const loc = rep.anamnese?.queixas?.[0]?.caracteristicaDor || rep.conteudo?.diagnostico || '';
+    return Boolean(String(loc).trim() && String(loc).trim() !== '-');
+  });
+
   const painTimelineRows = sorted.map((rep, idx) => {
     const curDor = Number(rep.conteudo?.dorEscala ?? rep.anamnese?.queixas?.[0]?.dorIntensidade ?? 0);
     const queixa = rep.conteudo?.queixaPrincipal || rep.anamnese?.queixas?.[0]?.dorOnde || 'Atendimento / Sessão Fisioterapêutica';
-    const local = rep.anamnese?.queixas?.[0]?.caracteristicaDor || rep.conteudo?.diagnostico || '-';
+    const rawLocal = rep.anamnese?.queixas?.[0]?.caracteristicaDor || rep.conteudo?.diagnostico || '';
+    const local = String(rawLocal).trim() && String(rawLocal).trim() !== '-' ? String(rawLocal).trim() : '';
 
     let deltaPrevText = idx === 0 ? 'Linha de Base' : '';
     let deltaPrevColor = '#64748b';
@@ -418,8 +427,8 @@ function buildPhysioAccumulativeEvolutionHtml(
     return `
       <tr>
         <td style="font-weight: 700; width: 14%;">${formatDate(rep.data)}</td>
-        <td style="width: 36%;">${queixa}</td>
-        <td style="width: 24%; color: #64748b;">${local}</td>
+        <td style="width: ${hasAnyPainLocal ? '36%' : '60%'};">${queixa}</td>
+        ${hasAnyPainLocal ? `<td style="width: 24%; color: #64748b;">${local}</td>` : ''}
         <td style="text-align: center; width: 12%;">
           <span class="metric-badge ${badgeColor}">${curDor}/10</span>
         </td>
@@ -430,8 +439,17 @@ function buildPhysioAccumulativeEvolutionHtml(
     `;
   }).join('');
 
-  // 5. Linhas da Tabela de Goniometria Acumulativa
-  const gonioRowsHtml = gonioRowsDef.map(row => {
+  // 5. Linhas da Tabela de Goniometria Acumulativa (apenas movimentos preenchidos em pelo menos um relatório)
+  const activeGonioRowsDef = gonioRowsDef.filter(row => {
+    return displayReports.some(rep => {
+      const gRep = rep.goniometria || {};
+      const pD = parseGonioField(gRep[row.key + 'D']);
+      const pE = parseGonioField(gRep[row.key + 'E']);
+      return Boolean(pD.semForca || pD.comForca || pE.semForca || pE.comForca);
+    });
+  });
+
+  const gonioRowsHtml = activeGonioRowsDef.map(row => {
     const g0 = r0.goniometria || {};
     const gL = rLast.goniometria || {};
 
@@ -451,8 +469,8 @@ function buildPhysioAccumulativeEvolutionHtml(
     const maxL = Math.max(numLD, numLE);
     const hasAsyL = maxL > 0 && (Math.abs(numLD - numLE) / maxL) > 0.10;
 
-    const dD = numLD - num0D;
-    const dE = numLE - num0E;
+    const dD = (num0D > 0 && numLD > 0) ? (numLD - num0D) : 0;
+    const dE = (num0E > 0 && numLE > 0) ? (numLE - num0E) : 0;
     const signD = dD > 0 ? `+${dD}°` : `${dD}°`;
     const signE = dE > 0 ? `+${dE}°` : `${dE}°`;
     const colorD = dD > 0 ? '#059669' : dD < 0 ? '#dc2626' : '#64748b';
@@ -485,16 +503,23 @@ function buildPhysioAccumulativeEvolutionHtml(
 
       const strD = formatGonioDisplay(valD);
       const strE = formatGonioDisplay(valE);
+      const cellContent = (strD !== '-' && strE !== '-')
+        ? `${strD} / ${strE}`
+        : (strD !== '-' ? `D: ${strD}` : (strE !== '-' ? `E: ${strE}` : ''));
 
       return `
         <td style="text-align: center; ${cellAsy ? 'background: rgba(239, 68, 68, 0.05);' : ''}">
           <div style="font-size: 7.5px; ${cellAsy ? 'color: #dc2626; font-weight: 700;' : isDeficit ? 'color: #d97706;' : 'color: #334155;'}">
-            ${strD} / ${strE}
-            ${cellAsy ? `<span style="font-size: 6px; background: #fee2e2; color: #b91c1c; border-radius: 2px; padding: 0 1px; margin-left: 2px;">⚠️</span>` : ''}
+            ${cellContent}
+            ${cellAsy ? `<span style="font-size: 6px; background: #fee2f2; color: #b91c1c; border-radius: 2px; padding: 0 1px; margin-left: 2px;">⚠️</span>` : ''}
           </div>
         </td>
       `;
     }).join('');
+
+    const deltaParts: string[] = [];
+    if (num0D > 0 && numLD > 0) deltaParts.push(`D: <strong style="color: ${colorD};">${signD}</strong>`);
+    if (num0E > 0 && numLE > 0) deltaParts.push(`E: <strong style="color: ${colorE};">${signE}</strong>`);
 
     return `
       <tr style="${hasAsyL ? 'background: rgba(239, 68, 68, 0.04);' : ''}">
@@ -504,7 +529,7 @@ function buildPhysioAccumulativeEvolutionHtml(
         <td style="text-align: center; color: #64748b; width: 10%; font-size: 7px;">${row.ref}</td>
         ${dateCellsHtml}
         <td style="text-align: center; width: 14%; font-size: 7.5px;">
-          D: <strong style="color: ${colorD};">${signD}</strong> | E: <strong style="color: ${colorE};">${signE}</strong>
+          ${deltaParts.join(' | ')}
         </td>
         <td style="text-align: center; width: 15%;">
           ${statusBadge}
@@ -513,47 +538,67 @@ function buildPhysioAccumulativeEvolutionHtml(
     `;
   }).join('');
 
-  // 6. Testes Ortopédicos Acumulativos
-  const getOrthoStatus = (rep: any, testKey: string): { labelD: string; labelE: string; isRisk: boolean } => {
+  // 6. Testes Ortopédicos Acumulativos (somente testes efetivamente preenchidos)
+  const getOrthoStatus = (rep: any, testKey: string): { labelD: string; labelE: string; isRisk: boolean; filled: boolean } => {
     const te = rep.testesEspeciais || {};
     const ort = rep.testesOrtopedicos || {};
 
     if (testKey === 'ober') {
-      const d = te.oberD || 'Negativo';
-      const e = te.oberE || 'Negativo';
-      return { labelD: d, labelE: e, isRisk: d === 'Positivo' || e === 'Positivo' };
+      const hasOber = Boolean((te.oberD && String(te.oberD).trim() !== '') || (te.oberE && String(te.oberE).trim() !== ''));
+      if (!hasOber) return { labelD: '', labelE: '', isRisk: false, filled: false };
+      const d = te.oberD || '';
+      const e = te.oberE || '';
+      return { labelD: d, labelE: e, isRisk: d === 'Positivo' || e === 'Positivo', filled: true };
     }
     if (testKey === 'thomasIlio') {
+      const hasIlio = Boolean(
+        (te.thomasIliopsoasDStatus && String(te.thomasIliopsoasDStatus).trim() !== '') ||
+        (te.thomasIliopsoasEStatus && String(te.thomasIliopsoasEStatus).trim() !== '') ||
+        (te.thomasD && String(te.thomasD).trim() !== '') ||
+        (te.thomasE && String(te.thomasE).trim() !== '') ||
+        Number(te.thomasIliopsoasD) > 0 ||
+        Number(te.thomasIliopsoasE) > 0
+      );
+      if (!hasIlio) return { labelD: '', labelE: '', isRisk: false, filled: false };
       const d = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : (te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0 ? 'Positivo' : 'Negativo');
       const e = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : (te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0 ? 'Positivo' : 'Negativo');
-      return { labelD: d, labelE: e, isRisk: d === 'Positivo' || e === 'Positivo' };
+      return { labelD: d, labelE: e, isRisk: d === 'Positivo' || e === 'Positivo', filled: true };
     }
     if (testKey === 'thomasReto') {
+      const hasReto = Boolean(
+        (te.thomasRetofemoralDStatus && String(te.thomasRetofemoralDStatus).trim() !== '') ||
+        (te.thomasRetofemoralEStatus && String(te.thomasRetofemoralEStatus).trim() !== '') ||
+        (te.thomasD && String(te.thomasD).trim() !== '') ||
+        (te.thomasE && String(te.thomasE).trim() !== '') ||
+        Number(te.thomasRetofemoralD) > 0 ||
+        Number(te.thomasRetofemoralE) > 0
+      );
+      if (!hasReto) return { labelD: '', labelE: '', isRisk: false, filled: false };
       const d = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : (te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0 ? 'Positivo' : 'Negativo');
       const e = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : (te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0 ? 'Positivo' : 'Negativo');
-      return { labelD: d, labelE: e, isRisk: d === 'Positivo' || e === 'Positivo' };
+      return { labelD: d, labelE: e, isRisk: d === 'Positivo' || e === 'Positivo', filled: true };
     }
     if (testKey === 'stepDown') {
-      if (!ort.stepDown || ort.stepDown.realizou !== 'sim') return { labelD: 'N/R', labelE: 'N/R', isRisk: false };
+      if (!ort.stepDown || ort.stepDown.realizou !== 'sim') return { labelD: '', labelE: '', isRisk: false, filled: false };
       const d = ort.stepDown.direita || 'Realizado';
       const e = ort.stepDown.esquerda || 'Realizado';
       const isR = String(d).toLowerCase().includes('valgo') || String(e).toLowerCase().includes('valgo') || String(d).toLowerCase().includes('ruim') || String(e).toLowerCase().includes('ruim');
-      return { labelD: d, labelE: e, isRisk: isR };
+      return { labelD: d, labelE: e, isRisk: isR, filled: true };
     }
     if (testKey === 'yTeste') {
-      if (!ort.yTeste || ort.yTeste.realizou !== 'sim') return { labelD: 'N/R', labelE: 'N/R', isRisk: false };
+      if (!ort.yTeste || ort.yTeste.realizou !== 'sim') return { labelD: '', labelE: '', isRisk: false, filled: false };
       const d = ort.yTeste.direita?.score ? `${ort.yTeste.direita.score}%` : 'Realizado';
       const e = ort.yTeste.esquerda?.score ? `${ort.yTeste.esquerda.score}%` : 'Realizado';
-      return { labelD: d, labelE: e, isRisk: false };
+      return { labelD: d, labelE: e, isRisk: false, filled: true };
     }
     if (testKey === 'discinesia') {
-      if (!ort.discinesiaEscapular || ort.discinesiaEscapular.realizou !== 'sim') return { labelD: 'N/R', labelE: 'N/R', isRisk: false };
-      const d = ort.discinesiaEscapular.direita || 'Normal';
-      const e = ort.discinesiaEscapular.esquerda || 'Normal';
+      if (!ort.discinesiaEscapular || ort.discinesiaEscapular.realizou !== 'sim') return { labelD: '', labelE: '', isRisk: false, filled: false };
+      const d = ort.discinesiaEscapular.direita || ort.discinesiaEscapular.tipo || 'Normal';
+      const e = ort.discinesiaEscapular.esquerda || ort.discinesiaEscapular.tipo || 'Normal';
       const isR = d !== 'Normal' || e !== 'Normal';
-      return { labelD: d, labelE: e, isRisk: isR };
+      return { labelD: d, labelE: e, isRisk: isR, filled: true };
     }
-    return { labelD: '-', labelE: '-', isRisk: false };
+    return { labelD: '', labelE: '', isRisk: false, filled: false };
   };
 
   const orthoTestsDef = [
@@ -565,16 +610,20 @@ function buildPhysioAccumulativeEvolutionHtml(
     { key: 'discinesia', label: 'Discinesia Escapular (Ritmo)' }
   ];
 
-  const orthoRowsHtml = orthoTestsDef.map(test => {
+  const activeOrthoTestsDef = orthoTestsDef.filter(test =>
+    displayReports.some(rep => getOrthoStatus(rep, test.key).filled)
+  );
+
+  const orthoRowsHtml = activeOrthoTestsDef.map(test => {
     const s0 = getOrthoStatus(r0, test.key);
     const sL = getOrthoStatus(rLast, test.key);
 
     let transitionHtml = '';
-    if (s0.isRisk && !sL.isRisk && sL.labelD !== 'N/R') {
+    if (s0.filled && sL.filled && s0.isRisk && !sL.isRisk) {
       transitionHtml = `<span style="font-size: 7px; color: #059669; font-weight: 700;">Positivo ➔ Negativo (Resolvido ✅)</span>`;
-    } else if (!s0.isRisk && !sL.isRisk && sL.labelD !== 'N/R') {
+    } else if (s0.filled && sL.filled && !s0.isRisk && !sL.isRisk) {
       transitionHtml = `<span style="font-size: 7px; color: #64748b;">Negativo (Estabilidade Mantida ✅)</span>`;
-    } else if (s0.isRisk && sL.isRisk) {
+    } else if (s0.filled && sL.filled && s0.isRisk && sL.isRisk) {
       transitionHtml = `<span style="font-size: 7px; color: #dc2626; font-weight: 700;">Positivo ➔ Positivo (Atenção / Persistente ⚠️)</span>`;
     } else {
       transitionHtml = `<span style="font-size: 7px; color: #64748b;">Acompanhamento contínuo ●</span>`;
@@ -582,10 +631,14 @@ function buildPhysioAccumulativeEvolutionHtml(
 
     const dateCellsHtml = displayReports.map(rep => {
       const st = getOrthoStatus(rep, test.key);
+      if (!st.filled) return `<td style="text-align: center;"></td>`;
+      const sides: string[] = [];
+      if (st.labelD) sides.push(`D: ${st.labelD}`);
+      if (st.labelE) sides.push(`E: ${st.labelE}`);
       return `
         <td style="text-align: center;">
           <span style="font-size: 7px; ${st.isRisk ? 'color: #dc2626; font-weight: 700;' : 'color: #334155;'}">
-            D: ${st.labelD} | E: ${st.labelE}
+            ${sides.join(' | ')}
           </span>
         </td>
       `;
@@ -602,27 +655,39 @@ function buildPhysioAccumulativeEvolutionHtml(
     `;
   }).join('');
 
-  // 7. Perimetria Acumulativa (se ao menos 1 registro possuir dados de perimetria)
-  const hasAnyPerimetria = sorted.some(r => r.perimetria && (r.perimetria.braçoD || r.perimetria.coxaD || r.perimetria.cintura || r.perimetria.panturrilhaD));
-  
+  // 7. Perimetria Acumulativa (apenas regiões com medida > 0 em ao menos 1 relatório)
+  const periFieldsDef: Array<{ label: string; isPair: boolean; keyD?: string; keyE?: string; singleKey?: string }> = [
+    { label: 'Pescoço', isPair: false, singleKey: 'pescoco' },
+    { label: 'Ombros', isPair: false, singleKey: 'ombros' },
+    { label: 'Tórax', isPair: false, singleKey: 'torax' },
+    { label: 'Cintura', isPair: false, singleKey: 'cintura' },
+    { label: 'Abdômen', isPair: false, singleKey: 'abdomen' },
+    { label: 'Quadril', isPair: false, singleKey: 'quadril' },
+    { label: 'Braço (D / E)', isPair: true, keyD: 'braçoD', keyE: 'braçoE' },
+    { label: 'Antebraço (D / E)', isPair: true, keyD: 'antebraçoD', keyE: 'antebraçoE' },
+    { label: 'Coxa (D / E)', isPair: true, keyD: 'coxaD', keyE: 'coxaE' },
+    { label: 'Panturrilha (D / E)', isPair: true, keyD: 'panturrilhaD', keyE: 'panturrilhaE' }
+  ];
+
+  const activePeriFieldsDef = periFieldsDef.filter(pDef => {
+    return displayReports.some(rep => {
+      const peri = rep.perimetria || {};
+      if (pDef.isPair) {
+        return (parseFloat(peri[pDef.keyD!]) || 0) > 0 || (parseFloat(peri[pDef.keyE!]) || 0) > 0;
+      }
+      return (parseFloat(peri[pDef.singleKey!]) || 0) > 0;
+    });
+  });
+
+  const hasAnyPerimetria = activePeriFieldsDef.length > 0;
   let perimetriaRowsHtml = '';
   if (hasAnyPerimetria) {
-    const periFieldsDef: Array<{ label: string; isPair: boolean; keyD?: string; keyE?: string; singleKey?: string }> = [
-      { label: 'Braço (D / E)', isPair: true, keyD: 'braçoD', keyE: 'braçoE' },
-      { label: 'Coxa (D / E)', isPair: true, keyD: 'coxaD', keyE: 'coxaE' },
-      { label: 'Panturrilha (D / E)', isPair: true, keyD: 'panturrilhaD', keyE: 'panturrilhaE' },
-      { label: 'Tórax', isPair: false, singleKey: 'torax' },
-      { label: 'Cintura', isPair: false, singleKey: 'cintura' },
-      { label: 'Abdômen', isPair: false, singleKey: 'abdomen' },
-      { label: 'Quadril', isPair: false, singleKey: 'quadril' }
-    ];
-
-    perimetriaRowsHtml = periFieldsDef.map(pDef => {
+    perimetriaRowsHtml = activePeriFieldsDef.map(pDef => {
       const p0 = r0.perimetria || {};
       const pL = rLast.perimetria || {};
 
-      let deltaText = '-';
-      let symmText = '-';
+      let deltaText = '';
+      let symmText = '';
 
       if (pDef.isPair) {
         const v0D = parseFloat(p0[pDef.keyD!]) || 0;
@@ -632,12 +697,15 @@ function buildPhysioAccumulativeEvolutionHtml(
 
         const dD = (vLD - v0D).toFixed(1);
         const dE = (vLE - v0E).toFixed(1);
-        if (v0D > 0 && vLD > 0) {
-          deltaText = `D: ${Number(dD) > 0 ? `+${dD}` : dD} | E: ${Number(dE) > 0 ? `+${dE}` : dE} cm`;
+        const dParts: string[] = [];
+        if (v0D > 0 && vLD > 0) dParts.push(`D: ${Number(dD) > 0 ? `+${dD}` : dD}`);
+        if (v0E > 0 && vLE > 0) dParts.push(`E: ${Number(dE) > 0 ? `+${dE}` : dE}`);
+        if (dParts.length > 0) {
+          deltaText = `${dParts.join(' | ')} cm`;
         }
 
         const maxL = Math.max(vLD, vLE);
-        if (maxL > 0) {
+        if (vLD > 0 && vLE > 0 && maxL > 0) {
           const asyP = ((Math.abs(vLD - vLE) / maxL) * 100).toFixed(0);
           if (Number(asyP) > 10) {
             symmText = `<span style="color: #dc2626; font-weight: 700;">⚠️ Assimetria (${asyP}%)</span>`;
@@ -658,12 +726,15 @@ function buildPhysioAccumulativeEvolutionHtml(
       const dateCellsHtml = displayReports.map(rep => {
         const peri = rep.perimetria || {};
         if (pDef.isPair) {
-          const d = peri[pDef.keyD!] ? `${peri[pDef.keyD!]} cm` : '-';
-          const e = peri[pDef.keyE!] ? `${peri[pDef.keyE!]} cm` : '-';
-          return `<td style="text-align: center; font-size: 7px;">${d} / ${e}</td>`;
+          const dNum = parseFloat(peri[pDef.keyD!]) || 0;
+          const eNum = parseFloat(peri[pDef.keyE!]) || 0;
+          const cellVal = (dNum > 0 && eNum > 0)
+            ? `${dNum} / ${eNum} cm`
+            : (dNum > 0 ? `D: ${dNum} cm` : (eNum > 0 ? `E: ${eNum} cm` : ''));
+          return `<td style="text-align: center; font-size: 7px;">${cellVal}</td>`;
         } else {
-          const val = peri[pDef.singleKey!] ? `${peri[pDef.singleKey!]} cm` : '-';
-          return `<td style="text-align: center; font-size: 7px;">${val}</td>`;
+          const valNum = parseFloat(peri[pDef.singleKey!]) || 0;
+          return `<td style="text-align: center; font-size: 7px;">${valNum > 0 ? `${valNum} cm` : ''}</td>`;
         }
       }).join('');
 
@@ -676,6 +747,42 @@ function buildPhysioAccumulativeEvolutionHtml(
         </tr>
       `;
     }).join('');
+  }
+
+  const hasAnyGonioAccum = activeGonioRowsDef.length > 0;
+  const hasAnyOrthoAccum = activeOrthoTestsDef.length > 0;
+
+  const kpiCardsList: string[] = [
+    `<div class="kpi-card">
+      <div class="kpi-title">Registros Clínicos</div>
+      <div class="kpi-value">${sorted.length} Sessões</div>
+      <div class="kpi-sub">${diffDays} dias de timeline</div>
+    </div>`,
+    `<div class="kpi-card">
+      <div class="kpi-title">Evolução de Dor (EVA)</div>
+      <div class="kpi-value" style="color: ${deltaDorColor};">${dor0}/10 ➔ ${dorLast}/10</div>
+      <div class="kpi-sub" style="color: ${deltaDorColor};">${deltaDorText}</div>
+    </div>`
+  ];
+  if (hasAnyGonioAccum) {
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">Assimetrias Corrigidas</div>
+        <div class="kpi-value" style="color: ${assimetriasIniciais > 0 && assimetriasResolvidas > 0 ? '#059669' : '#0f172a'};">
+          ${assimetriasResolvidas}/${assimetriasIniciais}
+        </div>
+        <div class="kpi-sub">${assimetriasIniciais === 0 ? 'Sem assimetrias prévias ✅' : `${pctAssimetriasCorrigidas}% recuperadas`}</div>
+      </div>
+    `);
+    kpiCardsList.push(`
+      <div class="kpi-card">
+        <div class="kpi-title">Ganho Médio de ADM</div>
+        <div class="kpi-value" style="color: ${ganhoMedioADM >= 0 ? '#059669' : '#dc2626'};">
+          ${ganhoMedioADM > 0 ? `+${ganhoMedioADM.toFixed(1)}°` : `${ganhoMedioADM.toFixed(1)}°`}
+        </div>
+        <div class="kpi-sub">Variação média angular</div>
+      </div>
+    `);
   }
 
   // 8. Montagem do HTML Completo da Página de Evolução Acumulativa
@@ -716,31 +823,8 @@ function buildPhysioAccumulativeEvolutionHtml(
       </div>
 
       <!-- Cards de KPIs Clínicos -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-title">Registros Clínicos</div>
-          <div class="kpi-value">${sorted.length} Sessões</div>
-          <div class="kpi-sub">${diffDays} dias de timeline</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">Evolução de Dor (EVA)</div>
-          <div class="kpi-value" style="color: ${deltaDorColor};">${dor0}/10 ➔ ${dorLast}/10</div>
-          <div class="kpi-sub" style="color: ${deltaDorColor};">${deltaDorText}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">Assimetrias Corrigidas</div>
-          <div class="kpi-value" style="color: ${assimetriasIniciais > 0 && assimetriasResolvidas > 0 ? '#059669' : '#0f172a'};">
-            ${assimetriasResolvidas}/${assimetriasIniciais}
-          </div>
-          <div class="kpi-sub">${assimetriasIniciais === 0 ? 'Sem assimetrias prévias ✅' : `${pctAssimetriasCorrigidas}% recuperadas`}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">Ganho Médio de ADM</div>
-          <div class="kpi-value" style="color: ${ganhoMedioADM >= 0 ? '#059669' : '#dc2626'};">
-            ${ganhoMedioADM > 0 ? `+${ganhoMedioADM.toFixed(1)}°` : `${ganhoMedioADM.toFixed(1)}°`}
-          </div>
-          <div class="kpi-sub">Variação média angular</div>
-        </div>
+      <div class="kpi-grid" style="grid-template-columns: repeat(${kpiCardsList.length}, 1fr);">
+        ${kpiCardsList.join('')}
       </div>
 
       <!-- 1. Linha do Tempo de Queixas & Dor EVA -->
@@ -753,8 +837,8 @@ function buildPhysioAccumulativeEvolutionHtml(
             <thead>
               <tr style="font-weight: 700;">
                 <th style="width: 14%;">Data Registro</th>
-                <th style="width: 36%;">Queixa Principal / Foco Clínico</th>
-                <th style="width: 24%;">Localização / Característica</th>
+                <th style="width: ${hasAnyPainLocal ? '36%' : '60%'};">Queixa Principal / Foco Clínico</th>
+                ${hasAnyPainLocal ? `<th style="width: 24%;">Localização / Característica</th>` : ''}
                 <th style="text-align: center; width: 12%;">Intensidade</th>
                 <th style="text-align: center; width: 14%;">Evolução (Δ)</th>
               </tr>
@@ -766,7 +850,8 @@ function buildPhysioAccumulativeEvolutionHtml(
         </div>
       </div>
 
-      <!-- 2. Goniometria Acumulativa -->
+      <!-- 2. Goniometria Acumulativa (somente se houver dados preenchidos) -->
+      ${hasAnyGonioAccum ? `
       <div class="section-card" style="margin-bottom: 10px;">
         <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
           <span>Amplitude de Movimento Articular (Goniometria Acumulativa)</span>
@@ -795,8 +880,10 @@ function buildPhysioAccumulativeEvolutionHtml(
           </table>
         </div>
       </div>
+      ` : ''}
 
-      <!-- 3. Testes Ortopédicos Acumulativos -->
+      <!-- 3. Testes Ortopédicos Acumulativos (somente se houver dados preenchidos) -->
+      ${hasAnyOrthoAccum ? `
       <div class="section-card" style="margin-bottom: 10px;">
         <div class="section-card-title">
           Testes Ortopédicos Especiais (Evolução & Transição de Risco)
@@ -804,7 +891,7 @@ function buildPhysioAccumulativeEvolutionHtml(
         <div class="section-card-content" style="padding: 6px 10px;">
           <table class="table-data" style="font-size: 7.5px;">
             <thead>
-              <tr style="font-weight: 700;">
+              <tr style="font-weight: 7.00;">
                 <th style="width: 26%;">Teste Clínico</th>
                 ${displayReports.map(r => `
                   <th style="text-align: center; width: ${colWidthOrtho}%;">
@@ -820,6 +907,7 @@ function buildPhysioAccumulativeEvolutionHtml(
           </table>
         </div>
       </div>
+      ` : ''}
 
       <!-- 4. Perimetria Acumulativa (se houver dados) -->
       ${hasAnyPerimetria ? `
@@ -1180,8 +1268,29 @@ export async function downloadReportPDF(report: any) {
   `;
 
   const conteudo = report.conteudo || {};
+  const hasValidAge = Boolean(ageText && ageText !== '-');
+  const clientBarGridCols = hasValidAge ? '1.5fr 0.75fr 0.75fr' : '1.5fr 0.75fr';
+  const clientBarHtml = `
+    <div class="client-bar" style="grid-template-columns: ${clientBarGridCols};">
+      <div class="client-bar-item">
+        <span>Paciente</span>
+        <strong>${client.dadosPessoais.nome}</strong>
+      </div>
+      ${hasValidAge ? `
+      <div class="client-bar-item">
+        <span>Idade</span>
+        <strong>${ageText}</strong>
+      </div>
+      ` : ''}
+      <div class="client-bar-item">
+        <span>Sexo</span>
+        <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
+      </div>
+    </div>
+  `;
 
   if (!report.anamnese) {
+    const hasQueixaPrincipal = Boolean(conteudo.queixaPrincipal && String(conteudo.queixaPrincipal).trim() !== '' && String(conteudo.queixaPrincipal).trim() !== '-');
     pdfContainer.innerHTML = `
       ${pdfStyles}
       <div class="pdf-page">
@@ -1204,30 +1313,19 @@ export async function downloadReportPDF(report: any) {
         </div>
 
         <!-- Barra do Cliente -->
-        <div class="client-bar">
-          <div class="client-bar-item">
-            <span>Paciente</span>
-            <strong>${client.dadosPessoais.nome}</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>Idade</span>
-            <strong>${ageText}</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>Sexo</span>
-            <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
-          </div>
-        </div>
+        ${clientBarHtml}
 
         <!-- Detalhes do Evolutivo -->
         <div class="section-card">
           <div class="section-card-title">Relatório Clínico Evolutivo Simplificado</div>
           <div class="section-card-content" style="font-size: 9px; line-height: 1.5; color: #334155;">
-            <div style="margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div style="margin-bottom: 10px; display: grid; grid-template-columns: ${hasQueixaPrincipal ? '1fr 1fr' : '1fr'}; gap: 15px;">
+              ${hasQueixaPrincipal ? `
               <div>
                 <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Queixa Principal Relatada:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${conteudo.queixaPrincipal || '-'}</div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${conteudo.queixaPrincipal}</div>
               </div>
+              ` : ''}
               <div>
                 <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Dor Estimada (Escala EVA):</span>
                 <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-weight: 800; color: #b91c1c; font-size: 11px;">${conteudo.dorEscala ?? 0} / 10</div>
@@ -1286,6 +1384,17 @@ export async function downloadReportPDF(report: any) {
       ? report.anamnese.queixas
       : (Array.isArray(report.anamnese?.queixasDor) ? report.anamnese.queixasDor : []);
 
+    const isFilledText = (val: any): boolean => {
+      if (val === null || val === undefined) return false;
+      const s = String(val).trim();
+      if (!s || s === '-' || s === '—') return false;
+      const lower = s.toLowerCase().replace(/\.$/, '');
+      if (['nenhum', 'nenhuma', 'nenhum relatado', 'nao', 'não', 'sem observacoes', 'sem observações', 'nao informado', 'não informado', 'nao especificada', 'não especificada'].includes(lower)) {
+        return false;
+      }
+      return true;
+    };
+
     const rawCustomTests = (te && Array.isArray(te.customTests)) 
       ? te.customTests 
       : (ort && Array.isArray(ort.customTests)) 
@@ -1298,7 +1407,7 @@ export async function downloadReportPDF(report: any) {
       const d = parseFloat(valD) || 0;
       const e = parseFloat(valE) || 0;
       const max = Math.max(d, e);
-      if (max > 0 && (Math.abs(d - e) / max) > 0.10) {
+      if (d > 0 && e > 0 && max > 0 && (Math.abs(d - e) / max) > 0.10) {
         return ` <span style="color:#ef4444; font-weight:bold; font-size:6.5px;">⚠️ (${((Math.abs(d - e) / max) * 100).toFixed(0)}%)</span>`;
       }
       return '';
@@ -1311,59 +1420,159 @@ export async function downloadReportPDF(report: any) {
     const hasStepDown = ort.stepDown && ort.stepDown.realizou === 'sim';
     const hasDE = ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim';
 
-    let queixasHtml = rawQueixas.map((q: any, idx: number) => `
-      <div class="section-card" style="margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;">
-        <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight: 700; color: #0d9488; text-transform: uppercase;">
-            ${idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
-          </span>
-          <span class="metric-badge badge-red" style="font-size: 7.5px;">Dor EVA: ${q?.dorIntensidade ?? 0}/10</span>
-        </div>
-        <div class="section-card-content" style="padding: 8px 10px;">
-          <table class="table-data">
-            <tbody>
-              <tr>
-                <td style="font-weight: 700; width: 25%;">Onde é a dor:</td>
-                <td>${q?.dorOnde || '-'}</td>
-                <td style="font-weight: 700; width: 25%;">Quando começou:</td>
-                <td>${q?.quandoComecou || '-'}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: 700;">Como iniciou:</td>
-                <td>${q?.comoIniciou || '-'}</td>
-                <td style="font-weight: 700;">Evolução da dor:</td>
-                <td>${q?.dorEvolucao === 'estavel' ? 'Estável (Mesma dor)' : (q?.dorEvolucao === 'aumentando' ? 'Aumentando' : 'Diminuindo')}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: 700;">Frequência:</td>
-                <td>${q?.dorTodoMomento === 'sim' ? 'Dor a todo momento' : 'Dor intermitente'}</td>
-                <td style="font-weight: 700;">Origem estimada:</td>
-                <td>${Array.isArray(q?.origens) && q.origens.length > 0 ? q.origens.join(', ') : (typeof q?.origens === 'string' && q.origens.trim() ? q.origens : (q?.origem || 'Não especificada'))}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: 700;">Piora com:</td>
-                <td colspan="3">${q?.desencadeiaPiora || '-'}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: 700;">Melhora com:</td>
-                <td colspan="3">${q?.melhoraDesaparece || '-'}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: 700;">Característica:</td>
-                <td colspan="3">${q?.caracteristicaDor || '-'}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `).join('');
+    const queixasHtml = rawQueixas
+      .filter((q: any) => q && (isFilledText(q.dorOnde) || q.dorIntensidade !== undefined || isFilledText(q.caracteristicaDor)))
+      .map((q: any, idx: number) => {
+        const pairItems: Array<{ label: string; value: string }> = [];
+        if (isFilledText(q?.dorOnde)) pairItems.push({ label: 'Onde é a dor:', value: String(q.dorOnde).trim() });
+        if (isFilledText(q?.quandoComecou)) pairItems.push({ label: 'Quando começou:', value: String(q.quandoComecou).trim() });
+        if (isFilledText(q?.comoIniciou)) pairItems.push({ label: 'Como iniciou:', value: String(q.comoIniciou).trim() });
+        if (isFilledText(q?.dorEvolucao)) {
+          const evoText = q.dorEvolucao === 'estavel' ? 'Estável (Mesma dor)' : (q.dorEvolucao === 'aumentando' ? 'Aumentando' : (q.dorEvolucao === 'diminuindo' ? 'Diminuindo' : String(q.dorEvolucao)));
+          pairItems.push({ label: 'Evolução da dor:', value: evoText });
+        }
+        if (isFilledText(q?.dorTodoMomento)) {
+          pairItems.push({ label: 'Frequência:', value: q.dorTodoMomento === 'sim' ? 'Dor a todo momento' : 'Dor intermitente' });
+        }
+        const origensStr = Array.isArray(q?.origens) && q.origens.length > 0
+          ? q.origens.filter(Boolean).join(', ')
+          : (typeof q?.origens === 'string' && isFilledText(q.origens) ? q.origens.trim() : (isFilledText(q?.origem) ? String(q.origem).trim() : ''));
+        if (isFilledText(origensStr)) {
+          pairItems.push({ label: 'Origem estimada:', value: origensStr });
+        }
 
-    let cirurgiasHtml = '-';
+        const pairRowsHtml: string[] = [];
+        for (let i = 0; i < pairItems.length; i += 2) {
+          const left = pairItems[i];
+          const right = pairItems[i + 1];
+          if (right) {
+            pairRowsHtml.push(`
+              <tr>
+                <td style="font-weight: 700; width: 25%;">${left.label}</td>
+                <td>${left.value}</td>
+                <td style="font-weight: 700; width: 25%;">${right.label}</td>
+                <td>${right.value}</td>
+              </tr>
+            `);
+          } else {
+            pairRowsHtml.push(`
+              <tr>
+                <td style="font-weight: 700; width: 25%;">${left.label}</td>
+                <td colspan="3">${left.value}</td>
+              </tr>
+            `);
+          }
+        }
+
+        if (isFilledText(q?.desencadeiaPiora)) {
+          pairRowsHtml.push(`
+            <tr>
+              <td style="font-weight: 700; width: 25%;">Piora com:</td>
+              <td colspan="3">${String(q.desencadeiaPiora).trim()}</td>
+            </tr>
+          `);
+        }
+        if (isFilledText(q?.melhoraDesaparece)) {
+          pairRowsHtml.push(`
+            <tr>
+              <td style="font-weight: 700; width: 25%;">Melhora com:</td>
+              <td colspan="3">${String(q.melhoraDesaparece).trim()}</td>
+            </tr>
+          `);
+        }
+        if (isFilledText(q?.caracteristicaDor)) {
+          pairRowsHtml.push(`
+            <tr>
+              <td style="font-weight: 700; width: 25%;">Característica:</td>
+              <td colspan="3">${String(q.caracteristicaDor).trim()}</td>
+            </tr>
+          `);
+        }
+
+        return `
+          <div class="section-card" style="margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight: 700; color: #0d9488; text-transform: uppercase;">
+                ${idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
+              </span>
+              <span class="metric-badge badge-red" style="font-size: 7.5px;">Dor EVA: ${q?.dorIntensidade ?? 0}/10</span>
+            </div>
+            ${pairRowsHtml.length > 0 ? `
+            <div class="section-card-content" style="padding: 8px 10px;">
+              <table class="table-data">
+                <tbody>
+                  ${pairRowsHtml.join('')}
+                </tbody>
+              </table>
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+    let cirurgiasHtml = '';
     if (h.cirurgiasRealizou === 'sim' && Array.isArray(h.cirurgias) && h.cirurgias.length > 0) {
-      cirurgiasHtml = h.cirurgias.map((c: any) => `${formatDate(c?.data)}: ${c?.local || '-'}`).join('<br>');
+      const validCir = h.cirurgias.filter((c: any) => c && (isFilledText(c.local) || isFilledText(c.data)));
+      if (validCir.length > 0) {
+        cirurgiasHtml = validCir.map((c: any) => {
+          const dt = c?.data ? formatDate(c.data) : '';
+          const loc = isFilledText(c?.local) ? String(c.local).trim() : '';
+          return dt && loc ? `${dt}: ${loc}` : (loc || dt);
+        }).join('<br>');
+      }
     }
 
-    let examesHtml = 'Nenhum exame complementar anexado.';
+    const historicoRows: string[] = [];
+    if (isFilledText(h.traumas)) {
+      historicoRows.push(`<tr><td style="font-weight:700; width:30%;">Traumas pregressos:</td><td>${String(h.traumas).trim()}</td></tr>`);
+    }
+    if (cirurgiasHtml) {
+      historicoRows.push(`<tr><td style="font-weight:700; width:30%;">Cirurgias:</td><td>${cirurgiasHtml}</td></tr>`);
+    }
+    if (isFilledText(h.doencasPregressasAtuais)) {
+      historicoRows.push(`<tr><td style="font-weight:700; width:30%;">Doenças pregressas/atuais:</td><td>${String(h.doencasPregressasAtuais).trim()}</td></tr>`);
+    }
+    if (isFilledText(h.traumasEmocionaisStress)) {
+      historicoRows.push(`<tr><td style="font-weight:700; width:30%;">Traumas emocionais/estresse:</td><td>${String(h.traumasEmocionaisStress).trim()}</td></tr>`);
+    }
+    if (isFilledText(h.medicacao)) {
+      historicoRows.push(`<tr><td style="font-weight:700; width:30%;">Medicação em uso:</td><td>${String(h.medicacao).trim()}</td></tr>`);
+    }
+    if (isFilledText(h.drogasRecreativas)) {
+      historicoRows.push(`<tr><td style="font-weight:700; width:30%;">Álcool/Tabaco/Drogas:</td><td>${String(h.drogasRecreativas).trim()}</td></tr>`);
+    }
+
+    const habitosRows: string[] = [];
+    const hasSono = Boolean(isFilledText(hb.sonoHoras) || isFilledText(hb.sonoQualidade) || isFilledText(hb.sonoTipo));
+    if (hasSono) {
+      const sonoParts: string[] = [];
+      if (isFilledText(hb.sonoHoras)) sonoParts.push(`Dorme ${hb.sonoHoras}h por noite`);
+      if (isFilledText(hb.sonoTipo)) sonoParts.push(hb.sonoTipo === 'continuo' ? 'Sono contínuo' : 'Acorda à noite');
+      if (isFilledText(hb.sonoQualidade)) sonoParts.push(`Qualidade: ${hb.sonoQualidade}`);
+      habitosRows.push(`<tr><td style="font-weight:700; width:30%;">Qualidade do Sono:</td><td>${sonoParts.join(' • ')}</td></tr>`);
+    }
+    if (isFilledText(hb.alimentacaoDor)) {
+      habitosRows.push(`<tr><td style="font-weight:700; width:30%;">Alimentação / Dor:</td><td>${String(hb.alimentacaoDor).trim()}</td></tr>`);
+    }
+    if (hb.atividadeFisicaFaz === 'sim' || isFilledText(hb.atividadeFisicaQual)) {
+      const ativParts: string[] = [];
+      if (isFilledText(hb.atividadeFisicaQual)) ativParts.push(`Faz atividade física regular: ${String(hb.atividadeFisicaQual).trim()}`);
+      else ativParts.push('Faz atividade física regular');
+      if (isFilledText(hb.atividadeFisicaInterfere)) ativParts.push(`Interfere na dor: ${String(hb.atividadeFisicaInterfere).trim()}`);
+      habitosRows.push(`<tr><td style="font-weight:700; width:30%;">Atividade Física:</td><td>${ativParts.join('. ')}</td></tr>`);
+    } else if (hb.atividadeFisicaFaz === 'nao') {
+      habitosRows.push(`<tr><td style="font-weight:700; width:30%;">Atividade Física:</td><td>Não pratica atividade física regularmente.</td></tr>`);
+    }
+    const hasStressNivel = hb.stressNivel !== undefined && hb.stressNivel !== null && String(hb.stressNivel).trim() !== '';
+    const hasControleStress = isFilledText(hb.controleStress);
+    if (hasStressNivel || hasControleStress) {
+      const stParts: string[] = [];
+      if (hasStressNivel) stParts.push(`Nível ${hb.stressNivel}/10`);
+      if (hasControleStress) stParts.push(`Mecanismo de controle: ${String(hb.controleStress).trim()}`);
+      habitosRows.push(`<tr><td style="font-weight:700; width:30%;">Nível de Estresse:</td><td>${stParts.join(' | ')}</td></tr>`);
+    }
+
+    let examesHtml = '';
     if (ex && ex.length > 0) {
       examesHtml = ex.map((e: any) => {
         const noPdf = e?.exibirNoPdf !== false;
@@ -1371,12 +1580,12 @@ export async function downloadReportPDF(report: any) {
       }).join('<br>');
     }
 
-    let termografiaHtml = 'Não realizada.';
+    let termografiaHtml = '';
     if (tImg && tImg.realizou === 'sim') {
       termografiaHtml = 'Realizada (Anexo visual na página final do documento).';
     }
 
-    let yTestHtml = 'Não realizado.';
+    let yTestHtml = '';
     if (ort.yTeste && ort.yTeste.realizou === 'sim') {
       const yd = ort.yTeste.direita || {};
       const ye = ort.yTeste.esquerda || {};
@@ -1422,12 +1631,14 @@ export async function downloadReportPDF(report: any) {
             </tr>
           </thead>
           <tbody>
+            ${(Number(yd.comprimentoMembro) > 0 || Number(ye.comprimentoMembro) > 0) ? `
             <tr>
               <td style="font-weight:600;">Comprimento</td>
-              <td style="text-align:center;">${yd.comprimentoMembro} cm</td>
-              <td style="text-align:center;">${ye.comprimentoMembro} cm</td>
-              <td style="text-align:center;">-</td>
+              <td style="text-align:center;">${Number(yd.comprimentoMembro) > 0 ? `${yd.comprimentoMembro} cm` : ''}</td>
+              <td style="text-align:center;">${Number(ye.comprimentoMembro) > 0 ? `${ye.comprimentoMembro} cm` : ''}</td>
+              <td style="text-align:center;"></td>
             </tr>
+            ` : ''}
             <tr>
               <td style="font-weight:600;">Alcance Ant</td>
               <td style="text-align:center;">${yd.anterior} cm</td>
@@ -1466,7 +1677,7 @@ export async function downloadReportPDF(report: any) {
       `;
     }
 
-    let stepDownHtml = 'Não realizado.';
+    let stepDownHtml = '';
     if (ort.stepDown && ort.stepDown.realizou === 'sim') {
       const sdVal = ort.stepDown;
       const sex = client.dadosPessoais.sexo || 'M';
@@ -1534,7 +1745,7 @@ export async function downloadReportPDF(report: any) {
       `;
     }
 
-    let deHtml = 'Não realizada.';
+    let deHtml = '';
     if (ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim') {
       const deVal = ort.discinesiaEscapular;
       deHtml = `
@@ -1572,7 +1783,7 @@ export async function downloadReportPDF(report: any) {
           `).join('')}
 
           <!-- Grid Lines -->
-          ${angles.map((ang, idx) => {
+          ${angles.map((ang) => {
             const x = cx + maxRadius * Math.cos(ang);
             const y = cy + maxRadius * Math.sin(ang);
             return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
@@ -1660,6 +1871,173 @@ export async function downloadReportPDF(report: any) {
       `;
     }
 
+    // Goniometria: Filtrar somente linhas com ao menos um lado medido
+    const gonioReportRowsHtml = [
+      { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
+      { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
+      { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
+      { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
+      { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
+      { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
+      { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
+      { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
+      { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
+      { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
+      { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
+      { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
+    ].filter(row => {
+      const pD = parseGonioField(g[row.key + 'D']);
+      const pE = parseGonioField(g[row.key + 'E']);
+      return Boolean(pD.semForca || pD.comForca || pE.semForca || pE.comForca);
+    }).map(row => {
+      const valD = g[row.key + 'D'];
+      const valE = g[row.key + 'E'];
+      const pD = parseGonioField(valD);
+      const pE = parseGonioField(valE);
+
+      const d1 = pD.numSemForca;
+      const e1 = pE.numSemForca;
+      const max1 = Math.max(d1, e1);
+      const hasAsy1 = d1 > 0 && e1 > 0 && max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
+
+      const d2 = pD.numComForca;
+      const e2 = pE.numComForca;
+      const max2 = Math.max(d2, e2);
+      const hasAsy2 = d2 > 0 && e2 > 0 && max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
+
+      const hasAsy = hasAsy1 || hasAsy2;
+      const dispD = formatGonioDisplay(valD);
+      const dispE = formatGonioDisplay(valE);
+
+      return `
+        <tr style="${hasAsy ? 'background: rgba(239, 68, 68, 0.05);' : ''}">
+          <td style="font-weight:600;">
+            ${row.label}
+            ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0.5px 2px; font-weight:700; margin-left:4px;">⚠️ &gt;10%</span>` : ''}
+          </td>
+          <td style="text-align:center; color:#64748b;">${row.ref}</td>
+          <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${dispD !== '-' ? dispD : ''}</td>
+          <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${dispE !== '-' ? dispE : ''}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Testes Ortopédicos Especiais: somente linhas efetivamente preenchidas
+    const orthoReportRows: string[] = [];
+    const hasOber = Boolean(isFilledText(te.oberD) || isFilledText(te.oberE));
+    if (hasOber) {
+      orthoReportRows.push(`
+        <tr>
+          <td style="font-weight:700;">Teste de Ober</td>
+          <td style="text-align:center; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${isFilledText(te.oberD) ? te.oberD : ''}</td>
+          <td style="text-align:center; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${isFilledText(te.oberE) ? te.oberE : ''}</td>
+        </tr>
+      `);
+    }
+
+    const hasThomasIlio = Boolean(
+      isFilledText(te.thomasIliopsoasDStatus) ||
+      isFilledText(te.thomasIliopsoasEStatus) ||
+      isFilledText(te.thomasD) ||
+      isFilledText(te.thomasE) ||
+      Number(te.thomasIliopsoasD) > 0 ||
+      Number(te.thomasIliopsoasE) > 0
+    );
+    if (hasThomasIlio) {
+      const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : 'Negativo');
+      const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : 'Negativo');
+      const ilioDDeg = te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && String(te.thomasIliopsoasD).trim() !== '' ? ` (${te.thomasIliopsoasD}°)` : '';
+      const ilioEDeg = te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && String(te.thomasIliopsoasE).trim() !== '' ? ` (${te.thomasIliopsoasE}°)` : '';
+      orthoReportRows.push(`
+        <tr>
+          <td style="font-weight:700;">Thomas Iliopsoas</td>
+          <td style="text-align:center; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
+            ${ilioDStatus === 'Positivo' ? `Positivo${ilioDDeg}` : 'Negativo'}
+          </td>
+          <td style="text-align:center; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
+            ${ilioEStatus === 'Positivo' ? `Positivo${ilioEDeg}` : 'Negativo'}
+          </td>
+        </tr>
+      `);
+    }
+
+    const hasThomasReto = Boolean(
+      isFilledText(te.thomasRetofemoralDStatus) ||
+      isFilledText(te.thomasRetofemoralEStatus) ||
+      isFilledText(te.thomasD) ||
+      isFilledText(te.thomasE) ||
+      Number(te.thomasRetofemoralD) > 0 ||
+      Number(te.thomasRetofemoralE) > 0
+    );
+    if (hasThomasReto) {
+      const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : 'Negativo');
+      const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : 'Negativo');
+      const retoDDeg = te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && String(te.thomasRetofemoralD).trim() !== '' ? ` (${te.thomasRetofemoralD}°)` : '';
+      const retoEDeg = te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && String(te.thomasRetofemoralE).trim() !== '' ? ` (${te.thomasRetofemoralE}°)` : '';
+      orthoReportRows.push(`
+        <tr>
+          <td style="font-weight:700;">Thomas Retofemoral</td>
+          <td style="text-align:center; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
+            ${retoDStatus === 'Positivo' ? `Positivo${retoDDeg}` : 'Negativo'}
+          </td>
+          <td style="text-align:center; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
+            ${retoEStatus === 'Positivo' ? `Positivo${retoEDeg}` : 'Negativo'}
+          </td>
+        </tr>
+      `);
+    }
+
+    // Perimetria: coletar apenas regiões com valor numérico > 0
+    const peri = report.perimetria || {};
+    const periFilledItems: Array<{ label: string; valueHtml: string }> = [];
+    const addSinglePeri = (label: string, val: any) => {
+      const n = parseFloat(val) || 0;
+      if (n > 0) periFilledItems.push({ label, valueHtml: `${n} cm` });
+    };
+    const addPairPeri = (label: string, valD: any, valE: any) => {
+      const nD = parseFloat(valD) || 0;
+      const nE = parseFloat(valE) || 0;
+      if (nD > 0 || nE > 0) {
+        const pairStr = (nD > 0 && nE > 0)
+          ? `${nD} / ${nE} cm${checkPerimetriaAsymmetry(nD, nE)}`
+          : (nD > 0 ? `D: ${nD} cm` : `E: ${nE} cm`);
+        periFilledItems.push({ label, valueHtml: pairStr });
+      }
+    };
+    addSinglePeri('Pescoço:', peri.pescoco);
+    addSinglePeri('Cintura:', peri.cintura);
+    addSinglePeri('Ombros:', peri.ombros);
+    addSinglePeri('Abdômen:', peri.abdomen);
+    addSinglePeri('Tórax:', peri.torax);
+    addSinglePeri('Quadril:', peri.quadril);
+    addPairPeri('Braço Dir. / Esq.:', peri.braçoD, peri.braçoE);
+    addPairPeri('Coxa Dir. / Esq.:', peri.coxaD, peri.coxaE);
+    addPairPeri('Antebraço Dir. / Esq.:', peri.antebraçoD, peri.antebraçoE);
+    addPairPeri('Panturrilha Dir. / Esq.:', peri.panturrilhaD, peri.panturrilhaE);
+
+    const periTableRows: string[] = [];
+    for (let i = 0; i < periFilledItems.length; i += 2) {
+      const left = periFilledItems[i];
+      const right = periFilledItems[i + 1];
+      if (right) {
+        periTableRows.push(`
+          <tr>
+            <td style="font-weight:600;">${left.label}</td>
+            <td style="text-align:right;">${left.valueHtml}</td>
+            <td style="font-weight:600;">${right.label}</td>
+            <td style="text-align:right;">${right.valueHtml}</td>
+          </tr>
+        `);
+      } else {
+        periTableRows.push(`
+          <tr>
+            <td style="font-weight:600;">${left.label}</td>
+            <td style="text-align:right;" colspan="3">${left.valueHtml}</td>
+          </tr>
+        `);
+      }
+    }
+
     pdfContainer.innerHTML = `
       ${pdfStyles}
       <div class="pdf-page">
@@ -1682,90 +2060,44 @@ export async function downloadReportPDF(report: any) {
         </div>
 
         <!-- Barra do Cliente -->
-        <div class="client-bar">
-          <div class="client-bar-item">
-            <span>Paciente</span>
-            <strong>${client.dadosPessoais.nome}</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>Idade</span>
-            <strong>${ageText}</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>Sexo</span>
-            <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
-          </div>
-        </div>
+        ${clientBarHtml}
 
+        ${queixasHtml ? `
         <div class="section-card">
           <div class="section-card-title">Anamnese & Queixas Frequentes</div>
           <div class="section-card-content" style="padding: 10px 10px 2px 10px;">
             ${queixasHtml}
           </div>
         </div>
+        ` : ''}
 
+        ${historicoRows.length > 0 ? `
         <div class="section-card">
           <div class="section-card-title">Histórico Clínico Detalhado</div>
           <div class="section-card-content">
             <table class="table-data">
               <tbody>
-                <tr>
-                  <td style="font-weight:700; width:30%;">Traumas pregressos:</td>
-                  <td>${h.traumas || 'Nenhum relatado.'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Cirurgias:</td>
-                  <td>${cirurgiasHtml}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Doenças pregressas/atuais:</td>
-                  <td>${h.doencasPregressasAtuais || 'Nenhuma.'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Traumas emocionais/estresse:</td>
-                  <td>${h.traumasEmocionaisStress || 'Nenhum.'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Medicação em uso:</td>
-                  <td>${h.medicacao || 'Nenhuma.'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Álcool/Tabaco/Drogas:</td>
-                  <td>${h.drogasRecreativas || 'Nenhum.'}</td>
-                </tr>
+                ${historicoRows.join('')}
               </tbody>
             </table>
           </div>
         </div>
+        ` : ''}
 
+        ${habitosRows.length > 0 ? `
         <div class="section-card">
           <div class="section-card-title">Estilo de Vida & Hábitos</div>
           <div class="section-card-content">
             <table class="table-data">
               <tbody>
-                <tr>
-                  <td style="font-weight:700; width:30%;">Qualidade do Sono:</td>
-                  <td>Dorme ${hb.sonoHoras}h por noite (${hb.sonoTipo === 'continuo' ? 'Sono contínuo' : 'Acorda à noite'}), Qualidade: ${hb.sonoQualidade}.</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Alimentação / Dor:</td>
-                  <td>${hb.alimentacaoDor || 'Sem observações.'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Atividade Física:</td>
-                  <td>
-                    ${hb.atividadeFisicaFaz === 'sim' ? `Faz atividade física regular: ${hb.atividadeFisicaQual || ''}. Interfere na dor: ${hb.atividadeFisicaInterfere || ''}` : 'Não pratica atividade física regularmente.'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700;">Nível de Estresse:</td>
-                  <td>Nível ${hb.stressNivel}/10 | Mecanismo de controle: ${hb.controleStress || 'Nenhum.'}</td>
-                </tr>
+                ${habitosRows.join('')}
               </tbody>
             </table>
           </div>
         </div>
+        ` : ''}
 
+        ${gonioReportRowsHtml ? `
         <div class="section-card">
           <div class="section-card-title">Amplitude de Movimento (Goniometria)</div>
           <div class="section-card-content">
@@ -1779,54 +2111,14 @@ export async function downloadReportPDF(report: any) {
                 </tr>
               </thead>
               <tbody>
-                ${[
-                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
-                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
-                  { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
-                  { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
-                  { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
-                  { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
-                  { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
-                  { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
-                  { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
-                  { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
-                  { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
-                  { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
-                ].map(row => {
-                  const valD = g[row.key + 'D'];
-                  const valE = g[row.key + 'E'];
-                  const pD = parseGonioField(valD);
-                  const pE = parseGonioField(valE);
-
-                  const d1 = pD.numSemForca;
-                  const e1 = pE.numSemForca;
-                  const max1 = Math.max(d1, e1);
-                  const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
-
-                  const d2 = pD.numComForca;
-                  const e2 = pE.numComForca;
-                  const max2 = Math.max(d2, e2);
-                  const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
-
-                  const hasAsy = hasAsy1 || hasAsy2;
-
-                  return `
-                    <tr style="${hasAsy ? 'background: rgba(239, 68, 68, 0.05);' : ''}">
-                      <td style="font-weight:600;">
-                        ${row.label}
-                        ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0.5px 2px; font-weight:700; margin-left:4px;">⚠️ &gt;10%</span>` : ''}
-                      </td>
-                      <td style="text-align:center; color:#64748b;">${row.ref}</td>
-                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valD)}</td>
-                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valE)}</td>
-                    </tr>
-                  `;
-                }).join('')}
+                ${gonioReportRowsHtml}
               </tbody>
             </table>
           </div>
         </div>
+        ` : ''}
 
+        ${orthoReportRows.length > 0 ? `
         <div class="section-card">
           <div class="section-card-title">Testes Ortopédicos Especiais</div>
           <div class="section-card-content">
@@ -1839,44 +2131,14 @@ export async function downloadReportPDF(report: any) {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td style="font-weight:700;">Teste de Ober</td>
-                  <td style="text-align:center; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD}</td>
-                  <td style="text-align:center; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE}</td>
-                </tr>
-                ${(() => {
-                  const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
-                  const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
-                  const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
-                  const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
-
-                  return `
-                    <tr>
-                      <td style="font-weight:700;">Thomas Iliopsoas</td>
-                      <td style="text-align:center; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
-                        ${ilioDStatus === 'Positivo' ? `Positivo (${te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `${te.thomasIliopsoasD}°` : '-'})` : 'Negativo'}
-                      </td>
-                      <td style="text-align:center; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
-                        ${ilioEStatus === 'Positivo' ? `Positivo (${te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `${te.thomasIliopsoasE}°` : '-'})` : 'Negativo'}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="font-weight:700;">Thomas Retofemoral</td>
-                      <td style="text-align:center; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
-                        ${retoDStatus === 'Positivo' ? `Positivo (${te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `${te.thomasRetofemoralD}°` : '-'})` : 'Negativo'}
-                      </td>
-                      <td style="text-align:center; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
-                        ${retoEStatus === 'Positivo' ? `Positivo (${te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `${te.thomasRetofemoralE}°` : '-'})` : 'Negativo'}
-                      </td>
-                    </tr>
-                  `;
-                })()}
+                ${orthoReportRows.join('')}
               </tbody>
             </table>
           </div>
         </div>
+        ` : ''}
 
-        ${report.perimetria ? `
+        ${periTableRows.length > 0 ? `
         <div class="section-card">
           <div class="section-card-title">Perimetria (Circunferências em cm)</div>
           <div class="section-card-content">
@@ -1885,41 +2147,14 @@ export async function downloadReportPDF(report: any) {
                 <tr style="font-weight:bold;">
                   <th>Região</th>
                   <th style="text-align:right; width:30%;">Medida</th>
+                  ${periFilledItems.length > 1 ? `
                   <th>Região</th>
                   <th style="text-align:right; width:30%;">Medida</th>
+                  ` : '<th colspan="2"></th>'}
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td style="font-weight:600;">Pescoço:</td>
-                  <td style="text-align:right;">${report.perimetria.pescoco ? `${report.perimetria.pescoco} cm` : '-'}</td>
-                  <td style="font-weight:600;">Cintura:</td>
-                  <td style="text-align:right;">${report.perimetria.cintura ? `${report.perimetria.cintura} cm` : '-'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600;">Ombros:</td>
-                  <td style="text-align:right;">${report.perimetria.ombros ? `${report.perimetria.ombros} cm` : '-'}</td>
-                  <td style="font-weight:600;">Abdômen:</td>
-                  <td style="text-align:right;">${report.perimetria.abdomen ? `${report.perimetria.abdomen} cm` : '-'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600;">Tórax:</td>
-                  <td style="text-align:right;">${report.perimetria.torax ? `${report.perimetria.torax} cm` : '-'}</td>
-                  <td style="font-weight:600;">Quadril:</td>
-                  <td style="text-align:right;">${report.perimetria.quadril ? `${report.perimetria.quadril} cm` : '-'}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600;">Braço Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.braçoD || '-'} / ${report.perimetria.braçoE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.braçoD, report.perimetria.braçoE)}</td>
-                  <td style="font-weight:600;">Coxa Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.coxaD || '-'} / ${report.perimetria.coxaE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.coxaD, report.perimetria.coxaE)}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600;">Antebraço Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.antebraçoD || '-'} / ${report.perimetria.antebraçoE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.antebraçoD, report.perimetria.antebraçoE)}</td>
-                  <td style="font-weight:600;">Panturrilha Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.panturrilhaD || '-'} / ${report.perimetria.panturrilhaE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.panturrilhaD, report.perimetria.panturrilhaE)}</td>
-                </tr>
+                ${periTableRows.join('')}
               </tbody>
             </table>
           </div>
@@ -2986,24 +3221,36 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       </div>
 
       <!-- Barra do Cliente -->
-      <div class="client-bar" style="${assessment.dadosMedidos.tipoObjetivo ? 'border-bottom: none; border-radius: 8px 8px 0 0; margin-bottom: 0;' : ''}">
+      ${(() => {
+        const hasAge = Number(assessment.dadosMedidos?.idade) > 0 || Number(client.dadosPessoais?.idade) > 0;
+        const objRaw = (assessment.dadosMedidos?.objetivoPrincipal || '').trim();
+        const hasObj = Boolean(objRaw && objRaw !== '-');
+        const cols: string[] = ['1.2fr'];
+        if (hasAge) cols.push('0.55fr');
+        cols.push('0.55fr');
+        if (hasObj) cols.push('1.7fr');
+        return `
+      <div class="client-bar" style="grid-template-columns: ${cols.join(' ')}; ${assessment.dadosMedidos.tipoObjetivo ? 'border-bottom: none; border-radius: 8px 8px 0 0; margin-bottom: 0;' : ''}">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
           <strong style="font-size: ${(client.dadosPessoais.nome || '').length > 32 ? '8.5px' : '9.5px'};">${client.dadosPessoais.nome}</strong>
         </div>
+        ${hasAge ? `
         <div class="client-bar-item">
           <span>Idade</span>
-          <strong>${assessment.dadosMedidos.idade} anos</strong>
-        </div>
+          <strong>${Number(assessment.dadosMedidos?.idade) || Number(client.dadosPessoais?.idade)} anos</strong>
+        </div>` : ''}
         <div class="client-bar-item">
           <span>Sexo</span>
           <strong>${genderText}</strong>
         </div>
+        ${hasObj ? `
         <div class="client-bar-item">
           <span>Objetivo Principal</span>
-          <strong style="font-size: ${(assessment.dadosMedidos.objetivoPrincipal || '').length > 50 ? '7.5px' : ((assessment.dadosMedidos.objetivoPrincipal || '').length > 30 ? '8.5px' : '9.5px')}; line-height: 1.15;" title="${assessment.dadosMedidos.objetivoPrincipal || 'Geral'}">${assessment.dadosMedidos.objetivoPrincipal || 'Condicionamento'}</strong>
-        </div>
-      </div>
+          <strong style="font-size: ${objRaw.length > 50 ? '7.5px' : (objRaw.length > 30 ? '8.5px' : '9.5px')}; line-height: 1.15;" title="${objRaw}">${objRaw}</strong>
+        </div>` : ''}
+      </div>`;
+      })()}
 
       <!-- Barra de Metas e Planejamento -->
       ${assessment.dadosMedidos.tipoObjetivo ? `
@@ -3077,7 +3324,25 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       </div>
 
       <!-- Composição Corporal e Análise de Risco -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+      ${(() => {
+        const hasRCQ = cinturaVal > 0 && Number(circObj.quadril) > 0 && rcq > 0;
+        const isCleanFilled = (v: any) => v !== undefined && v !== null && String(v).trim() !== '' && !['-', 'nenhum', 'nenhuma', 'não informado'].includes(String(v).trim().toLowerCase());
+        const leftHealthRows: { label: string; val: string; green?: boolean }[] = [];
+        if (isCleanFilled(saudeGeral.sono)) leftHealthRows.push({ label: 'Sono', val: String(saudeGeral.sono).trim() });
+        if (isCleanFilled(saudeGeral.atividadeFisica)) leftHealthRows.push({ label: 'Ativ. Física', val: `${String(saudeGeral.atividadeFisica).trim()} ✓`, green: true });
+
+        const rightHealthRows: { label: string; val: string; green?: boolean }[] = [];
+        if (isCleanFilled(saudeGeral.nutricao)) rightHealthRows.push({ label: 'Nutrição', val: `${String(saudeGeral.nutricao).trim()} ✓`, green: true });
+        if (isCleanFilled(saudeGeral.medicamentos)) rightHealthRows.push({ label: 'Medicamentos', val: String(saudeGeral.medicamentos).trim() });
+        if (isCleanFilled(saudeGeral.cirurgias)) rightHealthRows.push({ label: 'Cirurgias', val: String(saudeGeral.cirurgias).trim() });
+        if (isCleanFilled(saudeGeral.queixas)) rightHealthRows.push({ label: 'Queixas', val: String(saudeGeral.queixas).trim() });
+
+        const hasRiskAndHealthCard = hasRCQ || leftHealthRows.length > 0 || rightHealthRows.length > 0;
+        const hasLeftCol = hasRCQ || leftHealthRows.length > 0;
+        const hasRightCol = rightHealthRows.length > 0;
+
+        return `
+      <div style="display: grid; grid-template-columns: ${hasRiskAndHealthCard ? '1fr 1fr' : '1fr'}; gap: 12px; margin-bottom: 8px;">
         <!-- Composição Corporal -->
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
           <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Composição Corporal</h3>
@@ -3088,7 +3353,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <tr><td>Massa Magra</td><td style="font-weight:600; color:#10b981;">${massaMagra.toFixed(1)} kg (${pctMassaMagra.toFixed(1)}%)</td></tr>
               <tr><td>Massa Gorda</td><td style="font-weight:600; color:#ef4444;">${massaGorda.toFixed(1)} kg (${pctGordura.toFixed(1)}%)</td></tr>
               <tr><td>Gordura Corporal</td><td style="font-weight:600; color:#f59e0b;">${pctGordura.toFixed(1)}%</td></tr>
-              <tr><td>IMC / RCQ</td><td style="font-weight:600;">${imc.toFixed(1)} / ${rcq.toFixed(2)}</td></tr>
+              <tr><td>${hasRCQ ? 'IMC / RCQ' : 'IMC'}</td><td style="font-weight:600;">${hasRCQ ? `${imc.toFixed(1)} / ${rcq.toFixed(2)}` : `${imc.toFixed(1)}`}</td></tr>
             </table>
 
             <!-- Donut Chart em SVG -->
@@ -3111,11 +3376,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           </div>
         </div>
 
+        ${hasRiskAndHealthCard ? `
         <!-- Análise de Risco & Saúde -->
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
           <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Análise de Risco e Saúde Geral</h3>
-          <div style="display:grid; grid-template-columns: 0.9fr 1.1fr; gap:10px;">
+          <div style="display:grid; grid-template-columns: ${hasLeftCol && hasRightCol ? '0.9fr 1.1fr' : '1fr'}; gap:10px;">
+            ${hasLeftCol ? `
             <div style="display:flex; flex-direction:column; gap:6px;">
+              ${hasRCQ ? `
               <!-- RCQ -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px; text-align:center;">
                 <span style="font-size:7.5px; color:#64748b; font-weight:600; text-transform:uppercase;">RCQ</span>
@@ -3124,97 +3392,122 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   ${rcqClassification || 'Baixo Risco'}
                 </div>
                 <div style="font-size:6.5px; color:#94a3b8; margin-top:4px;">Ideal ${currentSex === 'M' ? 'homens' : 'mulheres'}: ${refRCQ}</div>
-              </div>
+              </div>` : ''}
+              ${leftHealthRows.length > 0 ? `
               <!-- Saúde Geral -->
               <table style="width:100%; font-size:7.5px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Sono</td><td style="font-weight:600; text-align:right;">${saudeGeral.sono || '7-8h'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Ativ. Física</td><td style="font-weight:600; text-align:right; color:#15803d;">${saudeGeral.atividadeFisica || '4x/sem'} ✓</td></tr>
-              </table>
-            </div>
+                ${leftHealthRows.map(r => `<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">${r.label}</td><td style="font-weight:600; text-align:right; ${r.green ? 'color:#15803d;' : ''}">${r.val}</td></tr>`).join('')}
+              </table>` : ''}
+            </div>` : ''}
 
-            <div style="border-left:1px solid #f1f5f9; padding-left:10px;">
+            ${hasRightCol ? `
+            <div style="${hasLeftCol ? 'border-left:1px solid #f1f5f9; padding-left:10px;' : ''}">
               <span style="font-size:7.5px; color:#64748b; font-weight:600; text-transform:uppercase; display:block; margin-bottom:4px;">Análise Clínica complementar</span>
               <table style="width:100%; font-size:7.5px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Nutrição</td><td style="text-align:right; font-weight:600; color:#15803d; word-break:break-word; max-width:130px;">${saudeGeral.nutricao || 'Adequada'} ✓</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Medicamentos</td><td style="text-align:right; font-weight:600; word-break:break-word; max-width:130px; font-size:7px;">${saudeGeral.medicamentos || 'Nenhum'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Cirurgias</td><td style="text-align:right; font-weight:600; word-break:break-word; max-width:130px; font-size:7px;">${saudeGeral.cirurgias || 'Nenhuma'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Queixas</td><td style="text-align:right; font-weight:600; word-break:break-word; max-width:130px; font-size:7px;">${saudeGeral.queixas || 'Nenhuma'}</td></tr>
+                ${rightHealthRows.map(r => `<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">${r.label}</td><td style="text-align:right; font-weight:600; ${r.green ? 'color:#15803d;' : 'font-size:7px;'} word-break:break-word; max-width:130px;">${r.val}</td></tr>`).join('')}
               </table>
-            </div>
+            </div>` : ''}
           </div>
-        </div>
-      </div>
+        </div>` : ''}
+      </div>`;
+      })()}
 
       <!-- Dobras e Circunferências -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      ${(() => {
+        const dobrasRows = [
+          { label: 'Peitoral', val: dPeitoral, cx: 44, cy: 56 },
+          { label: 'Tríceps', val: dTriceps, cx: 33, cy: 65 },
+          { label: 'Subescapular', val: dSubescapular, cx: 58, cy: 55 },
+          { label: 'Subaxilar (Axilar Média)', val: dSubaxilar, cx: 39, cy: 65 },
+          { label: 'Supra-ilíaca', val: dSuprailiaca, cx: 58, cy: 82 },
+          { label: 'Abdômen', val: dAbdomen, cx: 44, cy: 82 },
+          { label: 'Coxa', val: dCoxa, cx: 45, cy: 130 },
+          { label: 'Panturrilha', val: dPanturrilha, cx: 45, cy: 165 }
+        ].filter(r => Number(r.val) > 0);
+        const hasDobrasCard = dobrasRows.length > 0 || finalSomaDobras > 0;
+
+        const fmtBiCirc = (d: any, e: any) => {
+          const nd = Number(d) || 0;
+          const ne = Number(e) || 0;
+          if (nd <= 0 && ne <= 0) return '';
+          if (nd > 0 && ne > 0) return `${nd} / ${ne} cm`;
+          return nd > 0 ? `${nd} cm (Dir.)` : `${ne} cm (Esq.)`;
+        };
+        const circRows: { label: string; val: string }[] = [];
+        if (Number(circunferencias.pescoco) > 0) circRows.push({ label: 'Pescoço', val: `${circunferencias.pescoco} cm` });
+        if (Number(circunferencias.ombros) > 0) circRows.push({ label: 'Ombros', val: `${circunferencias.ombros} cm` });
+        if (Number(circunferencias.torax) > 0) circRows.push({ label: 'Tórax', val: `${circunferencias.torax} cm` });
+        const bracoTxt = fmtBiCirc(circunferencias.braçoD, circunferencias.braçoE);
+        if (bracoTxt) circRows.push({ label: 'Braço Dir. / Esq.', val: bracoTxt });
+        const antebracoTxt = fmtBiCirc(circunferencias.antebraçoD, circunferencias.antebraçoE);
+        if (antebracoTxt) circRows.push({ label: 'Antebraço Dir. / Esq.', val: antebracoTxt });
+        if (Number(circunferencias.cintura) > 0) circRows.push({ label: 'Cintura', val: `${circunferencias.cintura} cm` });
+        if (Number(circunferencias.abdomen) > 0) circRows.push({ label: 'Abdômen', val: `${circunferencias.abdomen} cm` });
+        if (Number(circunferencias.quadril) > 0) circRows.push({ label: 'Quadril', val: `${circunferencias.quadril} cm` });
+        const coxaTxt = fmtBiCirc(circunferencias.coxaD, circunferencias.coxaE);
+        if (coxaTxt) circRows.push({ label: 'Coxa Dir. / Esq.', val: coxaTxt });
+        const pantTxt = fmtBiCirc(circunferencias.panturrilhaD, circunferencias.panturrilhaE);
+        if (pantTxt) circRows.push({ label: 'Panturrilha Dir. / Esq.', val: pantTxt });
+        const hasCircCard = circRows.length > 0;
+
+        if (!hasDobrasCard && !hasCircCard) return '';
+
+        return `
+      <div style="display: grid; grid-template-columns: ${hasDobrasCard && hasCircCard ? '1fr 1fr' : '1fr'}; gap: 12px;">
+        ${hasDobrasCard ? `
         <!-- Dobras Cutâneas -->
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
           <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Dobras Cutâneas (mm)</h3>
           
           <div style="display:flex; gap: 10px;">
             <!-- Silhueta com pontos -->
-                                    <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
               <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                <!-- Green Dots for Dobras -->
-                <circle cx="44" cy="56" r="3" fill="#10b981" title="Peitoral"></circle>
-                <circle cx="33" cy="65" r="3" fill="#10b981" title="Tríceps"></circle>
-                <circle cx="58" cy="55" r="3" fill="#10b981" title="Subescapular"></circle>
-                <circle cx="39" cy="65" r="3" fill="#10b981" title="Subaxilar"></circle>
-                <circle cx="58" cy="82" r="3" fill="#10b981" title="Supra-ilíaca"></circle>
-                <circle cx="44" cy="82" r="3" fill="#10b981" title="Abdômen"></circle>
-                <circle cx="45" cy="130" r="3" fill="#10b981" title="Coxa"></circle>
+                ${dobrasRows.map(d => `<circle cx="${d.cx}" cy="${d.cy}" r="3" fill="#10b981" title="${d.label}"></circle>`).join('')}
               </svg>
             </div>
 
             <!-- Tabela de Dados -->
             <div style="flex:1;">
+              ${dobrasRows.length > 0 ? `
               <table class="table-data" style="font-size: 8px;">
                 <tr><td style="font-weight:600; padding:3px 6px;">Região</td><td style="font-weight:600; padding:3px 6px; text-align:right;">Valor</td></tr>
-                <tr><td style="padding:2.5px 6px;">Peitoral</td><td style="text-align:right; font-weight:600;">${dPeitoral} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Tríceps</td><td style="text-align:right; font-weight:600;">${dTriceps} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Subescapular</td><td style="text-align:right; font-weight:600;">${dSubescapular} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Subaxilar (Axilar Média)</td><td style="text-align:right; font-weight:600;">${dSubaxilar} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Supra-ilíaca</td><td style="text-align:right; font-weight:600;">${dSuprailiaca} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Abdômen</td><td style="text-align:right; font-weight:600;">${dAbdomen} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Coxa</td><td style="text-align:right; font-weight:600;">${dCoxa} mm</td></tr>
-              </table>
+                ${dobrasRows.map(d => `<tr><td style="padding:2.5px 6px;">${d.label}</td><td style="text-align:right; font-weight:600;">${d.val} mm</td></tr>`).join('')}
+              </table>` : ''}
             </div>
           </div>
 
+          ${finalSomaDobras > 0 ? `
           <div style="display:flex; justify-content:center; margin-top:8px; border-top:1px dashed #cbd5e1; padding-top:6px; font-size:9px; font-family:'Outfit', sans-serif;">
             <div>Soma das Dobras: <strong style="color:#10b981; font-size:11px;">${finalSomaDobras} mm</strong></div>
-          </div>
-        </div>
+          </div>` : ''}
+        </div>` : ''}
 
+        ${hasCircCard ? `
         <!-- Circunferências -->
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
           <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Circunferências (Perímetros em cm)</h3>
           
           <div style="display:flex; gap: 10px;">
             <!-- Silhueta com linhas -->
-                                    <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
               <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                <!-- Green Lines for Circunferencias -->
-                <line x1="45" y1="38" x2="55" y2="38" stroke="#10b981" stroke-width="2" title="Pescoço"></line>
-                <line x1="31" y1="48" x2="69" y2="48" stroke="#10b981" stroke-width="2" title="Ombros"></line>
-                <line x1="35" y1="60" x2="65" y2="60" stroke="#10b981" stroke-width="2" title="Tórax"></line>
-                <!-- Braços -->
-                <line x1="32" y1="70" x2="36" y2="70" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>
-                <line x1="64" y1="70" x2="68" y2="70" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>
-                <line x1="41" y1="85" x2="59" y2="85" stroke="#10b981" stroke-width="2" title="Cintura"></line>
-                <!-- Antebraços -->
-                <line x1="30" y1="90" x2="33" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>
-                <line x1="67" y1="90" x2="70" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>
-                <line x1="40" y1="94" x2="60" y2="94" stroke="#10b981" stroke-width="2" title="Abdômen"></line>
-                <line x1="38" y1="102" x2="62" y2="102" stroke="#10b981" stroke-width="2" title="Quadril"></line>
-                <!-- Coxas -->
-                <line x1="42" y1="130" x2="48" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>
-                <line x1="52" y1="130" x2="58" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>
-                <!-- Panturrilhas -->
-                <line x1="43" y1="165" x2="47" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>
-                <line x1="53" y1="165" x2="57" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>
+                ${Number(circunferencias.pescoco) > 0 ? `<line x1="45" y1="38" x2="55" y2="38" stroke="#10b981" stroke-width="2" title="Pescoço"></line>` : ''}
+                ${Number(circunferencias.ombros) > 0 ? `<line x1="31" y1="48" x2="69" y2="48" stroke="#10b981" stroke-width="2" title="Ombros"></line>` : ''}
+                ${Number(circunferencias.torax) > 0 ? `<line x1="35" y1="60" x2="65" y2="60" stroke="#10b981" stroke-width="2" title="Tórax"></line>` : ''}
+                ${Number(circunferencias.braçoD) > 0 ? `<line x1="32" y1="70" x2="36" y2="70" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>` : ''}
+                ${Number(circunferencias.braçoE) > 0 ? `<line x1="64" y1="70" x2="68" y2="70" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>` : ''}
+                ${Number(circunferencias.cintura) > 0 ? `<line x1="41" y1="85" x2="59" y2="85" stroke="#10b981" stroke-width="2" title="Cintura"></line>` : ''}
+                ${Number(circunferencias.antebraçoD) > 0 ? `<line x1="30" y1="90" x2="33" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>` : ''}
+                ${Number(circunferencias.antebraçoE) > 0 ? `<line x1="67" y1="90" x2="70" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>` : ''}
+                ${Number(circunferencias.abdomen) > 0 ? `<line x1="40" y1="94" x2="60" y2="94" stroke="#10b981" stroke-width="2" title="Abdômen"></line>` : ''}
+                ${Number(circunferencias.quadril) > 0 ? `<line x1="38" y1="102" x2="62" y2="102" stroke="#10b981" stroke-width="2" title="Quadril"></line>` : ''}
+                ${Number(circunferencias.coxaD) > 0 ? `<line x1="42" y1="130" x2="48" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>` : ''}
+                ${Number(circunferencias.coxaE) > 0 ? `<line x1="52" y1="130" x2="58" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>` : ''}
+                ${Number(circunferencias.panturrilhaD) > 0 ? `<line x1="43" y1="165" x2="47" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>` : ''}
+                ${Number(circunferencias.panturrilhaE) > 0 ? `<line x1="53" y1="165" x2="57" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>` : ''}
               </svg>
             </div>
 
@@ -3222,21 +3515,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <div style="flex:1;">
               <table class="table-data" style="font-size: 7.5px;">
                 <tr><td style="font-weight:600; padding:2px 4px;">Região</td><td style="font-weight:600; padding:2px 4px; text-align:right;">Valor</td></tr>
-                <tr><td style="padding:1.5px 4px;">Pescoço</td><td style="text-align:right; font-weight:600;">${circunferencias.pescoco || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Ombros</td><td style="text-align:right; font-weight:600;">${circunferencias.ombros || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Tórax</td><td style="text-align:right; font-weight:600;">${circunferencias.torax || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Braço Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.braçoD || 0} / ${circunferencias.braçoE || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Antebraço Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.antebraçoD || 0} / ${circunferencias.antebraçoE || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Cintura</td><td style="text-align:right; font-weight:600;">${circunferencias.cintura || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Abdômen</td><td style="text-align:right; font-weight:600;">${circunferencias.abdomen || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Quadril</td><td style="text-align:right; font-weight:600;">${circunferencias.quadril || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Coxa Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.coxaD || 0} / ${circunferencias.coxaE || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Panturrilha Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.panturrilhaD || 0} / ${circunferencias.panturrilhaE || 0} cm</td></tr>
+                ${circRows.map(c => `<tr><td style="padding:1.5px 4px;">${c.label}</td><td style="text-align:right; font-weight:600;">${c.val}</td></tr>`).join('')}
               </table>
             </div>
           </div>
-        </div>
-      </div>
+        </div>` : ''}
+      </div>`;
+      })()}
       
       <!-- Footer Decorado Página 1 -->
       <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
@@ -3261,10 +3546,63 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       </div>
 
       <!-- Flexibilidade e Mobilidade (Goniometria) -->
+      ${(() => {
+        const gonioAssessmentRows = [
+          { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
+          { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
+          { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
+          { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
+          { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
+          { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
+          { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
+          { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
+          { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
+          { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
+          { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
+          { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
+          { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
+        ].filter(row => {
+          const g = dadosMedidos.goniometria || {};
+          const pD = parseGonioField(g[row.key + 'D']);
+          const pE = parseGonioField(g[row.key + 'E']);
+          return pD.semForca !== '' || pD.comForca !== '' || pE.semForca !== '' || pE.comForca !== '';
+        });
+
+        const te = testesEspeciais || {};
+        const hasOber = Boolean((te.oberD && te.oberD !== '-') || (te.oberE && te.oberE !== '-'));
+        const hasIlio = Boolean(
+          te.thomasIliopsoasDStatus !== undefined ||
+          te.thomasIliopsoasEStatus !== undefined ||
+          (te.thomasD && te.thomasD !== '-') ||
+          (te.thomasE && te.thomasE !== '-') ||
+          (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' && Number(te.thomasIliopsoasD) > 0) ||
+          (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' && Number(te.thomasIliopsoasE) > 0)
+        );
+        const hasReto = Boolean(
+          te.thomasRetofemoralDStatus !== undefined ||
+          te.thomasRetofemoralEStatus !== undefined ||
+          (te.thomasD && te.thomasD !== '-') ||
+          (te.thomasE && te.thomasE !== '-') ||
+          (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' && Number(te.thomasRetofemoralD) > 0) ||
+          (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' && Number(te.thomasRetofemoralE) > 0)
+        );
+
+        const hasSpecialTestsRows = hasOber || hasIlio || hasReto || hasMaigneData || Boolean(stepDownRowsHtml) || Boolean(yTestRowsHtml) || Boolean(termografiaIsRealizado);
+        const hasGonioRows = gonioAssessmentRows.length > 0;
+
+        if (!hasGonioRows && !hasSpecialTestsRows) return '';
+
+        const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
+        const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
+        const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
+        const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
+
+        return `
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Flexibilidade e Mobilidade Articular (Goniometria)</h3>
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">${hasGonioRows ? 'Flexibilidade e Mobilidade Articular (Goniometria)' : 'Testes Ortopédicos e Funcionais'}</h3>
         
         <div style="display: flex; gap: 12px; align-items: flex-start;">
+          ${hasGonioRows ? `
           <!-- Tabela de Goniometria (Esquerda) -->
           <div style="flex: 1.5; min-width: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px;">
             <table class="table-data" style="width: 100%; border-collapse: collapse; font-size: 7.5px;">
@@ -3277,21 +3615,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 </tr>
               </thead>
               <tbody>
-                ${[
-                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
-                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
-                  { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
-                  { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
-                  { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
-                  { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
-                  { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
-                  { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
-                  { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
-                  { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
-                  { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
-                  { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
-                  { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
-                ].map(row => {
+                ${gonioAssessmentRows.map(row => {
                   const g = dadosMedidos.goniometria || {};
                   const valD = g[row.key + 'D'];
                   const valE = g[row.key + 'E'];
@@ -3324,8 +3648,9 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 }).join('')}
               </tbody>
             </table>
-          </div>
+          </div>` : ''}
 
+          ${hasSpecialTestsRows ? `
           <!-- Testes Especiais e Maigne (Direita) -->
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px;">
@@ -3338,39 +3663,32 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   </tr>
                 </thead>
                 <tbody>
+                  ${hasOber ? `
                   <tr style="border-bottom: 1px solid #f1f5f9;">
                     <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Teste de Ober</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${testesEspeciais.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${testesEspeciais.oberD === 'Positivo' ? '700' : 'normal'};">${testesEspeciais.oberD || 'Negativo'}</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${testesEspeciais.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${testesEspeciais.oberE === 'Positivo' ? '700' : 'normal'};">${testesEspeciais.oberE || 'Negativo'}</td>
-                  </tr>
-                  ${(() => {
-                    const te = testesEspeciais;
-                    const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
-                    const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
-                    const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
-                    const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
-
-                    return `
-                      <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Iliopsoas</td>
-                        <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
-                          ${ilioDStatus === 'Positivo' ? `Positivo (${te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `${te.thomasIliopsoasD}°` : '-'})` : 'Negativo'}
-                        </td>
-                        <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
-                          ${ilioEStatus === 'Positivo' ? `Positivo (${te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `${te.thomasIliopsoasE}°` : '-'})` : 'Negativo'}
-                        </td>
-                      </tr>
-                      <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Retofemoral</td>
-                        <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
-                          ${retoDStatus === 'Positivo' ? `Positivo (${te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `${te.thomasRetofemoralD}°` : '-'})` : 'Negativo'}
-                        </td>
-                        <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
-                          ${retoEStatus === 'Positivo' ? `Positivo (${te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `${te.thomasRetofemoralE}°` : '-'})` : 'Negativo'}
-                        </td>
-                      </tr>
-                    `;
-                  })()}
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD || ''}</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE || ''}</td>
+                  </tr>` : ''}
+                  ${hasIlio ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Iliopsoas</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${ilioDStatus === 'Positivo' ? (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `Positivo (${te.thomasIliopsoasD}°)` : 'Positivo') : ilioDStatus}
+                    </td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${ilioEStatus === 'Positivo' ? (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `Positivo (${te.thomasIliopsoasE}°)` : 'Positivo') : ilioEStatus}
+                    </td>
+                  </tr>` : ''}
+                  ${hasReto ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Retofemoral</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${retoDStatus === 'Positivo' ? (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `Positivo (${te.thomasRetofemoralD}°)` : 'Positivo') : retoDStatus}
+                    </td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${retoEStatus === 'Positivo' ? (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `Positivo (${te.thomasRetofemoralE}°)` : 'Positivo') : retoEStatus}
+                    </td>
+                  </tr>` : ''}
                   ${hasMaigneData ? `
                   <tr style="border-bottom: 1px solid #f1f5f9;">
                     <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne ADM</td>
@@ -3408,7 +3726,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               ${maigneSvgHtml}
             </div>
             ` : ''}
-          </div>
+          </div>` : ''}
         </div>
 
         <!-- Alertas Biomecânicos Detectados no Laudo -->
@@ -3434,13 +3752,15 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           `;
         })()}
 
+        ${hasGonioRows ? `
         <div style="margin-top:6px; font-size:7px; color:#64748b; display:flex; gap:10px; justify-content:center;">
           <span>Legenda de Referência:</span>
           <span><span style="display:inline-block; width:5px; height:5px; background:#10b981; border-radius:50%;"></span> Dentro do ideal</span>
           <span><span style="display:inline-block; width:5px; height:5px; background:#f59e0b; border-radius:50%;"></span> Atenção (Amplitude limítrofe)</span>
           <span><span style="display:inline-block; width:5px; height:5px; background:#ef4444; border-radius:50%;"></span> Abaixo do ideal (Mobilidade reduzida)</span>
-        </div>
-      </div>
+        </div>` : ''}
+      </div>`;
+      })()}
 
       <!-- Evolução Corporal (Histórico de Gráficos e Tabela) -->
       <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-bottom: 12px;">
@@ -3504,13 +3824,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         </ul>
       </div>
 
+      ${assessment.observacoes && String(assessment.observacoes).trim() !== '' && String(assessment.observacoes).trim() !== '-' ? `
       <!-- Considerações Finais do Avaliador -->
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 20px;">
         <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Considerações Finais e Conduta do Avaliador</h3>
         <p style="font-size: 8.5px; line-height: 1.5; color: #334155; margin: 4px 0 0 0; font-style: italic;">
-          "${assessment.observacoes || 'Excelente progresso corporal geral. Recomendado manter a regularidade na planilha de treinos e dieta.'}"
+          "${assessment.observacoes}"
         </p>
-      </div>
+      </div>` : ''}
 
       <!-- Assinatura Profissional / Responsável Técnico -->
       ${renderProfessionalSignatureHtml(prof)}
@@ -4048,24 +4369,36 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
       </div>
 
       <!-- BARRA DO ALUNO OFICIAL (IMAGEM 2) -->
-      <div class="client-bar">
+      ${(() => {
+        const hasAge = ageText !== '-';
+        const docParts = [cpf !== '-' ? `CPF: ${cpf}` : '', tel !== '-' ? `Tel: ${tel}` : ''].filter(Boolean);
+        const hasDoc = docParts.length > 0;
+        const cols = ['1.2fr'];
+        if (hasAge) cols.push('0.55fr');
+        cols.push('0.55fr');
+        if (hasDoc) cols.push('1.7fr');
+        return `
+      <div class="client-bar" style="grid-template-columns: ${cols.join(' ')};">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
           <strong class="font-outfit">${nome}</strong>
         </div>
+        ${hasAge ? `
         <div class="client-bar-item">
           <span>Idade</span>
           <strong>${ageText}</strong>
-        </div>
+        </div>` : ''}
         <div class="client-bar-item">
           <span>Sexo</span>
           <strong>${sexo}</strong>
         </div>
+        ${hasDoc ? `
         <div class="client-bar-item">
           <span>Documento / Contato</span>
-          <strong>${cpf !== '-' ? `CPF: ${cpf}` : ''} ${tel !== '-' ? `• Tel: ${tel}` : ''}</strong>
-        </div>
-      </div>
+          <strong>${docParts.join(' • ')}</strong>
+        </div>` : ''}
+      </div>`;
+      })()}
 
       <!-- SEÇÃO CLÍNICA COM HEADER ESCURO (IMAGEM 3) E TEXTO JUSTIFICADO -->
       <div class="section-card">
@@ -4377,24 +4710,36 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
       </div>
 
       <!-- BARRA DO ALUNO OFICIAL -->
-      <div class="client-bar">
+      ${(() => {
+        const hasAge = ageText !== '-';
+        const docParts = [cpf !== '-' ? `CPF: ${cpf}` : '', tel !== '-' ? `Tel: ${tel}` : ''].filter(Boolean);
+        const hasDoc = docParts.length > 0;
+        const cols = ['1.2fr'];
+        if (hasAge) cols.push('0.55fr');
+        cols.push('0.55fr');
+        if (hasDoc) cols.push('1.7fr');
+        return `
+      <div class="client-bar" style="grid-template-columns: ${cols.join(' ')};">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
           <strong class="font-outfit">${nome}</strong>
         </div>
+        ${hasAge ? `
         <div class="client-bar-item">
           <span>Idade</span>
           <strong>${ageText}</strong>
-        </div>
+        </div>` : ''}
         <div class="client-bar-item">
           <span>Sexo</span>
           <strong>${sexo}</strong>
         </div>
+        ${hasDoc ? `
         <div class="client-bar-item">
           <span>Documento / Contato</span>
-          <strong>${cpf !== '-' ? `CPF: ${cpf}` : ''} ${tel !== '-' ? `• Tel: ${tel}` : ''}</strong>
-        </div>
-      </div>
+          <strong>${docParts.join(' • ')}</strong>
+        </div>` : ''}
+      </div>`;
+      })()}
 
       <!-- LISTA DE EVOLUÇÕES EM CARDS PADRONIZADOS -->
       ${sorted.map((p, idx) => {
@@ -5080,7 +5425,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
     // Tabela de Testes Individuais
     const testsHtml = st.testesRealizados.map((t: any) => {
       const refData = STRENGTH_REFERENCE_TABLE[t.articulacao]?.[t.movimento]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };
-      const refText = refData.min > 0 ? `${refData.min}-${refData.max} %PC` : '-';
+      const refText = refData.min > 0 ? `${refData.min}-${refData.max} %PC` : '';
       
       let badgeClass = 'badge-green';
       if (t.classificacao === 'DÉFICIT LEVE') badgeClass = 'badge-blue';
@@ -5500,24 +5845,35 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
           </div>
 
           <!-- 2. Ficha do Aluno -->
-          <div class="client-bar">
+          ${(() => {
+            const hasCpf = Boolean(cpf && cpf !== '-');
+            const hasPeso = Boolean(peso && peso !== '-' && Number(peso) > 0);
+            const cols = ['1.5fr'];
+            if (hasCpf) cols.push('1fr');
+            if (hasPeso) cols.push('0.8fr');
+            cols.push('0.8fr');
+            return `
+          <div class="client-bar" style="grid-template-columns: ${cols.join(' ')};">
             <div class="client-bar-item">
               <span>Aluno / Paciente</span>
               <strong>${nome}</strong>
             </div>
+            ${hasCpf ? `
             <div class="client-bar-item">
               <span>CPF</span>
               <strong>${cpf}</strong>
-            </div>
+            </div>` : ''}
+            ${hasPeso ? `
             <div class="client-bar-item">
               <span>Peso Corporal</span>
               <strong>${peso} kg</strong>
-            </div>
+            </div>` : ''}
             <div class="client-bar-item">
               <span>Sexo</span>
               <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
             </div>
-          </div>
+          </div>`;
+          })()}
 
           <!-- 3. Mapeamento Anatômico Integrado Dual-Body -->
           <div class="pdf-section-wrapper" style="margin-top: 4px; margin-bottom: 8px;">
@@ -5680,18 +6036,34 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
       razaoVertical: rVer,
       razaoRotadores: rRot,
       razaoAbdRotadores: rAbd,
-      riscoOmbro: !iH || !iV || !iR || !iA,
+      riscoOmbro: (rHor > 0 && !iH) || (rVer > 0 && !iV) || (rRot > 0 && !iR) || (rAbd > 0 && !iA),
       alertas: [
-        ...(!iH ? ['Risco: razão horizontal (Remada/Supino) deve ser ≥ 0.80'] : []),
-        ...(!iV ? ['Risco: razão vertical (Desenvolvimento/Puxada) deve ser ≥ 1.50'] : []),
-        ...(!iR ? ['Risco: razão rotadores (Ext/Int) deve ser ≥ 0.70'] : []),
-        ...(!iA ? ['Risco: razão abdutores (Ext/Abd) deve ser ≥ 0.55'] : [])
+        ...(rHor > 0 && !iH ? ['Risco: razão horizontal (Remada/Supino) deve ser ≥ 0.80'] : []),
+        ...(rVer > 0 && !iV ? ['Risco: razão vertical (Desenvolvimento/Puxada) deve ser ≥ 1.50'] : []),
+        ...(rRot > 0 && !iR ? ['Risco: razão rotadores (Ext/Int) deve ser ≥ 0.70'] : []),
+        ...(rAbd > 0 && !iA ? ['Risco: razão abdutores (Ext/Abd) deve ser ≥ 0.55'] : [])
       ]
     };
 
     const sc = a.riscoOmbro ? '#b91c1c' : '#0d9488';
     const warningsHtml = (a.alertas || []).map((t: string) => `<div style="background:#fef2f2;border:1px solid #fca5a5;padding:12px;border-radius:6px;margin-bottom:12px;color:#b91c1c;font-size:11px;font-weight:bold;">⚠️ ${t}</div>`).join('');
-    const ratioRow = (label: string, val: number, ref: string, ok: boolean) => `<tr><td style="padding:6px;">${label}</td><td style="padding:6px;text-align:center;font-weight:bold;">${val > 0 ? val.toFixed(2) : '-'}</td><td style="padding:6px;text-align:center;">${ref}</td><td style="padding:6px;text-align:center;font-weight:bold;color:${ok ? '#10b981' : '#ef4444'}">${val > 0 ? (ok ? 'OK' : 'ALTERADO') : '-'}</td></tr>`;
+    const ratioRow = (label: string, val: number, ref: string, ok: boolean) => val > 0 ? `<tr><td style="padding:6px;">${label}</td><td style="padding:6px;text-align:center;font-weight:bold;">${val.toFixed(2)}</td><td style="padding:6px;text-align:center;">${ref}</td><td style="padding:6px;text-align:center;font-weight:bold;color:${ok ? '#10b981' : '#ef4444'}">${ok ? 'OK' : 'ALTERADO'}</td></tr>` : '';
+    const legacyLoadRows = [
+      { label: 'Supino Reto', val: Number(v.supino) || 0 },
+      { label: 'Remada Curvada / Máquina', val: Number(v.remada) || 0 },
+      { label: 'Desenvolvimento de Ombros', val: Number(v.desenvolvimento) || 0 },
+      { label: 'Puxada Alta (Lat Pulldown)', val: Number(v.puxada) || 0 },
+      { label: 'Rotação Externa de Ombro', val: Number(v.rotacaoExternaOmbro) || 0 },
+      { label: 'Rotação Interna de Ombro', val: Number(v.rotacaoInternaOmbro) || 0 },
+      { label: 'Flexão de Ombro', val: Number(v.abducaoOmbro) || 0 }
+    ].filter(r => r.val > 0);
+    const legacyRatioRowsHtml = [
+      ratioRow('Horizontal (Remada / Supino)', rHor, '≥ 0.80', iH),
+      ratioRow('Vertical (Desenvolvimento / Puxada)', rVer, '≥ 1.50', iV),
+      ratioRow('Rotadores (Ext / Int)', rRot, '≥ 0.70', iR),
+      ratioRow('Abdutores/Rotadores (Ext / Abd)', rAbd, '≥ 0.55', iA)
+    ].filter(Boolean).join('');
+    const hasCpfLegacy = Boolean(cpf && cpf !== '-');
 
     pdfContainer.innerHTML = `
       ${pdfStyles}
@@ -5715,21 +6087,23 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
         </div>
 
         <!-- Paciente / Info -->
-        <div class="client-bar" style="grid-template-columns: 2fr 1fr 1fr;">
+        <div class="client-bar" style="grid-template-columns: ${hasCpfLegacy ? '2fr 1fr 1fr' : '2fr 1fr'};">
           <div class="client-bar-item">
             <span>Paciente</span>
             <strong>${nome}</strong>
           </div>
+          ${hasCpfLegacy ? `
           <div class="client-bar-item">
             <span>CPF</span>
             <strong>${cpf}</strong>
-          </div>
+          </div>` : ''}
           <div class="client-bar-item">
             <span>Status de Risco</span>
             <strong style="color:${sc};">${a.riscoOmbro ? 'RISCO ELEVADO' : 'EQUILIBRADO / SEGURO'}</strong>
           </div>
         </div>
 
+        ${legacyLoadRows.length > 0 ? `
         <!-- Cargas Máximas -->
         <div class="section-card">
           <div class="section-card-title">Cargas Máximas Registradas</div>
@@ -5739,18 +6113,13 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                 <tr style="background:#f4f6f8;"><th style="padding:6px;text-align:left;">Exercício</th><th style="padding:6px;text-align:center;width:30%;">Carga</th></tr>
               </thead>
               <tbody>
-                <tr><td style="padding:5px;">Supino Reto</td><td style="padding:5px;text-align:center;"><strong>${v.supino || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Remada Curvada / Máquina</td><td style="padding:5px;text-align:center;"><strong>${v.remada || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Desenvolvimento de Ombros</td><td style="padding:5px;text-align:center;"><strong>${v.desenvolvimento || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Puxada Alta (Lat Pulldown)</td><td style="padding:5px;text-align:center;"><strong>${v.puxada || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Rotação Externa de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoExternaOmbro || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Rotação Interna de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoInternaOmbro || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Flexão de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.abducaoOmbro || 0} kg</strong></td></tr>
+                ${legacyLoadRows.map(r => `<tr><td style="padding:5px;">${r.label}</td><td style="padding:5px;text-align:center;"><strong>${r.val} kg</strong></td></tr>`).join('')}
               </tbody>
             </table>
           </div>
-        </div>
+        </div>` : ''}
 
+        ${legacyRatioRowsHtml ? `
         <!-- Razões de Equilíbrio -->
         <div class="section-card">
           <div class="section-card-title">Razões de Equilíbrio Muscular</div>
@@ -5760,14 +6129,11 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                 <tr style="background:#f4f6f8;font-weight:bold;"><th style="padding:6px;text-align:left;">Métrica</th><th style="padding:6px;text-align:center;width:20%;">Resultado</th><th style="padding:6px;text-align:center;width:25%;">Referência</th><th style="padding:6px;text-align:center;width:20%;">Status</th></tr>
               </thead>
               <tbody>
-                ${ratioRow('Horizontal (Remada / Supino)', rHor, '≥ 0.80', iH)}
-                ${ratioRow('Vertical (Desenvolvimento / Puxada)', rVer, '≥ 1.50', iV)}
-                ${ratioRow('Rotadores (Ext / Int)', rRot, '≥ 0.70', iR)}
-                ${ratioRow('Abdutores/Rotadores (Ext / Abd)', rAbd, '≥ 0.55', iA)}
+                ${legacyRatioRowsHtml}
               </tbody>
             </table>
           </div>
-        </div>
+        </div>` : ''}
 
         <!-- Advertências -->
         ${warningsHtml ? `<h4 style="margin:15px 0 6px 0;color:#ef4444;font-size:11px;text-transform:uppercase;">Advertências Clínicas</h4>${warningsHtml}` : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;border-radius:6px;color:#15803d;font-size:10px;font-weight:bold;margin-top:10px;">✓ Nenhum desequilíbrio muscular de risco detectado. Proporções biomecânicas adequadas.</div>`}

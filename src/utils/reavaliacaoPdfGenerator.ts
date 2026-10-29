@@ -10,6 +10,67 @@ import { detectCompartment, COMPARTIMENTOS_METADATA } from './fisioterapiaQueixa
 export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): string {
   const { identificacao, objetivoDoLaudo, historicoClinicoBase, tabelaEVA, tabelaForca, tabelaRazoes, tabelaSimetria, testesFuncionais, tabelaGoniometria, tabelaTestesOrtopedicos } = computed;
 
+  let secNum = 0;
+  const nextSec = () => ++secNum;
+
+  const isFilledField = (val: any) => {
+    if (val === undefined || val === null) return false;
+    const s = String(val).trim();
+    if (!s) return false;
+    const lower = s.toLowerCase();
+    return !['-', '—', 'n/a', 'n/r', 'não informado', 'nao informado', 'não realizada', 'nao realizada', 'nenhum', 'nenhuma'].includes(lower);
+  };
+
+  const idRows = [
+    { label: 'Paciente', val: identificacao.paciente },
+    { label: 'Idade', val: identificacao.idade },
+    { label: 'Sexo', val: identificacao.sexo },
+    { label: 'CPF', val: identificacao.cpf },
+    { label: 'Peso corporal', val: identificacao.pesoCorporal },
+    { label: 'Data do relatório inicial', val: identificacao.dataRelatorioInicial },
+    { label: 'Data da avaliação de força inicial', val: identificacao.dataForcaInicial !== identificacao.dataRelatorioInicial ? identificacao.dataForcaInicial : '' },
+    { label: 'Data da reavaliação', val: identificacao.dataReavaliacao },
+    { label: 'Intervalo entre avaliações', val: identificacao.intervaloSemanas ? `${identificacao.intervaloSemanas} semanas` : '' },
+    { label: 'Avaliador da avaliação inicial', val: identificacao.avaliadorInicial },
+    { label: 'Avaliador da reavaliação', val: identificacao.avaliadorReavaliacao }
+  ].filter(r => isFilledField(r.val));
+
+  const isFilledHist = (val: any) => {
+    if (!isFilledField(val)) return false;
+    const lower = String(val).trim().toLowerCase();
+    return ![
+      'sem patologias relatadas',
+      'não faz uso contínuo',
+      'nega cirurgias ou traumas prévios',
+      'condicionamento geral',
+      'avaliação funcional'
+    ].includes(lower);
+  };
+
+  const histParts = [
+    isFilledHist(historicoClinicoBase.idade) ? `<strong>Idade:</strong> ${historicoClinicoBase.idade}.` : '',
+    isFilledHist(historicoClinicoBase.patologiasPregressas) ? `<strong>Histórico e Patologias:</strong> ${historicoClinicoBase.patologiasPregressas}.` : '',
+    isFilledHist(historicoClinicoBase.medicamentos) ? `<strong>Medicamentos:</strong> ${historicoClinicoBase.medicamentos}.` : '',
+    isFilledHist(historicoClinicoBase.historicoCirurgiasTraumas) ? `<strong>Cirurgias/Traumas:</strong> ${historicoClinicoBase.historicoCirurgiasTraumas}.` : '',
+    isFilledHist(historicoClinicoBase.demandaEsportiva) ? `<strong>Atividade/Demanda:</strong> ${historicoClinicoBase.demandaEsportiva}.` : '',
+    isFilledHist(historicoClinicoBase.queixaInicialDiagnostico) ? `<strong>Diagnóstico Inicial:</strong> ${historicoClinicoBase.queixaInicialDiagnostico}.` : ''
+  ].filter(Boolean);
+
+  const isFallbackNarrativeItem = (item: string) => {
+    const lower = (item || '').trim().toLowerCase();
+    return (
+      !lower ||
+      lower.startsWith('nenhum fator') ||
+      lower.startsWith('não foram identificados') ||
+      lower.startsWith('dados comparativos em consolidação') ||
+      lower.startsWith('todos os parâmetros')
+    );
+  };
+
+  const realFatoresEvolucao = (narrative.fatoresEvolucao || []).filter(i => !isFallbackNarrativeItem(i));
+  const realFatoresSemMelhora = (narrative.fatoresNaoApresentaramMelhora || []).filter(i => !isFallbackNarrativeItem(i));
+  const realFatoresInvolucao = (narrative.fatoresComInvolucao || []).filter(i => !isFallbackNarrativeItem(i));
+
   return `
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -215,8 +276,8 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     <p>Análise comparativa pré e pós-tratamento — Avaliação de Força, Simetria Biomecânica, Testes Funcionais e Mobilidade</p>
   </div>
 
-  <!-- 1. IDENTIFICAÇÃO -->
-  <div class="section-title">1. IDENTIFICAÇÃO</div>
+  <!-- IDENTIFICAÇÃO -->
+  <div class="section-title">${nextSec()}. IDENTIFICAÇÃO</div>
   <table>
     <thead>
       <tr>
@@ -225,38 +286,26 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
       </tr>
     </thead>
     <tbody>
-      <tr><td class="font-bold">Paciente</td><td>${identificacao.paciente}</td></tr>
-      <tr><td class="font-bold">Idade</td><td>${identificacao.idade}</td></tr>
-      <tr><td class="font-bold">Sexo</td><td>${identificacao.sexo}</td></tr>
-      <tr><td class="font-bold">CPF</td><td>${identificacao.cpf}</td></tr>
-      <tr><td class="font-bold">Peso corporal</td><td>${identificacao.pesoCorporal}</td></tr>
-      <tr><td class="font-bold">Data do relatório inicial</td><td>${identificacao.dataRelatorioInicial}</td></tr>
-      <tr><td class="font-bold">Data da avaliação de força inicial</td><td>${identificacao.dataForcaInicial}</td></tr>
-      <tr><td class="font-bold">Data da reavaliação</td><td>${identificacao.dataReavaliacao}</td></tr>
-      <tr><td class="font-bold">Intervalo entre avaliações</td><td>${identificacao.intervaloSemanas} semanas</td></tr>
-      <tr><td class="font-bold">Avaliador da avaliação inicial</td><td>${identificacao.avaliadorInicial}</td></tr>
-      <tr><td class="font-bold">Avaliador da reavaliação</td><td>${identificacao.avaliadorReavaliacao}</td></tr>
+      ${idRows.map(r => `<tr><td class="font-bold">${r.label}</td><td>${r.val}</td></tr>`).join('')}
     </tbody>
   </table>
 
+  ${isFilledField(identificacao.ressalvaMetodologica) ? `
   <div class="ressalva-box">
     ${identificacao.ressalvaMetodologica}
-  </div>
+  </div>` : ''}
 
-  <!-- 2. OBJETIVO DO LAUDO -->
-  <div class="section-title">2. OBJETIVO DO LAUDO</div>
-  <p>${objetivoDoLaudo}</p>
+  <!-- OBJETIVO DO LAUDO -->
+  ${isFilledField(objetivoDoLaudo) ? `
+  <div class="section-title">${nextSec()}. OBJETIVO DO LAUDO</div>
+  <p>${objetivoDoLaudo}</p>` : ''}
 
-  <!-- 3. HISTÓRICO CLÍNICO DE BASE -->
-  <div class="section-title">3. HISTÓRICO CLÍNICO DE BASE</div>
+  <!-- HISTÓRICO CLÍNICO DE BASE -->
+  ${histParts.length > 0 ? `
+  <div class="section-title">${nextSec()}. HISTÓRICO CLÍNICO DE BASE</div>
   <p>
-    <strong>Idade:</strong> ${historicoClinicoBase.idade}. 
-    <strong>Histórico e Patologias:</strong> ${historicoClinicoBase.patologiasPregressas}. 
-    <strong>Medicamentos:</strong> ${historicoClinicoBase.medicamentos}. 
-    <strong>Cirurgias/Traumas:</strong> ${historicoClinicoBase.historicoCirurgiasTraumas}. 
-    <strong>Atividade/Demanda:</strong> ${historicoClinicoBase.demandaEsportiva}. 
-    <strong>Diagnóstico Inicial:</strong> ${historicoClinicoBase.queixaInicialDiagnostico}.
-  </p>
+    ${histParts.join(' ')}
+  </p>` : ''}
 
   ${(narrative as any).discussaoClinica ? `
   <!-- SÍNTESE CLÍNICA E EVOLUÇÃO DIAGNÓSTICA -->
@@ -287,13 +336,9 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
   </div>
   ` : ''}
 
-  <!-- 4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10) -->
-  <div class="section-title">4. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10)</div>
-  ${tabelaEVA.rows.length === 0 ? `
-    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
-      Sem queixas dolorosas ativas quantificadas em prontuário para o período avaliado.
-    </div>
-  ` : `
+  <!-- COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10) -->
+  ${tabelaEVA.rows.length > 0 ? `
+    <div class="section-title">${nextSec()}. COMPARATIVO DE QUEIXAS DOLOROSAS (EVA 0–10)</div>
     <table>
       <thead>
         <tr>
@@ -330,16 +375,12 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         </tr>
       </tbody>
     </table>
-    <p style="font-size:9.5pt; color:#334155;"><strong>Observação:</strong> ${tabelaEVA.observacoesClinicas}</p>
-  `}
+    ${isFilledField(tabelaEVA.observacoesClinicas) ? `<p style="font-size:9.5pt; color:#334155;"><strong>Observação:</strong> ${tabelaEVA.observacoesClinicas}</p>` : ''}
+  ` : ''}
 
-  <!-- 5. COMPARATIVO DE FORÇA MUSCULAR (NEWTONS) -->
-  <div class="section-title">5. COMPARATIVO DE FORÇA MUSCULAR (newtons)</div>
-  ${tabelaForca.length === 0 ? `
-    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
-      Dinamometria computadorizada não realizada neste ciclo avaliativo.
-    </div>
-  ` : `
+  <!-- COMPARATIVO DE FORÇA MUSCULAR (NEWTONS) -->
+  ${tabelaForca.length > 0 ? `
+    <div class="section-title">${nextSec()}. COMPARATIVO DE FORÇA MUSCULAR (newtons)</div>
     <table>
       <thead>
         <tr>
@@ -366,15 +407,12 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         `).join('')}
       </tbody>
     </table>
-  `}
+  ` : ''}
 
-  <!-- 6. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS -->
-  <div class="section-title">6. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS</div>
-  ${tabelaRazoes.rows.length === 0 ? `
-    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
-      Índices de equilíbrio muscular dependem da mensuração de dinamometria (não realizada no ciclo).
-    </div>
-  ` : `
+  <!-- RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS -->
+  ${(tabelaRazoes.rows.length > 0 || (computed.razoesAvancadas && computed.razoesAvancadas.length > 0)) ? `
+    <div class="section-title">${nextSec()}. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS</div>
+    ${tabelaRazoes.rows.length > 0 ? `
     <table>
       <thead>
         <tr>
@@ -398,15 +436,15 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
           </tr>
         `).join('')}
       </tbody>
-    </table>
-    <p style="font-size:9.5pt; color:#334155; margin-bottom:6px;"><strong>Análise da razão H:Q:</strong> ${tabelaRazoes.analisePorLadoIQ}</p>
+    </table>` : ''}
+    ${isFilledField(tabelaRazoes.analisePorLadoIQ) ? `<p style="font-size:9.5pt; color:#334155; margin-bottom:6px;"><strong>Análise da razão H:Q:</strong> ${tabelaRazoes.analisePorLadoIQ}</p>` : ''}
     ${computed.razoesAvancadas && computed.razoesAvancadas.length > 0 ? `
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; page-break-inside:avoid;">
         ${computed.razoesAvancadas.map(rz => `
           <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:3.5px solid ${rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#f59e0b' : '#10b981'}; padding:7px 10px; border-radius:4px; font-size:8pt;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
               <strong style="color:#0f172a;">${rz.nome}</strong>
-              <span style="font-weight:700; color:${rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#b45309' : '#047857'};">${rz.valorGeral !== null ? `${rz.valorGeral}${rz.unidade}` : '-'}</span>
+              <span style="font-weight:700; color:${rz.statusGeral === 'critico' ? '#ef4444' : rz.statusGeral === 'atencao' ? '#b45309' : '#047857'};">${rz.valorGeral !== null ? `${rz.valorGeral}${rz.unidade}` : ''}</span>
             </div>
             <div style="color:#475569; font-size:7.5pt; line-height:1.35; margin-bottom:3px;">${rz.diagnosticoClinico}</div>
             <div style="color:#047857; font-size:7.5pt; font-weight:700; background:rgba(16,185,129,0.08); padding:3px 6px; border-radius:3px;">🎯 Diretriz de Treino: ${rz.diretrizTreinador}</div>
@@ -414,15 +452,11 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         `).join('')}
       </div>
     ` : ''}
-  `}
+  ` : ''}
 
-  <!-- 7. ANÁLISE DE SIMETRIA ENTRE MEMBROS -->
-  <div class="section-title">7. ANÁLISE DE SIMETRIA ENTRE MEMBROS (déficit percentual)</div>
-  ${tabelaSimetria.length === 0 ? `
-    <div class="ressalva-box" style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:6px; color:#64748b; font-style:normal;">
-      Análise de simetria dinamométrica não disponível para as mensurações atuais.
-    </div>
-  ` : `
+  <!-- ANÁLISE DE SIMETRIA ENTRE MEMBROS -->
+  ${tabelaSimetria.length > 0 ? `
+    <div class="section-title">${nextSec()}. ANÁLISE DE SIMETRIA ENTRE MEMBROS (déficit percentual)</div>
     <table>
       <thead>
         <tr>
@@ -447,14 +481,17 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         `).join('')}
       </tbody>
     </table>
-  `}
+  ` : ''}
 
-  <!-- 8. TESTES FUNCIONAIS -->
-  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 || testesFuncionais.hopTest || testesFuncionais.visaP) ? `
-    <div class="section-title">8. TESTES FUNCIONAIS</div>
+  <!-- TESTES FUNCIONAIS -->
+  ${(testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 || testesFuncionais.hopTest || testesFuncionais.visaP) ? (() => {
+    const funcSec = nextSec();
+    let subSec = 0;
+    return `
+    <div class="section-title">${funcSec}. TESTES FUNCIONAIS</div>
 
     ${testesFuncionais.yTeste ? `
-      <div class="subsection-title">8.1 Y Teste (equilíbrio dinâmico)</div>
+      <div class="subsection-title">${funcSec}.${++subSec} Y Teste (equilíbrio dinâmico)</div>
       <table>
         <thead>
           <tr>
@@ -507,7 +544,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     ` : ''}
 
     ${testesFuncionais.stepDown.length > 0 ? `
-      <div class="subsection-title">${testesFuncionais.yTeste ? '8.2' : '8.1'} Step Down Test (controle dinâmico)</div>
+      <div class="subsection-title">${funcSec}.${++subSec} Step Down Test (controle dinâmico)</div>
       <table>
         <thead>
           <tr>
@@ -535,7 +572,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     ` : ''}
 
     ${testesFuncionais.hopTest ? `
-      <div class="subsection-title">${(testesFuncionais.yTeste ? 1 : 0) + (testesFuncionais.stepDown.length > 0 ? 1 : 0) === 2 ? '8.3' : (testesFuncionais.yTeste || testesFuncionais.stepDown.length > 0 ? '8.2' : '8.1')} Bateria de Hop Tests (Simetria LSI ≥ 90% — Noyes et al.)</div>
+      <div class="subsection-title">${funcSec}.${++subSec} Bateria de Hop Tests (Simetria LSI ≥ 90% — Noyes et al.)</div>
       <p style="font-size:9pt; color:#475569; margin-bottom:8px;">
         Avaliação canônica de potência horizontal, capacidade de frenagem e estabilidade neuromuscular unipodal para critérios de Liberação de Corrida e Retorno ao Esporte (<em>Return to Sport - RTS</em>).
         ${testesFuncionais.hopTest.membroAfetado && testesFuncionais.hopTest.membroAfetado !== 'Nenhum' ? `<strong>Membro Acometido:</strong> ${testesFuncionais.hopTest.membroAfetado}.` : ''}
@@ -598,7 +635,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     ` : ''}
 
     ${testesFuncionais.visaP && testesFuncionais.visaP.atual ? `
-      <div class="subsection-title">Questionário Validado VISA-P — Tendinopatia Patelar (Escala 0–100 • MCID = 13 pts)</div>
+      <div class="subsection-title">${funcSec}.${++subSec} Questionário Validado VISA-P — Tendinopatia Patelar (Escala 0–100 • MCID = 13 pts)</div>
       <p style="font-size:9pt; color:#475569; margin-bottom:8px;">
         Instrumento específico internacional (<em>Victorian Institute of Sport Assessment – Patella</em>, Visentini et al., 1998 / Wageck et al., 2013) para quantificação da dor e capacidade de carga no tendão patelar.
         <strong>Joelho Avaliado:</strong> ${testesFuncionais.visaP.atual.membroAvaliado}.
@@ -661,11 +698,12 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         <div style="color:#047857; font-weight:700;"><strong>🎯 Diretriz de Carga Tendínea para o Treinador:</strong> ${testesFuncionais.visaP.atual.diretrizTreinador}</div>
       </div>
     ` : ''}
-  ` : ''}
+  `;
+  })() : ''}
 
-  <!-- 9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA) -->
+  <!-- AMPLITUDE DE MOVIMENTO (GONIOMETRIA) -->
   ${tabelaGoniometria.length > 0 ? `
-    <div class="section-title">9. AMPLITUDE DE MOVIMENTO (GONIOMETRIA)</div>
+    <div class="section-title">${nextSec()}. AMPLITUDE DE MOVIMENTO (GONIOMETRIA)</div>
     <table>
       <thead>
         <tr>
@@ -682,8 +720,8 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
           <tr>
             <td>${r.movimento}</td>
             <td class="text-center">${r.referencia}</td>
-            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : '—'}</td>
-            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : '—'}</td>
+            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : ''}</td>
+            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : ''}</td>
             <td class="text-center">${r.variacao}</td>
             <td>${r.leitura}</td>
           </tr>
@@ -692,9 +730,9 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
-  <!-- 9.1 MOBILIDADE DA COLUNA VERTEBRAL -->
+  <!-- MOBILIDADE DA COLUNA VERTEBRAL -->
   ${(computed.tabelaColuna && computed.tabelaColuna.length > 0) ? `
-    <div class="section-title">9.1 MOBILIDADE TRIDIMENSIONAL DA COLUNA VERTEBRAL (GONIOMETRIA E EVA)</div>
+    <div class="section-title">${nextSec()}. MOBILIDADE TRIDIMENSIONAL DA COLUNA VERTEBRAL (GONIOMETRIA E EVA)</div>
     <table>
       <thead>
         <tr>
@@ -712,8 +750,8 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
           <tr>
             <td class="font-bold">${r.movimento}</td>
             <td class="text-center">${r.referencia}</td>
-            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : '—'}</td>
-            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : '—'}</td>
+            <td class="text-center">${r.t1 !== null ? `${r.t1}°` : ''}</td>
+            <td class="text-center font-bold">${r.t2 !== null ? `${r.t2}°` : ''}</td>
             <td class="text-center font-bold" style="color:${r.variacaoGraus.startsWith('+') ? '#059669' : '#0f172a'}">${r.variacaoGraus}</td>
             <td class="text-center">${r.eva2 !== null ? `${r.eva2}/10` : '0/10'} (${r.variacaoEVA})</td>
             <td>${r.leitura}</td>
@@ -723,9 +761,9 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
-  <!-- 10. TESTES ORTOPÉDICOS ESPECIAIS -->
+  <!-- TESTES ORTOPÉDICOS ESPECIAIS -->
   ${tabelaTestesOrtopedicos.length > 0 ? `
-    <div class="section-title">10. TESTES ORTOPÉDICOS ESPECIAIS — COMPARATIVO</div>
+    <div class="section-title">${nextSec()}. TESTES ORTOPÉDICOS ESPECIAIS — COMPARATIVO</div>
     <table>
       <thead>
         <tr>
@@ -748,9 +786,9 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
-  <!-- 10.1 COMPOSIÇÃO CORPORAL E ANTROPOMETRIA -->
+  <!-- COMPOSIÇÃO CORPORAL E ANTROPOMETRIA -->
   ${(computed.tabelaComposicao && computed.tabelaComposicao.length > 0) ? `
-    <div class="section-title">10.1 COMPOSIÇÃO CORPORAL E ANTROPOMETRIA — COMPARATIVO</div>
+    <div class="section-title">${nextSec()}. COMPOSIÇÃO CORPORAL E ANTROPOMETRIA — COMPARATIVO</div>
     <table>
       <thead>
         <tr>
@@ -765,8 +803,8 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         ${computed.tabelaComposicao.map(r => `
           <tr>
             <td class="font-bold">${r.metrica || r.parametro}</td>
-            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} ${r.unidade}` : '—'}</td>
-            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} ${r.unidade}` : '—'}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} ${r.unidade}` : ''}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} ${r.unidade}` : ''}</td>
             <td class="text-center font-bold" style="color:${r.leitura === 'Redução de gordura' || r.leitura === 'Ganho de massa magra' || r.leitura === 'Redução de medidas' || r.leitura === 'Redução de risco' ? '#059669' : '#0f172a'}">
               ${r.variacao.replace('.', ',')} ${r.unidade} (${r.variacaoPct.replace('.', ',')})
             </td>
@@ -777,9 +815,9 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
-  <!-- 10.2 PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS -->
+  <!-- PERIMETRIA / CIRCUNFERÊNCIAS CORPORAIS -->
   ${(computed.tabelaPerimetria && computed.tabelaPerimetria.length > 0) ? `
-    <div class="section-title">10.2 PERIMETRIA E CIRCUNFERÊNCIAS CORPORAIS (cm)</div>
+    <div class="section-title">${nextSec()}. PERIMETRIA E CIRCUNFERÊNCIAS CORPORAIS (cm)</div>
     <table>
       <thead>
         <tr>
@@ -794,8 +832,8 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         ${computed.tabelaPerimetria.map(r => `
           <tr>
             <td class="font-bold">${r.regiao}</td>
-            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} cm` : '—'}</td>
-            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} cm` : '—'}</td>
+            <td class="text-center">${r.t1 != null ? `${r.t1.toFixed(1).replace('.', ',')} cm` : ''}</td>
+            <td class="text-center font-bold">${r.t2 != null ? `${r.t2.toFixed(1).replace('.', ',')} cm` : ''}</td>
             <td class="text-center font-bold">${r.variacaoCm.replace('.', ',')}</td>
             <td>${r.leitura}</td>
           </tr>
@@ -804,29 +842,35 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     </table>
   ` : ''}
 
-  <!-- 11. FATORES DE EVOLUÇÃO -->
-  <div class="section-title">11. FATORES DE EVOLUÇÃO</div>
-  <p>A análise comparativa entre as avaliações documentou os seguintes destaques evolutivos:</p>
-  <ul class="bullet-list">
-    ${narrative.fatoresEvolucao.map(item => `<li>${item}</li>`).join('')}
-  </ul>
+  <!-- FATORES DE EVOLUÇÃO -->
+  ${realFatoresEvolucao.length > 0 ? `
+    <div class="section-title">${nextSec()}. FATORES DE EVOLUÇÃO</div>
+    <p>A análise comparativa entre as avaliações documentou os seguintes destaques evolutivos:</p>
+    <ul class="bullet-list">
+      ${realFatoresEvolucao.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  ` : ''}
 
-  <!-- 12. FATORES QUE NÃO APRESENTARAM MELHORA -->
-  <div class="section-title">12. FATORES QUE NÃO APRESENTARAM MELHORA</div>
-  <ul class="bullet-list">
-    ${narrative.fatoresNaoApresentaramMelhora.map(item => `<li>${item}</li>`).join('')}
-  </ul>
+  <!-- FATORES QUE NÃO APRESENTARAM MELHORA -->
+  ${realFatoresSemMelhora.length > 0 ? `
+    <div class="section-title">${nextSec()}. FATORES QUE NÃO APRESENTARAM MELHORA</div>
+    <ul class="bullet-list">
+      ${realFatoresSemMelhora.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  ` : ''}
 
-  <!-- 13. FATORES COM INVOLUÇÃO -->
-  <div class="section-title">13. FATORES COM INVOLUÇÃO</div>
-  <ul class="bullet-list">
-    ${narrative.fatoresComInvolucao.map(item => `<li>${item}</li>`).join('')}
-  </ul>
+  <!-- FATORES COM INVOLUÇÃO -->
+  ${realFatoresInvolucao.length > 0 ? `
+    <div class="section-title">${nextSec()}. FATORES COM INVOLUÇÃO</div>
+    <ul class="bullet-list">
+      ${realFatoresInvolucao.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  ` : ''}
 
-  <!-- 14. ANÁLISES SEGMENTARES BIOMECÂNICAS E FATORES DE RISCO -->
+  <!-- ANÁLISES SEGMENTARES BIOMECÂNICAS E FATORES DE RISCO -->
   ${((narrative as any).analisesSegmentares && (narrative as any).analisesSegmentares.length > 0) ? `
-    ${(narrative as any).analisesSegmentares.map((seg: any, idx: number) => `
-      <div class="section-title">${14 + idx}. ${seg.titulo}</div>
+    ${(narrative as any).analisesSegmentares.map((seg: any) => `
+      <div class="section-title">${nextSec()}. ${seg.titulo}</div>
       <p>${seg.introducao}</p>
       <ul class="bullet-list">
         ${seg.itens.map((item: string) => `<li>${item}</li>`).join('')}
@@ -834,7 +878,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     `).join('')}
   ` : `
     ${(narrative.riscoCompartimentoMedialJoelho && narrative.riscoCompartimentoMedialJoelho.itens.length > 0 && !narrative.riscoCompartimentoMedialJoelho.itens[0].includes('Não foram identificados')) ? `
-      <div class="section-title">14. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO</div>
+      <div class="section-title">${nextSec()}. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO JOELHO</div>
       <p>${narrative.riscoCompartimentoMedialJoelho.introducao}</p>
       <ul class="bullet-list">
         ${narrative.riscoCompartimentoMedialJoelho.itens.map(item => `<li>${item}</li>`).join('')}
@@ -842,7 +886,7 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     ` : ''}
 
     ${(narrative.riscoCompartimentoMedialTornozelo && narrative.riscoCompartimentoMedialTornozelo.itens.length > 0 && !narrative.riscoCompartimentoMedialTornozelo.itens[0].includes('Complexo articular')) ? `
-      <div class="section-title">15. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO</div>
+      <div class="section-title">${nextSec()}. FATORES DE RISCO PARA O COMPARTIMENTO MEDIAL DO TORNOZELO</div>
       <p>${narrative.riscoCompartimentoMedialTornozelo.introducao}</p>
       <ul class="bullet-list">
         ${narrative.riscoCompartimentoMedialTornozelo.itens.map(item => `<li>${item}</li>`).join('')}
@@ -850,28 +894,31 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
     ` : ''}
   `}
 
-  <!-- 16. CONCLUSÃO -->
-  <div class="section-title">16. CONCLUSÃO</div>
-  ${narrative.conclusao.map(p => `<p>${p}</p>`).join('')}
+  <!-- CONCLUSÃO -->
+  ${narrative.conclusao && narrative.conclusao.length > 0 ? `
+  <div class="section-title">${nextSec()}. CONCLUSÃO</div>
+  ${narrative.conclusao.map(p => `<p>${p}</p>`).join('')}` : ''}
 
-  <!-- 17. PRIORIDADES TERAPÊUTICAS SUGERIDAS -->
-  <div class="section-title">17. PRIORIDADES TERAPÊUTICAS SUGERIDAS</div>
+  <!-- PRIORIDADES TERAPÊUTICAS SUGERIDAS -->
+  ${narrative.prioridadesTerapeuticas && narrative.prioridadesTerapeuticas.length > 0 ? `
+  <div class="section-title">${nextSec()}. PRIORIDADES TERAPÊUTICAS SUGERIDAS</div>
   <ol class="numbered-list">
     ${narrative.prioridadesTerapeuticas.map(item => `<li>${item}</li>`).join('')}
-  </ol>
+  </ol>` : ''}
 
-  <!-- 18. ASSINATURA -->
+  <!-- ASSINATURA -->
   <div class="signature-section">
-    <div class="section-title">18. ASSINATURA</div>
+    <div class="section-title">${nextSec()}. ASSINATURA</div>
     <div class="signature-container">
       <div class="signature-box">
         <div class="signature-line"></div>
         <div class="signature-name">${identificacao.avaliadorReavaliacao.split('—')[0].trim()}</div>
-        <div class="signature-role">${identificacao.avaliadorReavaliacao.split('—')[1]?.trim() || 'Fisioterapia'}</div>
+        ${identificacao.avaliadorReavaliacao.split('—')[1]?.trim() ? `<div class="signature-role">${identificacao.avaliadorReavaliacao.split('—')[1].trim()}</div>` : ''}
         <div class="signature-role">Clube Fitness Fisio — Fisioterapia, Quiropraxia e Fortalecimento</div>
+        ${isFilledField(identificacao.avaliadorInicial) ? `
         <div class="signature-note">
           Avaliação inicial conduzida por ${identificacao.avaliadorInicial} (${identificacao.dataRelatorioInicial}).
-        </div>
+        </div>` : ''}
       </div>
     </div>
   </div>
