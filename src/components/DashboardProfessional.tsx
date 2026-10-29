@@ -800,7 +800,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setRepConfirmedSteps(prev => ({ ...prev, [step]: true }));
   };
 
-  // Wizard step validation functions
+  // Wizard step validation functions - "Prefiro em branco do que falso": flexibilidade total para reavaliações parciais
   const validateAssessmentStep = (step: number): boolean => {
     if (step === 1) {
       if (!asClient) {
@@ -812,41 +812,17 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         return false;
       }
     } else if (step === 2) {
-      if (!asWeight || Number(asWeight) <= 0) {
-        alert('Por favor, informe o Peso corporal (kg) antes de avançar.');
-        return false;
-      }
-      if (!asHeight || Number(asHeight) <= 0) {
-        alert('Por favor, informe a Altura (m) antes de avançar.');
-        return false;
-      }
+      // Peso e Altura: se não informados, não bloqueia o fluxo de salvar reavaliação parcial (ex: apenas perimetria ou testes clínicos)
+      return true;
     } else if (step === 3) {
-      const circValues = Object.values(asCirc || {});
-      const filledCount = circValues.filter((v: any) => v !== '' && v !== null && v !== undefined && Number(v) > 0).length;
-      if (filledCount < 2) {
-        alert('Por favor, preencha os Perímetros Corporais do aluno antes de avançar.');
-        return false;
-      }
+      // Perímetros corporais são opcionais caso o profissional só vá medir outros blocos
+      return true;
     } else if (step === 4) {
-      let foldCount = 0;
-      Object.values(asDobrasReadings || {}).forEach((readings: any) => {
-        if (Array.isArray(readings) && readings.some((r: any) => r !== '' && r !== null && Number(r) > 0)) {
-          foldCount++;
-        }
-      });
-      if (foldCount < 2) {
-        alert('Por favor, informe os valores das Dobras Cutâneas antes de avançar.');
-        return false;
-      }
+      // Dobras cutâneas são opcionais caso o profissional realize apenas perimetria ou goniometria
+      return true;
     } else if (step === 6) {
-      if (!asMeta2Meses || !asMeta2Meses.trim()) {
-        alert('Por favor, informe as Metas de 2 Meses antes de concluir.');
-        return false;
-      }
-      if (!asMeta1Ano || !asMeta1Ano.trim()) {
-        alert('Por favor, informe as Metas de 1 Ano antes de concluir.');
-        return false;
-      }
+      // Metas são opcionais
+      return true;
     }
     return true;
   };
@@ -861,12 +837,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         alert('Por favor, informe a Data do relatório antes de avançar.');
         return false;
       }
-      if (!repQueixas || repQueixas.length === 0) {
-        alert('Por favor, informe a Queixa Principal do paciente antes de avançar.');
-        return false;
-      }
+      // Queixa principal não é obrigatória para permitir reavaliações e acompanhamentos sem bloqueios
     } else if (step === 2) {
-      // Histórico clínico e hábitos de vida são opcionais (o paciente pode ser saudável ou não ter traumas)
+      // Histórico clínico e hábitos de vida são opcionais
       return true;
     }
     return true;
@@ -1502,12 +1475,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     ombroFlexaoE: { semForca: '', comForca: '' }
   });
 
-  const [asOberD, setAsOberD] = useState('Negativo');
-  const [asOberE, setAsOberE] = useState('Negativo');
-  const [asThomasIliopsoasDStatus, setAsThomasIliopsoasDStatus] = useState('Negativo');
-  const [asThomasIliopsoasEStatus, setAsThomasIliopsoasEStatus] = useState('Negativo');
-  const [asThomasRetofemoralDStatus, setAsThomasRetofemoralDStatus] = useState('Negativo');
-  const [asThomasRetofemoralEStatus, setAsThomasRetofemoralEStatus] = useState('Negativo');
+  const [asOberD, setAsOberD] = useState('');
+  const [asOberE, setAsOberE] = useState('');
+  const [asThomasIliopsoasDStatus, setAsThomasIliopsoasDStatus] = useState('');
+  const [asThomasIliopsoasEStatus, setAsThomasIliopsoasEStatus] = useState('');
+  const [asThomasRetofemoralDStatus, setAsThomasRetofemoralDStatus] = useState('');
+  const [asThomasRetofemoralEStatus, setAsThomasRetofemoralEStatus] = useState('');
   const [asThomasIliopsoasD, setAsThomasIliopsoasD] = useState('');
   const [asThomasIliopsoasE, setAsThomasIliopsoasE] = useState('');
   const [asThomasRetofemoralD, setAsThomasRetofemoralD] = useState('');
@@ -2399,6 +2372,52 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         let imc = 0;
         if (p > 0 && a > 0) imc = parseFloat((p / (a * a)).toFixed(2));
 
+        const hasAnyGonio = Object.values(asGonio || {}).some((v: any) => 
+          (v?.semForca !== '' && v?.semForca !== null && v?.semForca !== undefined) ||
+          (v?.comForca !== '' && v?.comForca !== null && v?.comForca !== undefined)
+        );
+        const draftGonio = hasAnyGonio ? asGonio : {};
+
+        const hasAnySpecialTest = 
+          Boolean(asOberD && asOberD.trim() !== '') ||
+          Boolean(asOberE && asOberE.trim() !== '') ||
+          Boolean(asThomasIliopsoasDStatus && asThomasIliopsoasDStatus.trim() !== '') ||
+          Boolean(asThomasIliopsoasEStatus && asThomasIliopsoasEStatus.trim() !== '') ||
+          Boolean(asThomasRetofemoralDStatus && asThomasRetofemoralDStatus.trim() !== '') ||
+          Boolean(asThomasRetofemoralEStatus && asThomasRetofemoralEStatus.trim() !== '') ||
+          (asTermografiaRealizou === 'sim' && Boolean(asTermografia && asTermografia.trim() !== '')) ||
+          (asYTestRealizou === 'sim') ||
+          (asStepDownRealizou === 'sim') ||
+          (asMaigneRealizou === 'sim');
+
+        const draftTestesEspeciais: Record<string, any> = {};
+        if (hasAnySpecialTest) {
+          if (asOberD) draftTestesEspeciais.oberD = asOberD;
+          if (asOberE) draftTestesEspeciais.oberE = asOberE;
+          if (asThomasIliopsoasDStatus) {
+            draftTestesEspeciais.thomasIliopsoasDStatus = asThomasIliopsoasDStatus;
+            draftTestesEspeciais.thomasD = asThomasIliopsoasDStatus;
+            if (asThomasIliopsoasDStatus === 'Positivo') draftTestesEspeciais.thomasIliopsoasD = parseFloat(asThomasIliopsoasD) || null;
+          }
+          if (asThomasIliopsoasEStatus) {
+            draftTestesEspeciais.thomasIliopsoasEStatus = asThomasIliopsoasEStatus;
+            draftTestesEspeciais.thomasE = asThomasIliopsoasEStatus;
+            if (asThomasIliopsoasEStatus === 'Positivo') draftTestesEspeciais.thomasIliopsoasE = parseFloat(asThomasIliopsoasE) || null;
+          }
+          if (asThomasRetofemoralDStatus) {
+            draftTestesEspeciais.thomasRetofemoralDStatus = asThomasRetofemoralDStatus;
+            if (asThomasRetofemoralDStatus === 'Positivo') draftTestesEspeciais.thomasRetofemoralD = parseFloat(asThomasRetofemoralD) || null;
+          }
+          if (asThomasRetofemoralEStatus) {
+            draftTestesEspeciais.thomasRetofemoralEStatus = asThomasRetofemoralEStatus;
+            if (asThomasRetofemoralEStatus === 'Positivo') draftTestesEspeciais.thomasRetofemoralE = parseFloat(asThomasRetofemoralE) || null;
+          }
+          if (asTermografiaRealizou === 'sim' && asTermografia) draftTestesEspeciais.termografia = asTermografia;
+          if (asYTestRealizou === 'sim' && asYTest) draftTestesEspeciais.yTest = asYTest;
+          if (asStepDownRealizou === 'sim' && asStepDown) draftTestesEspeciais.stepDown = asStepDown;
+          if (asMaigneRealizou === 'sim') draftTestesEspeciais.maigne = JSON.stringify({ ...asMaigneData, observacoes: asMaigne });
+        }
+
         const payload = {
           draftId: activeDraftId,
           clienteId: asClient,
@@ -2428,25 +2447,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             dobrasReadings: asDobrasReadings,
             somaDobras: asSomaDobras,
             percentil: 50,
-            goniometria: asGonio,
-            testesEspeciais: {
-              oberD: asOberD,
-              oberE: asOberE,
-              thomasD: asThomasIliopsoasDStatus,
-              thomasE: asThomasIliopsoasEStatus,
-              thomasIliopsoasDStatus: asThomasIliopsoasDStatus,
-              thomasIliopsoasEStatus: asThomasIliopsoasEStatus,
-              thomasRetofemoralDStatus: asThomasRetofemoralDStatus,
-              thomasRetofemoralEStatus: asThomasRetofemoralEStatus,
-              thomasIliopsoasD: asThomasIliopsoasDStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasD) || null) : null,
-              thomasIliopsoasE: asThomasIliopsoasEStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
-              thomasRetofemoralD: asThomasRetofemoralDStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
-              thomasRetofemoralE: asThomasRetofemoralEStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
-              termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
-              yTest: asYTestRealizou === 'sim' ? asYTest : '',
-              stepDown: asStepDownRealizou === 'sim' ? asStepDown : '',
-              maigne: asMaigneRealizou === 'sim' ? JSON.stringify({ ...asMaigneData, observacoes: asMaigne }) : ''
-            },
+            goniometria: draftGonio,
+            testesEspeciais: draftTestesEspeciais,
             postura: asPostura
           },
           resultadosCalculados: {
@@ -3335,179 +3337,53 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           });
         }
 
-        if (latest.dadosMedidos?.goniometria) {
-          const g = latest.dadosMedidos.goniometria;
-          const mappedGonio: any = {};
-          const keys = [
-            'quadrilFlexao1D', 'quadrilFlexao1E', 'quadrilFlexao2D', 'quadrilFlexao2E',
-            'quadrilRotIntD', 'quadrilRotIntE', 'quadrilRotExtD', 'quadrilRotExtE',
-            'joelhoFlexaoD', 'joelhoFlexaoE', 'joelhoPopliteoD', 'joelhoPopliteoE',
-            'tornozeloDorsi1D', 'tornozeloDorsi1E', 'tornozeloDorsi2D', 'tornozeloDorsi2E',
-            'tornozeloFlexaoPlantarD', 'tornozeloFlexaoPlantarE', 'ombroRotIntD', 'ombroRotIntE',
-            'ombroRotExtD', 'ombroRotExtE', 'ombroFlexaoD', 'ombroFlexaoE', 'ombroAbducaoD', 'ombroAbducaoE'
-          ];
-          keys.forEach(k => {
-            let val = g[k];
-            let mapKey = k;
-            if (k === 'ombroAbducaoD') mapKey = 'ombroFlexaoD';
-            if (k === 'ombroAbducaoE') mapKey = 'ombroFlexaoE';
-            const parsed = parseGonioValue(val);
-            mappedGonio[mapKey] = parsed;
-            if (parsed.semForca !== '' || parsed.comForca !== '') {
-              mark('gonio.' + mapKey);
-            }
-          });
-          setAsGonio(mappedGonio);
-        }
-
-        if (latest.dadosMedidos?.testesEspeciais) {
-          setAsOberD(latest.dadosMedidos.testesEspeciais.oberD || 'Negativo');
-          setAsOberE(latest.dadosMedidos.testesEspeciais.oberE || 'Negativo');
-          const te = latest.dadosMedidos.testesEspeciais;
-          const defaultIlioD = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
-          const defaultIlioE = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
-          const defaultRetoD = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
-          const defaultRetoE = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
-
-          setAsThomasIliopsoasDStatus(defaultIlioD);
-          setAsThomasIliopsoasEStatus(defaultIlioE);
-          setAsThomasRetofemoralDStatus(defaultRetoD);
-          setAsThomasRetofemoralEStatus(defaultRetoE);
-          setAsThomasIliopsoasD(te.thomasIliopsoasD?.toString() || '');
-          setAsThomasIliopsoasE(te.thomasIliopsoasE?.toString() || '');
-          setAsThomasRetofemoralD(te.thomasRetofemoralD?.toString() || '');
-          setAsThomasRetofemoralE(te.thomasRetofemoralE?.toString() || '');
-          setAsTermografia(latest.dadosMedidos.testesEspeciais.termografia || '');
-          setAsTermografiaRealizou(latest.dadosMedidos.testesEspeciais.termografia && latest.dadosMedidos.testesEspeciais.termografia.trim() !== '' ? 'sim' : 'nao');
-          
-          const yVal = latest.dadosMedidos.testesEspeciais.yTest || '';
-          if (yVal && yVal.startsWith('{')) {
-            try {
-              const parsed = JSON.parse(yVal);
-              setAsYTestRealizou(parsed.realizou || 'sim');
-              setAsYLenD(parsed.direita?.comprimentoMembro ?? '');
-              setAsYLenE(parsed.esquerda?.comprimentoMembro ?? '');
-              setAsYAntD(parsed.direita?.anterior ?? '');
-              const antDT = parsed.direita?.anteriorTentativas || (parsed.direita?.anterior ? [parsed.direita.anterior, '', ''] : ['', '', '']);
-              setAsYAntD1(antDT[0] ?? ''); setAsYAntD2(antDT[1] ?? ''); setAsYAntD3(antDT[2] ?? '');
-
-              setAsYPMD(parsed.direita?.posteromedial ?? '');
-              const pmDT = parsed.direita?.posteromedialTentativas || (parsed.direita?.posteromedial ? [parsed.direita.posteromedial, '', ''] : ['', '', '']);
-              setAsYPMD1(pmDT[0] ?? ''); setAsYPMD2(pmDT[1] ?? ''); setAsYPMD3(pmDT[2] ?? '');
-
-              setAsYPLD(parsed.direita?.posterolateral ?? '');
-              const plDT = parsed.direita?.posterolateralTentativas || (parsed.direita?.posterolateral ? [parsed.direita.posterolateral, '', ''] : ['', '', '']);
-              setAsYPLD1(plDT[0] ?? ''); setAsYPLD2(plDT[1] ?? ''); setAsYPLD3(plDT[2] ?? '');
-
-              setAsYAntE(parsed.esquerda?.anterior ?? '');
-              const antET = parsed.esquerda?.anteriorTentativas || (parsed.esquerda?.anterior ? [parsed.esquerda.anterior, '', ''] : ['', '', '']);
-              setAsYAntE1(antET[0] ?? ''); setAsYAntE2(antET[1] ?? ''); setAsYAntE3(antET[2] ?? '');
-
-              setAsYPME(parsed.esquerda?.posteromedial ?? '');
-              const pmET = parsed.esquerda?.posteromedialTentativas || (parsed.esquerda?.posteromedial ? [parsed.esquerda.posteromedial, '', ''] : ['', '', '']);
-              setAsYPME1(pmET[0] ?? ''); setAsYPME2(pmET[1] ?? ''); setAsYPME3(pmET[2] ?? '');
-
-              setAsYPLE(parsed.esquerda?.posterolateral ?? '');
-              const plET = parsed.esquerda?.posterolateralTentativas || (parsed.esquerda?.posterolateral ? [parsed.esquerda.posterolateral, '', ''] : ['', '', '']);
-              setAsYPLE1(plET[0] ?? ''); setAsYPLE2(plET[1] ?? ''); setAsYPLE3(plET[2] ?? '');
-
-              setAsYTest('');
-            } catch (err) {
-              console.error(err);
-            }
-          } else {
-            setAsYTest(yVal);
-            setAsYTestRealizou(yVal && yVal.trim() !== '' ? 'sim' : 'nao');
-            setAsYLenD(''); setAsYLenE('');
-            setAsYAntD(''); setAsYAntD1(''); setAsYAntD2(''); setAsYAntD3('');
-            setAsYPMD(''); setAsYPMD1(''); setAsYPMD2(''); setAsYPMD3('');
-            setAsYPLD(''); setAsYPLD1(''); setAsYPLD2(''); setAsYPLD3('');
-            setAsYAntE(''); setAsYAntE1(''); setAsYAntE2(''); setAsYAntE3('');
-            setAsYPME(''); setAsYPME1(''); setAsYPME2(''); setAsYPME3('');
-            setAsYPLE(''); setAsYPLE1(''); setAsYPLE2(''); setAsYPLE3('');
-          }
-
-          const sdVal = latest.dadosMedidos.testesEspeciais.stepDown || '';
-          if (sdVal && sdVal.startsWith('{')) {
-            try {
-              const parsed = JSON.parse(sdVal);
-              setAsStepDownRealizou(parsed.realizou || 'sim');
-              setAsSdPelvicaD(parsed.quedaPelvicaD !== undefined ? parsed.quedaPelvicaD : (parsed.quedaPelvica ?? ''));
-              setAsSdPelvicaE(parsed.quedaPelvicaE !== undefined ? parsed.quedaPelvicaE : (parsed.quedaPelvica ?? ''));
-              setAsSdAducaoD(parsed.aducaoQuadrilD !== undefined ? parsed.aducaoQuadrilD : (parsed.aducaoQuadril ?? ''));
-              setAsSdAducaoE(parsed.aducaoQuadrilE !== undefined ? parsed.aducaoQuadrilE : (parsed.aducaoQuadril ?? ''));
-              setAsSdValgoD(parsed.valgoDinamicoJoelhoD !== undefined ? parsed.valgoDinamicoJoelhoD : (parsed.valgoDinamicoJoelho ?? ''));
-              setAsSdValgoE(parsed.valgoDinamicoJoelhoE !== undefined ? parsed.valgoDinamicoJoelhoE : (parsed.valgoDinamicoJoelho ?? ''));
-              setAsSdVaroD(parsed.varoJoelhoD !== undefined ? parsed.varoJoelhoD : (parsed.varoJoelho ?? ''));
-              setAsSdVaroE(parsed.varoJoelhoE !== undefined ? parsed.varoJoelhoE : (parsed.varoJoelho ?? ''));
-              setAsSdPrpsD(parsed.compExcentricoPrpsD !== undefined ? parsed.compExcentricoPrpsD : (parsed.compExcentricoPrps ?? ''));
-              setAsSdPrpsE(parsed.compExcentricoPrpsE !== undefined ? parsed.compExcentricoPrpsE : (parsed.compExcentricoPrps ?? ''));
-              setAsStepDown('');
-            } catch (err) {
-              console.error(err);
-            }
-          } else {
-            setAsStepDown(sdVal);
-            setAsStepDownRealizou(sdVal && sdVal.trim() !== '' ? 'sim' : 'nao');
-            setAsSdPelvicaD(''); setAsSdPelvicaE('');
-            setAsSdAducaoD(''); setAsSdAducaoE('');
-            setAsSdValgoD(''); setAsSdValgoE('');
-            setAsSdVaroD(''); setAsSdVaroE('');
-            setAsSdPrpsD(''); setAsSdPrpsE('');
-          }
-          const maigneVal = latest.dadosMedidos.testesEspeciais.maigne || '';
-          try {
-            if (maigneVal && maigneVal.startsWith('{')) {
-              const parsed = JSON.parse(maigneVal);
-              const isDefault =
-                (parsed.flexao === undefined || parsed.flexao === 25) &&
-                (parsed.flexaoEVA === undefined || parsed.flexaoEVA === 0) &&
-                (parsed.extensao === undefined || parsed.extensao === 25) &&
-                (parsed.extensaoEVA === undefined || parsed.extensaoEVA === 0) &&
-                (parsed.inclinacaoD === undefined || parsed.inclinacaoD === 25) &&
-                (parsed.inclinacaoDEVA === undefined || parsed.inclinacaoDEVA === 0) &&
-                (parsed.inclinacaoE === undefined || parsed.inclinacaoE === 25) &&
-                (parsed.inclinacaoEEVA === undefined || parsed.inclinacaoEEVA === 0) &&
-                (parsed.rotacaoD === undefined || parsed.rotacaoD === 25) &&
-                (parsed.rotacaoDEVA === undefined || parsed.rotacaoDEVA === 0) &&
-                (parsed.rotacaoE === undefined || parsed.rotacaoE === 25) &&
-                (parsed.rotacaoEEVA === undefined || parsed.rotacaoEEVA === 0) &&
-                (!parsed.observacoes || parsed.observacoes.trim() === '');
-              setAsMaigneRealizou(isDefault ? 'nao' : 'sim');
-
-              setAsMaigneData({
-                flexao: parsed.flexao !== undefined ? Number(parsed.flexao) : 25,
-                flexaoEVA: parsed.flexaoEVA !== undefined ? Number(parsed.flexaoEVA) : 0,
-                extensao: parsed.extensao !== undefined ? Number(parsed.extensao) : 25,
-                extensaoEVA: parsed.extensaoEVA !== undefined ? Number(parsed.extensaoEVA) : 0,
-                inclinacaoD: parsed.inclinacaoD !== undefined ? Number(parsed.inclinacaoD) : 25,
-                inclinacaoDEVA: parsed.inclinacaoDEVA !== undefined ? Number(parsed.inclinacaoDEVA) : 0,
-                inclinacaoE: parsed.inclinacaoE !== undefined ? Number(parsed.inclinacaoE) : 25,
-                inclinacaoEEVA: parsed.inclinacaoEEVA !== undefined ? Number(parsed.inclinacaoEEVA) : 0,
-                rotacaoD: parsed.rotacaoD !== undefined ? Number(parsed.rotacaoD) : 25,
-                rotacaoDEVA: parsed.rotacaoDEVA !== undefined ? Number(parsed.rotacaoDEVA) : 0,
-                rotacaoE: parsed.rotacaoE !== undefined ? Number(parsed.rotacaoE) : 25,
-                rotacaoEEVA: parsed.rotacaoEEVA !== undefined ? Number(parsed.rotacaoEEVA) : 0
-              });
-              setAsMaigne(parsed.observacoes || '');
-            } else {
-              setAsMaigneRealizou(maigneVal.trim().length > 0 ? 'sim' : 'nao');
-              setAsMaigne(maigneVal);
-              setAsMaigneData({
-                flexao: 25, flexaoEVA: 0,
-                extensao: 25, extensaoEVA: 0,
-                inclinacaoD: 25, inclinacaoDEVA: 0,
-                inclinacaoE: 25, inclinacaoEEVA: 0,
-                rotacaoD: 25, rotacaoDEVA: 0,
-                rotacaoE: 25, rotacaoEEVA: 0
-              });
-            }
-          } catch (e) {
-            console.error('Error parsing Maigne:', e);
-            setAsMaigneRealizou(maigneVal.trim().length > 0 ? 'sim' : 'nao');
-            setAsMaigne(maigneVal);
-          }
-        }
+        // Medições clínicas (Goniometria e Testes Especiais) NUNCA são clonadas automaticamente da avaliação anterior.
+        // Diretriz da clínica: "Prefiro em branco do que falso".
+        // O profissional preenche apenas o que mediu hoje ou usa os botões manuais "Manter" se julgar pertinente.
+        setAsGonio({
+          quadrilFlexao1D: { semForca: '', comForca: '' },
+          quadrilFlexao1E: { semForca: '', comForca: '' },
+          quadrilFlexao2D: { semForca: '', comForca: '' },
+          quadrilFlexao2E: { semForca: '', comForca: '' },
+          quadrilRotIntD: { semForca: '', comForca: '' },
+          quadrilRotIntE: { semForca: '', comForca: '' },
+          quadrilRotExtD: { semForca: '', comForca: '' },
+          quadrilRotExtE: { semForca: '', comForca: '' },
+          joelhoFlexaoD: { semForca: '', comForca: '' },
+          joelhoFlexaoE: { semForca: '', comForca: '' },
+          joelhoPopliteoD: { semForca: '', comForca: '' },
+          joelhoPopliteoE: { semForca: '', comForca: '' },
+          tornozeloDorsi1D: { semForca: '', comForca: '' },
+          tornozeloDorsi1E: { semForca: '', comForca: '' },
+          tornozeloDorsi2D: { semForca: '', comForca: '' },
+          tornozeloDorsi2E: { semForca: '', comForca: '' },
+          tornozeloFlexaoPlantarD: { semForca: '', comForca: '' },
+          tornozeloFlexaoPlantarE: { semForca: '', comForca: '' },
+          ombroRotIntD: { semForca: '', comForca: '' },
+          ombroRotIntE: { semForca: '', comForca: '' },
+          ombroRotExtD: { semForca: '', comForca: '' },
+          ombroRotExtE: { semForca: '', comForca: '' },
+          ombroFlexaoD: { semForca: '', comForca: '' },
+          ombroFlexaoE: { semForca: '', comForca: '' }
+        });
+        setAsOberD('');
+        setAsOberE('');
+        setAsThomasIliopsoasDStatus('');
+        setAsThomasIliopsoasEStatus('');
+        setAsThomasRetofemoralDStatus('');
+        setAsThomasRetofemoralEStatus('');
+        setAsThomasIliopsoasD('');
+        setAsThomasIliopsoasE('');
+        setAsThomasRetofemoralD('');
+        setAsThomasRetofemoralE('');
+        setAsTermografia('');
+        setAsTermografiaRealizou('nao');
+        setAsYTest('');
+        setAsYTestRealizou('nao');
+        setAsStepDown('');
+        setAsStepDownRealizou('nao');
+        setAsMaigne('');
+        setAsMaigneRealizou('nao');
 
         setAsPostura(latest.dadosMedidos?.postura || 'Nenhum desvio importante');
         if (latest.metas?.objetivo2Meses) {
@@ -4128,6 +4004,95 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         });
       }
 
+      // Sanitização estrita: "Prefiro em branco do que falso"
+      const hasAnyGonio = Object.values(asGonio || {}).some((v: any) => 
+        (v?.semForca !== '' && v?.semForca !== null && v?.semForca !== undefined) ||
+        (v?.comForca !== '' && v?.comForca !== null && v?.comForca !== undefined)
+      );
+      const finalGonio = hasAnyGonio ? asGonio : {};
+
+      const hasAnySpecialTest = 
+        Boolean(asOberD && asOberD.trim() !== '') ||
+        Boolean(asOberE && asOberE.trim() !== '') ||
+        Boolean(asThomasIliopsoasDStatus && asThomasIliopsoasDStatus.trim() !== '') ||
+        Boolean(asThomasIliopsoasEStatus && asThomasIliopsoasEStatus.trim() !== '') ||
+        Boolean(asThomasRetofemoralDStatus && asThomasRetofemoralDStatus.trim() !== '') ||
+        Boolean(asThomasRetofemoralEStatus && asThomasRetofemoralEStatus.trim() !== '') ||
+        (asTermografiaRealizou === 'sim' && Boolean(asTermografia && asTermografia.trim() !== '')) ||
+        (asYTestRealizou === 'sim') ||
+        (asStepDownRealizou === 'sim') ||
+        (asMaigneRealizou === 'sim');
+
+      const finalTestesEspeciais: Record<string, any> = {};
+      if (hasAnySpecialTest) {
+        if (asOberD) finalTestesEspeciais.oberD = asOberD;
+        if (asOberE) finalTestesEspeciais.oberE = asOberE;
+        if (asThomasIliopsoasDStatus) {
+          finalTestesEspeciais.thomasIliopsoasDStatus = asThomasIliopsoasDStatus;
+          finalTestesEspeciais.thomasD = asThomasIliopsoasDStatus;
+          if (asThomasIliopsoasDStatus === 'Positivo') finalTestesEspeciais.thomasIliopsoasD = parseFloat(asThomasIliopsoasD) || null;
+        }
+        if (asThomasIliopsoasEStatus) {
+          finalTestesEspeciais.thomasIliopsoasEStatus = asThomasIliopsoasEStatus;
+          finalTestesEspeciais.thomasE = asThomasIliopsoasEStatus;
+          if (asThomasIliopsoasEStatus === 'Positivo') finalTestesEspeciais.thomasIliopsoasE = parseFloat(asThomasIliopsoasE) || null;
+        }
+        if (asThomasRetofemoralDStatus) {
+          finalTestesEspeciais.thomasRetofemoralDStatus = asThomasRetofemoralDStatus;
+          if (asThomasRetofemoralDStatus === 'Positivo') finalTestesEspeciais.thomasRetofemoralD = parseFloat(asThomasRetofemoralD) || null;
+        }
+        if (asThomasRetofemoralEStatus) {
+          finalTestesEspeciais.thomasRetofemoralEStatus = asThomasRetofemoralEStatus;
+          if (asThomasRetofemoralEStatus === 'Positivo') finalTestesEspeciais.thomasRetofemoralE = parseFloat(asThomasRetofemoralE) || null;
+        }
+        if (asTermografiaRealizou === 'sim' && asTermografia) finalTestesEspeciais.termografia = asTermografia;
+        if (asYTestRealizou === 'sim') {
+          finalTestesEspeciais.yTest = (asYLenD !== '' || asYAntD !== '' || asYAntD1 !== '')
+            ? JSON.stringify({
+                realizou: 'sim',
+                direita: {
+                  comprimentoMembro: Number(asYLenD) || 0,
+                  anterior: Number(asYAntD) || 0,
+                  anteriorTentativas: [asYAntD1, asYAntD2, asYAntD3].map(v => Number(v) || 0),
+                  posteromedial: Number(asYPMD) || 0,
+                  posteromedialTentativas: [asYPMD1, asYPMD2, asYPMD3].map(v => Number(v) || 0),
+                  posterolateral: Number(asYPLD) || 0,
+                  posterolateralTentativas: [asYPLD1, asYPLD2, asYPLD3].map(v => Number(v) || 0)
+                },
+                esquerda: {
+                  comprimentoMembro: Number(asYLenE) || 0,
+                  anterior: Number(asYAntE) || 0,
+                  anteriorTentativas: [asYAntE1, asYAntE2, asYAntE3].map(v => Number(v) || 0),
+                  posteromedial: Number(asYPME) || 0,
+                  posteromedialTentativas: [asYPME1, asYPME2, asYPME3].map(v => Number(v) || 0),
+                  posterolateral: Number(asYPLE) || 0,
+                  posterolateralTentativas: [asYPLE1, asYPLE2, asYPLE3].map(v => Number(v) || 0)
+                }
+              })
+            : asYTest;
+        }
+        if (asStepDownRealizou === 'sim') {
+          finalTestesEspeciais.stepDown = (asSdPelvicaD !== '' || asSdPelvicaE !== '' || asSdAducaoD !== '' || asSdAducaoE !== '' || asSdValgoD !== '' || asSdValgoE !== '' || asSdVaroD !== '' || asSdVaroE !== '' || asSdPrpsD !== '' || asSdPrpsE !== '')
+            ? JSON.stringify({
+                realizou: 'sim',
+                quedaPelvicaD: Number(asSdPelvicaD) || 0,
+                quedaPelvicaE: Number(asSdPelvicaE) || 0,
+                aducaoQuadrilD: Number(asSdAducaoD) || 0,
+                aducaoQuadrilE: Number(asSdAducaoE) || 0,
+                valgoDinamicoJoelhoD: Number(asSdValgoD) || 0,
+                valgoDinamicoJoelhoE: Number(asSdValgoE) || 0,
+                varoJoelhoD: Number(asSdVaroD) || 0,
+                varoJoelhoE: Number(asSdVaroE) || 0,
+                compExcentricoPrpsD: Number(asSdPrpsD) || 0,
+                compExcentricoPrpsE: Number(asSdPrpsE) || 0
+              })
+            : asStepDown;
+        }
+        if (asMaigneRealizou === 'sim') {
+          finalTestesEspeciais.maigne = JSON.stringify({ ...asMaigneData, observacoes: asMaigne });
+        }
+      }
+
       const payload = {
         clienteId: asClient,
         avaliadorId: asAvaliador || '6668ab030303030303030302',
@@ -4167,7 +4132,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             panturrilhaD: Number(asCirc.panturrilhaD),
             panturrilhaE: Number(asCirc.panturrilhaE)
           },
-dobras: {
+          dobras: {
             peitoral: Number(asDobras.peitoral) || 0,
             triceps: Number(asDobras.triceps) || 0,
             subescapular: Number(asDobras.subescapular) || 0,
@@ -4180,90 +4145,8 @@ dobras: {
           dobrasReadings: asDobrasReadings,
           somaDobras: asSomaDobras,
           percentil: 50,
-goniometria: {
-            quadrilFlexao1D: asGonio.quadrilFlexao1D,
-            quadrilFlexao1E: asGonio.quadrilFlexao1E,
-            quadrilFlexao2D: asGonio.quadrilFlexao2D,
-            quadrilFlexao2E: asGonio.quadrilFlexao2E,
-            quadrilRotIntD: asGonio.quadrilRotIntD,
-            quadrilRotIntE: asGonio.quadrilRotIntE,
-            quadrilRotExtD: asGonio.quadrilRotExtD,
-            quadrilRotExtE: asGonio.quadrilRotExtE,
-            joelhoFlexaoD: asGonio.joelhoFlexaoD,
-            joelhoFlexaoE: asGonio.joelhoFlexaoE,
-            joelhoPopliteoD: asGonio.joelhoPopliteoD,
-            joelhoPopliteoE: asGonio.joelhoPopliteoE,
-            tornozeloDorsi1D: asGonio.tornozeloDorsi1D,
-            tornozeloDorsi1E: asGonio.tornozeloDorsi1E,
-            tornozeloDorsi2D: asGonio.tornozeloDorsi2D,
-            tornozeloDorsi2E: asGonio.tornozeloDorsi2E,
-            tornozeloFlexaoPlantarD: asGonio.tornozeloFlexaoPlantarD,
-            tornozeloFlexaoPlantarE: asGonio.tornozeloFlexaoPlantarE,
-            ombroRotIntD: asGonio.ombroRotIntD,
-            ombroRotIntE: asGonio.ombroRotIntE,
-            ombroRotExtD: asGonio.ombroRotExtD,
-            ombroRotExtE: asGonio.ombroRotExtE,
-            ombroFlexaoD: asGonio.ombroFlexaoD,
-            ombroFlexaoE: asGonio.ombroFlexaoE
-          },
-          testesEspeciais: {
-            oberD: asOberD,
-            oberE: asOberE,
-            thomasD: asThomasIliopsoasDStatus,
-            thomasE: asThomasIliopsoasEStatus,
-            thomasIliopsoasDStatus: asThomasIliopsoasDStatus,
-            thomasIliopsoasEStatus: asThomasIliopsoasEStatus,
-            thomasRetofemoralDStatus: asThomasRetofemoralDStatus,
-            thomasRetofemoralEStatus: asThomasRetofemoralEStatus,
-            thomasIliopsoasD: asThomasIliopsoasDStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasD) || null) : null,
-            thomasIliopsoasE: asThomasIliopsoasEStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
-            thomasRetofemoralD: asThomasRetofemoralDStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
-            thomasRetofemoralE: asThomasRetofemoralEStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
-            termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
-            yTest: asYTestRealizou === 'sim'
-              ? (asYLenD !== '' || asYAntD !== '' || asYAntD1 !== ''
-                  ? JSON.stringify({
-                      realizou: 'sim',
-                      direita: {
-                        comprimentoMembro: Number(asYLenD) || 0,
-                        anterior: Number(asYAntD) || 0,
-                        anteriorTentativas: [asYAntD1, asYAntD2, asYAntD3].map(v => Number(v) || 0),
-                        posteromedial: Number(asYPMD) || 0,
-                        posteromedialTentativas: [asYPMD1, asYPMD2, asYPMD3].map(v => Number(v) || 0),
-                        posterolateral: Number(asYPLD) || 0,
-                        posterolateralTentativas: [asYPLD1, asYPLD2, asYPLD3].map(v => Number(v) || 0)
-                      },
-                      esquerda: {
-                        comprimentoMembro: Number(asYLenE) || 0,
-                        anterior: Number(asYAntE) || 0,
-                        anteriorTentativas: [asYAntE1, asYAntE2, asYAntE3].map(v => Number(v) || 0),
-                        posteromedial: Number(asYPME) || 0,
-                        posteromedialTentativas: [asYPME1, asYPME2, asYPME3].map(v => Number(v) || 0),
-                        posterolateral: Number(asYPLE) || 0,
-                        posterolateralTentativas: [asYPLE1, asYPLE2, asYPLE3].map(v => Number(v) || 0)
-                      }
-                    })
-                  : asYTest)
-              : '',
-            stepDown: asStepDownRealizou === 'sim'
-              ? (asSdPelvicaD !== '' || asSdPelvicaE !== '' || asSdAducaoD !== '' || asSdAducaoE !== '' || asSdValgoD !== '' || asSdValgoE !== '' || asSdVaroD !== '' || asSdVaroE !== '' || asSdPrpsD !== '' || asSdPrpsE !== ''
-                  ? JSON.stringify({
-                      realizou: 'sim',
-                      quedaPelvicaD: Number(asSdPelvicaD) || 0,
-                      quedaPelvicaE: Number(asSdPelvicaE) || 0,
-                      aducaoQuadrilD: Number(asSdAducaoD) || 0,
-                      aducaoQuadrilE: Number(asSdAducaoE) || 0,
-                      valgoDinamicoJoelhoD: Number(asSdValgoD) || 0,
-                      valgoDinamicoJoelhoE: Number(asSdValgoE) || 0,
-                      varoJoelhoD: Number(asSdVaroD) || 0,
-                      varoJoelhoE: Number(asSdVaroE) || 0,
-                      compExcentricoPrpsD: Number(asSdPrpsD) || 0,
-                      compExcentricoPrpsE: Number(asSdPrpsE) || 0
-                    })
-                  : asStepDown)
-              : '',
-            maigne: asMaigneRealizou === 'sim' ? JSON.stringify({ ...asMaigneData, observacoes: asMaigne }) : ''
-          },
+          goniometria: finalGonio,
+          testesEspeciais: finalTestesEspeciais,
           flexibilidade: '',
           postura: asPostura
         },
@@ -13377,6 +13260,7 @@ goniometria: {
                           <div style={{ flex: 1 }}>
                             <label>Lado Direito</label>
                             <select className="form-control form-control-sm" value={asOberD} onChange={e => setAsOberD(e.target.value)}>
+                              <option value="">Não avaliado</option>
                               <option value="Negativo">Negativo</option>
                               <option value="Positivo">Positivo</option>
                             </select>
@@ -13384,6 +13268,7 @@ goniometria: {
                           <div style={{ flex: 1 }}>
                             <label>Lado Esquerdo</label>
                             <select className="form-control form-control-sm" value={asOberE} onChange={e => setAsOberE(e.target.value)}>
+                              <option value="">Não avaliado</option>
                               <option value="Negativo">Negativo</option>
                               <option value="Positivo">Positivo</option>
                             </select>
@@ -13421,6 +13306,7 @@ goniometria: {
                             <div style={{ flex: 1 }}>
                               <label>Lado Direito</label>
                               <select className="form-control form-control-sm" value={asThomasIliopsoasDStatus} onChange={e => setAsThomasIliopsoasDStatus(e.target.value)}>
+                                <option value="">Não avaliado</option>
                                 <option value="Negativo">Negativo</option>
                                 <option value="Positivo">Positivo</option>
                               </select>
@@ -13428,6 +13314,7 @@ goniometria: {
                             <div style={{ flex: 1 }}>
                               <label>Lado Esquerdo</label>
                               <select className="form-control form-control-sm" value={asThomasIliopsoasEStatus} onChange={e => setAsThomasIliopsoasEStatus(e.target.value)}>
+                                <option value="">Não avaliado</option>
                                 <option value="Negativo">Negativo</option>
                                 <option value="Positivo">Positivo</option>
                               </select>
@@ -13482,6 +13369,7 @@ goniometria: {
                             <div style={{ flex: 1 }}>
                               <label>Lado Direito</label>
                               <select className="form-control form-control-sm" value={asThomasRetofemoralDStatus} onChange={e => setAsThomasRetofemoralDStatus(e.target.value)}>
+                                <option value="">Não avaliado</option>
                                 <option value="Negativo">Negativo</option>
                                 <option value="Positivo">Positivo</option>
                               </select>
@@ -13489,6 +13377,7 @@ goniometria: {
                             <div style={{ flex: 1 }}>
                               <label>Lado Esquerdo</label>
                               <select className="form-control form-control-sm" value={asThomasRetofemoralEStatus} onChange={e => setAsThomasRetofemoralEStatus(e.target.value)}>
+                                <option value="">Não avaliado</option>
                                 <option value="Negativo">Negativo</option>
                                 <option value="Positivo">Positivo</option>
                               </select>

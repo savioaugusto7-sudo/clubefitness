@@ -93,3 +93,4 @@ export const SYMMETRY_LEGEND_HTML = `
     </span>
   </div>
 `;
+
