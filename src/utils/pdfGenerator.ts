@@ -1179,6 +1179,8 @@ export async function downloadReportPDF(report: any) {
     </style>
   `;
 
+  const conteudo = report.conteudo || {};
+
   if (!report.anamnese) {
     pdfContainer.innerHTML = `
       ${pdfStyles}
@@ -1224,39 +1226,39 @@ export async function downloadReportPDF(report: any) {
             <div style="margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
               <div>
                 <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Queixa Principal Relatada:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.queixaPrincipal}</div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${conteudo.queixaPrincipal || '-'}</div>
               </div>
               <div>
                 <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Dor Estimada (Escala EVA):</span>
-                <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-weight: 800; color: #b91c1c; font-size: 11px;">${report.conteudo.dorEscala} / 10</div>
+                <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-weight: 800; color: #b91c1c; font-size: 11px;">${conteudo.dorEscala ?? 0} / 10</div>
               </div>
             </div>
 
-            ${report.conteudo.adm ? `
+            ${conteudo.adm ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Amplitude de Movimento (ADM):</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.adm}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${conteudo.adm}</div>
             </div>
             ` : ''}
 
-            ${report.conteudo.testes ? `
+            ${conteudo.testes ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Testes Clínicos Realizados:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.testes}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${conteudo.testes}</div>
             </div>
             ` : ''}
 
-            ${report.conteudo.conduta ? `
+            ${conteudo.conduta ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Conduta / Intervenção Realizada em Sessão:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${conteudo.conduta}</div>
             </div>
             ` : ''}
 
-            ${report.conteudo.exercicios ? `
+            ${conteudo.exercicios ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Prescrição de Autocuidado / Exercícios domiciliares:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.exercicios}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${conteudo.exercicios}</div>
             </div>
             ` : ''}
           </div>
@@ -1273,13 +1275,16 @@ export async function downloadReportPDF(report: any) {
       ${accumulativeEvolutionHtml}
     `;
   } else {
-    const h = report.anamnese.historico;
-    const hb = report.anamnese.habitos;
-    const g = report.goniometria;
-    const te = report.testesEspeciais;
-    const tImg = report.termografia;
-    const ex = report.examesComplementares || [];
-    const ort = report.testesOrtopedicos;
+    const h = report.anamnese?.historico || {};
+    const hb = report.anamnese?.habitos || {};
+    const g = report.goniometria || {};
+    const te = report.testesEspeciais || {};
+    const tImg = report.termografia || {};
+    const ex = Array.isArray(report.examesComplementares) ? report.examesComplementares : [];
+    const ort = report.testesOrtopedicos || {};
+    const rawQueixas = Array.isArray(report.anamnese?.queixas)
+      ? report.anamnese.queixas
+      : (Array.isArray(report.anamnese?.queixasDor) ? report.anamnese.queixasDor : []);
 
     const rawCustomTests = (te && Array.isArray(te.customTests)) 
       ? te.customTests 
@@ -1306,46 +1311,46 @@ export async function downloadReportPDF(report: any) {
     const hasStepDown = ort.stepDown && ort.stepDown.realizou === 'sim';
     const hasDE = ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim';
 
-    let queixasHtml = report.anamnese.queixas.map((q: any, idx: number) => `
+    let queixasHtml = rawQueixas.map((q: any, idx: number) => `
       <div class="section-card" style="margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;">
         <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight: 700; color: #0d9488; text-transform: uppercase;">
             ${idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
           </span>
-          <span class="metric-badge badge-red" style="font-size: 7.5px;">Dor EVA: ${q.dorIntensidade || 0}/10</span>
+          <span class="metric-badge badge-red" style="font-size: 7.5px;">Dor EVA: ${q?.dorIntensidade ?? 0}/10</span>
         </div>
         <div class="section-card-content" style="padding: 8px 10px;">
           <table class="table-data">
             <tbody>
               <tr>
                 <td style="font-weight: 700; width: 25%;">Onde é a dor:</td>
-                <td>${q.dorOnde || '-'}</td>
+                <td>${q?.dorOnde || '-'}</td>
                 <td style="font-weight: 700; width: 25%;">Quando começou:</td>
-                <td>${q.quandoComecou || '-'}</td>
+                <td>${q?.quandoComecou || '-'}</td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">Como iniciou:</td>
-                <td>${q.comoIniciou || '-'}</td>
+                <td>${q?.comoIniciou || '-'}</td>
                 <td style="font-weight: 700;">Evolução da dor:</td>
-                <td>${q.dorEvolucao === 'estavel' ? 'Estável (Mesma dor)' : (q.dorEvolucao === 'aumentando' ? 'Aumentando' : 'Diminuindo')}</td>
+                <td>${q?.dorEvolucao === 'estavel' ? 'Estável (Mesma dor)' : (q?.dorEvolucao === 'aumentando' ? 'Aumentando' : 'Diminuindo')}</td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">Frequência:</td>
-                <td>${q.dorTodoMomento === 'sim' ? 'Dor a todo momento' : 'Dor intermitente'}</td>
+                <td>${q?.dorTodoMomento === 'sim' ? 'Dor a todo momento' : 'Dor intermitente'}</td>
                 <td style="font-weight: 700;">Origem estimada:</td>
-                <td>${q.origens.join(', ') || 'Não especificada'}</td>
+                <td>${Array.isArray(q?.origens) && q.origens.length > 0 ? q.origens.join(', ') : (typeof q?.origens === 'string' && q.origens.trim() ? q.origens : (q?.origem || 'Não especificada'))}</td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">Piora com:</td>
-                <td colspan="3">${q.desencadeiaPiora || '-'}</td>
+                <td colspan="3">${q?.desencadeiaPiora || '-'}</td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">Melhora com:</td>
-                <td colspan="3">${q.melhoraDesaparece || '-'}</td>
+                <td colspan="3">${q?.melhoraDesaparece || '-'}</td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">Característica:</td>
-                <td colspan="3">${q.caracteristicaDor || '-'}</td>
+                <td colspan="3">${q?.caracteristicaDor || '-'}</td>
               </tr>
             </tbody>
           </table>
@@ -1354,15 +1359,15 @@ export async function downloadReportPDF(report: any) {
     `).join('');
 
     let cirurgiasHtml = '-';
-    if (h.cirurgiasRealizou === 'sim' && h.cirurgias && h.cirurgias.length > 0) {
-      cirurgiasHtml = h.cirurgias.map((c: any) => `${formatDate(c.data)}: ${c.local}`).join('<br>');
+    if (h.cirurgiasRealizou === 'sim' && Array.isArray(h.cirurgias) && h.cirurgias.length > 0) {
+      cirurgiasHtml = h.cirurgias.map((c: any) => `${formatDate(c?.data)}: ${c?.local || '-'}`).join('<br>');
     }
 
     let examesHtml = 'Nenhum exame complementar anexado.';
     if (ex && ex.length > 0) {
       examesHtml = ex.map((e: any) => {
-        const noPdf = e.exibirNoPdf !== false;
-        return `• <strong>${e.nome}</strong> (${noPdf ? 'Anexo incluído nas páginas finais' : 'Salvo no prontuário digital'})`;
+        const noPdf = e?.exibirNoPdf !== false;
+        return `• <strong>${e?.nome || 'Exame'}</strong> (${noPdf ? 'Anexo incluído nas páginas finais' : 'Salvo no prontuário digital'})`;
       }).join('<br>');
     }
 
@@ -1373,15 +1378,21 @@ export async function downloadReportPDF(report: any) {
 
     let yTestHtml = 'Não realizado.';
     if (ort.yTeste && ort.yTeste.realizou === 'sim') {
-      const yd = ort.yTeste.direita;
-      const ye = ort.yTeste.esquerda;
-      const compD = yd.comprimentoMembro || 1;
-      const compE = ye.comprimentoMembro || 1;
-      const scoreD = ((yd.anterior + yd.posteromedial + yd.posterolateral) / (3 * compD)) * 100;
-      const scoreE = ((ye.anterior + ye.posteromedial + ye.posterolateral) / (3 * compE)) * 100;
-      const diffAnt = Math.abs(yd.anterior - ye.anterior);
-      const diffPM = Math.abs(yd.posteromedial - ye.posteromedial);
-      const diffPL = Math.abs(yd.posterolateral - ye.posterolateral);
+      const yd = ort.yTeste.direita || {};
+      const ye = ort.yTeste.esquerda || {};
+      const compD = Number(yd.comprimentoMembro) || 1;
+      const compE = Number(ye.comprimentoMembro) || 1;
+      const dAnt = Number(yd.anterior) || 0;
+      const dPM = Number(yd.posteromedial) || 0;
+      const dPL = Number(yd.posterolateral) || 0;
+      const eAnt = Number(ye.anterior) || 0;
+      const ePM = Number(ye.posteromedial) || 0;
+      const ePL = Number(ye.posterolateral) || 0;
+      const scoreD = ((dAnt + dPM + dPL) / (3 * compD)) * 100;
+      const scoreE = ((eAnt + ePM + ePL) / (3 * compE)) * 100;
+      const diffAnt = Math.abs(dAnt - eAnt);
+      const diffPM = Math.abs(dPM - ePM);
+      const diffPL = Math.abs(dPL - ePL);
       const diffScore = Math.abs(scoreD - scoreE);
 
       let alerts = [];
@@ -1998,17 +2009,17 @@ export async function downloadReportPDF(report: any) {
         </div>
         ` : ''}
 
-        ${report.conteudo.conduta ? `
+        ${conteudo.conduta ? `
         <div class="section-card">
           <div class="section-card-title">Conduta Fisioterapêutica Aplicada</div>
-          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta}</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${conteudo.conduta}</div>
         </div>
         ` : ''}
 
-        ${report.conteudo.exercicios ? `
+        ${conteudo.exercicios ? `
         <div class="section-card">
           <div class="section-card-title">Prescrição de Autocuidado / Domiciliar</div>
-          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.exercicios}</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${conteudo.exercicios}</div>
         </div>
         ` : ''}
 
@@ -2026,7 +2037,7 @@ export async function downloadReportPDF(report: any) {
 
   const options = {
     margin: [10, 0, 10, 0],
-    filename: `Relatorio_Fisioterapia_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
+    filename: `Relatorio_Fisioterapia_${(client.dadosPessoais?.nome || 'Paciente').replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -2034,7 +2045,7 @@ export async function downloadReportPDF(report: any) {
   };
 
   const hasAttachedPdf = !!report.pdf_url && report.incluirAnexoNoPdf !== false && report.exibirPdfUrlNoPdf !== false;
-  const hasExamesPdfs = (report.examesComplementares || []).some((ex: any) => !!ex.pdfB64 && ex.exibirNoPdf !== false);
+  const hasExamesPdfs = (Array.isArray(report.examesComplementares) ? report.examesComplementares : []).some((ex: any) => !!ex?.pdfB64 && ex?.exibirNoPdf !== false);
   const tImgVal = report.termografia;
   const rawTermoB64 = (tImgVal && tImgVal.realizou === 'sim' && (tImgVal.imagemB64 || tImgVal.imagemUrl)) ? (tImgVal.imagemB64 || tImgVal.imagemUrl) : '';
   const hasTermografiaImage = Boolean(rawTermoB64 && String(rawTermoB64).startsWith('data:image'));
@@ -2094,79 +2105,72 @@ export async function downloadReportPDF(report: any) {
 
   const needsMerge = hasAttachedPdf || hasExamesPdfs || hasTermografiaImage;
 
-  if (needsMerge) {
-    html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
-      try {
-        safeRemoveWrapper(pdfWrapper);
-        if (typeof PDFLib === 'undefined') {
-          console.warn('A biblioteca de mesclagem (pdf-lib) não foi carregada. Baixando apenas o relatório do sistema...');
-          const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
-          triggerDirectDownload(rawBlob, options.filename);
-          return;
+  try {
+    if (needsMerge) {
+      const pdfSystemBuffer: any = await html2pdf().set(options).from(pdfContainer).output('arraybuffer');
+      safeRemoveWrapper(pdfWrapper);
+      if (typeof PDFLib === 'undefined') {
+        console.warn('A biblioteca de mesclagem (pdf-lib) não foi carregada. Baixando apenas o relatório do sistema...');
+        const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
+        triggerDirectDownload(rawBlob, options.filename);
+        return;
+      }
+      const { PDFDocument } = PDFLib;
+      const mergedPdf = await PDFDocument.create();
+
+      // 1. Páginas do sistema (Relatório de Fisioterapia)
+      const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
+      const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
+      systemPages.forEach((page: any) => mergedPdf.addPage(page));
+
+      // 2. Página de Anexo da Termografia (se houver imagem anexada)
+      if (hasTermografiaImage) {
+        const termoBytes = await buildPhysioTermoPagePdf();
+        if (termoBytes) {
+          const termoDoc = await PDFDocument.load(termoBytes);
+          const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
+          termoPages.forEach((page: any) => mergedPdf.addPage(page));
         }
-        const { PDFDocument } = PDFLib;
-        const mergedPdf = await PDFDocument.create();
+      }
 
-        // 1. Páginas do sistema (Relatório de Fisioterapia)
-        const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
-        const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
-        systemPages.forEach((page: any) => mergedPdf.addPage(page));
+      // 3. PDF de Avaliação Postural ou Anexo Geral (se houver)
+      if (hasAttachedPdf) {
+        const attachedBlob = base64ToBlob(report.pdf_url, 'application/pdf');
+        const attachedPdfBuffer = await attachedBlob.arrayBuffer();
+        const attachedPdfDoc = await PDFDocument.load(attachedPdfBuffer);
+        const attachedPages = await mergedPdf.copyPages(attachedPdfDoc, attachedPdfDoc.getPageIndices());
+        attachedPages.forEach((page: any) => mergedPdf.addPage(page));
+      }
 
-        // 2. Página de Anexo da Termografia (se houver imagem anexada)
-        if (hasTermografiaImage) {
-          const termoBytes = await buildPhysioTermoPagePdf();
-          if (termoBytes) {
-            const termoDoc = await PDFDocument.load(termoBytes);
-            const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
-            termoPages.forEach((page: any) => mergedPdf.addPage(page));
-          }
-        }
-
-        // 3. PDF de Avaliação Postural ou Anexo Geral (se houver)
-        if (hasAttachedPdf) {
-          const attachedBlob = base64ToBlob(report.pdf_url, 'application/pdf');
-          const attachedPdfBuffer = await attachedBlob.arrayBuffer();
-          const attachedPdfDoc = await PDFDocument.load(attachedPdfBuffer);
-          const attachedPages = await mergedPdf.copyPages(attachedPdfDoc, attachedPdfDoc.getPageIndices());
-          attachedPages.forEach((page: any) => mergedPdf.addPage(page));
-        }
-
-        // 4. Exames Complementares (Laudos em PDF)
-        if (hasExamesPdfs) {
-          for (const exame of report.examesComplementares) {
-            if (exame.pdfB64 && exame.exibirNoPdf !== false) {
-              try {
-                const examBlob = base64ToBlob(exame.pdfB64, 'application/pdf');
-                const examPdfBuffer = await examBlob.arrayBuffer();
-                const examPdfDoc = await PDFDocument.load(examPdfBuffer);
-                const examPages = await mergedPdf.copyPages(examPdfDoc, examPdfDoc.getPageIndices());
-                examPages.forEach((page: any) => mergedPdf.addPage(page));
-              } catch (exErr: any) {
-                console.error(`Erro ao mesclar o exame "${exame.nome}":`, exErr);
-              }
+      // 4. Exames Complementares (Laudos em PDF)
+      if (hasExamesPdfs) {
+        for (const exame of report.examesComplementares) {
+          if (exame?.pdfB64 && exame?.exibirNoPdf !== false) {
+            try {
+              const examBlob = base64ToBlob(exame.pdfB64, 'application/pdf');
+              const examPdfBuffer = await examBlob.arrayBuffer();
+              const examPdfDoc = await PDFDocument.load(examPdfBuffer);
+              const examPages = await mergedPdf.copyPages(examPdfDoc, examPdfDoc.getPageIndices());
+              examPages.forEach((page: any) => mergedPdf.addPage(page));
+            } catch (exErr: any) {
+              console.error(`Erro ao mesclar o exame "${exame?.nome}":`, exErr);
             }
           }
         }
-
-        const mergedPdfBytes = await mergedPdf.save();
-        const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-        triggerDirectDownload(mergedBlob, options.filename);
-      } catch (error: any) {
-        console.error('Erro na mesclagem dos PDFs:', error);
-        alert('Erro ao mesclar os anexos com o relatório: ' + error.message);
       }
-    }).catch((err: any) => {
-      console.error('Erro na geração do PDF:', err);
-      safeRemoveWrapper(pdfWrapper);
-    });
-  } else {
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+
+      const mergedPdfBytes = await mergedPdf.save();
+      const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      triggerDirectDownload(mergedBlob, options.filename);
+    } else {
+      const blob: Blob = await html2pdf().set(options).from(pdfContainer).output('blob');
       triggerDirectDownload(blob, options.filename);
-      safeRemoveWrapper(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro na geração do PDF do relatório:', err);
-      safeRemoveWrapper(pdfWrapper);
-    });
+    }
+  } catch (err: any) {
+    console.error('Erro na geração do PDF do relatório:', err);
+    throw err;
+  } finally {
+    safeRemoveWrapper(pdfWrapper);
   }
 }
 
