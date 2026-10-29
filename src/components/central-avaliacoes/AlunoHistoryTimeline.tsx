@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
+import { getSymmetryTier } from '@/utils/symmetryStandards';
 
 interface TimelineItem {
   id: string;
@@ -717,23 +718,26 @@ export default function AlunoHistoryTimeline({
                         {longitudinal.computed.tabelaSimetria.map((s: any, idx: number) => {
                           const varStr = String(s.variacao ?? (s.variacaoPP != null ? `${s.variacaoPP >= 0 ? '+' : ''}${s.variacaoPP} p.p.` : '—'));
                           const sitStr = String(s.situacao || 'Persistente');
+                          const tierT2 = getSymmetryTier(s.t2);
                           return (
                             <tr key={idx}>
                               <td><strong>{s.movimento}</strong></td>
-                              <td style={{ textAlign: 'center' }}>{s.t1}</td>
-                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{s.t2}</td>
+                              <td style={{ textAlign: 'center' }}>{s.t1 != null ? `${Number(s.t1).toFixed(1)}%` : '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold', color: tierT2.corHex }}>{s.t2 != null ? `${Number(s.t2).toFixed(1)}%` : '—'}</td>
                               <td style={{ textAlign: 'center' }}>{varStr}</td>
                               <td>
                                 <span
                                   style={{
                                     fontSize: '0.75rem',
-                                    padding: '2px 6px',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
                                     borderRadius: '4px',
-                                    background: sitStr === 'Resolvida' ? 'rgba(16, 185, 129, 0.15)' : (sitStr.includes('Melhorou') ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
-                                    color: sitStr === 'Resolvida' ? '#10b981' : (sitStr.includes('Melhorou') ? '#f59e0b' : '#ef4444')
+                                    background: tierT2.bgBadgeHex,
+                                    color: tierT2.corHex,
+                                    border: `1px solid ${tierT2.corHex}`
                                   }}
                                 >
-                                  {sitStr}
+                                  {sitStr.includes('Resolvida') ? 'Aceitável (≤10%)' : tierT2.status}
                                 </span>
                               </td>
                             </tr>
@@ -741,6 +745,12 @@ export default function AlunoHistoryTimeline({
                         })}
                       </tbody>
                     </table>
+                  </div>
+                  <div style={{ padding: '8px 16px', background: 'var(--bg-card-hover)', borderTop: '1px solid var(--border-color)', fontSize: '0.72rem', color: 'var(--text-dim)', display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600 }}>Padrão CFF de Simetria Lateral:</span>
+                    <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', marginRight: '4px' }}></span>≤ 10% Diferença Aceitável</span>
+                    <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', marginRight: '4px' }}></span>10% a 20% Risco Moderado</span>
+                    <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', marginRight: '4px' }}></span>&gt; 20% Risco Crítico</span>
                   </div>
                 </div>
               )}

@@ -6,6 +6,7 @@
 import { LongitudinalComputedResult } from './longitudinalEngine';
 import { ClinicalNarrative } from './clinicalReasoningEngine';
 import { detectCompartment, COMPARTIMENTOS_METADATA } from './fisioterapiaQueixasCatalog';
+import { getSymmetryTier, SYMMETRY_LEGEND_HTML } from './symmetryStandards';
 
 export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): string {
   const { identificacao, objetivoDoLaudo, historicoClinicoBase, tabelaEVA, tabelaForca, tabelaRazoes, tabelaSimetria, testesFuncionais, tabelaGoniometria, tabelaTestesOrtopedicos } = computed;
@@ -468,19 +469,29 @@ export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, na
         </tr>
       </thead>
       <tbody>
-        ${tabelaSimetria.map(r => `
+        ${tabelaSimetria.map(r => {
+          const tier = getSymmetryTier(r.t2);
+          return `
           <tr>
-            <td>${r.movimento}</td>
+            <td><strong>${r.movimento}</strong></td>
             <td class="text-center">${r.t1.toFixed(1).replace('.', ',')}%</td>
-            <td class="text-center font-bold">${r.t2.toFixed(1).replace('.', ',')}%</td>
+            <td class="text-center font-bold" style="color:${tier.corHex};">${r.t2.toFixed(1).replace('.', ',')}%</td>
             <td class="text-center font-bold" style="color:${r.variacaoPP < 0 ? '#059669' : '#dc2626'}">
               ${r.variacaoPP > 0 ? `+${r.variacaoPP.toFixed(1).replace('.', ',')} p.p.` : `${r.variacaoPP.toFixed(1).replace('.', ',')} p.p.`}
             </td>
-            <td>${r.situacao}</td>
+            <td>
+              <span class="metric-badge" style="background:${tier.bgBadgeHex}; color:${tier.corHex}; border:1px solid ${tier.corHex}; font-weight:700; font-size:7pt; padding:1px 5px;">
+                ${tier.status}
+              </span>
+            </td>
           </tr>
-        `).join('')}
+        `;
+        }).join('')}
       </tbody>
     </table>
+    <div style="margin-top:4px;">
+      ${SYMMETRY_LEGEND_HTML}
+    </div>
   ` : ''}
 
   <!-- TESTES FUNCIONAIS -->

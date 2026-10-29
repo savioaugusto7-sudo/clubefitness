@@ -6,6 +6,7 @@
 import { identifyClinicalClusters, ClinicalCluster, ClientClinicalProfile } from './clinicalClustersEngine';
 import { calculateAdvancedStrengthRatios, AdvancedStrengthRatioItem, calculateHopBatteryAnalysis, HopBatteryResult } from './biomechanicsEngine';
 import { compareVisaPLongitudinal, VisaPComparisonResult } from './visaPEngine';
+import { getSymmetryTier } from './symmetryStandards';
 
 export interface EvaluatorInfo {
   nome: string;
@@ -65,7 +66,7 @@ export interface TableRowSimetria {
   t2: number;
   variacaoPP: number;
   variacao?: string;
-  situacao: 'Resolvida' | 'Melhorou, ainda acima de 10%' | 'Persistente' | 'Piorou';
+  situacao: string;
 }
 
 export interface YTestComparison {
@@ -762,13 +763,17 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     const defT2 = calcSimetriaDeficit(d2, e2);
     const deltaPP = Math.round((defT2 - defT1) * 10) / 10;
 
-    let sit: TableRowSimetria['situacao'] = 'Persistente';
-    if (defT2 <= 10) {
-      sit = 'Resolvida';
+    const tierT1 = getSymmetryTier(defT1);
+    const tierT2 = getSymmetryTier(defT2);
+    let sit = 'Persistente';
+    if (defT2 <= 10.05) {
+      sit = 'Resolvida (Diferença Aceitável)';
     } else if (defT2 < defT1) {
-      sit = 'Melhorou, ainda acima de 10%';
+      sit = `Melhorou (${tierT2.status})`;
     } else if (defT2 > defT1) {
-      sit = 'Piorou';
+      sit = `Piorou (${tierT2.status})`;
+    } else {
+      sit = `Estável (${tierT2.status})`;
     }
 
     rowsSimetria.push({

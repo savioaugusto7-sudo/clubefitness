@@ -3,6 +3,8 @@
  * Regras Clínicas de Prevenção de Lesões, Razões Musculares e Alertas Ortopédicos.
  */
 
+import { getSymmetryTier } from './symmetryStandards';
+
 export interface BiomechanicAlert {
   tipo: 'critico' | 'atencao' | 'normal';
   titulo: string;
@@ -378,15 +380,18 @@ export function calculateStrengthTestAlerts(testesList: any, pesoKg: number = 70
       const minV = Math.min(bg.D, bg.E);
       const maxV = Math.max(bg.D, bg.E);
       const deficit = maxV > 0 ? ((maxV - minV) / maxV) * 100 : 0;
-      if (deficit > 10) {
+      const tier = getSymmetryTier(deficit);
+      if (tier.isRisk) {
         alerts.push({
-          tipo: deficit > 15 ? 'critico' : 'atencao',
-          titulo: `Assimetria Bilateral em ${bg.articulacao} - ${bg.movimento} (> 10%)`,
+          tipo: tier.isCritical ? 'critico' : 'atencao',
+          titulo: `Assimetria em ${bg.articulacao} - ${bg.movimento} (${tier.grauRisco}: ${deficit.toFixed(1)}%)`,
           articulacao: bg.articulacao,
           valorCalculado: `${deficit.toFixed(1)}%`,
-          referenciaIdeal: '≤ 10%',
-          descricao: `Diferença de ${deficit.toFixed(1)}% entre lado direito (${bg.D.toFixed(1)} N) e esquerdo (${bg.E.toFixed(1)} N).`,
-          riscoClinico: 'Sobrecarga mecânica assimétrica e compensação postural em cadeia cinética fechada.'
+          referenciaIdeal: '≤ 10% (Diferença Aceitável)',
+          descricao: `Diferença de ${deficit.toFixed(1)}% entre lado direito (${bg.D.toFixed(1)} N) e esquerdo (${bg.E.toFixed(1)} N). Classificação: ${tier.label}.`,
+          riscoClinico: tier.isCritical
+            ? 'Risco Crítico de sobrecarga mecânica assimétrica severa, desequilíbrio dinâmico e lesão em cadeia cinética fechada.'
+            : 'Sobrecarga mecânica assimétrica e compensação postural em cadeia cinética fechada.'
         });
       }
     }
@@ -1554,10 +1559,11 @@ export function calculateStrengthEvolutionComparison(
     sumSimAnt += simetriaAnt;
     countSimAnt++;
 
-    let status: 'excelente' | 'aceitavel' | 'atencao' | 'assimetria' = 'excelente';
-    if (simetriaAtual < 85) status = 'assimetria';
-    else if (simetriaAtual < 90) status = 'atencao';
-    else if (simetriaAtual < 95) status = 'aceitavel';
+    const tierAtual = getSymmetryTier(deficitAtual, simetriaAtual);
+    let status: 'excelente' | 'aceitavel' | 'atencao' | 'assimetria' = 'aceitavel';
+    if (tierAtual.status === 'RISCO CRÍTICO') status = 'assimetria';
+    else if (tierAtual.status === 'RISCO MODERADO') status = 'atencao';
+    else status = 'aceitavel';
 
     symmetries.push({
       articulacao: currC.articulacao,

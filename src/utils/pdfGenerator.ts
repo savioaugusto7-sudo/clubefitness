@@ -3,6 +3,7 @@ import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contract
 import { calculateGoniometryAlerts, calculateStrengthTestAlerts, calculateStrengthEvolutionComparison } from '@/utils/biomechanicsEngine';
 import { getStrengthAtlasKey, getDynamicStrengthAtlasBase64, renderStrengthAtlasFooterHtml, extractActiveJoints } from '@/utils/strengthAtlas';
 import { formatDateSafeBR } from '@/utils/dateFormatter';
+import { getSymmetryTier, SYMMETRY_LEGEND_HTML } from '@/utils/symmetryStandards';
 
 declare const Chart: any;
 declare const PDFLib: any;
@@ -5907,11 +5908,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
 
     // Tabela de Comparativos Bilaterais
     const compsHtml = (st.comparativos || []).map((c: any) => {
-      let badgeClass = 'badge-green';
-      if (c.classificacaoSimetria === 'Aceitável') badgeClass = 'badge-blue';
-      else if (c.classificacaoSimetria === 'Atenção') badgeClass = 'badge-orange';
-      else if (c.classificacaoSimetria === 'Assimetria Relevante') badgeClass = 'badge-red';
-
+      const tier = getSymmetryTier(c.deficit, c.simetria);
       const simetriaVal = Math.min(100, Math.max(0, c.simetria || 0));
 
       return `
@@ -5920,16 +5917,20 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
           <td>${c.movimento}</td>
           <td style="text-align:right; font-weight:600;">${c.valorD?.toFixed(1)} N</td>
           <td style="text-align:right; font-weight:600;">${c.valorE?.toFixed(1)} N</td>
-          <td style="text-align:right; font-weight:700; color:${c.deficit > 10 ? '#b91c1c' : '#1e293b'}">${c.deficit?.toFixed(1)}%</td>
+          <td style="text-align:right; font-weight:700; color:${tier.corHex}">${c.deficit?.toFixed(1)}%</td>
           <td style="text-align:right; width: 90px;">
             <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
-              <span style="font-weight: 700; color: ${c.simetria < 90 ? '#b91c1c' : '#15803d'}; font-size: 8px;">${c.simetria?.toFixed(1)}%</span>
+              <span style="font-weight: 700; color: ${tier.corHex}; font-size: 8px;">${c.simetria?.toFixed(1)}%</span>
               <div style="width: 35px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                <div style="width: ${simetriaVal}%; height: 100%; background: ${c.simetria >= 90 ? '#10b981' : '#ef4444'};"></div>
+                <div style="width: ${simetriaVal}%; height: 100%; background: ${tier.barColorHex};"></div>
               </div>
             </div>
           </td>
-          <td style="text-align:center;"><span class="metric-badge ${badgeClass}">${c.classificacaoSimetria || 'Excelente'}</span></td>
+          <td style="text-align:center;">
+            <span class="metric-badge" style="background: ${tier.bgBadgeHex}; color: ${tier.corHex}; border: 1px solid ${tier.corHex}; font-weight: 700; font-size: 7px; padding: 2px 6px;">
+              ${tier.status}
+            </span>
+          </td>
         </tr>
       `;
     }).join('');
@@ -6204,11 +6205,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                         const deltaSign = delta > 0 ? '+' : '';
                         const isGain = delta > 0.5;
                         const simVal = Math.min(100, Math.max(0, s.simetriaAtual));
-
-                        let badgeClass = 'badge-green';
-                        if (s.status === 'aceitavel') badgeClass = 'badge-blue';
-                        else if (s.status === 'atencao') badgeClass = 'badge-orange';
-                        else if (s.status === 'assimetria') badgeClass = 'badge-red';
+                        const tier = getSymmetryTier(s.deficitAtual, s.simetriaAtual);
 
                         return `
                           <tr>
@@ -6220,14 +6217,16 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                             </td>
                             <td style="text-align:right;">
                               <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
-                                <span style="font-weight: 700; font-size: 7.5px; color:${s.simetriaAtual >= 90 ? '#15803d' : '#b91c1c'};">${s.simetriaAtual.toFixed(1)}%</span>
+                                <span style="font-weight: 700; font-size: 7.5px; color:${tier.corHex};">${s.simetriaAtual.toFixed(1)}%</span>
                                 <div style="width: 32px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                                  <div style="width: ${simVal}%; height: 100%; background: ${s.simetriaAtual >= 90 ? '#10b981' : '#ef4444'};"></div>
+                                  <div style="width: ${simVal}%; height: 100%; background: ${tier.barColorHex};"></div>
                                 </div>
                               </div>
                             </td>
                             <td style="text-align:center;">
-                              <span class="metric-badge ${badgeClass}">${s.classificacaoAtual || (s.simetriaAtual >= 90 ? 'Excelente' : 'Atenção')}</span>
+                              <span class="metric-badge" style="background: ${tier.bgBadgeHex}; color: ${tier.corHex}; border: 1px solid ${tier.corHex}; font-weight: 700; font-size: 7px; padding: 2px 6px;">
+                                ${tier.status}
+                              </span>
                             </td>
                           </tr>
                         `;
@@ -6434,6 +6433,9 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                       ${compsHtml}
                     </tbody>
                   </table>
+                  <div style="padding: 4px 8px 6px 8px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                    ${SYMMETRY_LEGEND_HTML}
+                  </div>
                 </div>
               </div>
             </div>

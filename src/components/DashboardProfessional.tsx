@@ -14,6 +14,7 @@ import {
   calculateThomasAlerts,
   calculateOberAlerts
 } from '@/utils/biomechanicsEngine';
+import { getSymmetryTier, SYMMETRY_LEGEND_TEXT } from '@/utils/symmetryStandards';
 import LiveClinicalAlert from './LiveClinicalAlert';
 import TestComparativeSummary, { ComparativeItem } from './TestComparativeSummary';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
@@ -5052,11 +5053,8 @@ goniometria: {
         const simetria = maxVal > 0 ? (minVal / maxVal) * 100 : 0;
         const deficit = maxVal > 0 ? ((maxVal - minVal) / maxVal) * 100 : 0;
 
-        let classificacaoSimetria = '';
-        if (simetria >= 90) classificacaoSimetria = 'Excelente';
-        else if (simetria >= 85) classificacaoSimetria = 'Aceitável';
-        else if (simetria >= 80) classificacaoSimetria = 'Atenção';
-        else classificacaoSimetria = 'Assimetria Relevante';
+        const tier = getSymmetryTier(deficit, simetria);
+        const classificacaoSimetria = tier.status;
 
         const [art, mov] = key.split('_');
         comps.push({
@@ -17183,7 +17181,12 @@ goniometria: {
                   if (comps.length === 0) return null;
                   return (
                     <div style={{ marginBottom: '20px' }}>
-                      <h5 style={{ margin: '16px 0 8px 0', color: 'var(--color-primary)' }}>Análise Comparativa de Simetria (Bilateral)</h5>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 8px 0', flexWrap: 'wrap', gap: '8px' }}>
+                        <h5 style={{ margin: 0, color: 'var(--color-primary)' }}>Análise Comparativa de Simetria (Bilateral)</h5>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: 600 }}>
+                          Padrão CFF: ≤ 10% Aceitável • 10 a 20% Risco Moderado • &gt; 20% Risco Crítico
+                        </span>
+                      </div>
                       <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                         <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                           <thead>
@@ -17198,27 +17201,32 @@ goniometria: {
                             </tr>
                           </thead>
                           <tbody>
-                            {comps.map((c, idx) => (
-                              <tr key={idx}>
-                                <td data-label="Articulação">{c.articulacao}</td>
-                                <td data-label="Movimento">{c.movimento}</td>
-                                <td data-label="Dir (N)">{Number(c.valorD ?? 0).toFixed(1)} N</td>
-                                <td data-label="Esq (N)">{Number(c.valorE ?? 0).toFixed(1)} N</td>
-                                <td data-label="Symmetry (%)">{Number(c.simetria ?? 0).toFixed(1)}%</td>
-                                <td data-label="Déficit (%)">{Number(c.deficit ?? 0).toFixed(1)}%</td>
-                                <td data-label="Status">
-                                  <span className={`badge ${
-                                    c.classificacaoSimetria === 'Excelente' ? 'badge-success' : 
-                                    c.classificacaoSimetria === 'Aceitável' ? 'badge-success' : 
-                                    c.classificacaoSimetria === 'Atenção' ? 'badge-warning' : 'badge-danger'
-                                  }`} style={{ fontSize: '0.7rem' }}>
-                                    {c.classificacaoSimetria}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
+                            {comps.map((c, idx) => {
+                              const tier = getSymmetryTier(c.deficit, c.simetria);
+                              return (
+                                <tr key={idx}>
+                                  <td data-label="Articulação">{c.articulacao}</td>
+                                  <td data-label="Movimento">{c.movimento}</td>
+                                  <td data-label="Dir (N)">{Number(c.valorD ?? 0).toFixed(1)} N</td>
+                                  <td data-label="Esq (N)">{Number(c.valorE ?? 0).toFixed(1)} N</td>
+                                  <td data-label="Symmetry (%)">{Number(c.simetria ?? 0).toFixed(1)}%</td>
+                                  <td data-label="Déficit (%)" style={{ fontWeight: 700, color: tier.corHex }}>{Number(c.deficit ?? 0).toFixed(1)}%</td>
+                                  <td data-label="Status">
+                                    <span className={`badge ${tier.badgeClass}`} style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+                                      {tier.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
+                      </div>
+                      <div style={{ marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-dim)', display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600 }}>Legenda de Referência:</span>
+                        <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', marginRight: '4px' }}></span>≤ 10% Diferença Aceitável</span>
+                        <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', marginRight: '4px' }}></span>10% a 20% Risco Moderado</span>
+                        <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', marginRight: '4px' }}></span>&gt; 20% Risco Crítico</span>
                       </div>
                     </div>
                   );
