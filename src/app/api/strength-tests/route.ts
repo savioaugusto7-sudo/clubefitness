@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import StrengthTest from '@/models/StrengthTest';
+import ClientTestRecord from '@/models/ClientTestRecord';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { syncStrengthTestRecord } from '@/utils/testMemorySync';
 
@@ -36,26 +37,12 @@ export async function GET(request: Request) {
           ]
         };
 
-        // 1. Try finding a test strictly prior in date or creation
+        // 1. Try finding a test strictly prior in date
         if (fullDoc.data) {
           previousTest = await StrengthTest.findOne({
             ...clientQuery,
             _id: { $ne: fullDoc._id },
-            $or: [
-              { data: { $lt: fullDoc.data } },
-              { data: fullDoc.data, createdAt: { $lt: fullDoc.createdAt } }
-            ]
-          })
-            .sort({ data: -1, createdAt: -1 })
-            .lean()
-            .maxTimeMS(10000);
-        }
-
-        // 2. Fallback: if no strictly prior test found, find any other test for this client
-        if (!previousTest) {
-          previousTest = await StrengthTest.findOne({
-            ...clientQuery,
-            _id: { $ne: fullDoc._id }
+            data: { $lt: fullDoc.data }
           })
             .sort({ data: -1, createdAt: -1 })
             .lean()
@@ -152,6 +139,11 @@ export async function DELETE(request: Request) {
     }
 
     await StrengthTest.findByIdAndDelete(id);
+    const deleteOr: any[] = [{ 'origemDocumento.documentoId': String(id) }];
+    if (mongoose.Types.ObjectId.isValid(String(id)) && /^[0-9a-fA-F]{24}$/.test(String(id))) {
+      deleteOr.push({ 'origemDocumento.documentoId': new mongoose.Types.ObjectId(String(id)) });
+    }
+    await ClientTestRecord.deleteMany({ $or: deleteOr });
     return NextResponse.json({ success: true, message: 'Strength test deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

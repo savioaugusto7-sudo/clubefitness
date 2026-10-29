@@ -43,6 +43,14 @@ import { QueixaFisioterapicaItem } from '@/utils/fisioterapiaQueixasCatalog';
 
 export { normalizeText, smartSearchMatch };
 
+export const getLocalTodayISO = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export const formatDateBR = (dateStr: string) => {
   if (!dateStr) return '';
   const parts = dateStr.split('T')[0].split('-');
@@ -1245,6 +1253,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setShowStModal(false);
     setStClient('');
     setStDraftSavedAt(null);
+    setStTestesList([]);
+    setStObs('');
   };
 
   const handleDiscardStrengthDraft = () => {
@@ -10408,61 +10418,78 @@ goniometria: {
                               )}
                             </button>
 
-                            <button
-                              className="btn-secondary"
-                              title="Gerar Laudo de Reavaliação Fisioterapêutica (Comparativo Pré/Pós - 18 Seções)"
-                              style={{
-                                background: 'rgba(16, 185, 129, 0.12)',
-                                border: '1px solid rgba(16, 185, 129, 0.35)',
-                                color: '#86efac',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                              }}
-                              disabled={generatingPdfId === `reav_${rep._id}`}
-                              onClick={async () => {
-                                const repCid = rep.clienteId?._id || rep.clienteId;
-                                setGeneratingPdfId(`reav_${rep._id}`);
-                                try {
-                                  const controller = new AbortController();
-                                  const timer = setTimeout(() => controller.abort(), 12000);
-                                  let res: Response;
-                                  try {
-                                    res = await fetch(`/api/reports/reavaliacao?clientId=${repCid}`, {
-                                      cache: 'no-store',
-                                      signal: controller.signal
-                                    });
-                                  } catch {
-                                    res = await fetch(`/api/reports/reavaliacao?clientId=${repCid}&fast=true`, {
-                                      cache: 'no-store'
-                                    });
-                                  } finally {
-                                    clearTimeout(timer);
-                                  }
-                                  const data = await res.json();
-                                  if (!data.success) {
-                                    alert(data.error || 'Não foi possível gerar a reavaliação.');
-                                    return;
-                                  }
-                                  await downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
-                                } catch (err: any) {
-                                  console.error('Erro ao gerar reavaliação:', err);
-                                  alert('Erro ao processar laudo de reavaliação: ' + err.message);
-                                } finally {
-                                  setGeneratingPdfId(null);
-                                }
-                              }}
-                            >
-                              {generatingPdfId === `reav_${rep._id}` ? (
-                                <>
-                                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando Reavaliação...
-                                </>
-                              ) : (
-                                <>
-                                  <i className="fa-solid fa-file-waveform"></i> Reavaliação Pré/Pós (PDF)
-                                </>
-                              )}
-                            </button>
+                            {(() => {
+                              const repCid = rep.clienteId?._id || rep.clienteId || row.clientId;
+                              const clientAssessments = assessments.filter((a: any) => String(a.clienteId?._id || a.clienteId) === String(repCid));
+                              const distinctEvalDates = new Set(
+                                [...row.reports, ...clientAssessments].map((d: any) => d.data).filter(Boolean)
+                              );
+                              const canCompare = row.reports.length >= 2 || distinctEvalDates.size >= 2;
+                              if (!canCompare) return null;
+                              return (
+                                <button
+                                  className="btn-secondary"
+                                  title="Gerar Laudo de Reavaliação Fisioterapêutica (Comparativo Pré/Pós - 18 Seções)"
+                                  style={{
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                                    color: '#86efac',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}
+                                  disabled={generatingPdfId === `reav_${rep._id}`}
+                                  onClick={async () => {
+                                    setGeneratingPdfId(`reav_${rep._id}`);
+                                    try {
+                                      let queryParams = `clientId=${repCid}`;
+                                      if (row.reports.length >= 2) {
+                                        const sortedRowReps = [...row.reports].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
+                                        const t1IdParam = sortedRowReps[0]?._id;
+                                        const t2IdParam = activeId && String(activeId) !== String(t1IdParam) ? activeId : sortedRowReps[sortedRowReps.length - 1]?._id;
+                                        queryParams += `&t1Id=${t1IdParam}&t2Id=${t2IdParam}`;
+                                      }
+                                      const controller = new AbortController();
+                                      const timer = setTimeout(() => controller.abort(), 12000);
+                                      let res: Response;
+                                      try {
+                                        res = await fetch(`/api/reports/reavaliacao?${queryParams}`, {
+                                          cache: 'no-store',
+                                          signal: controller.signal
+                                        });
+                                      } catch {
+                                        res = await fetch(`/api/reports/reavaliacao?${queryParams}&fast=true`, {
+                                          cache: 'no-store'
+                                        });
+                                      } finally {
+                                        clearTimeout(timer);
+                                      }
+                                      const data = await res.json();
+                                      if (!data.success) {
+                                        alert(data.error || 'Não foi possível gerar a reavaliação.');
+                                        return;
+                                      }
+                                      await downloadReavaliacaoLaudoPDF(data.computed, data.narrative);
+                                    } catch (err: any) {
+                                      console.error('Erro ao gerar reavaliação:', err);
+                                      alert('Erro ao processar laudo de reavaliação: ' + err.message);
+                                    } finally {
+                                      setGeneratingPdfId(null);
+                                    }
+                                  }}
+                                >
+                                  {generatingPdfId === `reav_${rep._id}` ? (
+                                    <>
+                                      <i className="fa-solid fa-spinner fa-spin"></i> Gerando Reavaliação...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fa-solid fa-file-waveform"></i> Reavaliação Pré/Pós (PDF)
+                                    </>
+                                  )}
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       );
@@ -11403,7 +11430,9 @@ goniometria: {
                   onClick={() => {
                     setStClient('');
                     setStDraftSavedAt(null);
-                    setStDate(new Date().toISOString().split('T')[0]);
+                    setStTestesList([]);
+                    setStObs('');
+                    setStDate(getLocalTodayISO());
                     setShowStModal(true);
                   }}
                   style={{
@@ -11435,7 +11464,7 @@ goniometria: {
                   <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
                   <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum teste de força muscular</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há testes registrados com os filtros atuais.</p>
-                  <button type="button" className="btn btn-primary" onClick={() => { setStClient(''); setStDraftSavedAt(null); setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
+                  <button type="button" className="btn btn-primary" onClick={() => { setStClient(''); setStDraftSavedAt(null); setStTestesList([]); setStObs(''); setStDate(getLocalTodayISO()); setShowStModal(true); }}>
                     <i className="fa-solid fa-plus"></i> Novo Teste
                   </button>
                 </div>
@@ -17195,70 +17224,11 @@ goniometria: {
                   );
                 })()}
 
-                {/* Alertas de Razões Musculares & Prevenção de Lesões */}
-                {(() => {
-                  const selectedClientObj = clients.find(c => String(c._id) === String(stClient));
-                  const clientSex: 'M' | 'F' = selectedClientObj?.dadosPessoais?.sexo === 'F' ? 'F' : 'M';
-                  const clientWeight = Number(stPeso) || Number(selectedClientObj?.dadosPessoais?.peso) || 70;
-                  const strengthAlerts = calculateStrengthTestAlerts(stTestesList, clientWeight, clientSex, {
-                    goniometria: selectedClientObj?.dadosMedidos?.goniometria || selectedClientObj?.goniometria,
-                    testesEspeciais: selectedClientObj?.dadosMedidos?.testesEspeciais || selectedClientObj?.testesEspeciais
-                  });
-
-                  if (strengthAlerts.length === 0) return null;
-
-                  return (
-                    <div style={{
-                      background: 'rgba(239, 68, 68, 0.08)',
-                      border: '1px solid rgba(239, 68, 68, 0.4)',
-                      borderRadius: '12px',
-                      padding: '16px',
-                      marginBottom: '20px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                        <span style={{ color: '#ef4444', fontSize: '1.2rem' }}>
-                          <i className="fa-solid fa-shield-halved"></i>
-                        </span>
-                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                          Razões Musculares, Desequilíbrios e Riscos Ortopédicos ({strengthAlerts.length})
-                        </strong>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '10px' }}>
-                        {strengthAlerts.map((al, idx) => (
-                          <div key={idx} style={{
-                            background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                            border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                            borderRadius: '8px',
-                            padding: '10px 12px'
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <strong style={{ fontSize: '0.82rem', color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b' }}>
-                                {al.titulo}
-                              </strong>
-                              {al.valorCalculado && (
-                                <span className="badge" style={{ fontSize: '0.7rem', background: '#000', color: '#fff' }}>
-                                  {al.valorCalculado} (Ref: {al.referenciaIdeal})
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '4px' }}>
-                              {al.descricao}
-                            </div>
-                            <div style={{ fontSize: '0.73rem', color: '#fca5a5', marginTop: '3px', fontWeight: 600 }}>
-                              ⚠️ Risco Clínico: {al.riscoClinico}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
                 {/* Resumo Comparativo com Dinamometria Anterior */}
                 {(() => {
                   const prevSt = clientTestMemory['DINAMOMETRIA'];
-                  const prevDate = prevSt?.data ? formatDateBR(prevSt.data) : undefined;
-                  const prevTests = prevSt?.dados?.testesRealizados || prevSt?.dados?.exercicios || [];
+                  const prevDate = (prevSt?.data && prevSt.data !== stDate) ? formatDateBR(prevSt.data) : undefined;
+                  const prevTests = (prevSt?.data && prevSt.data !== stDate) ? (prevSt?.dados?.testesRealizados || prevSt?.dados?.exercicios || []) : [];
                   const items: ComparativeItem[] = stTestesList.map(currT => {
                     const match = prevTests.find((pt: any) => pt.articulacao === currT.articulacao && pt.movimento === currT.movimento && pt.lado === currT.lado);
                     const prevVal = match ? (match.forcaN != null ? Number(Number(match.forcaN).toFixed(1)) : (match.valorObtido != null ? Number(match.valorObtido) : undefined)) : undefined;
@@ -17310,6 +17280,65 @@ goniometria: {
                     </div>
                   </div>
                 </div>
+
+                {/* Alertas de Razões Musculares & Prevenção de Lesões (Último Card do Teste de Força) */}
+                {(() => {
+                  const selectedClientObj = clients.find(c => String(c._id) === String(stClient));
+                  const clientSex: 'M' | 'F' = selectedClientObj?.dadosPessoais?.sexo === 'F' ? 'F' : 'M';
+                  const clientWeight = Number(stPeso) || Number(selectedClientObj?.dadosPessoais?.peso) || 70;
+                  const strengthAlerts = calculateStrengthTestAlerts(stTestesList, clientWeight, clientSex, {
+                    goniometria: selectedClientObj?.dadosMedidos?.goniometria || selectedClientObj?.goniometria,
+                    testesEspeciais: selectedClientObj?.dadosMedidos?.testesEspeciais || selectedClientObj?.testesEspeciais
+                  });
+
+                  if (strengthAlerts.length === 0) return null;
+
+                  return (
+                    <div style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      marginTop: '16px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <span style={{ color: '#ef4444', fontSize: '1.2rem' }}>
+                          <i className="fa-solid fa-shield-halved"></i>
+                        </span>
+                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                          Razões Musculares, Desequilíbrios e Riscos Ortopédicos ({strengthAlerts.length})
+                        </strong>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '10px' }}>
+                        {strengthAlerts.map((al, idx) => (
+                          <div key={idx} style={{
+                            background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                            border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                            borderRadius: '8px',
+                            padding: '10px 12px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong style={{ fontSize: '0.82rem', color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b' }}>
+                                {al.titulo}
+                              </strong>
+                              {al.valorCalculado && (
+                                <span className="badge" style={{ fontSize: '0.7rem', background: '#000', color: '#fff' }}>
+                                  {al.valorCalculado} (Ref: {al.referenciaIdeal})
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '4px' }}>
+                              {al.descricao}
+                            </div>
+                            <div style={{ fontSize: '0.73rem', color: '#fca5a5', marginTop: '3px', fontWeight: 600 }}>
+                              ⚠️ Risco Clínico: {al.riscoClinico}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <button type="button" className="btn btn-secondary" onClick={handleCloseSt} disabled={isSubmitting}>Cancelar</button>

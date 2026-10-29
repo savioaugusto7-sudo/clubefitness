@@ -33,6 +33,9 @@ export async function syncPhysicalAssessmentTests(assessmentDoc: any) {
     const docId = toObjectId(assessmentDoc._id);
 
     if (!clienteId) return;
+    if (docId) {
+      await ClientTestRecord.deleteMany({ 'origemDocumento.documentoId': docId });
+    }
 
     const dm = assessmentDoc.dadosMedidos || {};
     const rc = assessmentDoc.resultadosCalculados || {};
@@ -257,6 +260,9 @@ export async function syncPhysioReportTests(reportDoc: any) {
     const docId = toObjectId(reportDoc._id);
 
     if (!clienteId) return;
+    if (docId) {
+      await ClientTestRecord.deleteMany({ 'origemDocumento.documentoId': docId });
+    }
 
     // Goniometria
     if (reportDoc.goniometria && Object.keys(reportDoc.goniometria).length > 0) {
@@ -462,6 +468,9 @@ export async function syncStrengthTestRecord(stDoc: any) {
     const docId = toObjectId(stDoc._id);
 
     if (!clienteId) return;
+    if (docId) {
+      await ClientTestRecord.deleteMany({ 'origemDocumento.documentoId': docId });
+    }
 
     const testesList = stDoc.testesRealizados || [];
     const alerts = calculateStrengthTestAlerts(testesList, stDoc.pesoCliente || 70, 'M');

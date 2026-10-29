@@ -531,7 +531,12 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     return map;
   };
 
-  const mapT1 = extractStrengthMap(t1Strength, t1Report);
+  const isSameStrengthDoc = Boolean(
+    t1Strength && t2Strength &&
+    t1Strength._id && t2Strength._id &&
+    String(t1Strength._id) === String(t2Strength._id)
+  );
+  const mapT1 = isSameStrengthDoc ? {} : extractStrengthMap(t1Strength, t1Report);
   const mapT2 = extractStrengthMap(t2Strength, t2Report);
   const allStrengthKeys = Array.from(new Set([...Object.keys(mapT1), ...Object.keys(mapT2)]));
 
@@ -543,25 +548,19 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     const v1 = mapT1[fullKey] || 0;
     const v2 = mapT2[fullKey] || 0;
 
-    let deltaPct = 0;
-    if (v1 > 0 && v2 > 0) {
-      deltaPct = Math.round(((v2 - v1) / v1) * 1000) / 10;
-    }
+    // Somente comparar movimentos medidos em ambos os momentos (T1 e T2)
+    if (v1 <= 0 || v2 <= 0) return;
+
+    const deltaPct = Math.round(((v2 - v1) / v1) * 1000) / 10;
 
     let leitura: TableRowForca['leitura'] = 'Estável';
-    if (v1 > 0 && v2 > 0) {
-      if (deltaPct >= 30) leitura = 'Evoluiu muito';
-      else if (deltaPct >= 10) leitura = 'Evoluiu';
-      else if (deltaPct >= 0) leitura = deltaPct >= 5 ? 'Evoluiu' : 'Estagnado';
-      else if (deltaPct >= -5) leitura = 'Estável';
-      else leitura = 'Queda aparente — requer verificação';
-    } else if (v2 > 0 && v1 === 0) {
-      leitura = 'Evoluiu';
-    }
+    if (deltaPct >= 30) leitura = 'Evoluiu muito';
+    else if (deltaPct >= 10) leitura = 'Evoluiu';
+    else if (deltaPct >= 0) leitura = deltaPct >= 5 ? 'Evoluiu' : 'Estagnado';
+    else if (deltaPct >= -5) leitura = 'Estável';
+    else leitura = 'Queda aparente — requer verificação';
 
-    const variacaoStr = (v1 > 0 && v2 > 0)
-      ? `${deltaPct >= 0 ? '+' : ''}${deltaPct}%`
-      : (v2 > 0 ? '+100%' : (v1 > 0 ? '-100%' : '0%'));
+    const variacaoStr = `${deltaPct >= 0 ? '+' : ''}${deltaPct}%`;
 
     rowsForca.push({
       movimento: mov,
@@ -575,7 +574,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     });
   });
 
-  // 6. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS (apenas se medidos)
+  // 6. RAZÕES MUSCULARES E ÍNDICES BIOMECÂNICOS (apenas se medidos em T1 e T2)
   const extJoelhoD_T1 = mapT1['Extensão de joelho_Direito'] || 0;
   const extJoelhoE_T1 = mapT1['Extensão de joelho_Esquerdo'] || 0;
   const flexJoelhoD_T1 = mapT1['Flexão de joelho_Direito'] || 0;
@@ -592,9 +591,9 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   const hasIQT1 = (extJoelhoD_T1 + extJoelhoE_T1) > 0 && (flexJoelhoD_T1 + flexJoelhoE_T1) > 0;
   const hasIQT2 = (extJoelhoD_T2 + extJoelhoE_T2) > 0 && (flexJoelhoD_T2 + flexJoelhoE_T2) > 0;
 
-  if (hasIQT1 || hasIQT2) {
-    const iqGlobalT1 = hasIQT1 ? Math.round(((flexJoelhoD_T1 + flexJoelhoE_T1) / (extJoelhoD_T1 + extJoelhoE_T1)) * 1000) / 10 : 0;
-    const iqGlobalT2 = hasIQT2 ? Math.round(((flexJoelhoD_T2 + flexJoelhoE_T2) / (extJoelhoD_T2 + extJoelhoE_T2)) * 1000) / 10 : 0;
+  if (hasIQT1 && hasIQT2) {
+    const iqGlobalT1 = Math.round(((flexJoelhoD_T1 + flexJoelhoE_T1) / (extJoelhoD_T1 + extJoelhoE_T1)) * 1000) / 10;
+    const iqGlobalT2 = Math.round(((flexJoelhoD_T2 + flexJoelhoE_T2) / (extJoelhoD_T2 + extJoelhoE_T2)) * 1000) / 10;
     const deltaIQ = Math.round((iqGlobalT2 - iqGlobalT1) * 10) / 10;
 
     let interpIQ = 'Dentro da referência (60–75%) — Equilíbrio muscular ótimo';
@@ -604,37 +603,39 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     rowsRazoes.push({
       indice: 'Razão isquiotibiais/quadríceps (H:Q) global',
       referencia: '60%–75%',
-      t1: hasIQT1 ? `${iqGlobalT1.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
-      t2: hasIQT2 ? `${iqGlobalT2.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
-      variacao: (hasIQT1 && hasIQT2) ? `${deltaIQ >= 0 ? '+' : ''}${deltaIQ.toFixed(1).replace('.', ',')} p.p.` : '-',
+      t1: `${iqGlobalT1.toFixed(1).replace('.', ',')}%`,
+      t2: `${iqGlobalT2.toFixed(1).replace('.', ',')}%`,
+      variacao: `${deltaIQ >= 0 ? '+' : ''}${deltaIQ.toFixed(1).replace('.', ',')} p.p.`,
       interpretacao: interpIQ
     });
 
-    // Razão H:Q Unilateral se ambos os lados forem avaliados
-    if (extJoelhoD_T2 > 0 && flexJoelhoD_T2 > 0) {
-      const iqD = Math.round((flexJoelhoD_T2 / extJoelhoD_T2) * 100);
+    // Razão H:Q Unilateral se avaliado em T1 e T2
+    if (extJoelhoD_T1 > 0 && flexJoelhoD_T1 > 0 && extJoelhoD_T2 > 0 && flexJoelhoD_T2 > 0) {
+      const iqD1 = Math.round((flexJoelhoD_T1 / extJoelhoD_T1) * 100);
+      const iqD2 = Math.round((flexJoelhoD_T2 / extJoelhoD_T2) * 100);
       rowsRazoes.push({
         indice: 'Razão H:Q — Membro Direito (D)',
         referencia: '60%–75%',
-        t1: (extJoelhoD_T1 > 0 && flexJoelhoD_T1 > 0) ? `${Math.round((flexJoelhoD_T1 / extJoelhoD_T1) * 100)}%` : '-',
-        t2: `${iqD}%`,
-        variacao: (extJoelhoD_T1 > 0 && flexJoelhoD_T1 > 0) ? `${iqD - Math.round((flexJoelhoD_T1 / extJoelhoD_T1) * 100)} p.p.` : '-',
-        interpretacao: iqD >= 60 && iqD <= 75 ? 'Equilibrado (60–75%)' : (iqD < 60 ? 'Déficit posterior (<60%)' : 'Predomínio flexor (>75%)')
+        t1: `${iqD1}%`,
+        t2: `${iqD2}%`,
+        variacao: `${iqD2 - iqD1 >= 0 ? '+' : ''}${iqD2 - iqD1} p.p.`,
+        interpretacao: iqD2 >= 60 && iqD2 <= 75 ? 'Equilibrado (60–75%)' : (iqD2 < 60 ? 'Déficit posterior (<60%)' : 'Predomínio flexor (>75%)')
       });
     }
-    if (extJoelhoE_T2 > 0 && flexJoelhoE_T2 > 0) {
-      const iqE = Math.round((flexJoelhoE_T2 / extJoelhoE_T2) * 100);
+    if (extJoelhoE_T1 > 0 && flexJoelhoE_T1 > 0 && extJoelhoE_T2 > 0 && flexJoelhoE_T2 > 0) {
+      const iqE1 = Math.round((flexJoelhoE_T1 / extJoelhoE_T1) * 100);
+      const iqE2 = Math.round((flexJoelhoE_T2 / extJoelhoE_T2) * 100);
       rowsRazoes.push({
         indice: 'Razão H:Q — Membro Esquerdo (E)',
         referencia: '60%–75%',
-        t1: (extJoelhoE_T1 > 0 && flexJoelhoE_T1 > 0) ? `${Math.round((flexJoelhoE_T1 / extJoelhoE_T1) * 100)}%` : '-',
-        t2: `${iqE}%`,
-        variacao: (extJoelhoE_T1 > 0 && flexJoelhoE_T1 > 0) ? `${iqE - Math.round((flexJoelhoE_T1 / extJoelhoE_T1) * 100)} p.p.` : '-',
-        interpretacao: iqE >= 60 && iqE <= 75 ? 'Equilibrado (60–75%)' : (iqE < 60 ? 'Déficit posterior (<60%)' : 'Predomínio flexor (>75%)')
+        t1: `${iqE1}%`,
+        t2: `${iqE2}%`,
+        variacao: `${iqE2 - iqE1 >= 0 ? '+' : ''}${iqE2 - iqE1} p.p.`,
+        interpretacao: iqE2 >= 60 && iqE2 <= 75 ? 'Equilibrado (60–75%)' : (iqE2 < 60 ? 'Déficit posterior (<60%)' : 'Predomínio flexor (>75%)')
       });
     }
 
-    analisePorLadoIQ = `Razão H:Q em T2: ${hasIQT2 ? `${iqGlobalT2.toFixed(1).replace('.', ',')}%` : 'Não avaliada'}.`;
+    analisePorLadoIQ = `Razão H:Q: ${iqGlobalT1.toFixed(1).replace('.', ',')}% (T1) ➔ ${iqGlobalT2.toFixed(1).replace('.', ',')}% (T2).`;
   }
 
   // Adutor / Abdutor (Padrão Ouro: 1.05 a 1.20)
@@ -651,9 +652,9 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   const hasAdAbdT1 = (adD_T1 + adE_T1) > 0 && (abdD_T1 + abdE_T1) > 0;
   const hasAdAbdT2 = (adD_T2 + adE_T2) > 0 && (abdD_T2 + abdE_T2) > 0;
 
-  if (hasAdAbdT1 || hasAdAbdT2) {
-    const rT1 = hasAdAbdT1 ? Math.round(((adD_T1 + adE_T1) / (abdD_T1 + abdE_T1)) * 100) / 100 : 0;
-    const rT2 = hasAdAbdT2 ? Math.round(((adD_T2 + adE_T2) / (abdD_T2 + abdE_T2)) * 100) / 100 : 0;
+  if (hasAdAbdT1 && hasAdAbdT2) {
+    const rT1 = Math.round(((adD_T1 + adE_T1) / (abdD_T1 + abdE_T1)) * 100) / 100;
+    const rT2 = Math.round(((adD_T2 + adE_T2) / (abdD_T2 + abdE_T2)) * 100) / 100;
     const deltaR = Math.round((rT2 - rT1) * 100) / 100;
 
     let interp = 'Dentro da referência (1,05–1,20) — Proteção pubo-adutora ótima';
@@ -664,9 +665,9 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     rowsRazoes.push({
       indice: 'Índice adutor/abdutor de quadril (ADD/ABD)',
       referencia: '1,05–1,20',
-      t1: hasAdAbdT1 ? rT1.toFixed(2).replace('.', ',') : 'Não avaliado',
-      t2: hasAdAbdT2 ? rT2.toFixed(2).replace('.', ',') : 'Não avaliado',
-      variacao: (hasAdAbdT1 && hasAdAbdT2) ? `${deltaR >= 0 ? '+' : ''}${deltaR.toFixed(2).replace('.', ',')}` : '-',
+      t1: rT1.toFixed(2).replace('.', ','),
+      t2: rT2.toFixed(2).replace('.', ','),
+      variacao: `${deltaR >= 0 ? '+' : ''}${deltaR.toFixed(2).replace('.', ',')}`,
       interpretacao: interp
     });
   }
@@ -675,17 +676,17 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   if (pesoKg > 0) {
     const extTotT1 = extJoelhoD_T1 + extJoelhoE_T1;
     const extTotT2 = extJoelhoD_T2 + extJoelhoE_T2;
-    if (extTotT1 > 0 || extTotT2 > 0) {
-      const qPcT1 = extTotT1 > 0 ? Math.round(((extTotT1 / 2) / (pesoKg * 9.81)) * 1000) / 10 : 0;
-      const qPcT2 = extTotT2 > 0 ? Math.round(((extTotT2 / 2) / (pesoKg * 9.81)) * 1000) / 10 : 0;
+    if (extTotT1 > 0 && extTotT2 > 0) {
+      const qPcT1 = Math.round(((extTotT1 / 2) / (pesoKg * 9.81)) * 1000) / 10;
+      const qPcT2 = Math.round(((extTotT2 / 2) / (pesoKg * 9.81)) * 1000) / 10;
       const deltaQPc = Math.round((qPcT2 - qPcT1) * 10) / 10;
 
       rowsRazoes.push({
         indice: 'Quadríceps relativo ao peso corporal (%PC)',
         referencia: '≥60% do peso corporal',
-        t1: extTotT1 > 0 ? `${qPcT1.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
-        t2: extTotT2 > 0 ? `${qPcT2.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
-        variacao: (extTotT1 > 0 && extTotT2 > 0) ? `${deltaQPc >= 0 ? '+' : ''}${deltaQPc.toFixed(1).replace('.', ',')} p.p.` : '-',
+        t1: `${qPcT1.toFixed(1).replace('.', ',')}%`,
+        t2: `${qPcT2.toFixed(1).replace('.', ',')}%`,
+        variacao: `${deltaQPc >= 0 ? '+' : ''}${deltaQPc.toFixed(1).replace('.', ',')} p.p.`,
         interpretacao: qPcT2 >= 60 ? 'Adequado (≥60%) — Boa capacidade de amortecimento patelofemoral' : 'Abaixo da referência (<60%) — Risco de sobrecarga articular'
       });
     }
@@ -693,23 +694,23 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     // Glúteo Médio Relativo (%PC)
     const abdTotT1 = abdD_T1 + abdE_T1;
     const abdTotT2 = abdD_T2 + abdE_T2;
-    if (abdTotT1 > 0 || abdTotT2 > 0) {
-      const gMedT1 = abdTotT1 > 0 ? Math.round(((abdTotT1 / 2) / (pesoKg * 9.81)) * 1000) / 10 : 0;
-      const gMedT2 = abdTotT2 > 0 ? Math.round(((abdTotT2 / 2) / (pesoKg * 9.81)) * 1000) / 10 : 0;
+    if (abdTotT1 > 0 && abdTotT2 > 0) {
+      const gMedT1 = Math.round(((abdTotT1 / 2) / (pesoKg * 9.81)) * 1000) / 10;
+      const gMedT2 = Math.round(((abdTotT2 / 2) / (pesoKg * 9.81)) * 1000) / 10;
       const deltaGMed = Math.round((gMedT2 - gMedT1) * 10) / 10;
 
       rowsRazoes.push({
         indice: 'Glúteo médio relativo ao peso corporal (%PC)',
         referencia: '≥25% do peso corporal',
-        t1: abdTotT1 > 0 ? `${gMedT1.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
-        t2: abdTotT2 > 0 ? `${gMedT2.toFixed(1).replace('.', ',')}%` : 'Não avaliado',
-        variacao: (abdTotT1 > 0 && abdTotT2 > 0) ? `${deltaGMed >= 0 ? '+' : ''}${deltaGMed.toFixed(1).replace('.', ',')} p.p.` : '-',
+        t1: `${gMedT1.toFixed(1).replace('.', ',')}%`,
+        t2: `${gMedT2.toFixed(1).replace('.', ',')}%`,
+        variacao: `${deltaGMed >= 0 ? '+' : ''}${deltaGMed.toFixed(1).replace('.', ',')} p.p.`,
         interpretacao: gMedT2 >= 25 ? 'Adequado (≥25%) — Estabilidade frontal preservada' : 'Abaixo da referência (<25%) — Déficit de controle pélvico'
       });
     }
   }
 
-  // 7. ANÁLISE DE SIMETRIA ENTRE MEMBROS
+  // 7. ANÁLISE DE SIMETRIA ENTRE MEMBROS (somente movimentos avaliados em T1 e T2)
   const calcSimetriaDeficit = (vD: number, vE: number): number => {
     if (vD <= 0 && vE <= 0) return 0;
     const max = Math.max(vD, vE);
@@ -731,10 +732,10 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
 
     const hasT1Pair = d1 > 0 && e1 > 0;
     const hasT2Pair = d2 > 0 && e2 > 0;
-    if (!hasT1Pair && !hasT2Pair) return;
+    if (!hasT1Pair || !hasT2Pair) return;
 
-    const defT1 = hasT1Pair ? calcSimetriaDeficit(d1, e1) : 0;
-    const defT2 = hasT2Pair ? calcSimetriaDeficit(d2, e2) : 0;
+    const defT1 = calcSimetriaDeficit(d1, e1);
+    const defT2 = calcSimetriaDeficit(d2, e2);
     const deltaPP = Math.round((defT2 - defT1) * 10) / 10;
 
     let sit: TableRowSimetria['situacao'] = 'Persistente';
@@ -792,7 +793,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   const hasY2 = Boolean(yT2?.direita?.anterior || yT2?.realizou === 'sim');
 
   let yTestResult: YTestComparison | null = null;
-  if (hasY1 || hasY2) {
+  if (hasY1 && hasY2) {
     const compD1 = (yT1?.direita?.anterior && yT1?.direita?.comprimentoMembro)
       ? Math.round(((yT1.direita.anterior + yT1.direita.posteromedial + yT1.direita.posterolateral) / (3 * yT1.direita.comprimentoMembro)) * 1000) / 10
       : (yT1?.compositeScoreD || 0);
@@ -896,9 +897,9 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     const addSDRow = (label: string, ref: string, v1Raw: any, v2Raw: any, higherIsBetter = false) => {
       const v1 = parseNumberOrNull(v1Raw);
       const v2 = parseNumberOrNull(v2Raw);
-      if (v1 == null && v2 == null) return;
-      const num1 = v1 ?? 0;
-      const num2 = v2 ?? 0;
+      if (v1 == null || v2 == null) return;
+      const num1 = v1;
+      const num2 = v2;
       const delta = Math.round((num2 - num1) * 10) / 10;
 
       let leitura = 'Estável';
@@ -994,21 +995,15 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   gonioConfigs.forEach(cfg => {
     const v1 = parseNumberOrNull(g1[cfg.key1]);
     const v2 = parseNumberOrNull(g2[cfg.key2]);
-    if (v1 == null && v2 == null) return;
+    if (v1 == null || v2 == null) return;
 
-    let deltaStr: number | string = '-';
-    let leitura: TableRowGoniometria['leitura'] = 'Sem dado comparativo';
-
-    if (v1 != null && v2 != null) {
-      const delta = v2 - v1;
-      deltaStr = `${delta >= 0 ? '+' : ''}${delta}°`;
-      if (v2 >= cfg.minRef && v1 < cfg.minRef) leitura = 'Normalizou';
-      else if (delta > 3) leitura = 'Evoluiu';
-      else if (delta >= -2 && delta <= 3) leitura = delta === 0 ? 'Estagnada' : 'Estável';
-      else leitura = 'Involução';
-    } else if (v2 != null) {
-      leitura = v2 >= cfg.minRef ? 'Normalizou' : 'Evoluiu';
-    }
+    const delta = v2 - v1;
+    const deltaStr = `${delta >= 0 ? '+' : ''}${delta}°`;
+    let leitura: TableRowGoniometria['leitura'] = 'Estável';
+    if (v2 >= cfg.minRef && v1 < cfg.minRef) leitura = 'Normalizou';
+    else if (delta > 3) leitura = 'Evoluiu';
+    else if (delta >= -2 && delta <= 3) leitura = delta === 0 ? 'Estagnada' : 'Estável';
+    else leitura = 'Involução';
 
     goniometriaRows.push({
       movimento: cfg.mov,
@@ -1065,7 +1060,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
     const e1Val = parseNumberOrNull(getCol(t1Report, cfg.keyEva));
     const e2Val = parseNumberOrNull(getCol(t2Report, cfg.keyEva));
 
-    if (g1Val == null && g2Val == null && e1Val == null && e2Val == null) return;
+    if ((g1Val == null || g2Val == null) && (e1Val == null || e2Val == null)) return;
 
     let varGrausStr = '-';
     let varEvaStr = '-';
@@ -1145,7 +1140,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
 
     const val1 = resolveSpecialVal(te1, t1Report);
     const val2 = resolveSpecialVal(te2, t2Report);
-    if (!val1 && !val2) return;
+    if (!val1 || !val2) return;
 
     const s1 = String(val1 || 'Não registrado');
     const s2 = String(val2 || 'Não registrado');
@@ -1212,7 +1207,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   ) => {
     const n1 = v1 != null && v1 > 0 ? v1 : null;
     const n2 = v2 != null && v2 > 0 ? v2 : null;
-    if (n1 == null && n2 == null) return;
+    if (n1 == null || n2 == null) return;
     let variacao = '-';
     let variacaoPct = '-';
     let leitura = 'Avaliado';
@@ -1295,7 +1290,7 @@ export function computeLongitudinalReassessment(input: LongitudinalInput): Longi
   perimConfigs.forEach(cfg => {
     const v1 = getPerimVal(p1, cfg.keys);
     const v2 = getPerimVal(p2, cfg.keys);
-    if (v1 == null && v2 == null) return;
+    if (v1 == null || v2 == null) return;
     let variacaoCm = '-';
     let deltaNum = 0;
     let leitura = 'Medido';

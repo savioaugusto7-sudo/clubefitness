@@ -1448,14 +1448,20 @@ export function calculateStrengthEvolutionComparison(
   const currTests: any[] = currSt?.testesRealizados || [];
   const prevTests: any[] = prevSt?.testesRealizados || [];
 
-  const hasPrevious = Boolean(prevSt && (prevTests.length > 0 || (prevSt.exercicios && prevSt.exercicios.length > 0)));
+  const isSameDayOrDoc = Boolean(
+    !prevSt ||
+    (currSt?._id && prevSt?._id && String(currSt._id) === String(prevSt._id)) ||
+    (dataAtual && dataAnterior && dataAtual === dataAnterior)
+  );
 
   // Mapear testes anteriores por chave: articulacao + movimento + lado
   const prevMap: Record<string, any> = {};
-  prevTests.forEach(t => {
-    const k = `${normalizeKey(t.articulacao)}_${normalizeKey(t.movimento)}_${normalizeSide(t.lado)}`;
-    prevMap[k] = t;
-  });
+  if (!isSameDayOrDoc) {
+    prevTests.forEach(t => {
+      const k = `${normalizeKey(t.articulacao)}_${normalizeKey(t.movimento)}_${normalizeSide(t.lado)}`;
+      prevMap[k] = t;
+    });
+  }
 
   const items: StrengthEvolutionItem[] = [];
   let sumGainsPct = 0;
@@ -1467,44 +1473,32 @@ export function calculateStrengthEvolutionComparison(
   currTests.forEach(curr => {
     const k = `${normalizeKey(curr.articulacao)}_${normalizeKey(curr.movimento)}_${normalizeSide(curr.lado)}`;
     const prev = prevMap[k];
+    if (!prev) return;
 
     const forcaAtualN = Number(curr.forcaN ?? curr.valorObtido ?? 0);
     const forcaAtualKgf = Number((forcaAtualN / 9.80665).toFixed(1));
+    const forcaAntN = Number(prev.forcaN ?? prev.valorObtido ?? 0);
+    if (forcaAntN <= 0 || forcaAtualN <= 0) return;
 
-    let forcaAntN: number | null = null;
-    let forcaAntKgf: number | null = null;
-    let deltaN: number | null = null;
-    let deltaKgf: number | null = null;
-    let deltaPct: number | null = null;
-    let status: 'melhora' | 'estavel' | 'regressao' | 'novo' = 'novo';
+    const forcaAntKgf = Number((forcaAntN / 9.80665).toFixed(1));
+    const deltaN = Number((forcaAtualN - forcaAntN).toFixed(1));
+    const deltaKgf = Number((forcaAtualKgf - forcaAntKgf).toFixed(1));
+    const deltaPct = Number(((deltaN / forcaAntN) * 100).toFixed(1));
 
-    if (prev) {
-      forcaAntN = Number(prev.forcaN ?? prev.valorObtido ?? 0);
-      forcaAntKgf = Number((forcaAntN / 9.80665).toFixed(1));
-      deltaN = Number((forcaAtualN - forcaAntN).toFixed(1));
-      deltaKgf = Number((forcaAtualKgf - forcaAntKgf).toFixed(1));
+    sumGainsPct += deltaPct;
+    countGainsPct++;
 
-      if (forcaAntN > 0) {
-        deltaPct = Number(((deltaN / forcaAntN) * 100).toFixed(1));
-        sumGainsPct += deltaPct;
-        countGainsPct++;
+    if (deltaPct > maiorGanhoPct) {
+      maiorGanhoPct = deltaPct;
+      maiorGanhoNome = `${curr.articulacao} - ${curr.movimento} (${curr.lado})`;
+    }
 
-        if (deltaPct > maiorGanhoPct) {
-          maiorGanhoPct = deltaPct;
-          maiorGanhoNome = `${curr.articulacao} - ${curr.movimento} (${curr.lado})`;
-        }
-
-        if (deltaPct > 2.0) {
-          status = 'melhora';
-          totalMelhoras++;
-        } else if (deltaPct < -2.0) {
-          status = 'regressao';
-        } else {
-          status = 'estavel';
-        }
-      } else {
-        status = forcaAtualN > 0 ? 'melhora' : 'estavel';
-      }
+    let status: 'melhora' | 'estavel' | 'regressao' | 'novo' = 'estavel';
+    if (deltaPct > 2.0) {
+      status = 'melhora';
+      totalMelhoras++;
+    } else if (deltaPct < -2.0) {
+      status = 'regressao';
     }
 
     items.push({
@@ -1526,15 +1520,19 @@ export function calculateStrengthEvolutionComparison(
     });
   });
 
+  const hasPrevious = !isSameDayOrDoc && items.length > 0;
+
   // Mapear Simetrias Bilaterais
   const currComps: any[] = currSt?.comparativos || [];
   const prevComps: any[] = prevSt?.comparativos || [];
   const prevCompMap: Record<string, any> = {};
 
-  prevComps.forEach(c => {
-    const k = `${normalizeKey(c.articulacao)}_${normalizeKey(c.movimento)}`;
-    prevCompMap[k] = c;
-  });
+  if (!isSameDayOrDoc) {
+    prevComps.forEach(c => {
+      const k = `${normalizeKey(c.articulacao)}_${normalizeKey(c.movimento)}`;
+      prevCompMap[k] = c;
+    });
+  }
 
   const symmetries: SymmetryEvolutionItem[] = [];
   let sumSimAtual = 0;
@@ -1544,22 +1542,17 @@ export function calculateStrengthEvolutionComparison(
   currComps.forEach(currC => {
     const k = `${normalizeKey(currC.articulacao)}_${normalizeKey(currC.movimento)}`;
     const prevC = prevCompMap[k];
+    if (!prevC) return;
 
     const simetriaAtual = Number(Number(currC.simetria ?? 100).toFixed(1));
     const deficitAtual = Number(Number(currC.deficit ?? 0).toFixed(1));
     sumSimAtual += simetriaAtual;
 
-    let simetriaAnt: number | null = null;
-    let deficitAnt: number | null = null;
-    let deltaSimetria: number | null = null;
-
-    if (prevC) {
-      simetriaAnt = Number(Number(prevC.simetria ?? 100).toFixed(1));
-      deficitAnt = Number(Number(prevC.deficit ?? 0).toFixed(1));
-      deltaSimetria = Number((simetriaAtual - simetriaAnt).toFixed(1));
-      sumSimAnt += simetriaAnt;
-      countSimAnt++;
-    }
+    const simetriaAnt = Number(Number(prevC.simetria ?? 100).toFixed(1));
+    const deficitAnt = Number(Number(prevC.deficit ?? 0).toFixed(1));
+    const deltaSimetria = Number((simetriaAtual - simetriaAnt).toFixed(1));
+    sumSimAnt += simetriaAnt;
+    countSimAnt++;
 
     let status: 'excelente' | 'aceitavel' | 'atencao' | 'assimetria' = 'excelente';
     if (simetriaAtual < 85) status = 'assimetria';
@@ -1580,7 +1573,7 @@ export function calculateStrengthEvolutionComparison(
     });
   });
 
-  // Cálculo de Razões Biomecânicas (Atual vs Anterior)
+  // Cálculo de Razões Biomecânicas (Atual vs Anterior — somente quando avaliado em ambos)
   const getAvgForce = (tests: any[], art: string, mov: string): number => {
     const d = tests.find(t => normalizeKey(t.articulacao) === normalizeKey(art) && normalizeKey(t.movimento) === normalizeKey(mov) && normalizeSide(t.lado) === 'Direito');
     const e = tests.find(t => normalizeKey(t.articulacao) === normalizeKey(art) && normalizeKey(t.movimento) === normalizeKey(mov) && normalizeSide(t.lado) === 'Esquerdo');
@@ -1592,66 +1585,68 @@ export function calculateStrengthEvolutionComparison(
 
   const ratios: RatioEvolutionItem[] = [];
 
-  // Razão I:Q (Joelho)
-  const extJCurr = getAvgForce(currTests, 'Joelho', 'Extensão');
-  const flexJCurr = getAvgForce(currTests, 'Joelho', 'Flexão');
-  const extJPrev = getAvgForce(prevTests, 'Joelho', 'Extensão');
-  const flexJPrev = getAvgForce(prevTests, 'Joelho', 'Flexão');
+  if (hasPrevious) {
+    // Razão I:Q (Joelho)
+    const extJCurr = getAvgForce(currTests, 'Joelho', 'Extensão');
+    const flexJCurr = getAvgForce(currTests, 'Joelho', 'Flexão');
+    const extJPrev = getAvgForce(prevTests, 'Joelho', 'Extensão');
+    const flexJPrev = getAvgForce(prevTests, 'Joelho', 'Flexão');
 
-  if (extJCurr > 0 && flexJCurr > 0) {
-    const iqCurr = (flexJCurr / extJCurr) * 100;
-    const iqPrev = extJPrev > 0 && flexJPrev > 0 ? (flexJPrev / extJPrev) * 100 : null;
-    const isCrit = iqCurr < 60;
-    const isAlt = iqCurr < 65 || iqCurr > 80;
-    ratios.push({
-      nome: 'Razão I:Q (Isquiotibiais / Quadríceps)',
-      articulacao: 'Joelho',
-      referencia: '60% a 75%',
-      valorAnt: iqPrev !== null ? `${iqPrev.toFixed(1)}%` : null,
-      valorAtual: `${iqCurr.toFixed(1)}%`,
-      delta: iqPrev !== null ? `${(iqCurr - iqPrev) >= 0 ? '+' : ''}${(iqCurr - iqPrev).toFixed(1)}%` : null,
-      status: isCrit ? 'RISCO CRÍTICO' : (isAlt ? 'ATENÇÃO' : 'EQUILIBRADO'),
-      badgeClass: isCrit ? 'badge-red' : (isAlt ? 'badge-orange' : 'badge-green')
-    });
-  }
+    if (extJCurr > 0 && flexJCurr > 0 && extJPrev > 0 && flexJPrev > 0) {
+      const iqCurr = (flexJCurr / extJCurr) * 100;
+      const iqPrev = (flexJPrev / extJPrev) * 100;
+      const isCrit = iqCurr < 60;
+      const isAlt = iqCurr < 65 || iqCurr > 80;
+      ratios.push({
+        nome: 'Razão I:Q (Isquiotibiais / Quadríceps)',
+        articulacao: 'Joelho',
+        referencia: '60% a 75%',
+        valorAnt: `${iqPrev.toFixed(1)}%`,
+        valorAtual: `${iqCurr.toFixed(1)}%`,
+        delta: `${(iqCurr - iqPrev) >= 0 ? '+' : ''}${(iqCurr - iqPrev).toFixed(1)}%`,
+        status: isCrit ? 'RISCO CRÍTICO' : (isAlt ? 'ATENÇÃO' : 'EQUILIBRADO'),
+        badgeClass: isCrit ? 'badge-red' : (isAlt ? 'badge-orange' : 'badge-green')
+      });
+    }
 
-  // Razão Adutor / Abdutor (Quadril)
-  const abdQCurr = getAvgForce(currTests, 'Quadril', 'Abdução');
-  const addQCurr = getAvgForce(currTests, 'Quadril', 'Adução');
-  const abdQPrev = getAvgForce(prevTests, 'Quadril', 'Abdução');
-  const addQPrev = getAvgForce(prevTests, 'Quadril', 'Adução');
+    // Razão Adutor / Abdutor (Quadril)
+    const abdQCurr = getAvgForce(currTests, 'Quadril', 'Abdução');
+    const addQCurr = getAvgForce(currTests, 'Quadril', 'Adução');
+    const abdQPrev = getAvgForce(prevTests, 'Quadril', 'Abdução');
+    const addQPrev = getAvgForce(prevTests, 'Quadril', 'Adução');
 
-  if (abdQCurr > 0 && addQCurr > 0) {
-    const ratioCurr = addQCurr / abdQCurr;
-    const ratioPrev = abdQPrev > 0 && addQPrev > 0 ? addQPrev / abdQPrev : null;
-    const isCrit = ratioCurr > 1.15 || ratioCurr < 0.80;
-    ratios.push({
-      nome: 'Razão Adutor / Abdutor',
-      articulacao: 'Quadril',
-      referencia: '0.80 a 1.15',
-      valorAnt: ratioPrev !== null ? ratioPrev.toFixed(2) : null,
-      valorAtual: ratioCurr.toFixed(2),
-      delta: ratioPrev !== null ? `${(ratioCurr - ratioPrev) >= 0 ? '+' : ''}${(ratioCurr - ratioPrev).toFixed(2)}` : null,
-      status: isCrit ? 'RISCO CRÍTICO' : 'EQUILIBRADO',
-      badgeClass: isCrit ? 'badge-red' : 'badge-green'
-    });
-  }
+    if (abdQCurr > 0 && addQCurr > 0 && abdQPrev > 0 && addQPrev > 0) {
+      const ratioCurr = addQCurr / abdQCurr;
+      const ratioPrev = addQPrev / abdQPrev;
+      const isCrit = ratioCurr > 1.15 || ratioCurr < 0.80;
+      ratios.push({
+        nome: 'Razão Adutor / Abdutor',
+        articulacao: 'Quadril',
+        referencia: '0.80 a 1.15',
+        valorAnt: ratioPrev.toFixed(2),
+        valorAtual: ratioCurr.toFixed(2),
+        delta: `${(ratioCurr - ratioPrev) >= 0 ? '+' : ''}${(ratioCurr - ratioPrev).toFixed(2)}`,
+        status: isCrit ? 'RISCO CRÍTICO' : 'EQUILIBRADO',
+        badgeClass: isCrit ? 'badge-red' : 'badge-green'
+      });
+    }
 
-  // Glúteo Médio Relativo (%PC)
-  if (abdQCurr > 0 && pesoAtual > 0) {
-    const gmPcCurr = (abdQCurr / 9.80665 / pesoAtual) * 100;
-    const gmPcPrev = abdQPrev > 0 && pesoAnterior && pesoAnterior > 0 ? (abdQPrev / 9.80665 / pesoAnterior) * 100 : null;
-    const isLow = gmPcCurr < 20;
-    ratios.push({
-      nome: 'Glúteo Médio Relativo (%PC)',
-      articulacao: 'Quadril',
-      referencia: '≥ 20% PC',
-      valorAnt: gmPcPrev !== null ? `${gmPcPrev.toFixed(1)}% PC` : null,
-      valorAtual: `${gmPcCurr.toFixed(1)}% PC`,
-      delta: gmPcPrev !== null ? `${(gmPcCurr - gmPcPrev) >= 0 ? '+' : ''}${(gmPcCurr - gmPcPrev).toFixed(1)}%` : null,
-      status: isLow ? 'ATENÇÃO' : 'EQUILIBRADO',
-      badgeClass: isLow ? 'badge-orange' : 'badge-green'
-    });
+    // Glúteo Médio Relativo (%PC)
+    if (abdQCurr > 0 && abdQPrev > 0 && pesoAtual > 0 && pesoAnterior && pesoAnterior > 0) {
+      const gmPcCurr = (abdQCurr / 9.80665 / pesoAtual) * 100;
+      const gmPcPrev = (abdQPrev / 9.80665 / pesoAnterior) * 100;
+      const isLow = gmPcCurr < 20;
+      ratios.push({
+        nome: 'Glúteo Médio Relativo (%PC)',
+        articulacao: 'Quadril',
+        referencia: '≥ 20% PC',
+        valorAnt: `${gmPcPrev.toFixed(1)}% PC`,
+        valorAtual: `${gmPcCurr.toFixed(1)}% PC`,
+        delta: `${(gmPcCurr - gmPcPrev) >= 0 ? '+' : ''}${(gmPcCurr - gmPcPrev).toFixed(1)}%`,
+        status: isLow ? 'ATENÇÃO' : 'EQUILIBRADO',
+        badgeClass: isLow ? 'badge-orange' : 'badge-green'
+      });
+    }
   }
 
   // Alertas mitigados

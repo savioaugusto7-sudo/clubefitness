@@ -85,19 +85,24 @@ export async function GET(request: Request) {
     }
 
     // 2. Selecionar documentos T1 e T2 (Universal: Relatório Fisio, Avaliação Física, Dinamometria ou Teste Avulso)
+    const isStandaloneTestRecord = (tr: any) =>
+      !tr?.origemDocumento?.documentoId || tr?.origemDocumento?.tipo === 'Avulso';
+    const standaloneTestRecords = clientTestRecords.filter(isStandaloneTestRecord);
+
     const allComparableDocs = [
       ...physioReports,
       ...physicalAssessments,
       ...strengthTests,
-      ...clientTestRecords
+      ...standaloneTestRecords
     ].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
 
     let t1Report: any = null;
     let t2Report: any = null;
 
     if (t1Id && t2Id) {
-      t1Report = allComparableDocs.find((r: any) => String(r._id) === String(t1Id));
-      t2Report = allComparableDocs.find((r: any) => String(r._id) === String(t2Id));
+      const searchPool = [...allComparableDocs, ...clientTestRecords];
+      t1Report = searchPool.find((r: any) => String(r._id) === String(t1Id));
+      t2Report = searchPool.find((r: any) => String(r._id) === String(t2Id));
     }
 
     if (!t1Report || !t2Report) {
@@ -109,53 +114,67 @@ export async function GET(request: Request) {
         t2Report = physicalAssessments[physicalAssessments.length - 1];
       } else if (physioReports.length + physicalAssessments.length >= 2) {
         const combinedEvals = [...physioReports, ...physicalAssessments].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
-        t1Report = combinedEvals[0];
-        t2Report = combinedEvals[combinedEvals.length - 1];
-      } else if (strengthTests.length >= 2) {
+        if (combinedEvals[0].data !== combinedEvals[combinedEvals.length - 1].data) {
+          t1Report = combinedEvals[0];
+          t2Report = combinedEvals[combinedEvals.length - 1];
+        }
+      } else if (strengthTests.length >= 2 && strengthTests[0].data !== strengthTests[strengthTests.length - 1].data) {
         t1Report = strengthTests[0];
         t2Report = strengthTests[strengthTests.length - 1];
-      } else if (allComparableDocs.length >= 2) {
+      } else if (allComparableDocs.length >= 2 && allComparableDocs[0].data !== allComparableDocs[allComparableDocs.length - 1].data) {
         t1Report = allComparableDocs[0];
         t2Report = allComparableDocs[allComparableDocs.length - 1];
-      } else if (allComparableDocs.length === 1) {
-        t1Report = allComparableDocs[0];
-        t2Report = allComparableDocs[0];
       }
     }
 
-    if (!t1Report || !t2Report) {
+    if (!t1Report || !t2Report || String(t1Report._id) === String(t2Report._id)) {
       return NextResponse.json({
         success: false,
-        error: 'O aluno ainda não possui registros suficientes para gerar o laudo comparativo.'
+        error: 'O aluno ainda não possui duas avaliações em datas distintas para gerar o laudo comparativo.'
       }, { status: 400 });
     }
 
-    // Enriquecer T1 e T2 com testes avulsos da mesma época ou extremos cronológicos
-    const enrichReportWithAvulsos = (baseDoc: any, isT2: boolean) => {
+    // Enriquecer T1 e T2 apenas com testes realizados na mesma janela de cada avaliação (nunca copiando um teste único para T1 e T2)
+    const daysBetween = (dA?: string, dB?: string): number => {
+      if (!dA || !dB) return 9999;
+      const tA = new Date(String(dA).split('T')[0] + 'T12:00:00').getTime();
+      const tB = new Date(String(dB).split('T')[0] + 'T12:00:00').getTime();
+      if (isNaN(tA) || isNaN(tB)) return 9999;
+      return Math.round(Math.abs(tA - tB) / (1000 * 60 * 60 * 24));
+    };
+
+    const pickAvulsoForDoc = (tipo: string, targetDoc: any, otherDoc: any, isT2: boolean) => {
+      const list = clientTestRecords.filter((tr: any) => tr.tipoTeste === tipo);
+      if (list.length === 0 || !targetDoc?.data) return null;
+      const candidates = list.filter((tr: any) => {
+        if (!tr.data) return false;
+        const distTarget = daysBetween(tr.data, targetDoc.data);
+        const distOther = daysBetween(tr.data, otherDoc?.data);
+        if (distTarget > 14) return false;
+        if (targetDoc.data !== otherDoc?.data && distTarget >= distOther) return false;
+        return true;
+      });
+      if (candidates.length === 0) return null;
+      return isT2 ? candidates[candidates.length - 1] : candidates[0];
+    };
+
+    const enrichReportWithAvulsos = (baseDoc: any, otherDoc: any, isT2: boolean) => {
       if (!baseDoc) return baseDoc;
       const cloned = { ...baseDoc };
-      const pickAvulso = (tipo: string) => {
-        const list = clientTestRecords.filter((tr: any) => tr.tipoTeste === tipo);
-        if (list.length === 0) return null;
-        if (isT2) {
-          return list.slice().reverse().find((tr: any) => !baseDoc.data || tr.data <= baseDoc.data) || list[list.length - 1];
-        }
-        return list.find((tr: any) => !baseDoc.data || tr.data <= baseDoc.data) || list[0];
-      };
-      const gAv = pickAvulso('GONIOMETRIA');
+      const gAv = pickAvulsoForDoc('GONIOMETRIA', baseDoc, otherDoc, isT2);
       if (gAv?.dados && !cloned.goniometria && !cloned.dadosMedidos?.goniometria) {
         cloned.goniometria = gAv.dados;
       }
-      const compAv = pickAvulso('COMPOSICAO_CORPORAL');
+      const compAv = pickAvulsoForDoc('COMPOSICAO_CORPORAL', baseDoc, otherDoc, isT2);
       if (compAv?.dados && !cloned.resultadosCalculados && !cloned.dadosMedidos?.composicao) {
         cloned.dadosMedidos = { ...(cloned.dadosMedidos || {}), ...compAv.dados };
       }
-      const perimAv = pickAvulso('PERIMETRIA');
+      const perimAv = pickAvulsoForDoc('PERIMETRIA', baseDoc, otherDoc, isT2);
       if (perimAv?.dados && !cloned.dadosMedidos?.perimetria && !cloned.perimetria) {
         cloned.perimetria = perimAv.dados;
       }
-      const yAv = pickAvulso('Y_TEST');
-      const sdAv = pickAvulso('STEP_DOWN');
+      const yAv = pickAvulsoForDoc('Y_TEST', baseDoc, otherDoc, isT2);
+      const sdAv = pickAvulsoForDoc('STEP_DOWN', baseDoc, otherDoc, isT2);
       if ((yAv?.dados || sdAv?.dados) && !cloned.testesEspeciais && !cloned.dadosMedidos?.testesFuncionais) {
         cloned.testesEspeciais = {
           ...(cloned.testesEspeciais || {}),
@@ -166,14 +185,28 @@ export async function GET(request: Request) {
       return cloned;
     };
 
-    t1Report = enrichReportWithAvulsos(t1Report, false);
-    t2Report = enrichReportWithAvulsos(t2Report, true);
+    const origT1 = t1Report;
+    const origT2 = t2Report;
+    t1Report = enrichReportWithAvulsos(origT1, origT2, false);
+    t2Report = enrichReportWithAvulsos(origT2, origT1, true);
 
-    // 3. Testes de Força T1 e T2 (incluindo dinamometria avulsa)
-    const dinAvulsos = clientTestRecords.filter((tr: any) => tr.tipoTeste === 'DINAMOMETRIA');
+    // 3. Testes de Força T1 e T2 (apenas dinamometria avulsa real, sem duplicar espelhos de StrengthTest)
+    const dinAvulsos = standaloneTestRecords.filter((tr: any) => tr.tipoTeste === 'DINAMOMETRIA');
     const allStrengthDocs = [...strengthTests, ...dinAvulsos].sort((a: any, b: any) => (a.data || '').localeCompare(b.data || ''));
-    const t1Strength = allStrengthDocs.length > 0 ? allStrengthDocs[0] : (t1Report.testesRealizados ? t1Report : null);
-    const t2Strength = allStrengthDocs.length > 1 ? allStrengthDocs[allStrengthDocs.length - 1] : t1Strength;
+    let t1Strength: any = null;
+    let t2Strength: any = null;
+    if (allStrengthDocs.length >= 2) {
+      const firstSt = allStrengthDocs[0];
+      const lastSt = allStrengthDocs[allStrengthDocs.length - 1];
+      if (String(firstSt._id) !== String(lastSt._id) && firstSt.data !== lastSt.data) {
+        t1Strength = firstSt;
+        t2Strength = lastSt;
+      } else {
+        t2Strength = lastSt;
+      }
+    } else if (allStrengthDocs.length === 1) {
+      t2Strength = allStrengthDocs[0];
+    }
 
     // 4. Carregar profissionais para CREFITO
     const rawProfIds = [

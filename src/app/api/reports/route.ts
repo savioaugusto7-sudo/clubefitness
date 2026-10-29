@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import PhysioReport from '@/models/PhysioReport';
+import ClientTestRecord from '@/models/ClientTestRecord';
 import '@/models/Client';
 import '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
@@ -176,6 +177,12 @@ export async function DELETE(request: Request) {
     }
 
     await PhysioReport.findByIdAndDelete(validId);
+    await ClientTestRecord.deleteMany({
+      $or: [
+        { 'origemDocumento.documentoId': validId },
+        { 'origemDocumento.documentoId': String(validId) }
+      ]
+    });
     return NextResponse.json({ success: true, message: 'Physiotherapy report deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

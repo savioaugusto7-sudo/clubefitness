@@ -5625,23 +5625,23 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
             </div>
           ` : ''}
 
-          <!-- 6. Banner de Riscos Ortopédicos (Estilo Imagem 2) -->
-          <div style="margin-bottom: 10px;">
-            ${riscosPanelHtml}
-          </div>
-
-          <!-- 7. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
+          <!-- 6. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
           <div style="margin-bottom: 10px;">
             ${ratiosCardsHtml}
           </div>
 
-          <!-- 8. Interpretação Clínica dos Resultados (4 Quadrantes da Imagem 2) -->
+          <!-- 7. Interpretação Clínica dos Resultados (4 Quadrantes da Imagem 2) -->
           <div style="margin-bottom: 10px;">
             ${interpretacaoClinicaHtml}
           </div>
 
-          <!-- 9. Observações Clínicas -->
+          <!-- 8. Observações Clínicas -->
           ${observationHtml}
+
+          <!-- 9. Banner de Riscos Ortopédicos (Último card do teste de força) -->
+          <div style="margin-bottom: 10px;">
+            ${riscosPanelHtml}
+          </div>
 
           <!-- 10. Assinatura Profissional / Responsável Técnico -->
           ${renderProfessionalSignatureHtml(prof)}

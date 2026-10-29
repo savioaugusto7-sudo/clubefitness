@@ -24,9 +24,10 @@ export default function TestComparativeSummary({
   items,
   notes
 }: TestComparativeSummaryProps) {
-  // If no previous test exists and no current values, don't show or show initial baseline card
-  const hasPrev = Boolean(previousDate);
+  // Only compare items that actually have both a previous measurement and a current measurement
   const validItems = items.filter(it => it.currValue !== undefined && it.currValue !== '' && it.currValue !== null);
+  const comparableItems = validItems.filter(it => it.prevValue !== undefined && it.prevValue !== '' && it.prevValue !== null);
+  const hasPrev = Boolean(previousDate && comparableItems.length > 0);
 
   if (!hasPrev && validItems.length === 0) {
     return null;
@@ -117,7 +118,7 @@ export default function TestComparativeSummary({
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '10px'
       }}>
-        {items.map((it, idx) => {
+        {comparableItems.map((it, idx) => {
           const prevNum = it.prevValue !== undefined && it.prevValue !== null && it.prevValue !== '' ? Number(it.prevValue) : null;
           const currNum = it.currValue !== undefined && it.currValue !== null && it.currValue !== '' ? Number(it.currValue) : null;
 
