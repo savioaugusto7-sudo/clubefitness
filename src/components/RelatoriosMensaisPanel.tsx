@@ -24,6 +24,7 @@ export default function RelatoriosMensaisPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'enabled' | 'disabled'>('all');
   const [selectedPlan, setSelectedPlan] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -103,6 +104,15 @@ export default function RelatoriosMensaisPanel() {
     return Array.from(set).sort();
   }, [clients]);
 
+  // Obter lista única de status do plano para o seletor
+  const statusOptions = useMemo(() => {
+    const set = new Set<string>();
+    clients.forEach(c => {
+      if (c.statusPlano) set.add(c.statusPlano);
+    });
+    return Array.from(set).sort();
+  }, [clients]);
+
   // Filtragem dos clientes
   const filteredClients = useMemo(() => {
     return clients.filter(c => {
@@ -119,9 +129,12 @@ export default function RelatoriosMensaisPanel() {
       // Filtro por plano
       if (selectedPlan !== 'all' && c.planoNome !== selectedPlan) return false;
 
+      // Filtro por status do plano
+      if (selectedStatus !== 'all' && (c.statusPlano || '').toLowerCase() !== selectedStatus.toLowerCase()) return false;
+
       return true;
     });
-  }, [clients, searchQuery, filterMode, selectedPlan]);
+  }, [clients, searchQuery, filterMode, selectedPlan, selectedStatus]);
 
   // Métricas dinâmicas em tempo real
   const metrics = useMemo<Metrics>(() => {
@@ -533,6 +546,29 @@ export default function RelatoriosMensaisPanel() {
           <option value="all" style={{ background: '#0f172a', color: '#fff' }}>Todos os Planos</option>
           {planOptions.map(p => (
             <option key={p} value={p} style={{ background: '#0f172a', color: '#fff' }}>{p}</option>
+          ))}
+        </select>
+
+        {/* Filtro por Status do Plano */}
+        <select
+          value={selectedStatus}
+          onChange={e => setSelectedStatus(e.target.value)}
+          style={{
+            padding: '8px 12px',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            color: '#cbd5e1',
+            fontSize: '0.84rem',
+            outline: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="all" style={{ background: '#0f172a', color: '#fff' }}>Todos os Status</option>
+          {statusOptions.map(s => (
+            <option key={s} value={s} style={{ background: '#0f172a', color: '#fff' }}>
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </option>
           ))}
         </select>
 
