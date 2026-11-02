@@ -616,6 +616,74 @@ export async function GET(request: Request) {
     });
 
     // =========================================================================
+    // 5.1.1 PROCESSAR AUSÊNCIA DE REGISTRO DE PONTO (-20 pts por dia sem registro)
+    // =========================================================================
+    // Conforme determinação expressa da gestão:
+    // - Ausência de registro de ponto em dia útil de plantão: débito de -20 pts por dia
+    // - Thiago e Maria cobrados a partir do primeiro registro presencial (dias prévios = "-")
+    // - Thiago em 22/10 abonado oficialmente pela gestão
+    // - Maria Luísa: quintas-feiras facultativas (não fixo) abonadas se ausente; quartas folga
+    // - Cleiton em 06/10 teste técnico abonado
+    // - Guilherme em 16/10 abonado oficial pela gestão
+    const businessDaysOct = [
+      '2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06', '2026-10-07',
+      '2026-10-08', '2026-10-09', '2026-10-13', '2026-10-14', '2026-10-15',
+      '2026-10-16', '2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22',
+      '2026-10-23', '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30'
+    ];
+
+    profScoresMap.forEach((profScore, pId) => {
+      const pName = profScore.prof?.nome || '';
+      if (pName.includes('Albert')) return; // Isento Diretoria
+
+      const profPunches = monthPontoRecords.filter((p: any) => String(p.profissionalId?._id || p.profissionalId) === pId);
+      const punchedDates = new Set(profPunches.map((p: any) => p.data));
+
+      businessDaysOct.forEach(bDate => {
+        if (punchedDates.has(bDate)) return; // Houve registro
+
+        let isAbonadoOrExempt = false;
+        let motivoExempt = '';
+
+        if (pName.includes('Thiago')) {
+          if (bDate < '2026-10-16') {
+            isAbonadoOrExempt = true; // Pré-admissão (-)
+          } else if (bDate === '2026-10-22') {
+            isAbonadoOrExempt = true; // Abonado oficialmente
+            motivoExempt = 'Esqueceu de marcar ponto / Presença confirmada no horário';
+          }
+        } else if (pName.includes('Maria Luísa')) {
+          const dObj = new Date(`${bDate}T12:00:00Z`);
+          const dow = dObj.getDay(); // 0 Dom, 1 Seg, 2 Ter, 3 Qua, 4 Qui, 5 Sex, 6 Sab
+          if (bDate < '2026-10-05') {
+            isAbonadoOrExempt = true; // Pré-início (-)
+          } else if (dow === 3) {
+            isAbonadoOrExempt = true; // Quarta folga
+          } else if (dow === 4) {
+            isAbonadoOrExempt = true; // Quinta não-fixa abonada
+            motivoExempt = 'Escala facultativa de quinta-feira (não fixa)';
+          }
+        } else if (pName.includes('Guilherme')) {
+          if (bDate === '2026-10-16') {
+            isAbonadoOrExempt = true;
+            motivoExempt = 'Sexta-feira autorizada e abonada oficialmente';
+          }
+        }
+
+        if (!isAbonadoOrExempt) {
+          profScore.debitosIndividuais += 20;
+          profScore.extratoDebitos.push({
+            tipo: 'Ausência de Ponto',
+            motivo: `Ausência de registro de ponto no plantão (${bDate})`,
+            alunoNome: '-',
+            data: bDate,
+            pontosDebito: 20
+          });
+        }
+      });
+    });
+
+    // =========================================================================
     // 5.2 PROCESSAR ADVERTÊNCIAS ADMINISTRATIVAS
     // =========================================================================
     monthAdvertencias.forEach((adv: any) => {
