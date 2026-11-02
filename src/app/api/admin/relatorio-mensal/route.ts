@@ -20,6 +20,41 @@ function formatPlanName(rawName?: string, rawTipo?: string): string {
   return rawName.trim();
 }
 
+function normalizeStatusPlano(rawCtStatus?: string, rawCommStatus?: string): 'Ativo' | 'Cancelado' | 'Lead' {
+  const comm = (rawCommStatus || '').toLowerCase().trim();
+  const ct = (rawCtStatus || '').toLowerCase().trim();
+
+  // Cancelado, cancelado agendado e finalizado
+  if (
+    comm === 'cancelado' ||
+    comm === 'cancelado_agendado' ||
+    comm === 'finalizado' ||
+    comm === 'inativo' ||
+    ct === 'cancelado' ||
+    comm.includes('cancel') ||
+    comm.includes('finaliz')
+  ) {
+    return 'Cancelado';
+  }
+
+  // Pendente, proposta enviada e lead
+  if (
+    comm === 'lead' ||
+    comm === 'pendente' ||
+    comm === 'proposta_enviada' ||
+    ct === 'pendente' ||
+    ct === 'proposta_enviada' ||
+    comm.includes('lead') ||
+    comm.includes('pend') ||
+    comm.includes('propost')
+  ) {
+    return 'Lead';
+  }
+
+  // Assinado com ativo (e renovado)
+  return 'Ativo';
+}
+
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -83,7 +118,7 @@ export async function GET(request: Request) {
         }
 
         const planoNome = formatPlanName(rawPlanName, latestCt?.planoTipo);
-        const statusPlano = (latestCt?.status || c.dadosComerciais?.status || 'ativo').toLowerCase();
+        const statusPlano = normalizeStatusPlano(latestCt?.status, c.dadosComerciais?.status);
         const habilitado = Boolean(c.relatorioMensal?.habilitado);
 
         return {

@@ -24,7 +24,20 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
 
   // Modal de Extrato
   const [selectedProfExtrato, setSelectedProfExtrato] = useState<any | null>(null);
-  const [extratoTab, setExtratoTab] = useState<'creditos' | 'debitos'>('creditos');
+  const [extratoTab, setExtratoTab] = useState<'creditos' | 'debitos' | 'ajustes'>('creditos');
+
+  // Modal de Ajuste / Abono Manual
+  const [modalAjusteOpen, setModalAjusteOpen] = useState(false);
+  const [savingAjuste, setSavingAjuste] = useState(false);
+  const [ajusteForm, setAjusteForm] = useState({
+    profissionalId: '',
+    profissionalNome: '',
+    tipo: 'bonus_credito' as 'abono_ponto' | 'bonus_credito' | 'debito_manual',
+    pontos: 10,
+    motivo: '',
+    registroOrigemId: ''
+  });
+  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const fetchGoalsData = async (mes: string, plano: string = selectedPlano) => {
     setLoading(true);
@@ -34,6 +47,12 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
       const json = await res.json();
       if (json.success) {
         setData(json.data);
+        // Atualizar extrato aberto se houver
+        setSelectedProfExtrato((prev: any) => {
+          if (!prev) return null;
+          const updated = json.data.ranking?.find((r: any) => String(r.prof._id) === String(prev.prof._id));
+          return updated || prev;
+        });
       } else {
         setError(json.error || 'Erro ao carregar indicadores de metas.');
       }
@@ -41,6 +60,97 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
       setError(err.message || 'Erro de conexão com o servidor.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenNovoAjuste = (profScore: any) => {
+    setAjusteForm({
+      profissionalId: String(profScore.prof._id),
+      profissionalNome: profScore.prof.nome || profScore.prof.name || 'Profissional',
+      tipo: 'bonus_credito',
+      pontos: 10,
+      motivo: '',
+      registroOrigemId: ''
+    });
+    setModalAjusteOpen(true);
+  };
+
+  const handleAbonarDebito = (profScore: any, debitItem: any) => {
+    setAjusteForm({
+      profissionalId: String(profScore.prof._id),
+      profissionalNome: profScore.prof.nome || profScore.prof.name || 'Profissional',
+      tipo: 'abono_ponto',
+      pontos: debitItem.pontosDebito || 0,
+      motivo: debitItem.motivo ? `Abono de atraso: ${debitItem.motivo}` : 'Abono autorizado pela gestão',
+      registroOrigemId: debitItem.registroOrigemId || ''
+    });
+    setModalAjusteOpen(true);
+  };
+
+  const handleSaveAjuste = async () => {
+    if (!ajusteForm.motivo.trim()) {
+      alert('Por favor, informe uma justificativa ou motivo para o ajuste.');
+      return;
+    }
+    if (Number(ajusteForm.pontos) <= 0) {
+      alert('O valor dos pontos deve ser maior que zero.');
+      return;
+    }
+
+    setSavingAjuste(true);
+    try {
+      const res = await fetch('/api/admin/professional-goals/adjustments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profissionalId: ajusteForm.profissionalId,
+          profissionalNome: ajusteForm.profissionalNome,
+          mesReferencia: selectedMonth,
+          tipo: ajusteForm.tipo,
+          pontos: Number(ajusteForm.pontos),
+          motivo: ajusteForm.motivo.trim(),
+          registroOrigemId: ajusteForm.registroOrigemId,
+          criadoPor: 'admin',
+          criadoPorNome: 'Gestor'
+        })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setModalAjusteOpen(false);
+        setFeedbackMsg({ text: 'Ajuste de pontuação salvo com sucesso!', type: 'success' });
+        setTimeout(() => setFeedbackMsg(null), 4000);
+        await fetchGoalsData(selectedMonth, selectedPlano);
+        setExtratoTab('ajustes');
+      } else {
+        alert(json.error || 'Erro ao salvar ajuste.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Erro ao conectar com servidor.');
+    } finally {
+      setSavingAjuste(false);
+    }
+  };
+
+  const handleDeleteAjuste = async (ajusteId: string) => {
+    if (!confirm('Deseja realmente estornar/excluir este ajuste? O saldo do profissional será recalculado.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/professional-goals/adjustments?id=${ajusteId}`, {
+        method: 'DELETE'
+      });
+      const json = await res.json();
+      if (json.success) {
+        setFeedbackMsg({ text: 'Ajuste estornado com sucesso!', type: 'success' });
+        setTimeout(() => setFeedbackMsg(null), 4000);
+        await fetchGoalsData(selectedMonth, selectedPlano);
+      } else {
+        alert(json.error || 'Erro ao excluir ajuste.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir ajuste.');
     }
   };
 
@@ -1628,18 +1738,41 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 </small>
               </div>
 
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setSelectedProfExtrato(null)}
-                style={{ padding: '4px 10px' }}
-              >
-                <i className="fa-solid fa-xmark"></i> Fechar
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenNovoAjuste(selectedProfExtrato)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    border: '1px solid #3b82f6',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 4px rgba(37,99,235,0.2)'
+                  }}
+                >
+                  <i className="fa-solid fa-plus-circle"></i> + Lançar Ajuste / Bônus
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setSelectedProfExtrato(null)}
+                  style={{ padding: '6px 10px' }}
+                >
+                  <i className="fa-solid fa-xmark"></i> Fechar
+                </button>
+              </div>
             </div>
 
             {/* Abas do Extrato */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', padding: '0 20px', background: 'rgba(255,255,255,0.01)' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', padding: '0 20px', background: 'rgba(255,255,255,0.01)', gap: '4px' }}>
               <button
                 type="button"
                 onClick={() => setExtratoTab('creditos')}
@@ -1679,6 +1812,26 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
               >
                 <i className="fa-solid fa-circle-minus"></i> Penalidades & Débitos (-{selectedProfExtrato.debitosIndividuais + selectedProfExtrato.debitosColetivos} pts)
               </button>
+
+              <button
+                type="button"
+                onClick={() => setExtratoTab('ajustes')}
+                style={{
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: extratoTab === 'ajustes' ? '2px solid #3b82f6' : '2px solid transparent',
+                  color: extratoTab === 'ajustes' ? '#60a5fa' : '#94a3b8',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <i className="fa-solid fa-sliders"></i> Ajustes & Abonos ({selectedProfExtrato.extratoAjustes?.length || 0})
+              </button>
             </div>
 
             {/* Conteúdo do Extrato */}
@@ -1717,7 +1870,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                     ))}
                   </div>
                 )
-              ) : (
+              ) : extratoTab === 'debitos' ? (
                 selectedProfExtrato.extratoDebitos?.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '30px', color: '#34d399' }}>
                     <i className="fa-solid fa-circle-check" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
@@ -1729,8 +1882,8 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                       <div
                         key={idx}
                         style={{
-                          background: 'rgba(239, 68, 68, 0.05)',
-                          border: '1px solid rgba(239, 68, 68, 0.15)',
+                          background: d.isAbonado ? 'rgba(148, 163, 184, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                          border: d.isAbonado ? '1px dashed rgba(148, 163, 184, 0.3)' : '1px solid rgba(239, 68, 68, 0.15)',
                           borderRadius: '8px',
                           padding: '10px 14px',
                           display: 'flex',
@@ -1740,20 +1893,126 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 700, color: '#f87171', fontSize: '0.86rem' }}>
-                            {d.tipo} • {d.alunoNome}
+                          <div style={{ fontWeight: 700, color: d.isAbonado ? '#94a3b8' : '#f87171', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{d.tipo} • {d.alunoNome}</span>
+                            {d.isAbonado && (
+                              <span style={{ fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid #10b981', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                <i className="fa-solid fa-shield-check"></i> Débito Abonado
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px' }}>
                             {d.motivo}
+                            {d.isAbonado && d.abonoMotivo && (
+                              <span style={{ display: 'block', color: '#34d399', marginTop: '2px' }}>
+                                Justificativa do abono: {d.abonoMotivo}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <span style={{ fontWeight: 900, color: '#f87171', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
-                          -{d.pontosDebito} pts
-                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontWeight: 900, color: d.isAbonado ? '#94a3b8' : '#f87171', textDecoration: d.isAbonado ? 'line-through' : 'none', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
+                            -{d.pontosDebito} pts
+                          </span>
+
+                          {!d.isAbonado && (
+                            <button
+                              type="button"
+                              onClick={() => handleAbonarDebito(selectedProfExtrato, d)}
+                              style={{
+                                background: 'rgba(59, 130, 246, 0.15)',
+                                border: '1px solid #3b82f6',
+                                color: '#60a5fa',
+                                borderRadius: '6px',
+                                padding: '4px 8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title="Abonar/Anular este débito com justificativa auditada"
+                            >
+                              <i className="fa-solid fa-shield-halved"></i> Abonar
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )
+              ) : (
+                /* Aba de Ajustes & Abonos */
+                <div>
+                  {(!selectedProfExtrato.extratoAjustes || selectedProfExtrato.extratoAjustes.length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                      <i className="fa-solid fa-sliders" style={{ fontSize: '2rem', marginBottom: '8px', opacity: 0.5 }}></i>
+                      <p style={{ margin: 0, fontSize: '0.88rem' }}>Nenhum ajuste manual ou abono lançado para este profissional em {selectedMonth}.</p>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenNovoAjuste(selectedProfExtrato)}
+                        style={{ marginTop: '14px', padding: '8px 16px', borderRadius: '6px', background: '#3b82f6', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                      >
+                        <i className="fa-solid fa-plus-circle"></i> Criar Primeiro Ajuste
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedProfExtrato.extratoAjustes.map((adj: any) => (
+                        <div
+                          key={adj._id}
+                          style={{
+                            background: adj.tipo === 'debito_manual' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(59, 130, 246, 0.08)',
+                            border: adj.tipo === 'debito_manual' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.25)',
+                            borderRadius: '8px',
+                            padding: '12px 16px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{adj.tipoDescricao}</span>
+                              <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px', color: '#94a3b8' }}>
+                                {adj.data} • Autor: {adj.criadoPor}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '4px' }}>
+                              {adj.motivo}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ fontWeight: 900, color: adj.tipo === 'debito_manual' ? '#f87171' : '#60a5fa', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                              {adj.tipo === 'debito_manual' ? `-${adj.pontos}` : `+${adj.pontos}`} pts
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAjuste(adj._id)}
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid #ef4444',
+                                color: '#f87171',
+                                padding: '5px 9px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                fontWeight: 700
+                              }}
+                              title="Estornar/Remover este ajuste"
+                            >
+                              <i className="fa-solid fa-trash-can"></i> Estornar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1768,6 +2027,245 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Toast Feedback */}
+      {feedbackMsg && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: feedbackMsg.type === 'success' ? '#10b981' : '#ef4444',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.88rem',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <i className={feedbackMsg.type === 'success' ? "fa-solid fa-circle-check" : "fa-solid fa-circle-exclamation"}></i>
+          {feedbackMsg.text}
+        </div>
+      )}
+
+      {/* Modal de Lançamento de Ajuste / Abono */}
+      {modalAjusteOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => !savingAjuste && setModalAjusteOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg, #1e293b)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                {ajusteForm.tipo === 'abono_ponto' ? '🛡️ Abonar Débito de Ponto' : '⚙️ Lançar Ajuste Manual'}
+              </h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setModalAjusteOpen(false)}
+                disabled={savingAjuste}
+                style={{ padding: '4px 8px' }}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '14px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Profissional</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>{ajusteForm.profissionalNome}</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Mês de Referência: {selectedMonth}</div>
+            </div>
+
+            {/* Tipo de Ajuste */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
+                Tipo de Ajuste
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setAjusteForm(prev => ({ ...prev, tipo: 'abono_ponto' }))}
+                  style={{
+                    padding: '8px 4px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: ajusteForm.tipo === 'abono_ponto' ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                    background: ajusteForm.tipo === 'abono_ponto' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                    color: ajusteForm.tipo === 'abono_ponto' ? '#60a5fa' : '#94a3b8'
+                  }}
+                >
+                  🛡️ Abono Ponto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAjusteForm(prev => ({ ...prev, tipo: 'bonus_credito' }))}
+                  style={{
+                    padding: '8px 4px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: ajusteForm.tipo === 'bonus_credito' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                    background: ajusteForm.tipo === 'bonus_credito' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                    color: ajusteForm.tipo === 'bonus_credito' ? '#34d399' : '#94a3b8'
+                  }}
+                >
+                  ⭐ Bônus / Crédito
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAjusteForm(prev => ({ ...prev, tipo: 'debito_manual' }))}
+                  style={{
+                    padding: '8px 4px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: ajusteForm.tipo === 'debito_manual' ? '2px solid #ef4444' : '1px solid var(--border-color)',
+                    background: ajusteForm.tipo === 'debito_manual' ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+                    color: ajusteForm.tipo === 'debito_manual' ? '#f87171' : '#94a3b8'
+                  }}
+                >
+                  ⚠️ Débito Manual
+                </button>
+              </div>
+            </div>
+
+            {/* Pontos */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
+                Quantidade de Pontos {ajusteForm.tipo === 'debito_manual' ? 'a Penalizar (-)' : 'a Bonificar / Abonar (+)'}
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={ajusteForm.pontos}
+                onChange={(e) => setAjusteForm(prev => ({ ...prev, pontos: Number(e.target.value) }))}
+                className="form-control"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  fontWeight: 800,
+                  fontSize: '1rem'
+                }}
+              />
+            </div>
+
+            {/* Sugestões Rápidas de Motivo */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
+                Motivo / Justificativa (Obrigatório)
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                {[
+                  'Escala real às 14h (ajuste de turno)',
+                  'Anomalia técnica de marcação de ponto',
+                  'Compensação de plantão / cobertura',
+                  'Teste autorizado pela gestão',
+                  'Atividade clínica extraordinária'
+                ].map((sug, sIdx) => (
+                  <button
+                    key={sIdx}
+                    type="button"
+                    onClick={() => setAjusteForm(prev => ({ ...prev, motivo: sug }))}
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#cbd5e1',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + {sug}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={ajusteForm.motivo}
+                onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))}
+                placeholder="Descreva detalhadamente o motivo deste ajuste para auditoria..."
+                className="form-control"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.85rem',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            {/* Ações */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '18px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setModalAjusteOpen(false)}
+                disabled={savingAjuste}
+                style={{ padding: '8px 14px' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSaveAjuste}
+                disabled={savingAjuste}
+                style={{ padding: '8px 18px', fontWeight: 700 }}
+              >
+                {savingAjuste ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i> Salvando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-check"></i> Confirmar Ajuste
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

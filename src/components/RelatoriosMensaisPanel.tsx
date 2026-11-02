@@ -18,6 +18,32 @@ interface Metrics {
   totalNaoSinalizados: number;
 }
 
+function normalizeStatusPlano(rawStatus?: string): 'Ativo' | 'Cancelado' | 'Lead' {
+  if (!rawStatus) return 'Ativo';
+  const s = rawStatus.toLowerCase().trim();
+  if (
+    s === 'cancelado' ||
+    s === 'cancelado_agendado' ||
+    s === 'finalizado' ||
+    s === 'inativo' ||
+    s.includes('cancel') ||
+    s.includes('finaliz')
+  ) {
+    return 'Cancelado';
+  }
+  if (
+    s === 'lead' ||
+    s === 'pendente' ||
+    s === 'proposta_enviada' ||
+    s.includes('lead') ||
+    s.includes('pend') ||
+    s.includes('propost')
+  ) {
+    return 'Lead';
+  }
+  return 'Ativo';
+}
+
 export default function RelatoriosMensaisPanel() {
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +68,11 @@ export default function RelatoriosMensaisPanel() {
       const res = await fetch('/api/admin/relatorio-mensal', { cache: 'no-store' });
       const json = await res.json();
       if (json.success && Array.isArray(json.clients)) {
-        setClients(json.clients);
+        const formatted = json.clients.map((c: any) => ({
+          ...c,
+          statusPlano: normalizeStatusPlano(c.statusPlano)
+        }));
+        setClients(formatted);
       } else {
         console.error('Erro ao buscar clientes:', json.error);
       }
@@ -104,14 +134,8 @@ export default function RelatoriosMensaisPanel() {
     return Array.from(set).sort();
   }, [clients]);
 
-  // Obter lista única de status do plano para o seletor
-  const statusOptions = useMemo(() => {
-    const set = new Set<string>();
-    clients.forEach(c => {
-      if (c.statusPlano) set.add(c.statusPlano);
-    });
-    return Array.from(set).sort();
-  }, [clients]);
+  // Lista unificada de status do plano: Ativo, Cancelado e Lead
+  const statusOptions = ['Ativo', 'Cancelado', 'Lead'];
 
   // Filtragem dos clientes
   const filteredClients = useMemo(() => {
@@ -129,8 +153,8 @@ export default function RelatoriosMensaisPanel() {
       // Filtro por plano
       if (selectedPlan !== 'all' && c.planoNome !== selectedPlan) return false;
 
-      // Filtro por status do plano
-      if (selectedStatus !== 'all' && (c.statusPlano || '').toLowerCase() !== selectedStatus.toLowerCase()) return false;
+      // Filtro por status do plano (Ativo, Cancelado, Lead)
+      if (selectedStatus !== 'all' && normalizeStatusPlano(c.statusPlano) !== selectedStatus) return false;
 
       return true;
     });
@@ -661,7 +685,6 @@ export default function RelatoriosMensaisPanel() {
                 filteredClients.map((client, idx) => {
                   const badge = getPlanBadgeStyle(client.planoNome);
                   const isToggling = togglingId === client.id;
-                  const isAtivo = client.statusPlano === 'ativo' || client.statusPlano === 'assinado';
 
                   return (
                     <tr
@@ -697,13 +720,22 @@ export default function RelatoriosMensaisPanel() {
                       <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                         <span style={{
                           display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
+                          padding: '3px 10px',
+                          borderRadius: '6px',
                           fontSize: '0.74rem',
                           fontWeight: 700,
-                          textTransform: 'capitalize',
-                          background: isAtivo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                          color: isAtivo ? '#86efac' : '#cbd5e1'
+                          background:
+                            client.statusPlano === 'Ativo' ? 'rgba(16, 185, 129, 0.15)' :
+                            client.statusPlano === 'Cancelado' ? 'rgba(239, 68, 68, 0.15)' :
+                            'rgba(245, 158, 11, 0.15)',
+                          color:
+                            client.statusPlano === 'Ativo' ? '#86efac' :
+                            client.statusPlano === 'Cancelado' ? '#fca5a5' :
+                            '#fcd34d',
+                          border:
+                            client.statusPlano === 'Ativo' ? '1px solid rgba(16, 185, 129, 0.3)' :
+                            client.statusPlano === 'Cancelado' ? '1px solid rgba(239, 68, 68, 0.3)' :
+                            '1px solid rgba(245, 158, 11, 0.3)'
                         }}>
                           {client.statusPlano}
                         </span>

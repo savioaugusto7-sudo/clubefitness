@@ -10,6 +10,7 @@ import Appointment from '@/models/Appointment';
 import Prontuario from '@/models/Prontuario';
 import PontoRecord from '@/models/PontoRecord';
 import Advertencia from '@/models/Advertencia';
+import ScoreAdjustment from '@/models/ScoreAdjustment';
 import Plan from '@/models/Plan';
 
 export const maxDuration = 30;
@@ -121,8 +122,8 @@ export async function GET(request: Request) {
     const sixMonthsAgoDate = new Date(selYear, selMonth - 6, 1);
     const sixMonthsAgoFirstDayStr = `${sixMonthsAgoDate.getFullYear()}-${String(sixMonthsAgoDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos, Prontuários, Registros de Ponto e Advertências
-    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios, monthPontoRecords, monthAdvertencias] = await Promise.all([
+    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos, Prontuários, Registros de Ponto, Advertências e Ajustes Manuais
+    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios, monthPontoRecords, monthAdvertencias, monthScoreAdjustments] = await Promise.all([
       PhysicalAssessment.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
       }).lean(),
@@ -154,6 +155,9 @@ export async function GET(request: Request) {
       Advertencia.find({
         mesReferencia: mesParam,
         status: { $ne: 'cancelada' }
+      }).lean(),
+      ScoreAdjustment.find({
+        mesReferencia: mesParam
       }).lean()
     ]);
 
@@ -235,6 +239,9 @@ export async function GET(request: Request) {
         atrasosPontoDebito: number;
         advertenciasCount: number;
         advertenciasDebito: number;
+        ajustesCount: number;
+        ajustesCreditoPts: number;
+        ajustesDebitoPts: number;
       };
       extratoCreditos: Array<{
         tipo: string;
@@ -243,6 +250,7 @@ export async function GET(request: Request) {
         data: string;
         tempoGasto?: string;
         pontos: number;
+        adjustmentId?: string;
       }>;
       extratoDebitos: Array<{
         tipo: string;
@@ -250,6 +258,21 @@ export async function GET(request: Request) {
         alunoNome: string;
         data: string;
         pontosDebito: number;
+        registroOrigemId?: string;
+        isAbonado?: boolean;
+        abonoMotivo?: string;
+        abonoId?: string;
+        adjustmentId?: string;
+      }>;
+      extratoAjustes: Array<{
+        _id: string;
+        tipo: string;
+        tipoDescricao: string;
+        pontos: number;
+        motivo: string;
+        registroOrigemId?: string;
+        criadoPor: string;
+        data: string;
       }>;
     }
 
@@ -292,10 +315,14 @@ export async function GET(request: Request) {
           totalAtrasosMinutos: 0,
           atrasosPontoDebito: 0,
           advertenciasCount: 0,
-          advertenciasDebito: 0
+          advertenciasDebito: 0,
+          ajustesCount: 0,
+          ajustesCreditoPts: 0,
+          ajustesDebitoPts: 0
         },
         extratoCreditos: [],
-        extratoDebitos: []
+        extratoDebitos: [],
+        extratoAjustes: []
       });
     });
 
@@ -512,6 +539,13 @@ export async function GET(request: Request) {
     // =========================================================================
     // 5.1 PROCESSAR DÉBITOS DE ATRASO DE PONTO (-1 pt por minuto de atraso)
     // =========================================================================
+    const abonadosMap = new Map<string, any>();
+    monthScoreAdjustments.forEach((adj: any) => {
+      if (adj.tipo === 'abono_ponto' && adj.registroOrigemId) {
+        abonadosMap.set(String(adj.registroOrigemId), adj);
+      }
+    });
+
     monthPontoRecords.forEach((ponto: any) => {
       const pId = String(ponto.profissionalId?._id || ponto.profissionalId);
       const targetScore = profScoresMap.get(pId);
@@ -519,6 +553,7 @@ export async function GET(request: Request) {
       const ptsDebito = Number(ponto.pontosDebito) || minutos;
 
       if (targetScore && minutos > 0 && ptsDebito > 0 && ponto.status === 'valido') {
+        const abonoAdj = abonadosMap.get(String(ponto._id));
         targetScore.detalhes.totalAtrasosMinutos += minutos;
         targetScore.detalhes.atrasosPontoDebito += ptsDebito;
         targetScore.debitosIndividuais += ptsDebito;
@@ -527,7 +562,11 @@ export async function GET(request: Request) {
           motivo: `Entrada às ${ponto.horario} (esperado ${ponto.horarioEsperado || '08:00'}) - ${minutos} min de atraso`,
           alunoNome: '-',
           data: ponto.data,
-          pontosDebito: ptsDebito
+          pontosDebito: ptsDebito,
+          registroOrigemId: String(ponto._id),
+          isAbonado: !!abonoAdj,
+          abonoMotivo: abonoAdj?.motivo,
+          abonoId: abonoAdj ? String(abonoAdj._id) : undefined
         });
       }
     });
@@ -551,6 +590,54 @@ export async function GET(request: Request) {
           data: adv.data,
           pontosDebito: ptsDebito
         });
+      }
+    });
+
+    // =========================================================================
+    // 5.3 PROCESSAR AJUSTES MANUAIS E ABONOS (ScoreAdjustment)
+    // =========================================================================
+    monthScoreAdjustments.forEach((adj: any) => {
+      const pId = String(adj.profissionalId?._id || adj.profissionalId);
+      const targetScore = profScoresMap.get(pId);
+      const pts = Number(adj.pontos) || 0;
+
+      if (targetScore) {
+        targetScore.detalhes.ajustesCount++;
+        const itemAjuste = {
+          _id: String(adj._id),
+          tipo: adj.tipo,
+          tipoDescricao: adj.tipo === 'abono_ponto' ? 'Abono de Ponto' : adj.tipo === 'bonus_credito' ? 'Bônus Manual' : 'Débito Manual',
+          pontos: pts,
+          motivo: adj.motivo,
+          registroOrigemId: adj.registroOrigemId || '',
+          criadoPor: adj.criadoPorNome || adj.criadoPor || 'Gestor',
+          data: adj.createdAt ? new Date(adj.createdAt).toISOString().split('T')[0] : mesParam
+        };
+        targetScore.extratoAjustes.push(itemAjuste);
+
+        if (adj.tipo === 'abono_ponto' || adj.tipo === 'bonus_credito') {
+          targetScore.detalhes.ajustesCreditoPts += pts;
+          targetScore.creditosIndividuais += pts;
+          targetScore.extratoCreditos.push({
+            tipo: adj.tipo === 'abono_ponto' ? '🛡️ Abono de Ponto' : '⭐ Bônus Manual',
+            descricao: adj.motivo,
+            alunoNome: `Ajuste (${adj.criadoPorNome || 'Gestor'})`,
+            data: itemAjuste.data,
+            pontos: pts,
+            adjustmentId: String(adj._id)
+          });
+        } else if (adj.tipo === 'debito_manual') {
+          targetScore.detalhes.ajustesDebitoPts += pts;
+          targetScore.debitosIndividuais += pts;
+          targetScore.extratoDebitos.push({
+            tipo: '⚠️ Débito Manual',
+            motivo: adj.motivo,
+            alunoNome: `Ajuste (${adj.criadoPorNome || 'Gestor'})`,
+            data: itemAjuste.data,
+            pontosDebito: pts,
+            adjustmentId: String(adj._id)
+          });
+        }
       }
     });
 
