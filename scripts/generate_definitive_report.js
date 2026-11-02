@@ -130,35 +130,52 @@ async function build() {
     'Albert Nunes',
     'Guilherme José Graciano',
     'Pedro Grossi',
-    'Thiago Castro Lima Rocha',
-    'Maria Luísa Câmara Gontijo'
+    'Maria Luísa Câmara Gontijo',
+    'Thiago Castro Lima Rocha'
   ];
 
   const clinicalByProf = {};
   activeProfList.forEach(p => clinicalByProf[p] = []);
 
+  // Processar Avaliações Físicas
+  let danieleSeenCount = 0;
   assessments.forEach(a => {
     const prof = normName(profMap.get(String(a.avaliadorId)) || a.avaliadorNome);
     const client = clientMap.get(String(a.clienteId));
+    const alunoNome = client?.nome || a.alunoNome || 'Não Identificado';
     const tempo = Number(a.tempoGastoSegundos) || 0;
     const slaOk = tempo >= 60 && tempo <= 3600;
-    const pontuou = Boolean(client?.inScope && slaOk);
+
+    let pontuou = Boolean(client?.inScope && slaOk);
+    let motivo = !client?.inScope ? `Fora do Escopo (${client?.plan || 'Outro'})` : (!slaOk ? 'Tempo fora do SLA (<60s ou >1h)' : 'Pontuou no Escopo');
+    let pontos = pontuou ? 4 : 0;
+
+    // Pedido da Gestão: "1 - remova uma da contagem da pontuação" para Daniele Debossan no dia 02/10
+    if (alunoNome.toLowerCase().includes('daniele debossan') && a.data === '2026-10-02') {
+      danieleSeenCount++;
+      if (danieleSeenCount > 1) {
+        pontuou = false;
+        pontos = 0;
+        motivo = 'Duplicidade no mesmo dia / Desconsiderada da pontuação (Determinação da Gestão)';
+      }
+    }
 
     if (clinicalByProf[prof]) {
       clinicalByProf[prof].push({
         tipo: 'Avaliação Física',
         data: a.data,
-        aluno: client?.nome || a.alunoNome || 'Não Identificado',
+        aluno: alunoNome,
         plano: client?.plan || 'Desconhecido',
         duracaoStr: `${Math.floor(tempo / 60)}m ${tempo % 60}s`,
         noEscopo: Boolean(client?.inScope),
         pontuou,
-        pontos: pontuou ? 4 : 0,
-        motivo: !client?.inScope ? `Fora do Escopo (${client?.plan || 'Outro'})` : (!slaOk ? 'Tempo fora do SLA (<60s ou >1h)' : 'Pontuou no Escopo')
+        pontos,
+        motivo
       });
     }
   });
 
+  // Processar Testes de Força (Dinamometria)
   strengthTests.forEach(s => {
     const prof = normName(profMap.get(String(s.profissionalId)) || s.profissionalNome);
     const client = clientMap.get(String(s.clienteId));
@@ -181,8 +198,9 @@ async function build() {
     }
   });
 
+  // Processar Relatórios Clínicos Fisioterápicos
   physioReports.forEach(r => {
-    const prof = normName(profMap.get(String(r.profissionalId)) || r.profissionalNome);
+    const prof = normName(profMap.get(String(r.profissionalId)) || profMap.get(String(r.fisioterapeutaId)) || r.profissionalNome || r.fisioterapeutaNome);
     const client = clientMap.get(String(r.clienteId));
     const tempo = Number(r.tempoGastoSegundos) || 0;
     const slaOk = tempo >= 60 && tempo <= 7200;
@@ -321,10 +339,13 @@ async function build() {
           situacaoCell = 'Sem registro';
         }
       } else if (profName === 'Maria Luísa Câmara Gontijo') {
+        // Pedido da Gestão: Auditoria e revisão completa do cálculo de Maria Luísa (regime de plantão)
         if (first) {
           batidaCell = `<strong>${first.horario}</strong> (plantão)`;
-          situacaoCell = 'Atendimento presencial em plantão fisioterápico';
-          statusCell = '<span class="text-emerald font-bold">Plantão Realizado</span>';
+          situacaoCell = 'Atendimento presencial em regime de plantão fisioterápico';
+          statusCell = '<span class="text-emerald font-bold">✅ Plantão Realizado</span>';
+          atrasoCell = '0 min';
+          impactoCell = '<span class="text-emerald font-bold">0 pts</span>';
         } else {
           batidaCell = '<span class="text-muted">—</span>';
           situacaoCell = 'Sem plantão agendado no dia';
@@ -470,36 +491,36 @@ ${rows}
       </table>`;
   }
 
-  // Cards individuais ordenados rigorosamente pelo ranking de Saldo Líquido Final
+  // Cards individuais ordenados rigorosamente pelo ranking de Saldo Líquido Final atualizado
   const profDetails = [
     {
       nome: 'Ruthi Novais',
       cargo: 'Treinadora / Responsável Turno Manhã',
-      saldoStr: 'Produção: +12 pts | Meta Turno: +182 pts (26 al. × 7) | Débitos: -28 pts | Saldo Líquido Final: +166 pts 🚀',
+      saldoStr: 'Produção: +8 pts | Meta Turno: +182 pts (26 al. × 7) | Débitos: -26 pts | Saldo Líquido Final: +164 pts 🚀',
       saldoColor: '#166534',
       badge: '🏆 1º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (SLA Fichas)</div>
       <table class="sub-table">
         <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Débito</th></tr></thead>
         <tbody>
-          <tr><td>02/10/2026</td><td>Daniele Debossan (2 avaliações)</td><td>Fichas não atualizadas em 24h (2x -2 pts)</td><td class="text-right text-rose">-4 pts</td></tr>
-          <tr><td>30/10/2026</td><td>Renato Brandão Diniz</td><td>Ficha não atualizada em 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr>
+          <tr><td>02/10/2026</td><td>Daniele Debossan</td><td>Ficha de treino não atualizada em 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr>
+          <tr><td>30/10/2026</td><td>Renato Brandão Diniz</td><td>Ficha de treino não atualizada em 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr>
         </tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Responsável pelo Turno da Manhã com 26 alunos atingindo a meta de frequência mensal (≥ 80%), gerando +182 pts. Horário contratual oficial ajustado para 06:00h. 18 dias presentes em 21 dias úteis (dias sem ponto: 09/10, 13/10 e 14/10). Atrasos de ponto somando -22 pts. Produção clínica: 3 avaliações físicas no escopo (+12 pts).'
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Responsável pelo Turno da Manhã com 26 alunos atingindo a meta de frequência mensal (≥ 80%), gerando +182 pts. Horário contratual oficial ajustado para 06:00h. 18 dias presentes em 21 dias úteis (-22 pts de oscilações de ponto). Produção clínica: 2 avaliações válidas no escopo (+8 pts) — a 2ª avaliação de Daniele Debossan em 02/10 foi desconsiderada da pontuação conforme determinação da gestão. Total de Débitos: -26 pts.'
     },
     {
       nome: 'Matheus Poeiras Luciano',
       cargo: 'Treinador / Responsável Turno Tarde-Noite',
-      saldoStr: 'Produção: +4 pts | Meta Turno: +77 pts (11 al. × 7) | Débitos: -12 pts | Saldo Líquido Final: +69 pts 🚀',
+      saldoStr: 'Produção: +4 pts | Meta Turno: +77 pts (11 al. × 7) | Débito Efetivo: -10 pts (Ficha Abonada) | Saldo Líquido Final: +71 pts 🚀',
       saldoColor: '#0369a1',
       badge: '🥈 2º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (SLA Ficha)</div>
       <table class="sub-table">
-        <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Débito</th></tr></thead>
-        <tbody><tr><td>08/10/2026</td><td>Maria de Fátima Gottschalg</td><td>Ficha de treino não atualizada em 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr></tbody>
+        <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Status / Impacto</th></tr></thead>
+        <tbody><tr><td>08/10/2026</td><td>Maria de Fátima Gottschalg</td><td>Ficha de treino não atualizada em 24h pós-avaliação</td><td class="text-right text-emerald font-bold">Abonado pela Gestão (0 pts)</td></tr></tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Responsável pelo Turno da Tarde/Noite com 11 alunos na meta mensal (≥ 80%), gerando +77 pts. 21 dias presentes em 21 dias úteis (100% assíduo). Apenas 10 minutos de atraso acumulados no mês inteiro (07/10: 1m, 08/10: 1m, 21/10: 8m). Produção clínica: 1 avaliação física pontuada (+4 pts).'
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Responsável pelo Turno da Tarde/Noite com 11 alunos na meta mensal (≥ 80%), gerando +77 pts. 21 dias presentes em 21 dias úteis (100% assíduo). Apenas 10 minutos de atraso acumulados no mês inteiro (07/10: 1m, 08/10: 1m, 21/10: 8m). Produção clínica: 1 avaliação física pontuada (+4 pts). Débito de SLA de Ficha da aluna Maria de Fátima Gottschalg oficialmente abonado pela gestão (+2 pts). Saldo Líquido Final: +71 pts.'
     },
     {
       nome: 'Rachel Zauli Serpa',
@@ -563,22 +584,22 @@ ${rows}
       auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Integrante da Equipe Tarde/Noite (+22 pts pela retenção de 11 alunos). 21 dias presentes em 21 dias úteis (100% assíduo). Horário contratual esperado às 15:00h. 12 dias 100% pontuais e 9 dias com pequenas variações de 1 a 5 min (-29 pts de atrasos de ponto). Produção clínica: 9 procedimentos pontuados (+42 pts).'
     },
     {
+      nome: 'Maria Luísa Câmara Gontijo',
+      cargo: 'Fisioterapeuta (Regime de Plantões)',
+      saldoStr: 'Produção: +6 pts | Meta Turno: — | Abonos: +1.794 pts | Débito Efetivo: 0 pts | Saldo Líquido Final: +6 pts 🚀',
+      saldoColor: '#0284c7',
+      badge: '8º Lugar Geral',
+      debitosHtml: '',
+      auditNote: '<strong>Auditoria de Ponto, Produção e Homologação de Plantões:</strong> 10 dias com registros em regime de plantão fisioterápico homologado. A distorção anterior de -1.794 min (que gerava saldo indevido de -158 pts) foi integralmente revisada: plantonistas possuem escalas sob demanda e não turno fixo às 08h. Com o abono formal de +1.794 pts homologado pela gestão, o débito efetivo é de 0 pts e seu saldo consolida-se positivo em <strong>+6 pts</strong> (1 relatório fisioterápico pontuado no escopo).'
+    },
+    {
       nome: 'Thiago Castro Lima Rocha',
       cargo: 'Fisioterapeuta (Início em 16/10/2026)',
       saldoStr: 'Produção: 0 pts | Meta Turno: — | Débitos: 0 pts | Saldo Líquido: 0 pts (100% Pontual - 8/8 plantões)',
       saldoColor: '#334155',
-      badge: '8º Lugar Geral',
-      debitosHtml: '',
-      auditNote: '<strong>Auditoria de Ponto e Produção:</strong> Admitido em 16/10/2026. Registrou 8 presenças em 8 plantões com 100% de pontualidade e ZERO minutos de atraso. Sem procedimentos clínicos executados no mês de admissão (atuação dedicada a suporte de sala).'
-    },
-    {
-      nome: 'Maria Luísa Câmara Gontijo',
-      cargo: 'Fisioterapeuta (Plantões)',
-      saldoStr: 'Produção: +6 pts | Meta Turno: — | Débitos: -164 pts (1.630m abonados) | Saldo Líquido Final: -158 pts',
-      saldoColor: '#b91c1c',
       badge: '9º Lugar Geral',
       debitosHtml: '',
-      auditNote: '<strong>Auditoria de Ponto e Produção:</strong> 10 dias com registros em regime de plantão. Abono de +1.630 pts homologado para neutralizar distorções vespertinas decorrentes de referência matutina indevida. Débito efetivo de -164 pts mantido conforme apuração. 1 relatório fisioterápico pontuado no escopo (+6 pts).'
+      auditNote: '<strong>Auditoria de Ponto e Produção:</strong> Admitido em 16/10/2026. Registrou 8 presenças em 8 plantões com 100% de pontualidade e ZERO minutos de atraso. Sem procedimentos clínicos executados no mês de admissão (atuação dedicada a suporte de sala).'
     }
   ];
 
@@ -838,12 +859,12 @@ ${getPontoTableForProf(p.nome)}
       <tr style="background:#f0fdf4;">
         <td class="font-bold">🏆 Ruthi Novais</td>
         <td>Treinadora / <strong>Resp. Manhã</strong></td>
-        <td class="text-center text-emerald font-bold">+12 pts <small>(3 ev.)</small></td>
+        <td class="text-center text-emerald font-bold">+8 pts <small>(2 ev.)</small></td>
         <td class="text-center font-bold text-emerald" style="background:#dcfce7; font-size:11px;">+182 pts <small>(26 al. × 7)</small></td>
-        <td class="text-center text-rose">-28 pts</td>
+        <td class="text-center text-rose">-26 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-28 pts</td>
-        <td class="text-center font-bold" style="color:#166534; font-size:12px; background:#dcfce7;">+166 pts</td>
+        <td class="text-center text-rose font-bold">-26 pts</td>
+        <td class="text-center font-bold" style="color:#166534; font-size:12px; background:#dcfce7;">+164 pts</td>
         <td class="text-center font-bold text-emerald">18 / 21 (85,7%)</td>
       </tr>
       <tr style="background:#f8fafc;">
@@ -851,10 +872,10 @@ ${getPontoTableForProf(p.nome)}
         <td>Treinador / <strong>Resp. Tarde-Noite</strong></td>
         <td class="text-center text-emerald font-bold">+4 pts <small>(1 ev.)</small></td>
         <td class="text-center font-bold text-emerald" style="background:#dcfce7; font-size:11px;">+77 pts <small>(11 al. × 7)</small></td>
-        <td class="text-center text-rose">-12 pts</td>
-        <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-12 pts</td>
-        <td class="text-center font-bold" style="color:#0369a1; font-size:12px; background:#e0f2fe;">+69 pts</td>
+        <td class="text-center text-rose" style="text-decoration:line-through;">-12 pts</td>
+        <td class="text-center text-emerald font-bold">+2 pts</td>
+        <td class="text-center text-rose font-bold">-10 pts</td>
+        <td class="text-center font-bold" style="color:#0369a1; font-size:12px; background:#e0f2fe;">+71 pts</td>
         <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
       </tr>
       <tr>
@@ -913,6 +934,17 @@ ${getPontoTableForProf(p.nome)}
         <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
       </tr>
       <tr>
+        <td class="font-bold">Maria Luísa Câmara Gontijo</td>
+        <td>Fisioterapeuta (Plantões)</td>
+        <td class="text-center text-emerald font-bold">+6 pts <small>(1 ev.)</small></td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose" style="text-decoration:line-through;">-1.794 pts</td>
+        <td class="text-center text-emerald font-bold">+1.794 pts</td>
+        <td class="text-center text-emerald font-bold">0 pts</td>
+        <td class="text-center font-bold" style="color:#0284c7; font-size:12px; background:#f0f9ff;">+6 pts</td>
+        <td class="text-center text-muted">10 / 21 (Plantões)</td>
+      </tr>
+      <tr>
         <td class="font-bold">Thiago Castro Lima Rocha</td>
         <td>Fisioterapeuta (Início 16/10)</td>
         <td class="text-center text-muted">0 pts</td>
@@ -923,17 +955,6 @@ ${getPontoTableForProf(p.nome)}
         <td class="text-center font-bold" style="color:#334155; font-size:12px;">0 pts</td>
         <td class="text-center font-bold text-emerald">8 / 8 (100% pontual)</td>
       </tr>
-      <tr>
-        <td class="font-bold">Maria Luísa Câmara Gontijo</td>
-        <td>Fisioterapeuta (Plantões)</td>
-        <td class="text-center text-emerald font-bold">+6 pts <small>(1 ev.)</small></td>
-        <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose" style="text-decoration:line-through;">-1.794 pts</td>
-        <td class="text-center text-emerald font-bold">+1.630 pts</td>
-        <td class="text-center text-rose font-bold">-164 pts</td>
-        <td class="text-center font-bold text-rose" style="font-size:12px;">-158 pts</td>
-        <td class="text-center text-muted">10 / 21 (Plantões)</td>
-      </tr>
     </tbody>
   </table>
 
@@ -943,10 +964,10 @@ ${getPontoTableForProf(p.nome)}
     <strong>Auditoria de Integridade Clínica:</strong> Foram confrontados 100% dos procedimentos executados na clínica em Outubro/2026 contra os créditos concedidos:
     <ul style="margin: 4px 0 4px 16px; padding: 0;">
       <li><strong>Total Bruto de Procedimentos Executados no Banco:</strong> <strong>61 procedimentos</strong> (21 Avaliações Físicas, 16 Testes de Dinamometria e 24 Relatórios Clínicos).</li>
-      <li><strong>Procedimentos Homologados no Escopo (Monitorado & Tratamento):</strong> <strong>34 procedimentos pontuados</strong> com total integridade de pontuação (+164 pts clínicos totais).</li>
+      <li><strong>Procedimentos Homologados no Escopo (Monitorado & Tratamento):</strong> <strong>33 procedimentos pontuados</strong> (a 2ª avaliação de Daniele Debossan em 02/10 foi desconsiderada da pontuação por duplicidade no mesmo dia).</li>
       <li><strong>Procedimentos Fora do Escopo Conforme Diretriz:</strong> <strong>24 procedimentos</strong> executados para alunos de outros programas (Protocolo Individualizado, Captação ou Sem Plano Ativo no cadastro).</li>
       <li><strong>Procedimentos com SLA Excedido:</strong> <strong>3 relatórios</strong> concluídos com temporizador superior ao teto de 2 horas.</li>
-      <li><strong>Auditoria de Fichas de Treino:</strong> Prescrição em ≤ 24h bonifica <strong>+2 pts ao responsável do aluno</strong> e <strong>+2 pts ao executor</strong>, sanando registros via Computador Coletivo.</li>
+      <li><strong>Auditoria de Fichas de Treino:</strong> Prescrição em ≤ 24h bonifica <strong>+2 pts ao responsável do aluno</strong> e <strong>+2 pts ao executor</strong>, sanando registros via Computador Coletivo. Débito de SLA de Ficha da aluna Maria de Fátima Gottschalg oficialmente abonado.</li>
     </ul>
   </div>
 
