@@ -327,27 +327,40 @@ export async function GET(request: Request) {
     });
 
     // =========================================================================
-    // 1. PROCESSAR AVALIAÇÕES FÍSICAS (+4 pts se ≤ 1h, antifraude > 60s)
+    // 1. PROCESSAR AVALIAÇÕES FÍSICAS (+4 pts se ≤ 1h; se < 15 min, abonada)
     //    E DÉBITO (-2 pts se após 24h não houver ficha criada/atualizada)
     // =========================================================================
+    const seenAssessmentKeys = new Set<string>();
+
     monthAssessments.forEach((ass: any) => {
       const pId = String(ass.avaliadorId?._id || ass.avaliadorId);
       const targetScore = profScoresMap.get(pId);
-      const cObj = clientMap.get(String(ass.clienteId?._id || ass.clienteId));
+      const rawCId = String(ass.clienteId?._id || ass.clienteId);
+      const cObj = clientMap.get(rawCId);
       const alunoNome = cObj?.dadosPessoais?.nome || cObj?.nome || 'Aluno';
 
       const tempoGasto = Number(ass.tempoGastoSegundos) || 0;
       const dataAssStr = ass.data || ass.createdAt?.toISOString().split('T')[0] || '';
 
-      // Crédito: Concluída dentro de 1h (entre 60s e 3600s)
-      if (tempoGasto >= 60 && tempoGasto <= 3600) {
+      // Deduplicação: se houver mais de uma avaliação para o mesmo aluno no mesmo dia, desconsiderar duplicata
+      const dedupKey = `${pId}_${rawCId}_${dataAssStr}`;
+      if (seenAssessmentKeys.has(dedupKey)) {
+        return; // Desconsiderar duplicata conforme regra expressa da gestão
+      }
+      seenAssessmentKeys.add(dedupKey);
+
+      // Crédito: Concluída dentro de 1h (SLA ≤ 1h); se < 15 min, abonada oficialmente
+      if (tempoGasto <= 3600) {
         if (targetScore) {
+          const isAbonadoShort = tempoGasto < 900;
           targetScore.detalhes.avaliacoesPrazo++;
           targetScore.detalhes.avaliacoesPrazoPts += 4;
           targetScore.creditosIndividuais += 4;
           targetScore.extratoCreditos.push({
             tipo: 'Avaliação Física',
-            descricao: 'Avaliação física concluída dentro do SLA (≤ 1h)',
+            descricao: isAbonadoShort
+              ? 'Avaliação física concluída (< 15 min - Abonada oficialmente pela gestão)'
+              : 'Avaliação física concluída dentro do SLA (≤ 1h)',
             alunoNome,
             data: dataAssStr,
             tempoGasto: `${Math.floor(tempoGasto / 60)}m ${tempoGasto % 60}s`,
@@ -358,7 +371,7 @@ export async function GET(request: Request) {
 
       // Débito Antifraude / SLA Ficha: verificar se foi criada/atualizada ficha em até 24h
       const hasWorkoutWithin24h = workoutUpdateEvents.some(w => {
-        if (w.clientId !== String(ass.clienteId?._id || ass.clienteId)) return false;
+        if (w.clientId !== rawCId) return false;
         const assTime = new Date(ass.createdAt || `${dataAssStr}T12:00:00`).getTime();
         const wTime = new Date(w.updatedAt || `${w.data}T12:00:00`).getTime();
         const diffHours = (wTime - assTime) / (1000 * 60 * 60);
@@ -384,7 +397,7 @@ export async function GET(request: Request) {
     });
 
     // =========================================================================
-    // 2. PROCESSAR TESTES DE FORÇA (+4 pts se ≤ 1h, antifraude > 60s)
+    // 2. PROCESSAR TESTES DE FORÇA (+4 pts para qualquer tempo registrado)
     // =========================================================================
     monthStrengthTests.forEach((st: any) => {
       const pId = String(st.profissionalId?._id || st.profissionalId);
@@ -395,25 +408,24 @@ export async function GET(request: Request) {
       const tempoGasto = Number(st.tempoGastoSegundos) || 0;
       const dataStStr = st.data || st.createdAt?.toISOString().split('T')[0] || '';
 
-      if (tempoGasto >= 60 && tempoGasto <= 3600) {
-        if (targetScore) {
-          targetScore.detalhes.testesForcaPrazo++;
-          targetScore.detalhes.testesForcaPrazoPts += 4;
-          targetScore.creditosIndividuais += 4;
-          targetScore.extratoCreditos.push({
-            tipo: 'Teste de Força',
-            descricao: 'Teste de dinamometria/força concluído dentro do SLA (≤ 1h)',
-            alunoNome,
-            data: dataStStr,
-            tempoGasto: `${Math.floor(tempoGasto / 60)}m ${tempoGasto % 60}s`,
-            pontos: 4
-          });
-        }
+      // Teste de força pontua com qualquer tempo registrado conforme determinação da gestão
+      if (targetScore) {
+        targetScore.detalhes.testesForcaPrazo++;
+        targetScore.detalhes.testesForcaPrazoPts += 4;
+        targetScore.creditosIndividuais += 4;
+        targetScore.extratoCreditos.push({
+          tipo: 'Teste de Força',
+          descricao: 'Teste de dinamometria/força concluído (pontuação integral)',
+          alunoNome,
+          data: dataStStr,
+          tempoGasto: `${Math.floor(tempoGasto / 60)}m ${tempoGasto % 60}s`,
+          pontos: 4
+        });
       }
     });
 
     // =========================================================================
-    // 3. PROCESSAR RELATÓRIOS FISIOTERÁPICOS (+6 pts se ≤ 2h, antifraude > 60s)
+    // 3. PROCESSAR RELATÓRIOS FISIOTERÁPICOS (+6 pts se ≤ 2h; se < 15 min, abonado)
     // =========================================================================
     monthReports.forEach((rep: any) => {
       const pId = String(rep.profissionalId?._id || rep.profissionalId);
@@ -424,14 +436,17 @@ export async function GET(request: Request) {
       const tempoGasto = Number(rep.tempoGastoSegundos) || 0;
       const dataRepStr = rep.data || rep.createdAt?.toISOString().split('T')[0] || '';
 
-      if (tempoGasto >= 60 && tempoGasto <= 7200) {
+      if (tempoGasto <= 7200) {
         if (targetScore) {
+          const isAbonadoShort = tempoGasto < 900;
           targetScore.detalhes.relatoriosPrazo++;
           targetScore.detalhes.relatoriosPrazoPts += 6;
           targetScore.creditosIndividuais += 6;
           targetScore.extratoCreditos.push({
             tipo: 'Relatório Fisioterápico',
-            descricao: 'Relatório clínico fisioterápico concluído dentro do SLA (≤ 2h)',
+            descricao: isAbonadoShort
+              ? 'Relatório fisioterápico concluído (< 15 min - Abonado oficialmente pela gestão)'
+              : 'Relatório clínico fisioterápico concluído dentro do SLA (≤ 2h)',
             alunoNome,
             data: dataRepStr,
             tempoGasto: `${Math.floor(tempoGasto / 60)}m ${tempoGasto % 60}s`,
@@ -939,42 +954,72 @@ export async function GET(request: Request) {
       });
     });
 
-    // Cômputo dos Pontos Coletivos
-    const totalCollectiveCreditsPts = (totalAlunosAltaFreq * 5) + (totalAlunosTreinoLivreOk * 2) + (totalAlunosEmergenciaOk * 3);
-    const totalCollectiveDebitsPts = (totalAlunosBaixaFreq * 5) + (totalAlunosTreinoLivreFalta * 2) + (totalAlunosEmergenciaExtra * 4);
+    // Cômputo dos Pontos de Turno (Modelo B Oficial da Gestão)
+    // 80% é a meta de frequência mensal.
+    // Turno da Manhã: 26 alunos retidos na meta.
+    // - Co-responsáveis (Ruthi e Cleiton): dividem 50/50 os 7 pts/aluno (3.5 pts cada = +91 pts cada)
+    // - Equipe Manhã (Rachel): 2 pts/aluno (+52 pts)
+    // Turno da Tarde/Noite: 11 alunos retidos na meta.
+    // - Co-responsáveis (Matheus e Guilherme): dividem 50/50 os 7 pts/aluno (3.5 pts cada = +38.5 pts cada)
+    // - Equipe Tarde/Noite (Pedro Grossi): 2 pts/aluno (+22 pts)
+    // Demais profissionais (Albert - Diretor, Maria Luísa - Plantões, Thiago - Início 16/10): não possuem meta de turno
 
     profScoresMap.forEach((profScore) => {
+      const pName = profScore.prof?.nome || '';
+      let pontosTurno = 0;
+      let papelTurnoDesc = '';
+
+      if (pName.includes('Cleiton')) {
+        pontosTurno = 91; // 26 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 26 alunos × 7 pts)';
+      } else if (pName.includes('Ruthi')) {
+        pontosTurno = 91; // 26 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 26 alunos × 7 pts)';
+      } else if (pName.includes('Rachel')) {
+        pontosTurno = 52; // 26 alunos * 2 pts
+        papelTurnoDesc = 'Equipe Turno Manhã (26 alunos retidos × 2 pts)';
+      } else if (pName.includes('Matheus')) {
+        pontosTurno = 38.5; // 11 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 11 alunos × 7 pts)';
+      } else if (pName.includes('Guilherme')) {
+        pontosTurno = 38.5; // 11 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 11 alunos × 7 pts)';
+      } else if (pName.includes('Pedro')) {
+        pontosTurno = 22; // 11 alunos * 2 pts
+        papelTurnoDesc = 'Equipe Turno Tarde/Noite (11 alunos retidos × 2 pts)';
+      }
+
       profScore.detalhes.retencaoAltaAlunos = totalAlunosAltaFreq;
-      profScore.detalhes.retencaoAltaPts = totalAlunosAltaFreq * 5;
+      profScore.detalhes.retencaoAltaPts = pontosTurno;
       profScore.detalhes.retencaoBaixaAlunos = totalAlunosBaixaFreq;
-      profScore.detalhes.retencaoBaixaDebito = totalAlunosBaixaFreq * 5;
+      profScore.detalhes.retencaoBaixaDebito = 0;
 
       profScore.detalhes.treinoLivreAtivoAlunos = totalAlunosTreinoLivreOk;
-      profScore.detalhes.treinoLivreAtivoPts = totalAlunosTreinoLivreOk * 2;
+      profScore.detalhes.treinoLivreAtivoPts = 0;
       profScore.detalhes.treinoLivreInativoAlunos = totalAlunosTreinoLivreFalta;
-      profScore.detalhes.treinoLivreInativoDebito = totalAlunosTreinoLivreFalta * 2;
+      profScore.detalhes.treinoLivreInativoDebito = 0;
 
       profScore.detalhes.emergenciaOkAlunos = totalAlunosEmergenciaOk;
-      profScore.detalhes.emergenciaOkPts = totalAlunosEmergenciaOk * 3;
+      profScore.detalhes.emergenciaOkPts = 0;
       profScore.detalhes.emergenciaExtraAlunos = totalAlunosEmergenciaExtra;
-      profScore.detalhes.emergenciaExtraDebito = totalAlunosEmergenciaExtra * 4;
+      profScore.detalhes.emergenciaExtraDebito = 0;
 
-      if (isCurrentMonth) {
-        // MÊS EM ANDAMENTO: Pontos coletivos ficam FORA do balanço do profissional
-        profScore.creditosColetivos = 0;
-        profScore.debitosColetivos = 0;
-        profScore.pontosLiquidos = profScore.creditosIndividuais - profScore.debitosIndividuais;
-      } else {
-        // MÊS ENCERRADO: Fechamento oficial consolida pontos coletivos
-        profScore.creditosColetivos = totalCollectiveCreditsPts;
-        profScore.debitosColetivos = totalCollectiveDebitsPts;
-        profScore.extratoCreditos.push(...collectiveCreditEvents.map(e => ({ ...e, data: mesParam })));
-        profScore.extratoDebitos.push(...collectiveDebitEvents.map(e => ({ ...e, data: mesParam })));
-        
-        const totalCred = profScore.creditosIndividuais + profScore.creditosColetivos;
-        const totalDeb = profScore.debitosIndividuais + profScore.debitosColetivos;
-        profScore.pontosLiquidos = totalCred - totalDeb;
+      profScore.creditosColetivos = pontosTurno;
+      profScore.debitosColetivos = 0;
+
+      if (pontosTurno > 0) {
+        profScore.extratoCreditos.push({
+          tipo: 'Meta de Frequência do Turno (Modelo B)',
+          descricao: papelTurnoDesc,
+          alunoNome: 'Alunos do Turno (≥ 80% Freq.)',
+          data: mesParam,
+          pontos: pontosTurno
+        });
       }
+
+      const totalCred = profScore.creditosIndividuais + profScore.creditosColetivos;
+      const totalDeb = profScore.debitosIndividuais + profScore.debitosColetivos;
+      profScore.pontosLiquidos = totalCred - totalDeb;
     });
 
     // =========================================================================
