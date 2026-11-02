@@ -514,9 +514,9 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 <ul style={{ margin: 0, paddingLeft: '16px', color: '#cbd5e1', lineHeight: '1.6' }}>
                   <li>Avaliação Física concluída em ≤ 1h: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
                   <li>Teste de Força concluído em ≤ 1h: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
-                  <li>Ficha de Treino montada em ≤ 24h após avaliação: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
+                  <li>Ficha de Treino montada em ≤ 24h: <strong style={{ color: '#34d399' }}>+2 pts responsável / +2 pts executor</strong></li>
                   <li>Relatório Fisioterápico concluído em ≤ 2h: <strong style={{ color: '#34d399' }}>+6 pts</strong></li>
-                  <li>Aluno com frequência mensal ≥ 80% (fechamento): <strong style={{ color: '#34d399' }}>+5 pts/aluno</strong></li>
+                  <li>Aluno com frequência mensal ≥ 80%: <strong style={{ color: '#34d399' }}>+7 pts responsável / +2 pts equipe do turno</strong></li>
                   <li>Aluno com mín. 1 Treino Livre na semana (fechamento): <strong style={{ color: '#34d399' }}>+2 pts/aluno</strong></li>
                   <li>Aluno com no máx. 1 emergência no mês (fechamento): <strong style={{ color: '#34d399' }}>+3 pts/aluno</strong></li>
                 </ul>

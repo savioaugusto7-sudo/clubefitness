@@ -447,22 +447,12 @@ export async function GET(request: Request) {
     const allRecentEvals = [...monthAssessments, ...monthStrengthTests, ...monthReports];
 
     workoutUpdateEvents.forEach((w: any) => {
-      let targetProfId = w.profId;
-      // Se a ficha não possui profId gravado, buscar o profissional responsável do cliente
-      if (!targetProfId) {
-        const cObj = clientMap.get(w.clientId);
-        targetProfId = cObj?.dadosClinicos?.profissionalResponsavelId
-          ? String(cObj.dadosClinicos.profissionalResponsavelId)
-          : undefined;
-      }
-
-      if (!targetProfId) return;
-
-      const targetScore = profScoresMap.get(targetProfId);
-      if (!targetScore) return;
-
       const cObj = clientMap.get(w.clientId);
       const alunoNome = cObj?.dadosPessoais?.nome || cObj?.nome || 'Aluno';
+      const respProfId = cObj?.dadosClinicos?.profissionalResponsavelId
+        ? String(cObj.dadosClinicos.profissionalResponsavelId)
+        : undefined;
+      const executorProfId = w.profId ? String(w.profId) : undefined;
 
       // Verificar se esta atualização de ficha ocorreu dentro de 24h após uma avaliação recente
       const evalMatch = allRecentEvals.find(ev => {
@@ -475,16 +465,55 @@ export async function GET(request: Request) {
       });
 
       if (evalMatch) {
-        targetScore.detalhes.fichas24h++;
-        targetScore.detalhes.fichas24hPts += 4;
-        targetScore.creditosIndividuais += 4;
-        targetScore.extratoCreditos.push({
-          tipo: 'Ficha de Treino (SLA 24h)',
-          descricao: `Ficha de treino (${w.sheetName}) prescrita em até 24h após avaliação clínica`,
-          alunoNome,
-          data: w.data,
-          pontos: 4
-        });
+        // Regra de Ficha: +2 pts ao responsável do aluno e +2 pts a quem executou (ou +4 pts se forem a mesma pessoa)
+        if (respProfId && executorProfId && respProfId === executorProfId) {
+          const score = profScoresMap.get(respProfId);
+          if (score) {
+            score.detalhes.fichas24h++;
+            score.detalhes.fichas24hPts += 4;
+            score.creditosIndividuais += 4;
+            score.extratoCreditos.push({
+              tipo: 'Ficha de Treino (SLA 24h)',
+              descricao: `Ficha de treino (${w.sheetName}) elaborada pelo responsável do aluno (+4 pts)`,
+              alunoNome,
+              data: w.data,
+              pontos: 4
+            });
+          }
+        } else {
+          // Atribuir +2 pts ao responsável do aluno
+          if (respProfId) {
+            const respScore = profScoresMap.get(respProfId);
+            if (respScore) {
+              respScore.detalhes.fichas24h++;
+              respScore.detalhes.fichas24hPts += 2;
+              respScore.creditosIndividuais += 2;
+              respScore.extratoCreditos.push({
+                tipo: 'Ficha de Treino (Responsável)',
+                descricao: `Ficha de treino (${w.sheetName}) montada para aluno sob sua responsabilidade (+2 pts)`,
+                alunoNome,
+                data: w.data,
+                pontos: 2
+              });
+            }
+          }
+          // Atribuir +2 pts a quem executou (ou terminal / outro treinador)
+          if (executorProfId && executorProfId !== respProfId) {
+            const execScore = profScoresMap.get(executorProfId);
+            if (execScore) {
+              execScore.detalhes.fichas24h++;
+              execScore.detalhes.fichas24hPts += 2;
+              execScore.creditosIndividuais += 2;
+              execScore.extratoCreditos.push({
+                tipo: 'Ficha de Treino (Executor)',
+                descricao: `Ficha de treino (${w.sheetName}) executada em até 24h após avaliação (+2 pts)`,
+                alunoNome,
+                data: w.data,
+                pontos: 2
+              });
+            }
+          }
+        }
       }
     });
 
