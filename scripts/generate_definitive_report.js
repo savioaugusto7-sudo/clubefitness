@@ -44,13 +44,10 @@ async function build() {
     const pId = c.dadosComerciais?.planoId ? String(c.dadosComerciais.planoId) : '';
     const rawPlan = planMap.get(pId) || c.dadosComerciais?.contrato || c.dadosComerciais?.planoNome || 'Sem Plano';
     const finalPlan = clientContractMap.get(cid) || rawPlan;
-    const lower = finalPlan.toLowerCase();
-    const inScope = lower.includes('monitorado') || lower.includes('personalizado') || lower.includes('tratamento');
     clientMap.set(cid, {
       id: cid,
       nome: c.dadosPessoais?.nome || c.nome || 'Cliente',
-      plan: finalPlan,
-      inScope
+      plan: finalPlan
     });
   });
 
@@ -123,12 +120,12 @@ async function build() {
 
   const activeProfList = [
     'Cleiton Freitas',
-    'Ruthi Novais',
-    'Matheus Poeiras Luciano',
-    'Rachel Zauli Serpa',
-    'Pedro Grossi',
     'Guilherme José Graciano',
+    'Ruthi Novais',
     'Albert Nunes',
+    'Pedro Grossi',
+    'Rachel Zauli Serpa',
+    'Matheus Poeiras Luciano',
     'Maria Luísa Câmara Gontijo',
     'Thiago Castro Lima Rocha'
   ];
@@ -136,7 +133,7 @@ async function build() {
   const clinicalByProf = {};
   activeProfList.forEach(p => clinicalByProf[p] = []);
 
-  // Processar Avaliações Físicas
+  // Processar Avaliações Físicas: TODAS contabilizam pontos para quem executou, independentemente do plano!
   let danieleSeenCount = 0;
   assessments.forEach(a => {
     const prof = normName(profMap.get(String(a.avaliadorId)) || a.avaliadorNome);
@@ -145,8 +142,8 @@ async function build() {
     const tempo = Number(a.tempoGastoSegundos) || 0;
     const slaOk = tempo >= 60 && tempo <= 3600;
 
-    let pontuou = Boolean(client?.inScope && slaOk);
-    let motivo = !client?.inScope ? `Fora do Escopo (${client?.plan || 'Outro'})` : (!slaOk ? 'Tempo fora do SLA (<60s ou >1h)' : 'Pontuou no Escopo');
+    let pontuou = slaOk;
+    let motivo = !slaOk ? 'Tempo fora do SLA (<60s ou >1h)' : 'Pontuou (SLA Conforme)';
     let pontos = pontuou ? 4 : 0;
 
     // Determinação da Gestão: remover duplicidade de Daniele Debossan no dia 02/10
@@ -155,7 +152,7 @@ async function build() {
       if (danieleSeenCount > 1) {
         pontuou = false;
         pontos = 0;
-        motivo = 'Duplicidade no mesmo dia / Desconsiderada da pontuação (Determinação da Gestão)';
+        motivo = 'Duplicidade no mesmo dia (Desconsiderada pela Gestão)';
       }
     }
 
@@ -164,9 +161,8 @@ async function build() {
         tipo: 'Avaliação Física',
         data: a.data,
         aluno: alunoNome,
-        plano: client?.plan || 'Desconhecido',
+        plano: client?.plan || 'Sem Plano',
         duracaoStr: `${Math.floor(tempo / 60)}m ${tempo % 60}s`,
-        noEscopo: Boolean(client?.inScope),
         pontuou,
         pontos,
         motivo
@@ -174,48 +170,48 @@ async function build() {
     }
   });
 
-  // Processar Testes de Força (Dinamometria)
+  // Processar Testes de Força (Dinamometria): TODOS contabilizam pontos para quem executou!
   strengthTests.forEach(s => {
     const prof = normName(profMap.get(String(s.profissionalId)) || s.profissionalNome);
     const client = clientMap.get(String(s.clienteId));
+    const alunoNome = client?.nome || s.alunoNome || 'Não Identificado';
     const tempo = Number(s.tempoGastoSegundos) || 0;
     const slaOk = tempo >= 60 && tempo <= 3600;
-    const pontuou = Boolean(client?.inScope && slaOk);
+    const pontuou = slaOk;
 
     if (clinicalByProf[prof]) {
       clinicalByProf[prof].push({
         tipo: 'Teste de Força (Dinamometria)',
         data: s.data,
-        aluno: client?.nome || s.alunoNome || 'Não Identificado',
-        plano: client?.plan || 'Desconhecido',
+        aluno: alunoNome,
+        plano: client?.plan || 'Sem Plano',
         duracaoStr: `${Math.floor(tempo / 60)}m ${tempo % 60}s`,
-        noEscopo: Boolean(client?.inScope),
         pontuou,
         pontos: pontuou ? 4 : 0,
-        motivo: !client?.inScope ? `Fora do Escopo (${client?.plan || 'Outro'})` : (!slaOk ? 'Tempo fora do SLA (<60s ou >1h)' : 'Pontuou no Escopo')
+        motivo: !slaOk ? 'Tempo fora do SLA (<60s ou >1h)' : 'Pontuou (SLA Conforme)'
       });
     }
   });
 
-  // Processar Relatórios Clínicos Fisioterápicos
+  // Processar Relatórios Clínicos Fisioterápicos: TODOS contabilizam pontos para quem executou!
   physioReports.forEach(r => {
     const prof = normName(profMap.get(String(r.profissionalId)) || profMap.get(String(r.fisioterapeutaId)) || r.profissionalNome || r.fisioterapeutaNome);
     const client = clientMap.get(String(r.clienteId));
+    const alunoNome = client?.nome || r.alunoNome || 'Não Identificado';
     const tempo = Number(r.tempoGastoSegundos) || 0;
     const slaOk = tempo >= 60 && tempo <= 7200;
-    const pontuou = Boolean(client?.inScope && slaOk);
+    const pontuou = slaOk;
 
     if (clinicalByProf[prof]) {
       clinicalByProf[prof].push({
         tipo: 'Relatório Clínico Fisioterápico',
         data: r.data,
-        aluno: client?.nome || r.alunoNome || 'Não Identificado',
-        plano: client?.plan || 'Desconhecido',
+        aluno: alunoNome,
+        plano: client?.plan || 'Sem Plano',
         duracaoStr: `${Math.floor(tempo / 60)}m ${tempo % 60}s`,
-        noEscopo: Boolean(client?.inScope),
         pontuou,
         pontos: pontuou ? 6 : 0,
-        motivo: !client?.inScope ? `Fora do Escopo (${client?.plan || 'Outro'})` : (!slaOk ? `Tempo fora do SLA (${(tempo/60).toFixed(0)}m > 2h)` : 'Pontuou no Escopo')
+        motivo: !slaOk ? `Tempo fora do SLA (${(tempo/60).toFixed(0)}m > 2h)` : 'Pontuou (SLA Conforme)'
       });
     }
   });
@@ -257,6 +253,28 @@ async function build() {
           statusCell = '<span class="text-rose font-bold">Ausência</span>';
           impactoCell = '<span class="text-rose font-bold">-20 pts</span>';
         }
+      } else if (profName === 'Guilherme José Graciano') {
+        const dayNum = parseInt(bd.iso.slice(8), 10);
+        let esperado = dayNum >= 26 ? '14:00' : (dayNum >= 21 ? '14:00' : '08:00');
+
+        if (bd.iso === '16/10/2026' || bd.iso === '2026-10-16') {
+          batidaCell = '<span class="text-muted">Sem ponto</span> (esp. 08:00)';
+          atrasoCell = '—';
+          situacaoCell = 'Sexta-feira autorizada e abonada pela gestão';
+          statusCell = '<span class="text-emerald font-bold">Abonado Oficial</span>';
+          impactoCell = '<span class="text-muted">0 pts</span>';
+        } else if (first) {
+          batidaCell = `<strong>${first.horario}</strong> (esp. ${esperado})`;
+          situacaoCell = 'Presença confirmada / Escala 14h homologada';
+          statusCell = '<span class="text-emerald font-bold">Homologado</span>';
+          impactoCell = '<span class="text-muted">0 pts</span>';
+        } else {
+          batidaCell = `<span class="text-muted">Sem registro</span> (esp. ${esperado})`;
+          atrasoCell = '—';
+          situacaoCell = 'Atendimento em sala / Sem registro biométrico';
+          statusCell = '<span class="text-muted">Em Atendimento</span>';
+          impactoCell = '<span class="text-muted">0 pts</span>';
+        }
       } else if (profName === 'Ruthi Novais') {
         if (first) {
           batidaCell = `<strong>${first.horario}</strong> (esp. 06:00)`;
@@ -269,6 +287,19 @@ async function build() {
           situacaoCell = 'Folga combinada / Sem escala no dia';
           statusCell = '<span class="text-muted">Folga de Escala</span>';
           impactoCell = '<span class="text-muted">0 pts</span>';
+        }
+      } else if (profName === 'Pedro Grossi') {
+        if (first) {
+          batidaCell = `<strong>${first.horario}</strong> (esp. 15:00)`;
+          atrasoCell = first.minutosAtraso > 0 ? `${first.minutosAtraso} min` : '0 min';
+          situacaoCell = first.minutosAtraso > 0 ? `Variação de rotina (${first.minutosAtraso}m)` : 'Pontual';
+          statusCell = '<span class="text-emerald font-bold">Presente</span>';
+          impactoCell = '<span class="text-muted">0 pts</span>';
+        } else {
+          batidaCell = '<span class="text-muted">Sem registro</span> (esp. 15:00)';
+          situacaoCell = 'Sem registro';
+          statusCell = '<span class="text-rose font-bold">Ausência</span>';
+          impactoCell = '<span class="text-rose font-bold">-20 pts</span>';
         }
       } else if (profName === 'Matheus Poeiras Luciano') {
         if (first) {
@@ -294,43 +325,7 @@ async function build() {
           situacaoCell = 'Sem registro';
           statusCell = '<span class="text-muted">—</span>';
         }
-      } else if (profName === 'Pedro Grossi') {
-        if (first) {
-          batidaCell = `<strong>${first.horario}</strong> (esp. 15:00)`;
-          atrasoCell = first.minutosAtraso > 0 ? `${first.minutosAtraso} min` : '0 min';
-          situacaoCell = first.minutosAtraso > 0 ? `Variação de rotina (${first.minutosAtraso}m)` : 'Pontual';
-          statusCell = '<span class="text-emerald font-bold">Presente</span>';
-          impactoCell = '<span class="text-muted">0 pts</span>';
-        } else {
-          batidaCell = '<span class="text-muted">Sem registro</span> (esp. 15:00)';
-          situacaoCell = 'Sem registro';
-          statusCell = '<span class="text-rose font-bold">Ausência</span>';
-          impactoCell = '<span class="text-rose font-bold">-20 pts</span>';
-        }
-      } else if (profName === 'Guilherme José Graciano') {
-        const dayNum = parseInt(bd.iso.slice(8), 10);
-        let esperado = dayNum >= 26 ? '14:00' : (dayNum >= 21 ? '14:00' : '08:00');
-
-        if (bd.iso === '16/10/2026' || bd.iso === '2026-10-16') {
-          batidaCell = '<span class="text-muted">Sem ponto</span> (esp. 08:00)';
-          atrasoCell = '—';
-          situacaoCell = 'Sexta-feira autorizada e abonada pela gestão';
-          statusCell = '<span class="text-emerald font-bold">Abonado Oficial</span>';
-          impactoCell = '<span class="text-muted">0 pts</span>';
-        } else if (first) {
-          batidaCell = `<strong>${first.horario}</strong> (esp. ${esperado})`;
-          situacaoCell = 'Presença confirmada / Escala 14h homologada';
-          statusCell = '<span class="text-emerald font-bold">Homologado</span>';
-          impactoCell = '<span class="text-muted">0 pts</span>';
-        } else {
-          batidaCell = `<span class="text-muted">Sem registro</span> (esp. ${esperado})`;
-          atrasoCell = '—';
-          situacaoCell = 'Atendimento em sala / Sem registro biométrico';
-          statusCell = '<span class="text-muted">Em Atendimento</span>';
-          impactoCell = '<span class="text-muted">0 pts</span>';
-        }
       } else if (profName === 'Maria Luísa Câmara Gontijo') {
-        // Horário oficial: Seg 09h, Ter 07h, Qui 07h (não fixo/abonada), Sex 14h; Qua folga
         const dow = bd.dow;
         let espHora = 'Folga';
         if (dow === 'Seg') espHora = '09:00';
@@ -423,7 +418,7 @@ ${rows}
   function getClinicalTableForProf(profName) {
     const items = clinicalByProf[profName] || [];
     if (items.length === 0) {
-      return `      <div class="sub-table-title">Produção Clínica & Confronto de Procedimentos (Outubro / 2026)</div>
+      return `      <div class="sub-table-title">Produção Clínica & Procedimentos Executados (Outubro / 2026)</div>
       <table class="sub-table">
         <thead>
           <tr>
@@ -437,7 +432,7 @@ ${rows}
         </thead>
         <tbody>
           <tr>
-            <td colspan="6" class="text-center text-muted" style="padding: 8px;">Nenhum procedimento de avaliação ou relatório executado no período (atuação dedicada a treinos e acompanhamento de sala).</td>
+            <td colspan="6" class="text-center text-muted" style="padding: 8px;">Nenhum procedimento de avaliação, teste ou relatório executado no período (atuação dedicada a treinos e acompanhamento de sala).</td>
           </tr>
         </tbody>
       </table>`;
@@ -465,15 +460,15 @@ ${rows}
     const totalPontos = items.reduce((acc, cur) => acc + cur.pontos, 0);
     const validCount = items.filter(i => i.pontuou).length;
 
-    return `      <div class="sub-table-title">Produção Clínica & Confronto (${items.length} Realizados no Banco • ${validCount} Pontuaram no Escopo • Total: +${totalPontos} pts)</div>
+    return `      <div class="sub-table-title">Produção Clínica Completa (${items.length} Executados • ${validCount} Pontuaram no SLA • Total: +${totalPontos} pts)</div>
       <table class="sub-table">
         <thead>
           <tr>
             <th>Data</th>
             <th>Aluno(a)</th>
             <th>Procedimento</th>
-            <th>Plano do Aluno (Confronto de Escopo)</th>
-            <th>Duração</th>
+            <th>Plano do Aluno</th>
+            <th>Duração / SLA</th>
             <th class="text-right">Pontos</th>
           </tr>
         </thead>
@@ -488,7 +483,7 @@ ${rows}
     {
       nome: 'Cleiton Freitas',
       cargo: 'Fisioterapeuta / Educador Físico / Co-Responsável Manhã',
-      saldoStr: 'Produção: +12 pts | Meta Turno: +91 pts (Co-Resp. 50%) | Débitos: 0 pts | Saldo Líquido Final: +103 pts',
+      saldoStr: 'Produção: +16 pts (3 ev.) | Meta Turno: +91 pts (Co-Resp. 50%) | Débitos: 0 pts | Saldo Líquido Final: +107 pts',
       saldoColor: '#166534',
       badge: '1º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados Conforme Regras</div>
@@ -496,14 +491,27 @@ ${rows}
         <thead><tr><th>Data</th><th>Ocorrência</th><th>Critério</th><th class="text-right">Impacto</th></tr></thead>
         <tbody><tr><td colspan="4" class="text-center text-muted" style="padding:6px;">Nenhuma infração registrada no mês. 100% assíduo e pontual. Débito de teste técnico em 06/10 abonado oficialmente.</td></tr></tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Co-responsável pelo Turno da Manhã compartilhando a liderança com Ruthi Novais (91 pts atribuídos para cada com base nos 26 alunos retidos na meta). 21 dias presentes em 21 dias úteis (100% de assiduidade). Em 20 dias, entrada pontual antes das 06:00h. Registro do dia 06/10 oficialmente abonado pela gestão (teste técnico autorizado). Produção clínica: 2 relatórios fisioterápicos no escopo (+12 pts).'
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Co-responsável pelo Turno da Manhã compartilhando a liderança com Ruthi Novais (91 pts atribuídos para cada com base nos 26 alunos retidos na meta). 21 dias presentes em 21 dias úteis (100% de assiduidade). Registro do dia 06/10 abonado pela gestão (teste técnico). Produção clínica: 3 procedimentos pontuados (+16 pts: 1 avaliação física e 2 relatórios fisioterápicos).'
+    },
+    {
+      nome: 'Guilherme José Graciano',
+      cargo: 'Fisioterapeuta / Co-Responsável Turno Tarde-Noite',
+      saldoStr: 'Produção: +60 pts (11 ev.) | Meta Turno: +38,5 pts (Co-Resp. 50%) | Débitos: 0 pts (Abonos Homologados) | Saldo Líquido Final: +98,5 pts',
+      saldoColor: '#0284c7',
+      badge: '2º Lugar Geral',
+      debitosHtml: `      <div class="sub-table-title">Débitos Registrados Conforme Regras</div>
+      <table class="sub-table">
+        <thead><tr><th>Data</th><th>Ocorrência</th><th>Critério</th><th class="text-right">Impacto</th></tr></thead>
+        <tbody><tr><td colspan="4" class="text-center text-muted" style="padding:6px;">Nenhum débito vigente. Sexta-feira 16/10 abonada oficialmente pela gestão. Distorção horária vespertina neutralizada.</td></tr></tbody>
+      </table>`,
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Co-responsável pelo Turno da Tarde/Noite compartilhando a liderança com Matheus Poeiras (+38,5 pts para cada com base na divisão de 50% dos 77 pts dos 11 alunos retidos). 18 dias com batidas registradas, sexta-feira 16/10 oficialmente abonada e transição oficial para escala das 14h homologada. Produção clínica de grande destaque: 11 procedimentos pontuados no SLA (+60 pts: 6 testes de dinamometria e 5 relatórios clínicos, abrangendo todos os planos conforme a regra). Débitos: 0 pts.'
     },
     {
       nome: 'Ruthi Novais',
       cargo: 'Treinadora / Avaliadora / Co-Responsável Manhã',
-      saldoStr: 'Produção: +8 pts | Meta Turno: +91 pts (Co-Resp. 50%) | Débitos SLA: -4 pts | Saldo Líquido Final: +95 pts',
+      saldoStr: 'Produção: +8 pts (2 ev.) | Meta Turno: +91 pts (Co-Resp. 50%) | Débitos SLA: -4 pts | Saldo Líquido Final: +95 pts',
       saldoColor: '#166534',
-      badge: '2º Lugar Geral',
+      badge: '3º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (Critérios Oficiais)</div>
       <table class="sub-table">
         <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Débito</th></tr></thead>
@@ -512,38 +520,25 @@ ${rows}
           <tr><td>30/10/2026</td><td>Renato Brandão Diniz</td><td>Ficha de treino não atualizada em até 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr>
         </tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Co-responsável pelo Turno da Manhã compartilhando a liderança com Cleiton Freitas (91 pts atribuídos para cada com base nos 26 alunos retidos na meta). Horário contratual oficial ajustado para 06:00h. 18 dias presentes em 21 dias úteis. Produção clínica: 2 avaliações válidas no escopo (+8 pts) — a 2ª avaliação de Daniele Debossan em 02/10 foi desconsiderada da pontuação por duplicidade. Débitos revisados conforme a regra oficial da clínica: -4 pts de SLA de ficha (eliminadas as penalizações indevidas por minutos de tolerância de chegada).'
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Co-responsável pelo Turno da Manhã compartilhando a liderança com Cleiton Freitas (91 pts atribuídos para cada com base nos 26 alunos retidos na meta). Horário contratual oficial ajustado para 06:00h. 18 dias presentes em 21 dias úteis. Produção clínica: 2 avaliações válidas no SLA (+8 pts) — a 2ª avaliação de Daniele Debossan em 02/10 foi desconsiderada por duplicidade no mesmo dia. Débitos oficiais de SLA de ficha: -4 pts.'
     },
     {
-      nome: 'Matheus Poeiras Luciano',
-      cargo: 'Treinador / Responsável Turno Tarde-Noite',
-      saldoStr: 'Produção: +4 pts | Meta Turno: +77 pts (11 al. × 7) | Débito Efetivo: 0 pts (Ficha Abonada) | Saldo Líquido Final: +81 pts',
-      saldoColor: '#0369a1',
-      badge: '3º Lugar Geral',
-      debitosHtml: `      <div class="sub-table-title">Débitos Registrados (Critérios Oficiais)</div>
-      <table class="sub-table">
-        <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Status / Impacto</th></tr></thead>
-        <tbody><tr><td>08/10/2026</td><td>Maria de Fátima Gottschalg</td><td>Ficha de treino não atualizada em 24h pós-avaliação</td><td class="text-right text-emerald font-bold">Abonado pela Gestão (0 pts)</td></tr></tbody>
-      </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Responsável titular pelo Turno da Tarde/Noite com 11 alunos atingindo a meta de frequência mensal (≥ 80%), gerando +77 pts. 21 dias presentes em 21 dias úteis (100% assíduo). Produção clínica: 1 avaliação física pontuada (+4 pts). Débito de SLA de Ficha da aluna Maria de Fátima Gottschalg oficialmente abonado pela gestão (+2 pts). Minutos de tolerância de entrada não configuram infração perante a regra. Débito efetivo total: 0 pts.'
-    },
-    {
-      nome: 'Rachel Zauli Serpa',
-      cargo: 'Fisioterapeuta / Equipe Manhã',
-      saldoStr: 'Produção: +18 pts | Meta Turno: +52 pts (26 al. × 2) | Débitos SLA: -2 pts | Saldo Líquido Final: +68 pts',
-      saldoColor: '#0f766e',
+      nome: 'Albert Nunes',
+      cargo: 'Diretor Clínico / Fisioterapeuta',
+      saldoStr: 'Produção: +88 pts (20 ev.) | Meta Turno: — (Diretoria) | Débitos SLA: -2 pts | Saldo Líquido Final: +86 pts',
+      saldoColor: '#047857',
       badge: '4º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (Critérios Oficiais)</div>
       <table class="sub-table">
         <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Débito</th></tr></thead>
-        <tbody><tr><td>26/10/2026</td><td>Monia Pires Novais</td><td>SLA Ficha 24h: Ficha não prescrita em até 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr></tbody>
+        <tbody><tr><td>30/10/2026</td><td>Augusto Andrade Oliveira</td><td>SLA Ficha 24h: Ficha não prescrita em até 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr></tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Integrante da Equipe da Manhã (+52 pts pela retenção de 26 alunos). 21 dias presentes em 21 dias úteis (100% de assiduidade com ZERO minutos de atraso em todo o mês). Escala oficial no sistema: Segunda, Quarta, Quinta e Sexta às 09:00h; Terça-feira às 10:00h. Todos os 4 procedimentos clínicos executados pontuaram no escopo (+18 pts). Débito de SLA: -2 pts.'
+      auditNote: '<strong>Auditoria de Governança e Produção Clínica:</strong> Isento de marcação biométrica por responder pela Direção Clínica e societária da unidade. Conforme regra geral de remuneração de produção, todo procedimento clínico executado pontua para o profissional. Executou 21 procedimentos: 20 pontuaram no SLA (+88 pts: 11 avaliações, 5 testes de dinamometria e 4 relatórios) e 1 relatório extrapolou o SLA de 2h (133 min). Débito de SLA de Ficha: -2 pts. Saldo final: +86 pts.'
     },
     {
       nome: 'Pedro Grossi',
       cargo: 'Fisioterapeuta / Treinador / Equipe Tarde-Noite',
-      saldoStr: 'Produção: +42 pts | Meta Turno: +22 pts (11 al. × 2) | Débitos SLA: -6 pts | Saldo Líquido Final: +58 pts',
+      saldoStr: 'Produção: +60 pts (12 ev.) | Meta Turno: +22 pts (11 al. × 2) | Débitos SLA: -6 pts | Saldo Líquido Final: +76 pts',
       saldoColor: '#0284c7',
       badge: '5º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (SLA Fichas de Treino)</div>
@@ -555,38 +550,38 @@ ${rows}
           <tr><td>05/10/2026</td><td>Juan Victor Rocha</td><td>Ficha de treino não atualizada em até 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr>
         </tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Integrante da Equipe Tarde/Noite (+22 pts pela retenção de 11 alunos). 21 dias presentes em 21 dias úteis (100% assíduo). Horário contratual esperado às 15:00h. Produção clínica líder de avaliações e testes com 9 procedimentos pontuados (+42 pts). Débitos revisados sob a regra estrita do regulamento: eliminados os débitos por minutos de oscilação; mantidos estritamente os 3 débitos de SLA de Ficha (-6 pts).'
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Integrante da Equipe Tarde/Noite (+22 pts pela retenção de 11 alunos). 21 dias presentes em 21 dias úteis (100% assíduo). Horário contratual esperado às 15:00h. Conforme determinação da gestão, todos os procedimentos clínicos executados pontuam para quem realizou: todos os 12 procedimentos concluídos no SLA pontuaram integralmente (+60 pts: 3 avaliações, 3 testes de dinamometria e 6 relatórios fisioterápicos, incluindo Valdson Armond, Geane Carvalho e Anderson Albuquerque). Débitos de SLA de Ficha: -6 pts.'
     },
     {
-      nome: 'Guilherme José Graciano',
-      cargo: 'Fisioterapeuta / Equipe Tarde-Noite',
-      saldoStr: 'Produção: +32 pts | Meta Turno: +22 pts (11 al. × 2) | Débitos: 0 pts (Abonos Homologados) | Saldo Líquido Final: +54 pts',
-      saldoColor: '#0284c7',
+      nome: 'Rachel Zauli Serpa',
+      cargo: 'Fisioterapeuta / Equipe Manhã',
+      saldoStr: 'Produção: +18 pts (4 ev.) | Meta Turno: +52 pts (26 al. × 2) | Débitos SLA: -2 pts | Saldo Líquido Final: +68 pts',
+      saldoColor: '#0f766e',
       badge: '6º Lugar Geral',
-      debitosHtml: `      <div class="sub-table-title">Débitos Registrados Conforme Regras</div>
-      <table class="sub-table">
-        <thead><tr><th>Data</th><th>Ocorrência</th><th>Critério</th><th class="text-right">Impacto</th></tr></thead>
-        <tbody><tr><td colspan="4" class="text-center text-muted" style="padding:6px;">Nenhum débito vigente. Sexta-feira 16/10 abonada oficialmente pela gestão. Distorção horária vespertina neutralizada.</td></tr></tbody>
-      </table>`,
-      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Integrante da Equipe Tarde/Noite (+22 pts pela retenção de 11 alunos). 18 dias com batidas registradas, 1 sexta-feira (16/10) oficialmente abonada pela gestão e transição oficial para escala das 14h desde 26/10. Produção clínica de destaque: 6 procedimentos homologados no escopo (+32 pts). Revisão de débitos: distorções horárias foram eliminadas do sistema; débito final: 0 pts.'
-    },
-    {
-      nome: 'Albert Nunes',
-      cargo: 'Diretor Clínico / Fisioterapeuta',
-      saldoStr: 'Produção: +38 pts | Meta Turno: — (Diretoria) | Débitos SLA: -2 pts | Saldo Líquido Final: +36 pts',
-      saldoColor: '#047857',
-      badge: '7º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (Critérios Oficiais)</div>
       <table class="sub-table">
         <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Débito</th></tr></thead>
-        <tbody><tr><td>30/10/2026</td><td>Augusto Andrade Oliveira</td><td>SLA Ficha 24h: Ficha não prescrita em até 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr></tbody>
+        <tbody><tr><td>26/10/2026</td><td>Monia Pires Novais</td><td>SLA Ficha 24h: Ficha não prescrita em até 24h pós-avaliação</td><td class="text-right text-rose">-2 pts</td></tr></tbody>
       </table>`,
-      auditNote: '<strong>Auditoria de Governança:</strong> Isento de marcação biométrica por responder pela Direção Clínica e societária da clínica. Produção clínica ampla com 21 procedimentos confrontados com o banco de dados: 8 procedimentos válidos pontuaram no escopo de Monitorado/Personalizado (+38 pts) e 13 foram de outros planos fora do escopo. Débito de SLA de Ficha: -2 pts.'
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Integrante da Equipe da Manhã (+52 pts pela retenção de 26 alunos). 21 dias presentes em 21 dias úteis (100% de assiduidade com ZERO minutos de atraso em todo o mês). Escala oficial no sistema: Segunda, Quarta, Quinta e Sexta às 09:00h; Terça-feira às 10:00h. Todos os 4 procedimentos clínicos executados pontuaram no SLA (+18 pts). Débito de SLA: -2 pts.'
+    },
+    {
+      nome: 'Matheus Poeiras Luciano',
+      cargo: 'Treinador / Co-Responsável Turno Tarde-Noite',
+      saldoStr: 'Produção: +4 pts (1 ev.) | Meta Turno: +38,5 pts (Co-Resp. 50%) | Débito Efetivo: 0 pts (Ficha Abonada) | Saldo Líquido Final: +42,5 pts',
+      saldoColor: '#0369a1',
+      badge: '7º Lugar Geral',
+      debitosHtml: `      <div class="sub-table-title">Débitos Registrados (Critérios Oficiais)</div>
+      <table class="sub-table">
+        <thead><tr><th>Data</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Status / Impacto</th></tr></thead>
+        <tbody><tr><td>08/10/2026</td><td>Maria de Fátima Gottschalg</td><td>Ficha de treino não atualizada em 24h pós-avaliação</td><td class="text-right text-emerald font-bold">Abonado pela Gestão (0 pts)</td></tr></tbody>
+      </table>`,
+      auditNote: '<strong>Auditoria de Ponto, Produção e Meta de Turno:</strong> Co-responsável pelo Turno da Tarde/Noite compartilhando a liderança com Dr. Guilherme Graciano (+38,5 pts para cada com base na divisão de 50% dos 77 pts dos 11 alunos retidos). 21 dias presentes em 21 dias úteis (100% assíduo). Produção clínica: 1 avaliação física pontuada (+4 pts). Débito de SLA de Ficha da aluna Maria de Fátima Gottschalg oficialmente abonado pela gestão (+2 pts). Débito efetivo total: 0 pts.'
     },
     {
       nome: 'Maria Luísa Câmara Gontijo',
       cargo: 'Fisioterapeuta (Escala Fixada)',
-      saldoStr: 'Produção: +6 pts | Meta Turno: — | Débitos: 0 pts (Escala Ajustada) | Saldo Líquido Final: +6 pts',
+      saldoStr: 'Produção: +6 pts (1 ev.) | Meta Turno: — | Débitos: 0 pts (Escala Ajustada) | Saldo Líquido Final: +6 pts',
       saldoColor: '#0284c7',
       badge: '8º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados Conforme Regras</div>
@@ -863,7 +858,7 @@ ${getPontoTableForProf(p.nome)}
     <div class="meta">
       <div><strong>Período:</strong> 01/10/2026 a 31/10/2026</div>
       <div><strong>Emissão:</strong> 02/11/2026 • Auditoria Contábil Anti-Perdas</div>
-      <div class="badge-scope">Escopo: Clube Fitness Monitorado & Tratamento Personalizado</div>
+      <div class="badge-scope">Frequência: Monitorado & Tratamento | Produção Clínica: Todos os Planos</div>
     </div>
   </div>
 
@@ -887,15 +882,26 @@ ${getPontoTableForProf(p.nome)}
       <tr style="background:#f0fdf4;">
         <td class="font-bold">Cleiton Freitas</td>
         <td>Fisioterapeuta / <strong>Co-Resp. Manhã</strong></td>
-        <td class="text-center text-emerald font-bold">+12 pts <small>(2 ev.)</small></td>
+        <td class="text-center text-emerald font-bold">+16 pts <small>(3 ev.)</small></td>
         <td class="text-center font-bold text-emerald" style="background:#dcfce7; font-size:11px;">+91 pts <small>(50% de 26 al. × 7)</small></td>
         <td class="text-center text-rose" style="text-decoration:line-through;">-193 pts</td>
         <td class="text-center text-emerald font-bold">+193 pts</td>
         <td class="text-center text-emerald font-bold">0 pts</td>
-        <td class="text-center font-bold" style="color:#166534; font-size:12px; background:#dcfce7;">+103 pts</td>
+        <td class="text-center font-bold" style="color:#166534; font-size:12px; background:#dcfce7;">+107 pts</td>
         <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
       </tr>
       <tr style="background:#f0fdf4;">
+        <td class="font-bold">Dr. Guilherme José Graciano</td>
+        <td>Fisioterapeuta / <strong>Co-Resp. Tarde-Noite</strong></td>
+        <td class="text-center text-emerald font-bold">+60 pts <small>(11 ev.)</small></td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7; font-size:11px;">+38,5 pts <small>(50% de 11 al. × 7)</small></td>
+        <td class="text-center text-rose" style="text-decoration:line-through;">-1.754 pts</td>
+        <td class="text-center text-emerald font-bold">+1.754 pts</td>
+        <td class="text-center text-emerald font-bold">0 pts</td>
+        <td class="text-center font-bold" style="color:#0284c7; font-size:12px; background:#e0f2fe;">+98,5 pts</td>
+        <td class="text-center">18 / 21 (85,7%)</td>
+      </tr>
+      <tr>
         <td class="font-bold">Ruthi Novais</td>
         <td>Treinadora / <strong>Co-Resp. Manhã</strong></td>
         <td class="text-center text-emerald font-bold">+8 pts <small>(2 ev.)</small></td>
@@ -906,15 +912,26 @@ ${getPontoTableForProf(p.nome)}
         <td class="text-center font-bold" style="color:#166534; font-size:12px; background:#dcfce7;">+95 pts</td>
         <td class="text-center font-bold text-emerald">18 / 21 (85,7%)</td>
       </tr>
-      <tr style="background:#f8fafc;">
-        <td class="font-bold">Matheus Poeiras Luciano</td>
-        <td>Treinador / <strong>Resp. Tarde-Noite</strong></td>
-        <td class="text-center text-emerald font-bold">+4 pts <small>(1 ev.)</small></td>
-        <td class="text-center font-bold text-emerald" style="background:#dcfce7; font-size:11px;">+77 pts <small>(11 al. × 7)</small></td>
-        <td class="text-center text-rose" style="text-decoration:line-through;">-2 pts</td>
-        <td class="text-center text-emerald font-bold">+2 pts</td>
-        <td class="text-center text-emerald font-bold">0 pts</td>
-        <td class="text-center font-bold" style="color:#0369a1; font-size:12px; background:#e0f2fe;">+81 pts</td>
+      <tr>
+        <td class="font-bold">Albert Nunes</td>
+        <td>Diretor Clínico / Fisioterapia</td>
+        <td class="text-center text-emerald font-bold">+88 pts <small>(20 ev.)</small></td>
+        <td class="text-center text-muted">— <small>(Diretoria)</small></td>
+        <td class="text-center text-rose">-2 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose font-bold">-2 pts</td>
+        <td class="text-center font-bold" style="color:#0f766e; font-size:12px; background:#f0fdfa;">+86 pts</td>
+        <td class="text-center text-muted">Isento (Diretoria)</td>
+      </tr>
+      <tr>
+        <td class="font-bold">Pedro Grossi</td>
+        <td>Fisioterapeuta / Equipe Tarde-Noite</td>
+        <td class="text-center text-emerald font-bold">+60 pts <small>(12 ev.)</small></td>
+        <td class="text-center font-bold text-emerald" style="background:#ecfdf5; font-size:11px;">+22 pts <small>(11 al. × 2)</small></td>
+        <td class="text-center text-rose">-6 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose font-bold">-6 pts</td>
+        <td class="text-center font-bold" style="color:#0284c7; font-size:12px;">+76 pts</td>
         <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
       </tr>
       <tr>
@@ -928,38 +945,16 @@ ${getPontoTableForProf(p.nome)}
         <td class="text-center font-bold" style="color:#0f766e; font-size:12px; background:#f0fdfa;">+68 pts</td>
         <td class="text-center font-bold text-emerald">21 / 21 (0m atraso)</td>
       </tr>
-      <tr>
-        <td class="font-bold">Pedro Grossi</td>
-        <td>Fisioterapeuta / Equipe Tarde-Noite</td>
-        <td class="text-center text-emerald font-bold">+42 pts <small>(9 ev.)</small></td>
-        <td class="text-center font-bold text-emerald" style="background:#ecfdf5; font-size:11px;">+22 pts <small>(11 al. × 2)</small></td>
-        <td class="text-center text-rose">-6 pts</td>
-        <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-6 pts</td>
-        <td class="text-center font-bold" style="color:#0284c7; font-size:12px;">+58 pts</td>
-        <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
-      </tr>
-      <tr>
-        <td class="font-bold">Dr. Guilherme José Graciano</td>
-        <td>Fisioterapeuta / Equipe Tarde-Noite</td>
-        <td class="text-center text-emerald font-bold">+32 pts <small>(6 ev.)</small></td>
-        <td class="text-center font-bold text-emerald" style="background:#ecfdf5; font-size:11px;">+22 pts <small>(11 al. × 2)</small></td>
-        <td class="text-center text-rose" style="text-decoration:line-through;">-1.754 pts</td>
-        <td class="text-center text-emerald font-bold">+1.754 pts</td>
+      <tr style="background:#f8fafc;">
+        <td class="font-bold">Matheus Poeiras Luciano</td>
+        <td>Treinador / <strong>Co-Resp. Tarde-Noite</strong></td>
+        <td class="text-center text-emerald font-bold">+4 pts <small>(1 ev.)</small></td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7; font-size:11px;">+38,5 pts <small>(50% de 11 al. × 7)</small></td>
+        <td class="text-center text-rose" style="text-decoration:line-through;">-2 pts</td>
+        <td class="text-center text-emerald font-bold">+2 pts</td>
         <td class="text-center text-emerald font-bold">0 pts</td>
-        <td class="text-center font-bold" style="color:#0284c7; font-size:12px;">+54 pts</td>
-        <td class="text-center">18 / 21 (85,7%)</td>
-      </tr>
-      <tr>
-        <td class="font-bold">Albert Nunes</td>
-        <td>Diretor Clínico / Fisioterapia</td>
-        <td class="text-center text-emerald font-bold">+38 pts <small>(8 ev.)</small></td>
-        <td class="text-center text-muted">— <small>(Diretoria)</small></td>
-        <td class="text-center text-rose">-2 pts</td>
-        <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-2 pts</td>
-        <td class="text-center font-bold" style="color:#0f766e; font-size:12px;">+36 pts</td>
-        <td class="text-center text-muted">Isento (Diretoria)</td>
+        <td class="text-center font-bold" style="color:#0369a1; font-size:12px; background:#e0f2fe;">+42,5 pts</td>
+        <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
       </tr>
       <tr>
         <td class="font-bold">Maria Luísa Câmara Gontijo</td>
@@ -989,12 +984,14 @@ ${getPontoTableForProf(p.nome)}
   <!-- 2. CONFRONTO GERAL DA PRODUÇÃO CLÍNICA -->
   <h2>2. Confronto Geral de Procedimentos Registrados no Banco (Auditoria Anti-Perdas)</h2>
   <div class="confront-box">
-    <strong>Auditoria de Integridade Clínica:</strong> Foram confrontados 100% dos procedimentos executados na clínica em Outubro/2026 contra os créditos concedidos:
+    <strong>Auditoria de Integridade Clínica:</strong> Conforme determinação expressa da gestão, todo procedimento clínico executado gera créditos de pontuação para o profissional executor, sem restrição de plano:
     <ul style="margin: 4px 0 4px 16px; padding: 0;">
-      <li><strong>Total Bruto de Procedimentos Executados no Banco:</strong> <strong>61 procedimentos</strong> (21 Avaliações Físicas, 16 Testes de Dinamometria e 24 Relatórios Clínicos).</li>
-      <li><strong>Procedimentos Homologados no Escopo (Monitorado & Tratamento):</strong> <strong>33 procedimentos pontuados</strong> (a 2ª avaliação de Daniele Debossan em 02/10 foi desconsiderada da pontuação por duplicidade no mesmo dia).</li>
-      <li><strong>Procedimentos Fora do Escopo Conforme Diretriz:</strong> <strong>24 procedimentos</strong> executados para alunos de outros programas (Protocolo Individualizado, Captação ou Sem Plano Ativo no cadastro).</li>
-      <li><strong>Procedimentos com SLA Excedido:</strong> <strong>3 relatórios</strong> concluídos com temporizador superior ao teto de 2 horas.</li>
+      <li><strong>Total Bruto de Procedimentos no Banco:</strong> <strong>61 procedimentos</strong> (21 Avaliações Físicas, 16 Testes de Dinamometria e 24 Relatórios Clínicos).</li>
+      <li><strong>Procedimentos Homologados com Crédito de Pontuação:</strong> <strong>55 procedimentos pontuados</strong> (todos os concluídos dentro dos SLAs oficiais de tempo).</li>
+      <li><strong>Procedimentos Não Pontuados por Critério Técnico / Gestão:</strong> <strong>6 procedimentos</strong>:
+        <br>• <strong>1 avaliação duplicada</strong> de Daniele Debossan em 02/10 desconsiderada da pontuação por determinação expressa da gestão.
+        <br>• <strong>1 avaliação sem identificação de aluno e duração zero</strong> registrada via Computador Coletivo.
+        <br>• <strong>4 relatórios fisioterápicos com SLA extrapolado</strong> (duração superior ao teto de 2 horas).</li>
       <li><strong>Auditoria de Fichas de Treino:</strong> Prescrição em ≤ 24h bonifica <strong>+2 pts ao responsável do aluno</strong> e <strong>+2 pts ao executor</strong>, sanando registros via Computador Coletivo. Débito de SLA de Ficha da aluna Maria de Fátima Gottschalg oficialmente abonado.</li>
     </ul>
   </div>
@@ -1004,11 +1001,11 @@ ${getPontoTableForProf(p.nome)}
   <div class="confront-box" style="border-left-color: #0284c7; background: #f0f9ff; margin-bottom: 12px;">
     <strong>Regra Parametrizada pela Gestão:</strong>
     <ul style="margin: 4px 0 0 16px; padding: 0;">
-      <li><strong>Escopo Analítico:</strong> Exclusivo para alunos dos planos <em>Clube Fitness - Monitorado</em> e <em>Tratamento Personalizado</em> na Agenda Geral de Salão (<code>tipo = academia</code>).</li>
-      <li><strong>Divisão da Responsabilidade Matinal:</strong> Ruthi Novais e Cleiton Freitas dividem 50% / 50% a responsabilidade do turno da manhã (91 pts para Ruthi e 91 pts para Cleiton com base nos 26 alunos retidos na meta). Rachel Zauli recebe +52 pts como equipe.</li>
-      <li><strong>Responsabilidade Vespertina/Noturna:</strong> Matheus Poeiras Luciano responde pelo turno da Tarde/Noite (+77 pts por 11 alunos retidos). Pedro Grossi e Guilherme Graciano recebem +22 pts cada como equipe.</li>
+      <li><strong>Escopo Exclusivo de Frequência de Salão:</strong> Exclusivo para alunos dos planos <em>Clube Fitness - Monitorado</em> e <em>Tratamento Personalizado</em> na Agenda Geral de Salão (<code>tipo = academia</code>). Demais planos não entram no cômputo de metas de frequência.</li>
+      <li><strong>Co-Responsabilidade do Turno da Manhã (50% / 50%):</strong> Ruthi Novais e Cleiton Freitas dividem igualmente a responsabilidade do turno matutino: <strong>+91 pts para Ruthi</strong> e <strong>+91 pts para Cleiton</strong> (50% dos 182 pts gerados pelos 26 alunos retidos na meta). Rachel Zauli recebe <strong>+52 pts</strong> como equipe.</li>
+      <li><strong>Co-Responsabilidade do Turno Tarde/Noite (50% / 50%):</strong> Matheus Poeiras Luciano e Dr. Guilherme José Graciano dividem igualmente a responsabilidade do turno vespertino/noturno: <strong>+38,5 pts para Matheus</strong> e <strong>+38,5 pts para Guilherme</strong> (50% dos 77 pts gerados pelos 11 alunos retidos na meta). Pedro Grossi recebe <strong>+22 pts</strong> como equipe.</li>
       <li><strong>Critério de Meta Batida (≥ 80%):</strong> Aluno que cumpriu 80% ou mais das aulas contratadas no mês de outubro.</li>
-      <li><strong>Bonificação por Aluno na Meta:</strong> <strong>+7 pts</strong> para o Responsável do Turno | <strong>+2 pts</strong> para cada profissional da equipe do turno.</li>
+      <li><strong>Bonificação por Aluno na Meta:</strong> <strong>+7 pts</strong> para a Responsabilidade do Turno | <strong>+2 pts</strong> para cada profissional da equipe do turno.</li>
     </ul>
   </div>
 
@@ -1019,7 +1016,7 @@ ${getPontoTableForProf(p.nome)}
         Turno Manhã (06h às 12h) — 26 Alunos Retidos na Meta (60,5%)
       </div>
       <div style="font-size: 9px; line-height: 1.5; color: #334155;">
-        <div><strong>Co-Responsáveis:</strong> Ruthi Novais ➔ <strong>+91 pts</strong> | Cleiton Freitas ➔ <strong>+91 pts</strong> <small>(Divisão 50/50)</small></div>
+        <div><strong>Co-Responsáveis:</strong> Cleiton Freitas ➔ <strong>+91 pts</strong> | Ruthi Novais ➔ <strong>+91 pts</strong> <small>(Divisão 50/50)</small></div>
         <div><strong>Equipe:</strong> Rachel Zauli ➔ <strong>+52 pts</strong> <small>(26 × 2 pts)</small></div>
         <div style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
           <strong>Total de Presenças de Salão:</strong> 369 presenças (vs. 56 faltas) | <strong>Taxa de Presença:</strong> 86,8%<br>
@@ -1034,8 +1031,8 @@ ${getPontoTableForProf(p.nome)}
         Turno Tarde/Noite (14h às 20h + 13h) — 11 Alunos Retidos na Meta (31,4%)
       </div>
       <div style="font-size: 9px; line-height: 1.5; color: #334155;">
-        <div><strong>Responsável Titular:</strong> Matheus Poeiras Luciano ➔ <strong>+77 pts</strong> <small>(11 × 7 pts)</small></div>
-        <div><strong>Equipe:</strong> Pedro Grossi ➔ <strong>+22 pts</strong> | Dr. Guilherme Graciano ➔ <strong>+22 pts</strong> <small>(11 × 2 pts)</small></div>
+        <div><strong>Co-Responsáveis:</strong> Dr. Guilherme Graciano ➔ <strong>+38,5 pts</strong> | Matheus Poeiras ➔ <strong>+38,5 pts</strong> <small>(Divisão 50/50)</small></div>
+        <div><strong>Equipe:</strong> Pedro Grossi ➔ <strong>+22 pts</strong> <small>(11 × 2 pts)</small></div>
         <div style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
           <strong>Total de Presenças de Salão:</strong> 241 presenças (vs. 23 faltas) | <strong>Taxa de Presença:</strong> 91,3%<br>
           <strong>Alunos que Bateram a Meta:</strong> Arthur Lopes Cussat (100%), Éder Pereira (111%), Débora San Martin (88%), Emanuel Costa (88%), Izaú Veras (100%), Paula Maria Ferraz (111%), Ian Javoski (400%), Aluisio Cláudio (88%), Luiz Antônio Araujo (100%), Gabriel Lage (88%) e Lucca Gorini (100%).
