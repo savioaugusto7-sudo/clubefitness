@@ -59,6 +59,8 @@ const ClientTestRecordSchema = new Schema({
     documentoId: { type: Schema.Types.ObjectId }
   },
 
+  prontuarioId: { type: Schema.Types.ObjectId, ref: 'Prontuario', index: true },
+
   observacoes: { type: String, default: '' }
 }, { timestamps: true });
 

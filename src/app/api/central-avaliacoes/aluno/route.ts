@@ -230,6 +230,7 @@ export async function GET(request: Request) {
         data: tr.data,
         createdAt: tr.createdAt,
         avaliadorId: tr.profissionalId,
+        prontuarioId: tr.prontuarioId,
         resumo: metrics,
         rawDoc: tr
       });

@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import ClientTestRecord from '@/models/ClientTestRecord';
+import Prontuario from '@/models/Prontuario';
 import '@/models/Client';
 import '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
+import { formatTestToProntuarioContent } from '@/utils/testToProntuario';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -162,6 +164,29 @@ export async function POST(request: Request) {
       };
     }
 
+    // Formatar texto clínico para espelhamento em Prontuário Médico/Fisioterápico
+    const formattedProntuarioText = formatTestToProntuarioContent({
+      tipoTeste,
+      data,
+      dados,
+      metricas,
+      observacoes,
+      comparativoAnterior
+    });
+
+    // Criar Prontuário Clínico para consulta na aba Prontuários e geração de PDF em 1 clique
+    let prontuarioDoc: any = null;
+    try {
+      prontuarioDoc = await Prontuario.create({
+        clienteId: clientObjId || clienteId,
+        profissionalId: profObjId,
+        data,
+        conteudo: formattedProntuarioText
+      });
+    } catch (prontErr: any) {
+      console.warn('Aviso: Falha ao espelhar teste em Prontuário:', prontErr.message);
+    }
+
     const testDoc = await ClientTestRecord.create({
       clienteId: clientObjId || clienteId,
       profissionalId: profObjId,
@@ -171,12 +196,14 @@ export async function POST(request: Request) {
       metricas,
       comparativoAnterior,
       origemDocumento,
+      prontuarioId: prontuarioDoc ? prontuarioDoc._id : undefined,
       observacoes: observacoes || ''
     });
 
     return NextResponse.json({
       success: true,
-      data: testDoc
+      data: testDoc,
+      prontuario: prontuarioDoc
     });
   } catch (error: any) {
     console.error('Error recording client test:', error);

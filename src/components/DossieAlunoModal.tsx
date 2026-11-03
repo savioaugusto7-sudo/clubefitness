@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { downloadAssessmentPDF } from '@/utils/pdfGenerator';
+import React, { useState, useEffect } from 'react';
+import { downloadAssessmentPDF, downloadProntuarioPDF } from '@/utils/pdfGenerator';
 
 interface DossieAlunoModalProps {
   isOpen: boolean;
@@ -33,6 +33,21 @@ export default function DossieAlunoModal({
   isAdmin = false
 }: DossieAlunoModalProps) {
   const [activeDossieTab, setActiveDossieTab] = useState<'rotina' | 'clinico' | 'avaliacoes' | 'presencas'>('rotina');
+  const [prontuarios, setProntuarios] = useState<any[]>([]);
+  const [downloadingProntId, setDownloadingProntId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && client?._id) {
+      fetch(`/api/prontuarios?clientId=${client._id}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success && Array.isArray(json.data)) {
+            setProntuarios(json.data);
+          }
+        })
+        .catch(err => console.warn('Erro ao carregar prontuários do dossiê:', err));
+    }
+  }, [isOpen, client?._id]);
 
   if (!isOpen || !client) return null;
 
@@ -283,7 +298,7 @@ export default function DossieAlunoModal({
             }}
           >
             <i className="fa-solid fa-heartbeat"></i>
-            <span>Avaliações & Testes ({clientAssessments.length + clientStrengthTests.length})</span>
+            <span>Avaliações & Testes ({clientAssessments.length + clientStrengthTests.length + prontuarios.length})</span>
           </button>
 
           <button
@@ -615,6 +630,64 @@ export default function DossieAlunoModal({
                           <td><span style={{ color: '#10b981' }}>Concluído</span></td>
                         </tr>
                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Prontuários e Testes Clínicos da Central de Avaliações */}
+              <h4 style={{ color: '#06b6d4', marginTop: '24px', marginBottom: '12px', fontSize: '0.90rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-notes-medical" />
+                Prontuários & Testes Clínicos ({prontuarios.length})
+              </h4>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Resumo Clínico / Teste</th>
+                      <th>Profissional</th>
+                      <th style={{ textAlign: 'center' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prontuarios.length === 0 ? (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '14px' }}>Nenhum prontuário ou teste clínico avulso registrado.</td></tr>
+                    ) : (
+                      prontuarios.map(pr => {
+                        const firstLine = (pr.conteudo || '').split('\n').filter(Boolean)[0] || 'Registro Clínico';
+                        return (
+                          <tr key={pr._id}>
+                            <td>{pr.data ? pr.data.split('-').reverse().join('/') : '-'}</td>
+                            <td>
+                              <span style={{ fontWeight: 650, color: '#38bdf8' }}>{firstLine}</span>
+                            </td>
+                            <td>{pr.profissionalId?.nome || 'Profissional'}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                                disabled={downloadingProntId === pr._id}
+                                onClick={async () => {
+                                  setDownloadingProntId(pr._id);
+                                  try {
+                                    await downloadProntuarioPDF(pr, client);
+                                  } catch (e: any) {
+                                    alert('Erro ao baixar PDF: ' + e.message);
+                                  } finally {
+                                    setDownloadingProntId(null);
+                                  }
+                                }}
+                                title="Baixar Prontuário em PDF"
+                              >
+                                <i className={downloadingProntId === pr._id ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} style={{ marginRight: '4px' }} />
+                                PDF
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

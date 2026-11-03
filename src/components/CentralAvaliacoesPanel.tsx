@@ -502,6 +502,7 @@ export default function CentralAvaliacoesPanel({
 
                 {activeSubTab === 'historico' && (
                   <AlunoHistoryTimeline
+                    client={alunoDetail.client}
                     timeline={alunoDetail.timeline}
                     longitudinal={alunoDetail.longitudinal}
                     onSelectComparativeDates={handleSelectComparativeDates}

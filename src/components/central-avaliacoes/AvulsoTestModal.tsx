@@ -412,7 +412,7 @@ export default function AvulsoTestModal({
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Falha ao salvar teste');
 
-      alert('Teste registrado com sucesso!');
+      alert('Teste registrado com sucesso! O prontuário clínico oficial foi gerado e está disponível no Histórico do aluno e na aba Prontuários.');
       onSaved();
       onClose();
     } catch (err: any) {

@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { downloadReavaliacaoLaudoPDF } from '@/utils/reavaliacaoPdfGenerator';
+import { downloadProntuarioPDF } from '@/utils/pdfGenerator';
+import { formatTestToProntuarioContent } from '@/utils/testToProntuario';
 import { getSymmetryTier } from '@/utils/symmetryStandards';
 
 interface TimelineItem {
@@ -14,12 +16,14 @@ interface TimelineItem {
   data: string;
   createdAt?: string;
   avaliadorId?: string;
+  prontuarioId?: string;
   resumo: string[];
   pdfUrl?: string | null;
   rawDoc?: any;
 }
 
 interface AlunoHistoryTimelineProps {
+  client?: any;
   timeline: TimelineItem[];
   longitudinal: {
     t1Id: string | null;
@@ -35,6 +39,7 @@ interface AlunoHistoryTimelineProps {
 }
 
 export default function AlunoHistoryTimeline({
+  client,
   timeline,
   longitudinal,
   onSelectComparativeDates,
@@ -42,6 +47,7 @@ export default function AlunoHistoryTimeline({
 }: AlunoHistoryTimelineProps) {
   const [selectedDoc, setSelectedDoc] = useState<TimelineItem | null>(null);
   const [viewMode, setViewMode] = useState<'timeline' | 'comparativo'>('timeline');
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   // Filtro de tipo na timeline
   const [selectedFilter, setSelectedFilter] = useState<string>('todos');
@@ -61,6 +67,50 @@ export default function AlunoHistoryTimeline({
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return dStr;
+  };
+
+  const handleDownloadItemPDF = async (item: TimelineItem) => {
+    if (item.pdfUrl) {
+      window.open(item.pdfUrl, '_blank');
+      return;
+    }
+
+    setDownloadingPdfId(item.id);
+    try {
+      if (item.prontuarioId) {
+        const res = await fetch(`/api/prontuarios?id=${item.prontuarioId}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          await downloadProntuarioPDF(json.data, client);
+          setDownloadingPdfId(null);
+          return;
+        }
+      }
+
+      // Fallback estruturado imediato utilizando o formatador clínico
+      const raw = item.rawDoc || {};
+      const fallbackConteudo = formatTestToProntuarioContent({
+        tipoTeste: item.tipoTeste || raw.tipoTeste || item.tipoLabel,
+        data: item.data,
+        dados: raw.dados || {},
+        metricas: raw.metricas || {},
+        observacoes: raw.observacoes || '',
+        comparativoAnterior: raw.comparativoAnterior
+      });
+
+      const fallbackProntuario = {
+        clienteId: client?._id || raw.clienteId,
+        profissionalId: item.avaliadorId || raw.profissionalId,
+        data: item.data,
+        conteudo: fallbackConteudo
+      };
+
+      await downloadProntuarioPDF(fallbackProntuario, client);
+    } catch (err: any) {
+      alert('Não foi possível gerar o PDF: ' + err.message);
+    } finally {
+      setDownloadingPdfId(null);
+    }
   };
 
   const handlePrintLaudo = () => {
@@ -302,7 +352,7 @@ export default function AlunoHistoryTimeline({
                       </div>
 
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        {item.pdfUrl && (
+                        {item.pdfUrl ? (
                           <a
                             href={item.pdfUrl}
                             target="_blank"
@@ -313,7 +363,19 @@ export default function AlunoHistoryTimeline({
                             <i className="fas fa-file-pdf" style={{ marginRight: '4px' }} />
                             PDF
                           </a>
-                        )}
+                        ) : (item.prontuarioId || item.origem === 'ClientTestRecord') ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadItemPDF(item)}
+                            disabled={downloadingPdfId === item.id}
+                            className="btn btn-outline btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                            title="Baixar Prontuário Clínico em PDF"
+                          >
+                            <i className={downloadingPdfId === item.id ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} style={{ marginRight: '4px' }} />
+                            PDF
+                          </button>
+                        ) : null}
                         <button
                           onClick={() => setSelectedDoc(item)}
                           className="btn btn-outline btn-sm"
@@ -912,21 +974,44 @@ export default function AlunoHistoryTimeline({
               </button>
             </div>
 
-            <pre
+            {/* Visualização Estruturada do Prontuário / Laudo */}
+            <div
               style={{
                 background: 'var(--bg-dark)',
-                padding: '12px',
+                padding: '16px',
                 borderRadius: '8px',
-                fontSize: '0.75rem',
+                fontSize: '0.84rem',
                 color: 'var(--text-main)',
-                overflowX: 'auto',
-                maxHeight: '400px'
+                lineHeight: 1.6,
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace',
+                border: '1px solid var(--border-color)',
+                maxHeight: '400px',
+                overflowY: 'auto'
               }}
             >
-              {JSON.stringify(selectedDoc.rawDoc, null, 2)}
-            </pre>
+              {formatTestToProntuarioContent({
+                tipoTeste: selectedDoc.tipoTeste || selectedDoc.rawDoc?.tipoTeste || selectedDoc.tipoLabel,
+                data: selectedDoc.data,
+                dados: selectedDoc.rawDoc?.dados || {},
+                metricas: selectedDoc.rawDoc?.metricas || {},
+                observacoes: selectedDoc.rawDoc?.observacoes || '',
+                comparativoAnterior: selectedDoc.rawDoc?.comparativoAnterior
+              })}
+            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => handleDownloadItemPDF(selectedDoc)}
+                disabled={downloadingPdfId === selectedDoc.id}
+                className="btn btn-primary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 650 }}
+              >
+                <i className={downloadingPdfId === selectedDoc.id ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} />
+                Baixar Prontuário em PDF
+              </button>
+
               <button onClick={() => setSelectedDoc(null)} className="btn btn-outline btn-sm">
                 Fechar
               </button>
