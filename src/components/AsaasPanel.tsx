@@ -211,6 +211,31 @@ export default function AsaasPanel() {
     }
   };
 
+  const handleResolveDeboraMatteo = async () => {
+    if (!confirm('Deseja regularizar os boletos de Débora De Matteo Vaz?\n\n1. Emitir Boleto com vencimento HOJE (substituindo 13/10)\n2. Criar Assinatura Recorrente no Asaas com vencimento em 18/11 e todo dia 18 subsequente.')) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resolve_debora_matteo' })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Erro ao regularizar Débora De Matteo');
+      setMessage({ text: 'Boletos e assinatura de Débora De Matteo regularizados com sucesso!', type: 'success' });
+      fetchPayments(false);
+      fetchBalance();
+      fetchStandalonePayments();
+    } catch (e: any) {
+      setMessage({ text: e.message, type: 'danger' });
+      setTimeout(() => setMessage(null), 6000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateStandalone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formClientId || !formValor || formValor <= 0) {
@@ -964,7 +989,17 @@ export default function AsaasPanel() {
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                            {c.status === 'nao_gerado' && c.contractId && (
+                            {c.nome?.toLowerCase().includes('matteo') && !hasBilling ? (
+                              <button
+                                className="btn btn-warning btn-sm"
+                                onClick={handleResolveDeboraMatteo}
+                                disabled={loading}
+                                style={{ fontSize: '0.75rem', padding: '6px 12px', background: '#f59e0b', borderColor: '#f59e0b', color: '#000', fontWeight: 800 }}
+                                title="Emitir boleto para Hoje e configurar recorrência mensal para todo dia 18"
+                              >
+                                ⚡ Regularizar Boletos (Hoje + 18/11)
+                              </button>
+                            ) : c.status === 'nao_gerado' && c.contractId && (
                               c.isSignedClicksign ? (
                                 <button
                                   className="btn btn-primary btn-sm"
