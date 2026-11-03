@@ -304,3 +304,4 @@ code = code.replace(
 const destScript = path.join(__dirname, 'generate_full_mobile_report.js');
 fs.writeFileSync(destScript, code, 'utf8');
 console.log('generate_full_mobile_report.js written successfully!');
+

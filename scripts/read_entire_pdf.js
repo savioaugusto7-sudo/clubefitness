@@ -26,3 +26,4 @@ readPdf().catch(err => {
   console.error('Error reading PDF:', err);
   process.exit(1);
 });
+

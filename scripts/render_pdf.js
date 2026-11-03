@@ -12,3 +12,4 @@ execSync(cmd);
 
 const stat = fs.statSync(pdfPath);
 console.log('PDF rendered successfully:', stat.size, 'bytes, Last Modified:', stat.mtime);
+

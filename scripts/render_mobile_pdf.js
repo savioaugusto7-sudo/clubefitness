@@ -19,3 +19,4 @@ fs.copyFileSync(pdfPath, downloadsPath);
 fs.copyFileSync(pdfPath, workspacePath);
 console.log('Copied to Downloads:', downloadsPath);
 console.log('Copied to Workspace:', workspacePath);
+

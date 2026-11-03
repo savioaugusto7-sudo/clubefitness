@@ -11,3 +11,4 @@ content = content.replace(
 
 fs.writeFileSync(file, content, 'utf8');
 console.log('Fixed outputPath in generate_full_mobile_report.js');
+

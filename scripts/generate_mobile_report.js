@@ -827,3 +827,4 @@ fs.copyFileSync(pdfPath, downloadsPdfPath);
 fs.copyFileSync(pdfPath, workspacePdfPath);
 console.log('Copied to Downloads:', downloadsPdfPath);
 console.log('Copied to Workspace:', workspacePdfPath);
+
