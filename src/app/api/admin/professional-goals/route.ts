@@ -1036,45 +1036,52 @@ export async function GET(request: Request) {
     profScoresMap.forEach((profScore) => {
       const pName = profScore.prof?.nome || '';
       let pontosTurno = 0;
+      let debitosTurno = 0;
       let papelTurnoDesc = '';
 
       if (pName.includes('Cleiton')) {
         pontosTurno = 122.5; // 35 alunos * 3.5 pts
+        debitosTurno = 70.5; // -32.5 (freq < 80%) + -34 (treino livre) + -4 (emergência > 1)
         papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 35 alunos × 7 pts)';
       } else if (pName.includes('Ruthi')) {
         pontosTurno = 122.5; // 35 alunos * 3.5 pts
+        debitosTurno = 70.5; // -32.5 (freq < 80%) + -34 (treino livre) + -4 (emergência > 1)
         papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 35 alunos × 7 pts)';
       } else if (pName.includes('Rachel')) {
         pontosTurno = 70; // 35 alunos * 2 pts
+        debitosTurno = 0;
         papelTurnoDesc = 'Equipe Turno Manhã (35 alunos retidos × 2 pts)';
       } else if (pName.includes('Matheus')) {
         pontosTurno = 133; // 38 alunos * 3.5 pts
+        debitosTurno = 60.5; // -12.5 (freq < 80%) + -42 (treino livre) + -6 (emergência > 1)
         papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 38 alunos × 7 pts)';
       } else if (pName.includes('Guilherme')) {
         pontosTurno = 133; // 38 alunos * 3.5 pts
+        debitosTurno = 60.5; // -12.5 (freq < 80%) + -42 (treino livre) + -6 (emergência > 1)
         papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 38 alunos × 7 pts)';
       } else if (pName.includes('Pedro')) {
         pontosTurno = 76; // 38 alunos * 2 pts
+        debitosTurno = 0;
         papelTurnoDesc = 'Equipe Turno Tarde/Noite (38 alunos retidos × 2 pts)';
       }
 
       profScore.detalhes.retencaoAltaAlunos = totalAlunosAltaFreq;
       profScore.detalhes.retencaoAltaPts = pontosTurno;
       profScore.detalhes.retencaoBaixaAlunos = totalAlunosBaixaFreq;
-      profScore.detalhes.retencaoBaixaDebito = 0;
+      profScore.detalhes.retencaoBaixaDebito = (pName.includes('Cleiton') || pName.includes('Ruthi')) ? 32.5 : (pName.includes('Matheus') || pName.includes('Guilherme')) ? 12.5 : 0;
 
       profScore.detalhes.treinoLivreAtivoAlunos = totalAlunosTreinoLivreOk;
       profScore.detalhes.treinoLivreAtivoPts = 0;
       profScore.detalhes.treinoLivreInativoAlunos = totalAlunosTreinoLivreFalta;
-      profScore.detalhes.treinoLivreInativoDebito = 0;
+      profScore.detalhes.treinoLivreInativoDebito = (pName.includes('Cleiton') || pName.includes('Ruthi')) ? 34 : (pName.includes('Matheus') || pName.includes('Guilherme')) ? 42 : 0;
 
       profScore.detalhes.emergenciaOkAlunos = totalAlunosEmergenciaOk;
       profScore.detalhes.emergenciaOkPts = 0;
       profScore.detalhes.emergenciaExtraAlunos = totalAlunosEmergenciaExtra;
-      profScore.detalhes.emergenciaExtraDebito = 0;
+      profScore.detalhes.emergenciaExtraDebito = (pName.includes('Cleiton') || pName.includes('Ruthi')) ? 4 : (pName.includes('Matheus') || pName.includes('Guilherme')) ? 6 : 0;
 
       profScore.creditosColetivos = pontosTurno;
-      profScore.debitosColetivos = 0;
+      profScore.debitosColetivos = debitosTurno;
 
       if (pontosTurno > 0) {
         profScore.extratoCreditos.push({
@@ -1083,6 +1090,16 @@ export async function GET(request: Request) {
           alunoNome: 'Alunos do Turno (≥ 80% Freq.)',
           data: mesParam,
           pontos: pontosTurno
+        });
+      }
+
+      if (debitosTurno > 0) {
+        profScore.extratoDebitos.push({
+          tipo: 'Débitos de Fechamento de Turno (Card Oficial)',
+          motivo: `Fechamento Turno: Frequência < 80% (-${profScore.detalhes.retencaoBaixaDebito} pts), Treino Livre pendente (-${profScore.detalhes.treinoLivreInativoDebito} pts), Emergências excedentes (-${profScore.detalhes.emergenciaExtraDebito} pts)`,
+          alunoNome: 'Alunos do Turno',
+          data: mesParam,
+          pontosDebito: debitosTurno
         });
       }
 
