@@ -242,7 +242,8 @@ async function build() {
 
   activeProfList.forEach(p => clinicalByProf[p].sort((a, b) => a.data.localeCompare(b.data)));
 
-  function getPontoTableForProf(profName) {
+  function getPontoTableForProf(rawProfName) {
+    const profName = rawProfName.replace(/^Dr\.\s*/i, '').trim();
     if (profName === 'Albert Nunes') {
       return `      <div class="sub-table-title">Auditoria de Ponto (Outubro / 2026)</div>
       <div class="audit-note"><strong>Isenção de Marcação Biométrica:</strong> Profissional responde pela Direção Clínica, coordenação médica e diretoria executiva, com presença integral comprovada sem exigência de controle por relógio de ponto.</div>`;
@@ -522,7 +523,8 @@ ${rows}
       </table>`;
   }
 
-  function getClinicalTableForProf(profName) {
+  function getClinicalTableForProf(rawProfName) {
+    const profName = rawProfName.replace(/^Dr\.\s*/i, '').trim();
     const items = clinicalByProf[profName] || [];
     if (items.length === 0) {
       return `      <div class="sub-table-title">Produção Clínica & Procedimentos Executados (Outubro / 2026)</div>
