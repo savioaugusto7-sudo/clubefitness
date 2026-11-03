@@ -46,3 +46,6 @@ scratch*
 /public/relatorios/
 materiais_referencia/*.pdf
 !materiais_referencia/PROPOSTA_TECNICA_EVOLUCAO_CLINICA_RESPONSAVEL_TECNICO.pdf
+
+storage/reports/*.pdf
+*.pdf
