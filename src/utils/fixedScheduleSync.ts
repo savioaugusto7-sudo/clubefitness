@@ -83,7 +83,8 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
         { clienteId: { $in: [...idStrings, ...idObjects] } },
         { clientId: { $in: [...idStrings, ...idObjects] } }
       ],
-      data: { $in: dateStrings }
+      data: { $in: dateStrings },
+      status: { $ne: 'cancelado' }
     }).select('clienteId clientId data horario status').lean();
 
     const existingSet = new Set(
