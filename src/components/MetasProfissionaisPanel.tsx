@@ -331,6 +331,15 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
               >
                 <i className="fa-solid fa-mobile-screen"></i> PDF Celular
               </a>
+              <a
+                href={`/api/admin/executive-report/download?mes=${selectedMonth}&format=potencial`}
+                className="btn btn-sm"
+                style={{ background: '#8b5cf6', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                download
+                title="Baixar Relatório Comparativo: Realizado vs Potencial Máximo Ideal"
+              >
+                <i className="fa-solid fa-chart-line"></i> PDF Potencial Máximo
+              </a>
             </div>
           )}
         </div>
