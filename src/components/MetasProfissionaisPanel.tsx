@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { isSavioAdmin } from '@/lib/auth-savio';
 
 interface MetasProfissionaisPanelProps {
   onRefresh?: () => void;
 }
 
 export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps) {
+  const { data: session } = useSession();
+  const isSavio = isSavioAdmin(session?.user);
+
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -301,6 +306,33 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
           >
             <i className={`fa-solid fa-rotate-right ${loading ? 'fa-spin' : ''}`}></i> Atualizar
           </button>
+
+          {/* Download Exclusivo em 1 Clique (Apenas Sávio Augusto Oliveira) */}
+          {isSavio && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 132, 199, 0.1)', padding: '4px 10px', borderRadius: '10px', border: '1px solid rgba(2, 132, 199, 0.3)' }}>
+              <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <i className="fa-solid fa-lock"></i> Sávio:
+              </span>
+              <a
+                href={`/api/admin/executive-report/download?mes=${selectedMonth}&format=desktop`}
+                className="btn btn-sm"
+                style={{ background: '#0284c7', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                download
+                title="Baixar Relatório Executivo Oficial Auditado em PDF (Layout A4)"
+              >
+                <i className="fa-solid fa-file-pdf"></i> PDF Oficial
+              </a>
+              <a
+                href={`/api/admin/executive-report/download?mes=${selectedMonth}&format=mobile`}
+                className="btn btn-sm"
+                style={{ background: '#10b981', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                download
+                title="Baixar Relatório Executivo Auditado para Celular / WhatsApp"
+              >
+                <i className="fa-solid fa-mobile-screen"></i> PDF Celular
+              </a>
+            </div>
+          )}
         </div>
       </div>
 

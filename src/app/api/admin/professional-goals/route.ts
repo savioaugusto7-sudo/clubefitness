@@ -1144,9 +1144,9 @@ export async function GET(request: Request) {
       totalAlunosEmergenciaOk,
       totalAlunosEmergenciaExtra,
       projecaoColetiva: {
-        creditosProjetados: totalCollectiveCreditsPts,
-        debitosProjetados: totalCollectiveDebitsPts,
-        saldoProjetado: totalCollectiveCreditsPts - totalCollectiveDebitsPts
+        creditosProjetados: totalCreditosClinica,
+        debitosProjetados: totalDebitosClinica,
+        saldoProjetado: totalCreditosClinica - totalDebitosClinica
       }
     };
 
