@@ -216,26 +216,29 @@ async function generateAppointmentsForFixedSchedules(
           ? (SERVICOS_CONFIG[pair.schedule.servico]?.vagasOcupadas !== undefined ? SERVICOS_CONFIG[pair.schedule.servico].vagasOcupadas : 1)
           : 1;
 
-        if (existingOccupancy + currentBatchAdded + serviceWeight <= maxCap) {
-          localOccupancyMap.set(slotKey, currentBatchAdded + serviceWeight);
-
-          allAppointmentsToCreate.push({
-            data: pair.dateStr,
-            horario: pair.horario,
-            tipo: resolvedTipo,
-            servico: pair.schedule.servico || 'Treino Monitorado',
-            consumeCredito: true,
-            tipoCredito: 'academia',
-            profissionalId: resolvedTipo === 'academia' ? null : profId,
-            profissionalDesignadoId: pair.schedule.profissionalDesignadoId || null,
-            clienteId: pair.schedule.clienteId,
-            status: 'agendado',
-            origemHorarioFixo: true,
-            fixedScheduleId: pair.schedule._id
-          });
-        } else {
-          console.warn(`[FixedSchedules] Slot ${pair.dateStr} às ${pair.horario} (${resolvedTipo}) atingiu capacidade (${existingOccupancy + currentBatchAdded}/${maxCap}). Agendamento excedente bloqueado.`);
+        // Regra de Ouro da Gestão: se o horário fixo foi cadastrado/confirmado,
+        // ele DEVE aparecer na agenda mesmo que ultrapasse a capacidade nominal do horário.
+        const isOverflow = (existingOccupancy + currentBatchAdded + serviceWeight > maxCap);
+        if (isOverflow) {
+          console.warn(`[FixedSchedules] Slot ${pair.dateStr} às ${pair.horario} (${resolvedTipo}) ultrapassou capacidade nominal (${existingOccupancy + currentBatchAdded + serviceWeight}/${maxCap}). Agendamento confirmado com overflow conforme regra da gestão.`);
         }
+
+        localOccupancyMap.set(slotKey, currentBatchAdded + serviceWeight);
+
+        allAppointmentsToCreate.push({
+          data: pair.dateStr,
+          horario: pair.horario,
+          tipo: resolvedTipo,
+          servico: pair.schedule.servico || 'Treino Monitorado',
+          consumeCredito: true,
+          tipoCredito: 'academia',
+          profissionalId: resolvedTipo === 'academia' ? null : profId,
+          profissionalDesignadoId: pair.schedule.profissionalDesignadoId || null,
+          clienteId: pair.schedule.clienteId,
+          status: 'agendado',
+          origemHorarioFixo: true,
+          fixedScheduleId: pair.schedule._id
+        });
       }
     }
 
@@ -308,12 +311,12 @@ export async function POST(request: Request) {
       for (const slot of slots) {
         itemsToCreate.push({
           clienteId,
-          profissionalId: profissionalId || null,
-          profissionalDesignadoId: profissionalDesignadoId || null,
+          profissionalId: (slot.profissionalId !== undefined ? slot.profissionalId : profissionalId) || null,
+          profissionalDesignadoId: (slot.profissionalDesignadoId !== undefined ? slot.profissionalDesignadoId : profissionalDesignadoId) || null,
           diaSemana: Number(slot.diaSemana),
           horario: slot.horario,
-          servico,
-          dataInicio,
+          servico: slot.servico || servico || 'Treino Monitorado',
+          dataInicio: slot.dataInicio || dataInicio,
           duracaoSemanas: duracaoSemanas ? Number(duracaoSemanas) : null,
           dataFim: validDataFim,
           frequenciaRepeticao: slot.frequenciaRepeticao || resolvedFrequencia,
@@ -384,13 +387,17 @@ export async function PUT(request: Request) {
       if (slots.length > 0) {
         const itemsToCreate = slots.map(slot => ({
           clienteId,
-          profissionalId: profissionalId !== undefined ? (profissionalId || null) : (oldProfessionalId || null),
-          profissionalDesignadoId: profissionalDesignadoId !== undefined ? (profissionalDesignadoId || null) : null,
+          profissionalId: slot.profissionalId !== undefined
+            ? (slot.profissionalId || null)
+            : (profissionalId !== undefined ? (profissionalId || null) : (oldProfessionalId || null)),
+          profissionalDesignadoId: slot.profissionalDesignadoId !== undefined
+            ? (slot.profissionalDesignadoId || null)
+            : (profissionalDesignadoId !== undefined ? (profissionalDesignadoId || null) : null),
           diaSemana: Number(slot.diaSemana),
           horario: slot.horario,
-          servico: servico || 'Treino Monitorado',
-          dataInicio: dataInicio || todayStr,
-          dataFim: dataFim || null,
+          servico: slot.servico || servico || 'Treino Monitorado',
+          dataInicio: slot.dataInicio || dataInicio || todayStr,
+          dataFim: slot.dataFim !== undefined ? slot.dataFim : (dataFim || null),
           frequenciaRepeticao: slot.frequenciaRepeticao || resolvedFrequencia,
           intervaloSemanas: slot.intervaloSemanas ? Math.max(1, Number(slot.intervaloSemanas)) : resolvedIntervalo
         }));

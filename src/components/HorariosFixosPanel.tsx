@@ -136,9 +136,27 @@ export default function HorariosFixosPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  // --- Estados do Modal de Criação / Edição ---
+  // --- Estados do Modal de Criação / Edição Principal ---
   const [showModal, setShowModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
+
+  // Modal de Edição Rápida de Slot Único (Ao clicar diretamente em um horário)
+  const [quickEditSlot, setQuickEditSlot] = useState<any | null>(null);
+  const [quickEditTime, setQuickEditTime] = useState<string>('08:00');
+  const [quickEditDay, setQuickEditDay] = useState<number>(1);
+  const [quickEditService, setQuickEditService] = useState<string>('Treino Monitorado');
+  const [quickEditProf, setQuickEditProf] = useState<string>('');
+  const [savingQuickSlot, setSavingQuickSlot] = useState(false);
+
+  // Slots configuráveis dentro do modal principal (permite múltiplos horários e serviços no mesmo dia)
+  interface ModalSlotItem {
+    _id?: string;
+    diaSemana: number;
+    horario: string;
+    servico: string;
+    profissionalId?: string | null;
+  }
+  const [modalSlots, setModalSlots] = useState<ModalSlotItem[]>([]);
 
   const [modalClient, setModalClient] = useState('');
   const [modalProf, setModalProf] = useState('');
@@ -230,12 +248,21 @@ export default function HorariosFixosPanel({
     return professionals.find(p => (p.nome || '').toLowerCase().includes('guilherme'));
   }, [professionals]);
 
-  // --- Agrupamento das Regras por Aluno + Agenda ---
+  // --- Agrupamento das Regras por Aluno (Modo A: Ficha Unificada com Suporte Multisserviço) ---
   const groupedRules = useMemo(() => {
-    const map: Record<string, { client: any; professional: any; rules: any[]; servico: string; dataInicio: string; dataFim: string | null }> = {};
+    const map: Record<string, {
+      client: any;
+      professional: any;
+      rules: any[];
+      servico: string;
+      servicos: string[];
+      dataInicio: string;
+      dataFim: string | null;
+    }> = {};
 
     for (const fs of fixedSchedules) {
       const cId = fs.clienteId?._id || fs.clienteId || 'sem_aluno';
+      // Agrupamos por cliente de modo unificado, mantendo vínculo da agenda caso haja médico especialista
       const pId = fs.profissionalId?._id || fs.profissionalId || 'geral';
       const groupKey = `${cId}_${pId}`;
 
@@ -245,12 +272,27 @@ export default function HorariosFixosPanel({
           professional: fs.profissionalId,
           rules: [],
           servico: fs.servico,
+          servicos: [],
           dataInicio: fs.dataInicio,
           dataFim: fs.dataFim || null
         };
       }
       map[groupKey].rules.push(fs);
+      const srv = fs.servico || 'Treino Monitorado';
+      if (!map[groupKey].servicos.includes(srv)) {
+        map[groupKey].servicos.push(srv);
+      }
     }
+
+    // Ordenar regras internas de cada grupo cronologicamente por dia e horário
+    Object.values(map).forEach(g => {
+      g.rules.sort((a, b) => {
+        if (Number(a.diaSemana) !== Number(b.diaSemana)) {
+          return Number(a.diaSemana) - Number(b.diaSemana);
+        }
+        return (a.horario || '').localeCompare(b.horario || '');
+      });
+    });
 
     return Object.values(map);
   }, [fixedSchedules]);
@@ -289,7 +331,8 @@ export default function HorariosFixosPanel({
 
       // 3. Filtro de Serviço
       if (serviceFilter !== 'todos') {
-        if (g.servico !== serviceFilter) return false;
+        const hasService = (g.servicos || [g.servico]).includes(serviceFilter);
+        if (!hasService) return false;
       }
 
       // 4. Busca Inteligente (Nome, CPF, Telefone, Dia, Horário, Serviço)
@@ -297,13 +340,13 @@ export default function HorariosFixosPanel({
         const nome = g.client?.dadosPessoais?.nome || g.client?.nome || '';
         const cpf = g.client?.dadosPessoais?.cpf || '';
         const telefone = g.client?.dadosPessoais?.telefone || '';
-        const servico = g.servico || '';
+        const servicosTexto = (g.servicos || [g.servico]).join(' ');
         const profNome = g.professional?.nome || 'Treino Geral';
         const daysText = g.rules
-          .map(r => `${DAYS_SHORT[r.diaSemana] || ''} ${DAYS_FULL[r.diaSemana] || ''} ${r.horario || ''}`)
+          .map(r => `${DAYS_SHORT[r.diaSemana] || ''} ${DAYS_FULL[r.diaSemana] || ''} ${r.horario || ''} ${r.servico || ''}`)
           .join(' ');
 
-        return smartSearchMatch([nome, cpf, telefone, servico, profNome, daysText], searchQuery);
+        return smartSearchMatch([nome, cpf, telefone, servicosTexto, profNome, daysText], searchQuery);
       }
 
       return true;
@@ -391,16 +434,17 @@ export default function HorariosFixosPanel({
   const handleOpenNewModal = (prefillDay?: number, prefillTime?: string) => {
     setEditingGroup(null);
     setModalClient('');
+    let defaultService = 'Treino Monitorado';
+    let defaultProf = '';
     if (agendaFilter === 'albert' && albertProf) {
-      setModalProf(albertProf._id);
-      setModalService('Atendimento Individual');
+      defaultProf = albertProf._id;
+      defaultService = 'Atendimento Individual';
     } else if (agendaFilter === 'guilherme' && guilhermeProf) {
-      setModalProf(guilhermeProf._id);
-      setModalService('Atendimento Individual');
-    } else {
-      setModalProf('');
-      setModalService('Treino Monitorado');
+      defaultProf = guilhermeProf._id;
+      defaultService = 'Atendimento Individual';
     }
+    setModalProf(defaultProf);
+    setModalService(defaultService);
     setModalProfDesignado('');
     setHasCustomProf(false);
     setModalStartDate(new Date().toISOString().split('T')[0]);
@@ -412,19 +456,28 @@ export default function HorariosFixosPanel({
     setCustomIntervalWeeks(2);
     setShowRepetitionSelector(false);
 
+    const initialDay = prefillDay !== undefined ? prefillDay : 1;
+    const initialTime = prefillTime || '08:00';
+    setUniformTime(initialTime);
+
     if (prefillDay !== undefined) {
       setSelectedDays([prefillDay]);
+      setModalSlots([{
+        diaSemana: prefillDay,
+        horario: initialTime,
+        servico: defaultService,
+        profissionalId: defaultProf || null
+      }]);
     } else {
       setSelectedDays([1, 3, 5]);
+      setModalSlots([
+        { diaSemana: 1, horario: initialTime, servico: defaultService, profissionalId: defaultProf || null },
+        { diaSemana: 3, horario: initialTime, servico: defaultService, profissionalId: defaultProf || null },
+        { diaSemana: 5, horario: initialTime, servico: defaultService, profissionalId: defaultProf || null }
+      ]);
     }
 
-    if (prefillTime) {
-      setUniformTime(prefillTime);
-      setDayTimesMap(prev => ({ ...prev, [prefillDay || 1]: prefillTime }));
-    } else {
-      setUniformTime('08:00');
-    }
-
+    setDayTimesMap({ 1: initialTime, 2: initialTime, 3: initialTime, 4: initialTime, 5: initialTime, 6: initialTime });
     setShowModal(true);
   };
 
@@ -455,26 +508,79 @@ export default function HorariosFixosPanel({
       setModalManualEndDate('');
     }
 
-    // Configurar dias e horários
-    const days: number[] = [];
+    // Carregar todos os slots existentes de forma rica (multi-slot com suporte a mesmo dia e serviços diferentes)
+    const initialSlots: ModalSlotItem[] = (group.rules || []).map((r: any) => ({
+      _id: r._id,
+      diaSemana: Number(r.diaSemana),
+      horario: r.horario || '08:00',
+      servico: r.servico || 'Treino Monitorado',
+      profissionalId: r.profissionalId?._id || r.profissionalId || null
+    }));
+    setModalSlots(initialSlots);
+
+    const daysSet = Array.from(new Set(initialSlots.map(s => s.diaSemana))).sort((a, b) => a - b);
+    setSelectedDays(daysSet);
+
     const newTimesMap: Record<number, string> = { ...dayTimesMap };
-    let firstTime = '08:00';
-    let allSame = true;
-
-    group.rules.forEach((r: any, idx: number) => {
-      const d = Number(r.diaSemana);
-      days.push(d);
-      newTimesMap[d] = r.horario || '08:00';
-      if (idx === 0) firstTime = r.horario;
-      else if (r.horario !== firstTime) allSame = false;
+    initialSlots.forEach(s => {
+      newTimesMap[s.diaSemana] = s.horario;
     });
-
-    setSelectedDays(days.sort());
     setDayTimesMap(newTimesMap);
+
+    const firstTime = initialSlots[0]?.horario || '08:00';
     setUniformTime(firstTime);
+    const allSame = initialSlots.every(s => s.horario === firstTime);
     setScheduleMode(allSame ? 'uniforme' : 'individual');
 
     setShowModal(true);
+  };
+
+  // --- Abertura do Modal de Edição Rápida de Slot Único ---
+  const handleOpenQuickEditSlot = (rule: any, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setQuickEditSlot(rule);
+    setQuickEditDay(Number(rule.diaSemana));
+    setQuickEditTime(rule.horario || '08:00');
+    setQuickEditService(rule.servico || 'Treino Monitorado');
+    const pId = rule.profissionalId?._id || rule.profissionalId || '';
+    setQuickEditProf(pId);
+  };
+
+  // --- Salvar Edição Rápida de Slot Único ---
+  const handleSaveQuickSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickEditSlot || savingQuickSlot) return;
+
+    setSavingQuickSlot(true);
+    try {
+      const res = await fetch('/api/fixed-schedules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: quickEditSlot._id,
+          diaSemana: quickEditDay,
+          horario: quickEditTime,
+          servico: quickEditService,
+          profissionalId: quickEditProf || null
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setQuickEditSlot(null);
+        await fetchFixedSchedulesSelf(false);
+        if (onRefresh) await onRefresh();
+      } else {
+        alert('Erro ao atualizar horário: ' + (data.error || 'Falha na resposta'));
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao salvar horário: ' + err.message);
+    } finally {
+      setSavingQuickSlot(false);
+    }
   };
 
   // --- Salvar Regras (Criar ou Atualizar) ---
@@ -487,8 +593,8 @@ export default function HorariosFixosPanel({
       return;
     }
 
-    if (selectedDays.length === 0) {
-      alert('Selecione pelo menos um dia da semana.');
+    if (modalSlots.length === 0 && selectedDays.length === 0) {
+      alert('Selecione pelo menos um dia e horário.');
       return;
     }
 
@@ -506,20 +612,33 @@ export default function HorariosFixosPanel({
         }
         finalEndDate = modalManualEndDate;
       } else {
-        // Indeterminado / Contínuo (Padrão Recomendado)
         finalEndDate = null;
       }
 
-      // 2. Montar array de slots
-      const slots = selectedDays.map(day => {
-        const horario = scheduleMode === 'uniforme' ? uniformTime : (dayTimesMap[day] || uniformTime);
-        return {
-          diaSemana: Number(day),
-          horario,
+      // 2. Montar array de slots efetivo
+      let effectiveSlots: any[] = [];
+      if (modalSlots.length > 0) {
+        effectiveSlots = modalSlots.map(s => ({
+          diaSemana: Number(s.diaSemana),
+          horario: s.horario,
+          servico: s.servico || modalService || 'Treino Monitorado',
+          profissionalId: s.profissionalId !== undefined ? s.profissionalId : (modalProf || null),
           frequenciaRepeticao: repetitionMode,
           intervaloSemanas: effectiveIntervalWeeks
-        };
-      });
+        }));
+      } else {
+        effectiveSlots = selectedDays.map(day => {
+          const horario = scheduleMode === 'uniforme' ? uniformTime : (dayTimesMap[day] || uniformTime);
+          return {
+            diaSemana: Number(day),
+            horario,
+            servico: modalService || 'Treino Monitorado',
+            profissionalId: modalProf || null,
+            frequenciaRepeticao: repetitionMode,
+            intervaloSemanas: effectiveIntervalWeeks
+          };
+        });
+      }
 
       // 3. Montar lista de exceções acordadas
       const excecoesList = Object.entries(exceptionsMap).map(([dataOriginal, val]) => ({
@@ -530,7 +649,6 @@ export default function HorariosFixosPanel({
       // 4. Enviar para a API (POST ou PUT)
       let res;
       if (editingGroup) {
-        // Atualização em lote das regras do aluno
         res = await fetch('/api/fixed-schedules', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -539,7 +657,7 @@ export default function HorariosFixosPanel({
             oldProfessionalId: editingGroup.professional?._id || editingGroup.professional || null,
             profissionalId: modalProf || null,
             profissionalDesignadoId: hasCustomProf ? (modalProfDesignado || null) : null,
-            slots,
+            slots: effectiveSlots,
             frequenciaRepeticao: repetitionMode,
             intervaloSemanas: effectiveIntervalWeeks,
             servico: modalService,
@@ -549,7 +667,6 @@ export default function HorariosFixosPanel({
           })
         });
       } else {
-        // Criação de novas regras
         res = await fetch('/api/fixed-schedules', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -557,7 +674,7 @@ export default function HorariosFixosPanel({
             clienteId: modalClient,
             profissionalId: modalProf || null,
             profissionalDesignadoId: hasCustomProf ? (modalProfDesignado || null) : null,
-            slots,
+            slots: effectiveSlots,
             frequenciaRepeticao: repetitionMode,
             intervaloSemanas: effectiveIntervalWeeks,
             servico: modalService,
@@ -1075,7 +1192,7 @@ export default function HorariosFixosPanel({
                         })()}
                       </td>
 
-                      {/* Dias e Horários Fixados */}
+                      {/* Dias e Horários Fixados com Identidade Visual por Serviço (Modo A) */}
                       <td>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {group.rules.map(r => {
@@ -1086,24 +1203,68 @@ export default function HorariosFixosPanel({
                               ? 'A cada 3 sem'
                               : `A cada ${r.intervaloSemanas || 1} sem`;
 
+                            const srv = r.servico || 'Treino Monitorado';
+                            const isIndividual = srv.toLowerCase().includes('individual') || srv.toLowerCase().includes('consulta');
+                            const isLivre = srv.toLowerCase().includes('livre');
+                            const isFisio = srv.toLowerCase().includes('avaliação') || srv.toLowerCase().includes('fisio');
+
+                            let pillBg = 'rgba(16, 185, 129, 0.12)';
+                            let pillBorder = 'rgba(16, 185, 129, 0.35)';
+                            let pillColor = '#10b981';
+                            let srvShort = 'Monitorado';
+
+                            if (isIndividual) {
+                              pillBg = 'rgba(245, 158, 11, 0.14)';
+                              pillBorder = 'rgba(245, 158, 11, 0.45)';
+                              pillColor = '#f59e0b';
+                              srvShort = 'Individual';
+                            } else if (isLivre) {
+                              pillBg = 'rgba(59, 130, 246, 0.12)';
+                              pillBorder = 'rgba(59, 130, 246, 0.35)';
+                              pillColor = '#60a5fa';
+                              srvShort = 'Livre';
+                            } else if (isFisio) {
+                              pillBg = 'rgba(168, 85, 247, 0.14)';
+                              pillBorder = 'rgba(168, 85, 247, 0.4)';
+                              pillColor = '#c084fc';
+                              srvShort = 'Fisio';
+                            }
+
                             return (
                               <span
                                 key={r._id}
+                                onClick={() => !readOnly && handleOpenQuickEditSlot(r)}
+                                title={`Clique para editar pontualmente: ${DAYS_FULL[r.diaSemana]} às ${r.horario} (${srv})`}
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '6px',
                                   padding: '4px 10px',
-                                  background: isCustomRep ? 'rgba(168, 85, 247, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                                  border: isCustomRep ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                                  background: pillBg,
+                                  border: `1px solid ${pillBorder}`,
                                   borderRadius: '16px',
-                                  color: isCustomRep ? '#c084fc' : '#10b981',
+                                  color: pillColor,
                                   fontSize: '0.8rem',
-                                  fontWeight: 700
+                                  fontWeight: 700,
+                                  cursor: readOnly ? 'default' : 'pointer',
+                                  transition: 'all 0.15s ease'
                                 }}
                               >
                                 <i className="fa-solid fa-clock" style={{ fontSize: '0.72rem' }}></i>
-                                {DAYS_SHORT[r.diaSemana]} {r.horario}
+                                <span>{DAYS_SHORT[r.diaSemana]} {r.horario}</span>
+                                <span
+                                  style={{
+                                    fontSize: '0.66rem',
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    padding: '1px 6px',
+                                    borderRadius: '6px',
+                                    background: 'rgba(0,0,0,0.25)',
+                                    letterSpacing: '0.3px'
+                                  }}
+                                >
+                                  {srvShort}
+                                </span>
                                 {isCustomRep && (
                                   <span
                                     style={{
@@ -1141,11 +1302,53 @@ export default function HorariosFixosPanel({
                         </div>
                       </td>
 
-                      {/* Serviço */}
+                      {/* Serviços Contratados / Usufruídos */}
                       <td>
-                        <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>
-                          {group.servico || 'Treino Monitorado'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {(group.servicos && group.servicos.length > 0 ? group.servicos : [group.servico || 'Treino Monitorado']).map((s: string) => {
+                            const isIndiv = s.toLowerCase().includes('individual') || s.toLowerCase().includes('consulta');
+                            const isLivr = s.toLowerCase().includes('livre');
+                            const isFis = s.toLowerCase().includes('avaliação') || s.toLowerCase().includes('fisio');
+
+                            let tagColor = '#10b981';
+                            let tagBg = 'rgba(16, 185, 129, 0.12)';
+                            let tagBorder = 'rgba(16, 185, 129, 0.25)';
+
+                            if (isIndiv) {
+                              tagColor = '#f59e0b';
+                              tagBg = 'rgba(245, 158, 11, 0.12)';
+                              tagBorder = 'rgba(245, 158, 11, 0.3)';
+                            } else if (isLivr) {
+                              tagColor = '#60a5fa';
+                              tagBg = 'rgba(59, 130, 246, 0.12)';
+                              tagBorder = 'rgba(59, 130, 246, 0.25)';
+                            } else if (isFis) {
+                              tagColor = '#c084fc';
+                              tagBg = 'rgba(168, 85, 247, 0.12)';
+                              tagBorder = 'rgba(168, 85, 247, 0.25)';
+                            }
+
+                            return (
+                              <span
+                                key={s}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  width: 'fit-content',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  background: tagBg,
+                                  color: tagColor,
+                                  border: `1px solid ${tagBorder}`
+                                }}
+                              >
+                                {s}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </td>
 
                       {/* Vigência da Regra */}
@@ -1745,7 +1948,7 @@ export default function HorariosFixosPanel({
                   </div>
                 </div>
 
-                {/* Seleção de Horários (Modo Uniforme ou Individual) */}
+                {/* Seleção de Horários (Modo Uniforme ou Individual com suporte a múltiplos slots por dia) */}
                 {scheduleMode === 'uniforme' ? (
                   <div className="form-group" style={{ margin: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -1771,7 +1974,10 @@ export default function HorariosFixosPanel({
                           <button
                             key={hour}
                             type="button"
-                            onClick={() => setUniformTime(hour)}
+                            onClick={() => {
+                              setUniformTime(hour);
+                              setModalSlots(prev => prev.map(s => ({ ...s, horario: hour })));
+                            }}
                             style={{
                               borderRadius: '8px',
                               padding: '8px 4px',
@@ -1959,48 +2165,123 @@ export default function HorariosFixosPanel({
                   </div>
                 ) : (
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '8px', display: 'block' }}>
-                      Definir Horário Específico para Cada Dia Selecionado:
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {selectedDays.map(day => {
-                        const curTime = dayTimesMap[day] || uniformTime;
-                        const slotObj = slotsData.find(s => s.horario === curTime);
-                        const baseCap = modalProf ? (professionals.find(p => p._id === modalProf)?.nome?.toLowerCase().includes('albert') ? 2 : 1) : 6;
-                        const cap = slotObj?.capacidade ?? baseCap;
-                        const minVagas = slotObj?.minVagasLivres !== undefined ? slotObj.minVagasLivres : Math.max(0, cap - (slotObj?.vagasOcupadas || 0));
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label style={{ fontWeight: 700, fontSize: '0.85rem', margin: 0 }}>
+                        Grade Individual de Horários e Serviços:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const firstDay = selectedDays[0] || 1;
+                          setModalSlots(prev => [
+                            ...prev,
+                            {
+                              diaSemana: firstDay,
+                              horario: '08:00',
+                              servico: modalService || 'Treino Monitorado',
+                              profissionalId: modalProf || null
+                            }
+                          ]);
+                        }}
+                        style={{
+                          background: 'rgba(0, 184, 148, 0.15)',
+                          border: '1px solid rgba(0, 184, 148, 0.35)',
+                          borderRadius: '6px',
+                          color: 'var(--color-primary)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <i className="fa-solid fa-plus"></i> Adicionar Horário
+                      </button>
+                    </div>
 
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
+                      {(modalSlots.length > 0 ? modalSlots : selectedDays.map(d => ({ diaSemana: d, horario: dayTimesMap[d] || '08:00', servico: modalService }))).map((slot, sIdx) => {
                         return (
                           <div
-                            key={day}
+                            key={sIdx}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '8px 12px',
+                              padding: '8px 10px',
                               background: 'rgba(0,0,0,0.2)',
                               border: '1px solid var(--border-color)',
-                              borderRadius: '8px'
+                              borderRadius: '8px',
+                              gap: '8px',
+                              flexWrap: 'wrap'
                             }}
                           >
-                            <div>
-                              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                                {DAYS_FULL[day]}
-                              </span>
-                              <div style={{ fontSize: '0.72rem', color: minVagas > 0 ? '#10b981' : '#f87171', marginTop: '2px' }}>
-                                {minVagas > 0 ? `🟢 ${minVagas}/${cap} vagas livres` : `🔴 Horário lotado`}
-                              </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 auto' }}>
+                              <select
+                                className="select-custom"
+                                value={slot.diaSemana}
+                                onChange={e => {
+                                  const val = Number(e.target.value);
+                                  setModalSlots(prev => prev.map((s, idx) => idx === sIdx ? { ...s, diaSemana: val } : s));
+                                }}
+                                style={{ width: '110px', padding: '4px 6px', fontSize: '0.78rem', fontWeight: 700 }}
+                              >
+                                {[1, 2, 3, 4, 5, 6].map(d => (
+                                  <option key={d} value={d}>{DAYS_FULL[d]}</option>
+                                ))}
+                              </select>
+
+                              <select
+                                className="select-custom"
+                                value={slot.horario}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setModalSlots(prev => prev.map((s, idx) => idx === sIdx ? { ...s, horario: val } : s));
+                                }}
+                                style={{ width: '90px', padding: '4px 6px', fontSize: '0.78rem', fontWeight: 700 }}
+                              >
+                                {STANDARD_HOURS.map(h => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+
+                              <select
+                                className="select-custom"
+                                value={slot.servico}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setModalSlots(prev => prev.map((s, idx) => idx === sIdx ? { ...s, servico: val } : s));
+                                }}
+                                style={{ width: '150px', padding: '4px 6px', fontSize: '0.78rem' }}
+                              >
+                                <option value="Treino Monitorado">Treino Monitorado</option>
+                                <option value="Atendimento Individual">Atendimento Individual</option>
+                                <option value="Treino Livre">Treino Livre</option>
+                                <option value="Recovery">Recovery</option>
+                                <option value="Massagem">Massagem</option>
+                                <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                              </select>
                             </div>
-                            <select
-                              className="select-custom"
-                              value={curTime}
-                              onChange={e => setDayTimesMap(prev => ({ ...prev, [day]: e.target.value }))}
-                              style={{ width: '130px', padding: '6px 10px', fontSize: '0.82rem' }}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalSlots(prev => prev.filter((_, idx) => idx !== sIdx));
+                              }}
+                              title="Remover este horário da lista"
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                padding: '2px 6px'
+                              }}
                             >
-                              {STANDARD_HOURS.map(h => (
-                                <option key={h} value={h}>{h}</option>
-                              ))}
-                            </select>
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
                           </div>
                         );
                       })}
@@ -2182,33 +2463,37 @@ export default function HorariosFixosPanel({
                 </div>
 
                 {/* Prévia dos slots que serão gerados */}
-                {selectedDays.length > 0 && (
+                {(modalSlots.length > 0 || selectedDays.length > 0) && (
                   <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                        Resumo da Regra:
+                        Resumo dos Horários Fixados:
                       </span>
                       <span style={{ fontSize: '0.72rem', color: repetitionMode === 'semanal' ? 'var(--color-primary)' : '#c084fc', fontWeight: 700 }}>
                         {repetitionMode === 'semanal' ? 'Toda semana' : repetitionMode === 'quinzenal' ? 'Quinzenal (semana sim, semana não)' : repetitionMode === 'a_cada_3_semanas' ? '1 semana sim e 2 não' : `A cada ${effectiveIntervalWeeks} semanas`}
                       </span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {selectedDays.map(d => {
-                        const time = scheduleMode === 'uniforme' ? uniformTime : (dayTimesMap[d] || uniformTime);
+                      {(modalSlots.length > 0 ? modalSlots : selectedDays.map(d => ({ diaSemana: d, horario: scheduleMode === 'uniforme' ? uniformTime : (dayTimesMap[d] || uniformTime), servico: modalService }))).map((s, idx) => {
+                        const isInd = (s.servico || '').toLowerCase().includes('individual');
                         return (
                           <span
-                            key={d}
+                            key={idx}
                             style={{
                               padding: '3px 8px',
-                              background: 'rgba(0, 184, 148, 0.15)',
-                              border: '1px solid rgba(0, 184, 148, 0.3)',
+                              background: isInd ? 'rgba(245, 158, 11, 0.15)' : 'rgba(0, 184, 148, 0.15)',
+                              border: isInd ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(0, 184, 148, 0.3)',
                               borderRadius: '4px',
-                              color: 'var(--color-primary)',
+                              color: isInd ? '#fbbf24' : 'var(--color-primary)',
                               fontWeight: 700,
-                              fontSize: '0.78rem'
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
                             }}
                           >
-                            {DAYS_SHORT[d]} às {time}
+                            <span>{DAYS_SHORT[s.diaSemana]} às {s.horario}</span>
+                            <span style={{ fontSize: '0.66rem', opacity: 0.85 }}>({s.servico})</span>
                           </span>
                         );
                       })}
@@ -2240,7 +2525,7 @@ export default function HorariosFixosPanel({
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={savingSchedule || selectedDays.length === 0}
+                  disabled={savingSchedule || (modalSlots.length === 0 && selectedDays.length === 0)}
                   style={{ flex: 1, fontWeight: 750 }}
                 >
                   {savingSchedule ? (
@@ -2248,8 +2533,152 @@ export default function HorariosFixosPanel({
                   ) : editingGroup ? (
                     'Atualizar Regras'
                   ) : (
-                    `Criar Regra (${selectedDays.length} ${selectedDays.length === 1 ? 'dia' : 'dias'})`
+                    `Criar Regra (${modalSlots.length > 0 ? modalSlots.length : selectedDays.length} horários)`
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EDIÇÃO RÁPIDA DE SLOT ÚNICO (Ao clicar direto no pill do horário) */}
+      {quickEditSlot && (
+        <div
+          className="modal-overlay"
+          style={{ display: 'flex', zIndex: 100001, padding: '16px' }}
+          onClick={() => setQuickEditSlot(null)}
+        >
+          <div
+            className="modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '440px', width: '95%', borderRadius: '14px', overflow: 'hidden' }}
+          >
+            <div
+              className="modal-header"
+              style={{
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#fff',
+                padding: '14px 18px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-pen-to-square"></i> Editar Horário Específico
+              </h4>
+              <button
+                type="button"
+                className="modal-close"
+                style={{ color: '#fff', background: 'transparent', border: 'none', fontSize: '1.4rem', cursor: 'pointer' }}
+                onClick={() => setQuickEditSlot(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickSlot} style={{ margin: 0, padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Aluno:</span>
+                <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                  {quickEditSlot.clienteId?.dadosPessoais?.nome || quickEditSlot.clienteId?.nome || 'Aluno'}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px', display: 'block' }}>
+                    Dia da Semana:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={quickEditDay}
+                    onChange={e => setQuickEditDay(Number(e.target.value))}
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '0.84rem' }}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map(d => (
+                      <option key={d} value={d}>{DAYS_FULL[d]}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px', display: 'block' }}>
+                    Horário:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={quickEditTime}
+                    onChange={e => setQuickEditTime(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '0.84rem' }}
+                  >
+                    {STANDARD_HOURS.map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px', display: 'block' }}>
+                  Serviço deste Horário:
+                </label>
+                <select
+                  className="select-custom"
+                  value={quickEditService}
+                  onChange={e => setQuickEditService(e.target.value)}
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '0.86rem' }}
+                >
+                  <option value="Treino Monitorado">Treino Monitorado</option>
+                  <option value="Atendimento Individual">Atendimento Individual</option>
+                  <option value="Treino Livre">Treino Livre</option>
+                  <option value="Recovery">Recovery</option>
+                  <option value="Massagem">Massagem</option>
+                  <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                  <option value="Consulta">Consulta</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px', display: 'block' }}>
+                  Agenda / Profissional:
+                </label>
+                <select
+                  className="select-custom"
+                  value={quickEditProf}
+                  onChange={e => setQuickEditProf(e.target.value)}
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '0.86rem' }}
+                >
+                  <option value="">🏋️ Treino / Geral (Academia)</option>
+                  {professionals
+                    .filter(p => {
+                      const name = (p.nome || '').toLowerCase();
+                      return name.includes('albert') || name.includes('guilherme') || (p.especialidade || '').toLowerCase().includes('fisio');
+                    })
+                    .map(p => (
+                      <option key={p._id} value={p._id}>🩺 {p.nome} ({p.especialidade || 'Clínico'})</option>
+                    ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  disabled={savingQuickSlot}
+                  onClick={() => setQuickEditSlot(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1, fontWeight: 750 }}
+                  disabled={savingQuickSlot}
+                >
+                  {savingQuickSlot ? 'Salvando...' : 'Salvar Alteração'}
                 </button>
               </div>
             </form>

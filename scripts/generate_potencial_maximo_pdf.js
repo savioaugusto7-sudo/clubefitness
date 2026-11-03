@@ -795,3 +795,4 @@ fs.copyFileSync(pdfPath, storagePdfPath);
 console.log('Copied to Downloads:', downloadsPdfPath);
 console.log('Copied to Workspace:', workspacePdfPath);
 console.log('Copied to Storage:', storagePdfPath);
+
