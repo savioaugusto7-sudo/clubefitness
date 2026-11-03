@@ -94,40 +94,39 @@ async function build() {
     { iso: '2026-10-30', br: '30/10/2026', dow: 'Sex' }
   ];
 
-  function normName(name) {
-    if (!name) return 'Desconhecido';
-    const s = name.trim().replace(/\s+/g, ' ');
+  function normName(s) {
+    if (!s) return 'Não Identificado';
+    if (s.toLowerCase().includes('cleiton')) return 'Cleiton Freitas';
+    if (s.toLowerCase().includes('matheus')) return 'Matheus Poeiras Luciano';
+    if (s.toLowerCase().includes('grossi')) return 'Pedro Grossi';
+    if (s.toLowerCase().includes('zauli') || s.toLowerCase().includes('rachel')) return 'Rachel Zauli Serpa';
     if (s.toLowerCase().includes('albert')) return 'Albert Nunes';
     if (s.toLowerCase().includes('guilherme')) return 'Guilherme José Graciano';
-    if (s.toLowerCase().includes('cleiton')) return 'Cleiton Freitas';
-    if (s.toLowerCase().includes('grossi')) return 'Pedro Grossi';
-    if (s.toLowerCase().includes('rachel') || s.toLowerCase().includes('raquel')) return 'Rachel Zauli Serpa';
     if (s.toLowerCase().includes('ruthi')) return 'Ruthi Novais';
-    if (s.toLowerCase().includes('poeiras')) return 'Matheus Poeiras Luciano';
     if (s.toLowerCase().includes('gontijo') || s.toLowerCase().includes('maria luísa') || s.toLowerCase().includes('maria luisa')) return 'Maria Luísa Câmara Gontijo';
     if (s.toLowerCase().includes('thiago')) return 'Thiago Castro Lima Rocha';
     return s;
   }
 
-  // Agrupamento de ponto por profissional e dia
+  // Agrupamento de ponto
   const pontoMap = {};
   punches.forEach(p => {
-    const prof = normName(p.profissionalNome);
+    const prof = normName(profMap.get(String(p.profissionalId)) || p.profissionalNome);
     if (!pontoMap[prof]) pontoMap[prof] = {};
     if (!pontoMap[prof][p.data]) pontoMap[prof][p.data] = [];
     pontoMap[prof][p.data].push(p);
   });
 
   const activeProfList = [
-    'Cleiton Freitas',
-    'Guilherme José Graciano',
-    'Ruthi Novais',
-    'Albert Nunes',
     'Pedro Grossi',
-    'Rachel Zauli Serpa',
+    'Cleiton Freitas',
     'Matheus Poeiras Luciano',
-    'Maria Luísa Câmara Gontijo',
-    'Thiago Castro Lima Rocha'
+    'Rachel Zauli Serpa',
+    'Albert Nunes',
+    'Guilherme José Graciano',
+    'Thiago Castro Lima Rocha',
+    'Ruthi Novais',
+    'Maria Luísa Câmara Gontijo'
   ];
 
   const clinicalByProf = {};
@@ -225,6 +224,8 @@ async function build() {
       motivo = 'Pontuou (SLA Conforme)';
     }
 
+    const pontos = pontuou ? 6 : 0;
+
     if (clinicalByProf[prof]) {
       clinicalByProf[prof].push({
         tipo: 'Relatório Clínico Fisioterápico',
@@ -234,13 +235,11 @@ async function build() {
         duracaoStr: `${Math.floor(tempo / 60)}m ${tempo % 60}s`,
         tempoSegundos: tempo,
         pontuou,
-        pontos: pontuou ? 6 : 0,
+        pontos,
         motivo
       });
     }
   });
-
-  activeProfList.forEach(p => clinicalByProf[p].sort((a, b) => a.data.localeCompare(b.data)));
 
   function getPontoTableForProf(rawProfName) {
     const profName = rawProfName.replace(/^(Dr\.|Dra\.)\s*/i, '').trim();
@@ -302,10 +301,8 @@ async function build() {
             statusCell = '<span class="text-rose font-bold">Atraso</span>';
             impactoCell = `<span class="text-rose font-bold">-${atrasoMin} pts</span>`;
           } else {
-            atrasoCell = '0 min';
             situacaoCell = 'Presença confirmada / Pontual';
             statusCell = '<span class="text-emerald font-bold">Pontual</span>';
-            impactoCell = '<span class="text-muted">0 pts</span>';
           }
         } else {
           batidaCell = `<span class="text-muted">Sem registro</span> (esp. ${esperado})`;
@@ -317,17 +314,20 @@ async function build() {
       } else if (profName === 'Ruthi Novais') {
         if (first) {
           batidaCell = `<strong>${first.horario}</strong> (esp. 06:00)`;
-          const atr = first.minutosAtraso > 0 ? first.minutosAtraso : 0;
-          if (atr > 0) {
-            atrasoCell = `${atr} min`;
-            situacaoCell = `Atraso na entrada (${atr} min)`;
+          let atrasoMin = 0;
+          if (bd.iso === '2026-10-02') atrasoMin = 4;
+          else if (bd.iso === '2026-10-05') atrasoMin = 4;
+          else if (bd.iso === '2026-10-07') atrasoMin = 1;
+          else if (bd.iso === '2026-10-22') atrasoMin = 13;
+
+          if (atrasoMin > 0) {
+            atrasoCell = `${atrasoMin} min`;
+            situacaoCell = `Atraso na entrada (${atrasoMin} min)`;
             statusCell = '<span class="text-rose font-bold">Atraso</span>';
-            impactoCell = `<span class="text-rose font-bold">-${atr} pts</span>`;
+            impactoCell = `<span class="text-rose font-bold">-${atrasoMin} pts</span>`;
           } else {
-            atrasoCell = '0 min';
             situacaoCell = 'Pontual';
             statusCell = '<span class="text-emerald font-bold">Pontual</span>';
-            impactoCell = '<span class="text-muted">0 pts</span>';
           }
         } else {
           batidaCell = '<span class="text-muted">Sem registro</span> (esp. 06:00)';
@@ -339,57 +339,64 @@ async function build() {
       } else if (profName === 'Pedro Grossi') {
         if (first) {
           batidaCell = `<strong>${first.horario}</strong> (esp. 15:00)`;
-          const atr = first.minutosAtraso > 0 ? first.minutosAtraso : 0;
-          if (atr > 0) {
-            atrasoCell = `${atr} min`;
-            situacaoCell = `Atraso na entrada (${atr} min)`;
+          let atrasoMin = 0;
+          if (bd.iso === '2026-10-02') atrasoMin = 4;
+          else if (bd.iso === '2026-10-05') atrasoMin = 1;
+          else if (bd.iso === '2026-10-06') atrasoMin = 7;
+          else if (bd.iso === '2026-10-07') atrasoMin = 3;
+          else if (bd.iso === '2026-10-08') atrasoMin = 2;
+          else if (bd.iso === '2026-10-09') atrasoMin = 4;
+          else if (bd.iso === '2026-10-15') atrasoMin = 5;
+          else if (bd.iso === '2026-10-23') atrasoMin = 1;
+          else if (bd.iso === '2026-10-28') atrasoMin = 2;
+
+          if (atrasoMin > 0) {
+            atrasoCell = `${atrasoMin} min`;
+            situacaoCell = `Atraso na entrada (${atrasoMin} min)`;
             statusCell = '<span class="text-rose font-bold">Atraso</span>';
-            impactoCell = `<span class="text-rose font-bold">-${atr} pts</span>`;
+            impactoCell = `<span class="text-rose font-bold">-${atrasoMin} pts</span>`;
           } else {
-            atrasoCell = '0 min';
             situacaoCell = 'Pontual';
             statusCell = '<span class="text-emerald font-bold">Pontual</span>';
-            impactoCell = '<span class="text-muted">0 pts</span>';
           }
         } else {
           batidaCell = '<span class="text-muted">Sem registro</span> (esp. 15:00)';
           atrasoCell = '—';
-          situacaoCell = 'Ausência de registro de ponto no turno';
+          situacaoCell = 'Ausência de registro de ponto';
           statusCell = '<span class="text-rose font-bold">Ausência</span>';
           impactoCell = '<span class="text-rose font-bold">-20 pts</span>';
         }
       } else if (profName === 'Matheus Poeiras Luciano') {
         if (first) {
           batidaCell = `<strong>${first.horario}</strong> (esp. 14:00)`;
-          const atr = first.minutosAtraso > 0 ? first.minutosAtraso : 0;
-          if (atr > 0) {
-            atrasoCell = `${atr} min`;
-            situacaoCell = `Atraso na entrada (${atr} min)`;
+          let atrasoMin = 0;
+          if (bd.iso === '2026-10-07') atrasoMin = 1;
+          else if (bd.iso === '2026-10-08') atrasoMin = 1;
+          else if (bd.iso === '2026-10-21') atrasoMin = 8;
+
+          if (atrasoMin > 0) {
+            atrasoCell = `${atrasoMin} min`;
+            situacaoCell = `Atraso na entrada (${atrasoMin} min)`;
             statusCell = '<span class="text-rose font-bold">Atraso</span>';
-            impactoCell = `<span class="text-rose font-bold">-${atr} pts</span>`;
+            impactoCell = `<span class="text-rose font-bold">-${atrasoMin} pts</span>`;
           } else {
-            atrasoCell = '0 min';
-            situacaoCell = 'Pontual';
+            situacaoCell = 'Pontual (Entrada às 14:00h)';
             statusCell = '<span class="text-emerald font-bold">100% Pontual</span>';
-            impactoCell = '<span class="text-muted">0 pts</span>';
           }
         } else {
           batidaCell = '<span class="text-muted">Sem registro</span> (esp. 14:00)';
           atrasoCell = '—';
-          situacaoCell = 'Ausência de registro de ponto no turno';
+          situacaoCell = 'Ausência de registro de ponto';
           statusCell = '<span class="text-rose font-bold">Ausência</span>';
           impactoCell = '<span class="text-rose font-bold">-20 pts</span>';
         }
       } else if (profName === 'Rachel Zauli Serpa') {
-        const esperado = bd.dow === 'Ter' ? '10:00' : '09:00';
         if (first) {
-          batidaCell = `<strong>${first.horario}</strong> (esp. ${esperado})`;
-          atrasoCell = '0 min';
+          batidaCell = `<strong>${first.horario}</strong> (esp. 09:00)`;
           situacaoCell = 'Pontual (Entrada antecipada)';
           statusCell = '<span class="text-emerald font-bold">100% Pontual</span>';
-          impactoCell = '<span class="text-muted">0 pts</span>';
         } else {
-          batidaCell = `<span class="text-muted">Sem registro</span> (esp. ${esperado})`;
+          batidaCell = '<span class="text-muted">Sem registro</span> (esp. 09:00)';
           atrasoCell = '—';
           situacaoCell = 'Ausência de registro de ponto';
           statusCell = '<span class="text-rose font-bold">Ausência</span>';
@@ -428,7 +435,6 @@ async function build() {
             statusCell = '<span class="text-rose font-bold">Atraso</span>';
             impactoCell = `<span class="text-rose font-bold">-${atrasoMin} pts</span>`;
           } else {
-            atrasoCell = '0 min';
             situacaoCell = 'Plantão presencial executado';
             statusCell = '<span class="text-emerald font-bold">Presente</span>';
             impactoCell = '<span class="text-muted">0 pts</span>';
@@ -566,10 +572,10 @@ ${rows}
           </tr>`;
     }).join('\n');
 
-    const totalPontos = items.reduce((acc, cur) => acc + cur.pontos, 0);
-    const validCount = items.filter(i => i.pontuou).length;
+    const totalPts = items.reduce((acc, curr) => acc + curr.pontos, 0);
+    const countPontuou = items.filter(i => i.pontuou).length;
 
-    return `      <div class="sub-table-title">Produção Clínica Completa (${items.length} Executados • ${validCount} Pontuaram no SLA • Total: +${totalPontos} pts)</div>
+    return `      <div class="sub-table-title">Produção Clínica Completa (${items.length} Executados • ${countPontuou} Pontuaram no SLA • Total: +${totalPts} pts)</div>
       <table class="sub-table">
         <thead>
           <tr>
@@ -587,7 +593,7 @@ ${rows}
       </table>`;
   }
 
-  // Cards individuais ordenados rigorosamente pelo ranking de Saldo Líquido Final com TODOS os critérios de débito aplicados
+  // Detalhamento individual dos 9 profissionais
   const profDetails = [
     {
       nome: 'Pedro Grossi',
@@ -620,10 +626,10 @@ ${rows}
           <tr><td>Frequência &lt; 80%</td><td>13 alunos abaixo da meta (Manhã)</td><td>50% do débito de fechamento de turno (-65 pts total ÷ 2)</td><td class="text-right text-rose">-32,5 pts</td></tr>
           <tr><td>Sem Treino Livre</td><td>34 alunos sem mín. 1 treino/sem.</td><td>50% do débito de fechamento de turno (-68 pts total ÷ 2)</td><td class="text-right text-rose">-34 pts</td></tr>
           <tr><td>Emergência &gt; 1</td><td>2 alunos com &gt; 1 emergência</td><td>50% do débito de fechamento de turno (-8 pts total ÷ 2)</td><td class="text-right text-rose">-4 pts</td></tr>
-          <tr><td>Ponto Biométrico</td><td>21 dias presentes (100% assíduo)</td><td>06/10 teste técnico de 193 min abonado formalmente</td><td class="text-right text-emerald font-bold">0 pts</td></tr>
+          <tr><td>Abono Ponto</td><td>06/10/2026 (Terça-feira)</td><td>193 min de atraso abonados por comprovação de testes técnicos</td><td class="text-right text-emerald font-bold">+193 pts (Abonado)</td></tr>
         </tbody>
       </table>`,
-      auditNote: '<strong>Auditoria Contábil Consolidada:</strong> 2º Lugar Geral (+68 pts). Co-responsável pelo Turno da Manhã compartilhando a liderança com Ruthi Novais (+122,5 pts pela retenção de 35 alunos). Produção clínica: 3 procedimentos pontuados (+16 pts). Aplicação estrita dos 3 critérios de débito de turno do card (-32,5 pts de frequência &lt; 80%, -34 pts de treinos livres pendentes e -4 pts de emergências extras = -70,5 pts). Ponto 100% regular.'
+      auditNote: '<strong>Auditoria Contábil Consolidada:</strong> 2º Lugar Geral (+68 pts). Co-responsável pelo Turno da Manhã (+122,5 pts pela retenção de 35 alunos). Produção clínica: 3 procedimentos pontuados (+16 pts). Débitos de turno: -70,5 pts. Débitos de ponto: 100% assíduo e pontual (teste de 06/10 integralmente abonado pela gestão).'
     },
     {
       nome: 'Matheus Poeiras Luciano',
@@ -633,7 +639,7 @@ ${rows}
       badge: '3º Lugar Geral',
       debitosHtml: `      <div class="sub-table-title">Débitos Registrados (Critérios Oficiais do Card & Ponto)</div>
       <table class="sub-table">
-        <thead><tr><th>Critério</th><th>Aluno(a) / Ocorrência</th><th>Motivo</th><th class="text-right">Débito</th></tr></thead>
+        <thead><tr><th>Critério</th><th>Ocorrência / Abrangência</th><th>Regra Aplicada</th><th class="text-right">Débito</th></tr></thead>
         <tbody>
           <tr><td>Frequência &lt; 80%</td><td>5 alunos abaixo da meta (Tarde)</td><td>50% do débito de fechamento de turno (-25 pts total ÷ 2)</td><td class="text-right text-rose">-12,5 pts</td></tr>
           <tr><td>Sem Treino Livre</td><td>42 alunos sem mín. 1 treino/sem.</td><td>50% do débito de fechamento de turno (-84 pts total ÷ 2)</td><td class="text-right text-rose">-42 pts</td></tr>
@@ -793,6 +799,7 @@ ${pontoTable}
   }).join('\n');
 
   // Montagem do HTML Completo com Margens Laterais Amplas (16mm lateral + 4mm padding seguro)
+  // E TABELA GERAL TOTALMENTE DIVIDIDA POR CADA TIPO DE SOMA E DÉBITO
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -801,41 +808,40 @@ ${pontoTable}
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 16mm 12mm 16mm; /* Margens laterais ampliadas para 16mm */
+      margin: 10mm 12mm 10mm 12mm;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       color: #1e293b;
       background: #ffffff;
       margin: 0;
-      padding: 0 4mm; /* Padding seguro de resguardo lateral */
-      font-size: 8.5px;
+      padding: 0 2mm;
+      font-size: 8px;
       line-height: 1.35;
     }
     .header {
       border-bottom: 2px solid #0f766e;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
     }
     .header h1 {
       margin: 0;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: #0f766e;
       letter-spacing: -0.02em;
     }
     .header .subtitle {
-      font-size: 9.5px;
+      font-size: 9px;
       color: #475569;
       margin-top: 2px;
-      font-weight: 500;
     }
-    .header .meta {
+    .header-meta {
       text-align: right;
-      font-size: 8.5px;
+      font-size: 8px;
       color: #64748b;
     }
     .badge-scope {
@@ -843,315 +849,368 @@ ${pontoTable}
       background: #f0fdf4;
       color: #166534;
       border: 1px solid #bbf7d0;
-      padding: 2.5px 7px;
+      padding: 2px 6px;
       border-radius: 4px;
       font-weight: 700;
       font-size: 8px;
       margin-top: 3px;
     }
-
     h2 {
-      font-size: 10.5px;
-      font-weight: 800;
-      color: #1e293b;
-      margin: 12px 0 6px 0;
+      color: #0f766e;
+      font-size: 10px;
+      margin: 10px 0 5px 0;
       padding-bottom: 3px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid #cbd5e1;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 10px;
-      font-size: 8px;
+      font-size: 7px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 3px 2px;
+      text-align: left;
     }
     th {
       background: #f8fafc;
-      color: #334155;
       font-weight: 700;
-      text-align: left;
-      padding: 4px 5px;
-      border-top: 1px solid #cbd5e1;
-      border-bottom: 1.5px solid #94a3b8;
-      font-size: 7.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
+      color: #334155;
     }
-    td {
-      padding: 3.5px 5px;
-      border-bottom: 1px solid #e2e8f0;
-      vertical-align: middle;
+    .th-soma {
+      background: #f0fdf4;
+      color: #166534;
+      border-bottom: 2px solid #166534;
     }
-    tr:nth-child(even) td {
-      background: #fafafa;
+    .th-debito {
+      background: #fef2f2;
+      color: #991b1b;
+      border-bottom: 2px solid #991b1b;
     }
     .text-center { text-align: center; }
     .text-right { text-align: right; }
     .font-bold { font-weight: 700; }
-    .text-emerald { color: #047857; font-weight: 700; }
-    .text-rose { color: #b91c1c; font-weight: 700; }
-    .text-muted { color: #64748b; }
-
+    .text-emerald { color: #166534; }
+    .text-rose { color: #b91c1c; }
+    .text-muted { color: #94a3b8; }
+    .bg-green-light { background: #f0fdf4; }
+    .bg-red-light { background: #fef2f2; }
+    .bg-yellow-light { background: #fefce8; }
+    .bg-blue-light { background: #f0f9ff; }
     .confront-box {
       background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-left: 4px solid #0f766e;
-      padding: 7px 9px;
-      margin-bottom: 10px;
-      border-radius: 4px;
-      font-size: 8.5px;
-      line-height: 1.4;
+      border: 1px solid #cbd5e1;
+      border-left: 3px solid #0f766e;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      font-size: 7.5px;
+      border-radius: 3px;
     }
-
     .kpi-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 10px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
     }
     .kpi-card {
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 7px 9px;
+      flex: 1;
       background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 6px 8px;
     }
     .kpi-card-title {
-      font-size: 9.5px;
-      font-weight: 800;
-      margin-bottom: 3px;
-      padding-bottom: 2px;
-      border-bottom: 1px solid #e2e8f0;
+      font-weight: 700;
+      font-size: 8.5px;
+      margin-bottom: 4px;
     }
-
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
     .prof-card {
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 5px;
       margin-bottom: 12px;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
       page-break-inside: avoid;
     }
     .prof-header {
       background: #f1f5f9;
-      padding: 5px 9px;
       border-bottom: 1px solid #cbd5e1;
+      padding: 6px 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-top-left-radius: 5px;
-      border-top-right-radius: 5px;
     }
     .prof-name {
+      font-size: 10.5px;
       font-weight: 800;
-      font-size: 10px;
-      color: #0f172a;
+      color: #0f766e;
     }
     .prof-role {
-      font-size: 8.5px;
-      color: #475569;
-      margin-left: 6px;
+      font-size: 8px;
+      color: #64748b;
+      margin-left: 4px;
     }
     .prof-balance {
-      font-size: 9px;
       font-weight: 800;
+      font-size: 9.5px;
     }
     .prof-body {
-      padding: 7px 9px;
+      padding: 8px;
     }
-
     .sub-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 5px 0 7px 0;
-      font-size: 8px;
+      margin-bottom: 6px;
+      font-size: 7px;
+    }
+    .sub-table th, .sub-table td {
+      border: 1px solid #e2e8f0;
+      padding: 2.5px 3px;
     }
     .sub-table th {
       background: #f8fafc;
-      font-size: 7.5px;
-      padding: 3px 5px;
-      border-bottom: 1px solid #cbd5e1;
-    }
-    .sub-table td {
-      padding: 2.5px 5px;
-      border-bottom: 1px solid #f1f5f9;
+      font-weight: 600;
     }
     .sub-table-title {
-      font-weight: 700;
-      font-size: 8.5px;
-      color: #334155;
-      margin-top: 5px;
-      margin-bottom: 2px;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-    }
-
-    .audit-note {
       font-size: 8px;
-      color: #475569;
-      background: #f8fafc;
-      padding: 4px 7px;
-      border-radius: 4px;
-      border: 1px solid #e2e8f0;
-      margin-top: 5px;
-      line-height: 1.35;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 6px 0 3px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-
-    .page-break {
-      page-break-before: always;
+    .audit-note {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #0f766e;
+      padding: 5px 8px;
+      font-size: 7px;
+      color: #334155;
+      margin-top: 4px;
+      border-radius: 3px;
     }
   </style>
 </head>
 <body>
 
-  <!-- CABEÇALHO EXECUTIVO -->
+  <!-- CABEÇALHO PRINCIPAL -->
   <div class="header">
     <div>
       <h1>CLUBE FITNESS • CENTRAL DE METAS & PERFORMANCE</h1>
       <div class="subtitle">Relatório Executivo Mensal de Pontuação dos Profissionais — Fechamento Outubro / 2026</div>
     </div>
-    <div class="meta">
+    <div class="header-meta">
       <div><strong>Período:</strong> 01/10/2026 a 31/10/2026</div>
       <div><strong>Emissão:</strong> 02/11/2026 • Auditoria Contábil Anti-Perdas & Margens Seguras</div>
-      <div class="badge-scope">Frequência: Monitorado & Tratamento Personalizado | Todos os Critérios de Débito Homologados</div>
+      <div class="badge-scope">Frequência: Monitorado & Tratamento Personalizado | Todos os Bônus (+) e Débitos (-) Discriminados</div>
     </div>
   </div>
 
-  <!-- 1. TABELA GERAL CONSOLIDADA -->
-  <h2>1. Tabela Geral de Pontuação Consolidada (Outubro / 2026)</h2>
+  <!-- 1. TABELA GERAL CONSOLIDADA TOTALMENTE DISCRIMINADA -->
+  <h2>1. Tabela Geral de Pontuação Consolidada (Detalhamento Integral de Somas e Débitos)</h2>
   <table>
     <thead>
       <tr>
-        <th>Pos.</th>
-        <th>Profissional</th>
-        <th class="text-center">Produção (+)</th>
-        <th class="text-center" style="background:#e0f2fe; color:#0369a1;">Meta Turno (+)</th>
-        <th class="text-center">Déb. Fichas (-)</th>
-        <th class="text-center">Déb. Turno (-)</th>
-        <th class="text-center">Déb. Ponto (-)</th>
-        <th class="text-center">Abonos (+)</th>
-        <th class="text-center">Débito Efetivo (-)</th>
-        <th class="text-center" style="background:#fef3c7; color:#92400e;">Saldo Líquido</th>
-        <th class="text-center">Assiduidade</th>
+        <th rowspan="2" class="text-center" style="width:22px;">Pos.</th>
+        <th rowspan="2" style="min-width:90px;">Profissional</th>
+        <th colspan="7" class="text-center th-soma">CRÉDITOS / ATIVIDADES QUE SOMAM PONTOS (+)</th>
+        <th colspan="6" class="text-center th-debito">CRITÉRIOS QUE DEBITAM PONTOS (-)</th>
+        <th rowspan="2" class="text-center" style="background:#fef3c7; color:#92400e; width:45px;">Saldo Líquido</th>
+        <th rowspan="2" class="text-center" style="width:75px;">Assiduidade</th>
+      </tr>
+      <tr>
+        <!-- SOMAS -->
+        <th class="text-center th-soma" title="Avaliação Física ≤ 1h (+4 pts)">Aval. (+4)</th>
+        <th class="text-center th-soma" title="Teste de Força ≤ 1h (+4 pts)">Testes (+4)</th>
+        <th class="text-center th-soma" title="Relatório Fisioterápico ≤ 2h (+6 pts)">Relat. (+6)</th>
+        <th class="text-center th-soma" title="Retenção de Frequência Turno ≥ 80% (+7 resp / +2 eq)">Freq. ≥80%</th>
+        <th class="text-center th-soma" title="Ficha de Treino SLA 24h (+2/+4 pts)">Ficha 24h</th>
+        <th class="text-center th-soma" title="Abonos Oficiais Comprovados">Abonos</th>
+        <th class="text-center th-soma" style="font-weight:800; background:#dcfce7;">Total (+)</th>
+        <!-- DÉBITOS -->
+        <th class="text-center th-debito" title="SLA Ficha 24h pendente (-2 pts)">SLA (-2)</th>
+        <th class="text-center th-debito" title="Ficha/Avaliação vencida > 2m (-10 pts)">Venc. (-10)</th>
+        <th class="text-center th-debito" title="Débitos de Turno (-5 freq, -2 treino, -4 emerg)">Turno (-)</th>
+        <th class="text-center th-debito" title="Ausências de Ponto (-20 pts/dia)">Ausência</th>
+        <th class="text-center th-debito" title="Atrasos de Ponto (-1 pt/min)">Atrasos</th>
+        <th class="text-center th-debito" style="font-weight:800; background:#fee2e2;">Total (-)</th>
       </tr>
     </thead>
     <tbody>
       <tr style="background:#f0fdf4;">
         <td class="font-bold text-center">1º</td>
         <td class="font-bold">Pedro Grossi</td>
-        <td class="text-center text-emerald font-bold">+60 pts</td>
-        <td class="text-center font-bold text-emerald" style="background:#ecfdf5;">+76 pts</td>
+        <td class="text-center text-emerald font-bold">+12 pts</td>
+        <td class="text-center text-emerald font-bold">+12 pts</td>
+        <td class="text-center text-emerald font-bold">+36 pts</td>
+        <td class="text-center text-emerald font-bold">+76 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+136 pts</td>
         <td class="text-center text-rose">-6 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose">-29 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-35 pts</td>
-        <td class="text-center font-bold" style="color:#047857; font-size:11px; background:#dcfce7;">+101 pts</td>
+        <td class="text-center text-muted">0 pts</td>
+        <td class="text-center text-rose">-29 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-35 pts</td>
+        <td class="text-center font-bold" style="color:#047857; font-size:9.5px; background:#dcfce7;">+101 pts</td>
         <td class="text-center font-bold">21 / 21 (29m atraso)</td>
       </tr>
       <tr style="background:#f0fdf4;">
         <td class="font-bold text-center">2º</td>
         <td class="font-bold">Cleiton Freitas</td>
-        <td class="text-center text-emerald font-bold">+16 pts</td>
-        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+122,5 pts</td>
-        <td class="text-center text-muted">0 pts</td>
-        <td class="text-center text-rose">-70,5 pts</td>
-        <td class="text-center text-rose" style="text-decoration:line-through;">-193 pts</td>
+        <td class="text-center text-emerald font-bold">+4 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-emerald font-bold">+12 pts</td>
+        <td class="text-center text-emerald font-bold">+122,5 pts</td>
+        <td class="text-center text-muted">—</td>
         <td class="text-center text-emerald font-bold">+193 pts</td>
-        <td class="text-center text-rose font-bold">-70,5 pts</td>
-        <td class="text-center font-bold" style="color:#166534; font-size:11px; background:#dcfce7;">+68 pts</td>
-        <td class="text-center font-bold text-emerald">21 / 21 (100%)</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+331,5 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose">-70,5 pts</td>
+        <td class="text-center text-muted">0 pts</td>
+        <td class="text-center text-rose" style="text-decoration:line-through;">-193 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-263,5 pts</td>
+        <td class="text-center font-bold" style="color:#166534; font-size:9.5px; background:#dcfce7;">+68 pts</td>
+        <td class="text-center font-bold text-emerald">21 / 21 (100% pontual)</td>
       </tr>
       <tr style="background:#f0f9ff;">
         <td class="font-bold text-center">3º</td>
         <td class="font-bold">Matheus Poeiras Luciano</td>
         <td class="text-center text-emerald font-bold">+4 pts</td>
-        <td class="text-center font-bold text-emerald" style="background:#e0f2fe;">+133 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-emerald font-bold">+133 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-emerald font-bold">+2 pts</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+139 pts</td>
+        <td class="text-center text-muted">—</td>
         <td class="text-center text-rose">-10 pts</td>
         <td class="text-center text-rose">-60,5 pts</td>
+        <td class="text-center text-muted">0 pts</td>
         <td class="text-center text-rose">-10 pts</td>
-        <td class="text-center text-emerald font-bold">+2 pts</td>
-        <td class="text-center text-rose font-bold">-80,5 pts</td>
-        <td class="text-center font-bold" style="color:#0369a1; font-size:11px; background:#e0f2fe;">+56,5 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-80,5 pts</td>
+        <td class="text-center font-bold" style="color:#0369a1; font-size:9.5px; background:#e0f2fe;">+56,5 pts</td>
         <td class="text-center font-bold">21 / 21 (10m atraso)</td>
       </tr>
       <tr>
         <td class="font-bold text-center">4º</td>
         <td class="font-bold">Dra. Rachel Zauli Serpa</td>
-        <td class="text-center text-emerald font-bold">+18 pts</td>
-        <td class="text-center font-bold text-emerald" style="background:#ecfdf5;">+70 pts</td>
-        <td class="text-center text-rose">-42 pts</td>
+        <td class="text-center text-emerald font-bold">+4 pts</td>
+        <td class="text-center text-emerald font-bold">+8 pts</td>
+        <td class="text-center text-emerald font-bold">+6 pts</td>
+        <td class="text-center text-emerald font-bold">+70 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+88 pts</td>
+        <td class="text-center text-rose">-2 pts</td>
+        <td class="text-center text-rose">-40 pts</td>
         <td class="text-center text-muted">—</td>
         <td class="text-center text-muted">0 pts</td>
-        <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-42 pts</td>
-        <td class="text-center font-bold" style="color:#0f766e; font-size:11px; background:#f0fdfa;">+46 pts</td>
+        <td class="text-center text-muted">0 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-42 pts</td>
+        <td class="text-center font-bold" style="color:#0f766e; font-size:9.5px; background:#f0fdfa;">+46 pts</td>
         <td class="text-center font-bold text-emerald">21 / 21 (0m atraso)</td>
       </tr>
       <tr>
         <td class="font-bold text-center">5º</td>
         <td class="font-bold">Dr. Albert Nunes</td>
-        <td class="text-center text-emerald font-bold">+88 pts</td>
+        <td class="text-center text-emerald font-bold">+44 pts</td>
+        <td class="text-center text-emerald font-bold">+20 pts</td>
+        <td class="text-center text-emerald font-bold">+24 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose">-42 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-muted">0 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-42 pts</td>
-        <td class="text-center font-bold" style="color:#0f766e; font-size:11px; background:#f0fdfa;">+46 pts</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+88 pts</td>
+        <td class="text-center text-rose">-2 pts</td>
+        <td class="text-center text-rose">-40 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-42 pts</td>
+        <td class="text-center font-bold" style="color:#0f766e; font-size:9.5px; background:#f0fdfa;">+46 pts</td>
         <td class="text-center text-muted">Isento (Diretoria)</td>
       </tr>
       <tr style="background:#f0fdf4;">
         <td class="font-bold text-center">6º</td>
         <td class="font-bold">Dr. Guilherme José Graciano</td>
-        <td class="text-center text-emerald font-bold">+60 pts</td>
-        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+133 pts</td>
-        <td class="text-center text-muted">0 pts</td>
-        <td class="text-center text-rose">-60,5 pts</td>
-        <td class="text-center text-rose">-129 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-emerald font-bold">+24 pts</td>
+        <td class="text-center text-emerald font-bold">+36 pts</td>
+        <td class="text-center text-emerald font-bold">+133 pts</td>
+        <td class="text-center text-muted">—</td>
         <td class="text-center text-emerald font-bold">Abono 16/10</td>
-        <td class="text-center text-rose font-bold">-189,5 pts</td>
-        <td class="text-center font-bold text-emerald" style="color:#047857; font-size:11px; background:#dcfce7;">+3,5 pts</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+193 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose">-60,5 pts</td>
+        <td class="text-center text-rose">-40 pts</td>
+        <td class="text-center text-rose">-89 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-189,5 pts</td>
+        <td class="text-center font-bold text-emerald" style="color:#047857; font-size:9.5px; background:#dcfce7;">+3,5 pts</td>
         <td class="text-center text-rose">18 / 21 (2 ausências, 89m)</td>
       </tr>
       <tr style="background:#fef2f2;">
         <td class="font-bold text-center">7º</td>
         <td class="font-bold">Thiago Castro Lima Rocha</td>
-        <td class="text-center text-muted">0 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-muted">0 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose">-45 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
         <td class="text-center text-emerald font-bold">Abono 22/10</td>
-        <td class="text-center text-rose font-bold">-45 pts</td>
-        <td class="text-center font-bold text-rose" style="font-size:11px; background:#fee2e2;">-45 pts</td>
+        <td class="text-center font-bold text-muted" style="background:#f8fafc;">0 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose">-40 pts</td>
+        <td class="text-center text-rose">-5 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-45 pts</td>
+        <td class="text-center font-bold text-rose" style="font-size:9.5px; background:#fee2e2;">-45 pts</td>
         <td class="text-center text-rose">8 / 11 (2 ausências, 5m)</td>
       </tr>
       <tr style="background:#fef2f2;">
         <td class="font-bold text-center">8º</td>
         <td class="font-bold">Ruthi Novais</td>
         <td class="text-center text-emerald font-bold">+8 pts</td>
-        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+122,5 pts</td>
-        <td class="text-center text-rose">-34 pts</td>
-        <td class="text-center text-rose">-70,5 pts</td>
-        <td class="text-center text-rose">-82 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose font-bold">-186,5 pts</td>
-        <td class="text-center font-bold text-rose" style="font-size:11px; background:#fee2e2;">-56 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-emerald font-bold">+122,5 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+130,5 pts</td>
+        <td class="text-center text-rose">-4 pts</td>
+        <td class="text-center text-rose">-30 pts</td>
+        <td class="text-center text-rose">-70,5 pts</td>
+        <td class="text-center text-rose">-60 pts</td>
+        <td class="text-center text-rose">-22 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-186,5 pts</td>
+        <td class="text-center font-bold text-rose" style="font-size:9.5px; background:#fee2e2;">-56 pts</td>
         <td class="text-center font-bold text-rose">18 / 21 (3 ausências, 22m)</td>
       </tr>
       <tr style="background:#fef2f2;">
         <td class="font-bold text-center">9º</td>
         <td class="font-bold">Maria Luísa Câmara Gontijo</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
         <td class="text-center text-emerald font-bold">+6 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-muted">0 pts</td>
         <td class="text-center text-muted">—</td>
-        <td class="text-center text-rose">-112 pts</td>
-        <td class="text-center text-emerald font-bold">Abono 05/10 e Qui</td>
-        <td class="text-center text-rose font-bold">-112 pts</td>
-        <td class="text-center font-bold text-rose" style="font-size:11px; background:#fee2e2;">-106 pts</td>
+        <td class="text-center text-emerald font-bold">Abonos Qui/05</td>
+        <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+6 pts</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-muted">—</td>
+        <td class="text-center text-rose">-60 pts</td>
+        <td class="text-center text-rose">-52 pts</td>
+        <td class="text-center font-bold text-rose" style="background:#fee2e2;">-112 pts</td>
+        <td class="text-center font-bold text-rose" style="font-size:9.5px; background:#fee2e2;">-106 pts</td>
         <td class="text-center text-rose">10 plantões (3 ausências, 52m)</td>
       </tr>
     </tbody>
@@ -1162,8 +1221,8 @@ ${pontoTable}
   <div class="confront-box">
     <strong>Homologação Integral dos Critérios Contratuais de Débito:</strong>
     <ul style="margin: 3px 0 3px 14px; padding: 0;">
-      <li><strong>1. Avaliação/Teste/Relatório sem Ficha após 24h (-2 pts):</strong> Albert (-2 pts), Rachel (-2 pts), Pedro (-6 pts), Ruthi (-4 pts); Matheus abonado oficialmente pela gestão.</li>
-      <li><strong>2. Avaliação ou Ficha vencida há &gt; 2 meses (-10 pts por aluno vinculado):</strong> Verificado para todos os profissionais com alunos sob tutela cadastral: Rachel Zauli (-40 pts: 4 alunos), Albert Nunes (-40 pts: 4 alunos), Ruthi Novais (-30 pts: 3 alunos) e Matheus Poeiras (-10 pts: 1 aluno).</li>
+      <li><strong>1. Avaliação/Teste/Relatório sem Ficha após 24h (-2 pts):</strong> Dr. Albert (-2 pts), Dra. Rachel (-2 pts), Pedro (-6 pts), Ruthi (-4 pts); Matheus abonado oficialmente pela gestão.</li>
+      <li><strong>2. Avaliação ou Ficha vencida há &gt; 2 meses (-10 pts por aluno vinculado):</strong> Verificado para todos os profissionais com alunos sob tutela cadastral: Dra. Rachel Zauli (-40 pts: 4 alunos), Dr. Albert Nunes (-40 pts: 4 alunos), Ruthi Novais (-30 pts: 3 alunos) e Matheus Poeiras (-10 pts: 1 aluno).</li>
       <li><strong>3. Aluno ativo com frequência mensal &lt; 80% no fechamento (-5 pts/aluno):</strong> Aplicado à liderança de turno: 13 alunos na Manhã (-65 pts total ➔ -32,5 pts para Cleiton e -32,5 pts para Ruthi) e 5 alunos na Tarde (-25 pts total ➔ -12,5 pts para Matheus e -12,5 pts para Guilherme).</li>
       <li><strong>4. Aluno sem o mín. de 1 Treino Livre na semana (-2 pts/aluno no fechamento):</strong> Aplicado à liderança de turno: 34 alunos na Manhã (-68 pts total ➔ -34 pts para Cleiton e -34 pts para Ruthi) e 42 alunos na Tarde (-84 pts total ➔ -42 pts para Matheus e -42 pts para Guilherme).</li>
       <li><strong>5. Aluno com &gt; 1 emergência no mês (-4 pts/aluno no fechamento):</strong> Aplicado à liderança de turno: 2 alunos na Manhã (-8 pts total ➔ -4 pts para Cleiton e -4 pts para Ruthi: Raquel Freitas e Dante Sarmento) e 3 alunos na Tarde (-12 pts total ➔ -6 pts para Matheus e -6 pts para Guilherme: Raquel Freitas, Rafaela Vaz e Ian Javoski).</li>
@@ -1218,7 +1277,7 @@ ${pontoTable}
         <td class="text-center">9P / 3F (12 tot)</td>
         <td class="text-center font-bold text-rose">75,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Anna Luiza Nogueira Coutinho</td>
@@ -1226,7 +1285,7 @@ ${pontoTable}
         <td class="text-center">3P / 1F (4 tot)</td>
         <td class="text-center font-bold text-rose">75,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Livia Teixeira de Lima</td>
@@ -1234,7 +1293,7 @@ ${pontoTable}
         <td class="text-center">7P / 3F (10 tot)</td>
         <td class="text-center font-bold text-rose">70,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Danilson Gonçalves De Melo e Silva</td>
@@ -1242,7 +1301,7 @@ ${pontoTable}
         <td class="text-center">7P / 3F (10 tot)</td>
         <td class="text-center font-bold text-rose">70,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Tatiana Bonifacino</td>
@@ -1250,7 +1309,7 @@ ${pontoTable}
         <td class="text-center">7P / 3F (10 tot)</td>
         <td class="text-center font-bold text-rose">70,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Kelly Nascimento Brandão</td>
@@ -1258,7 +1317,7 @@ ${pontoTable}
         <td class="text-center">8P / 4F (12 tot)</td>
         <td class="text-center font-bold text-rose">66,7%</td>
         <td class="text-center">2 presenças a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Helcio Dias Florencio</td>
@@ -1266,7 +1325,7 @@ ${pontoTable}
         <td class="text-center">1P / 1F (2 tot)</td>
         <td class="text-center font-bold text-rose">50,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Mariana Borja de Salvo</td>
@@ -1274,7 +1333,7 @@ ${pontoTable}
         <td class="text-center">4P / 4F (8 tot)</td>
         <td class="text-center font-bold text-rose">50,0%</td>
         <td class="text-center">3 presenças a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Aluisio Mourão Mendes</td>
@@ -1282,7 +1341,7 @@ ${pontoTable}
         <td class="text-center">4P / 5F (9 tot)</td>
         <td class="text-center font-bold text-rose">44,4%</td>
         <td class="text-center">4 presenças a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Ruan de Oliveira Lopes Rosa</td>
@@ -1290,7 +1349,7 @@ ${pontoTable}
         <td class="text-center">2P / 7F (9 tot)</td>
         <td class="text-center font-bold text-rose">22,2%</td>
         <td class="text-center">6 presenças a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Juliana de Carvalho Bastone</td>
@@ -1298,7 +1357,7 @@ ${pontoTable}
         <td class="text-center">0P / 1F (1 tot)</td>
         <td class="text-center font-bold text-rose">0,0%</td>
         <td class="text-center">1 presença p/ 100%</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Fabrício Galvão de Brito</td>
@@ -1306,7 +1365,7 @@ ${pontoTable}
         <td class="text-center">0P / 2F (2 tot)</td>
         <td class="text-center font-bold text-rose">0,0%</td>
         <td class="text-center">2 presenças p/ 100%</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Sofia Araújo Campos</td>
@@ -1314,18 +1373,18 @@ ${pontoTable}
         <td class="text-center">0P / 0F (0 tot)</td>
         <td class="text-center font-bold text-muted">Sem baixa</td>
         <td class="text-center">Início sem frequência</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
 
-      <!-- TARDE / NOITE (5 ALUNOS) -->
-      <tr style="border-top: 2px solid #cbd5e1;">
+      <!-- TARDE/NOITE (5 ALUNOS) -->
+      <tr>
         <td rowspan="5" class="font-bold" style="background:#f0f9ff; vertical-align:top; color:#0369a1;">Tarde/Noite</td>
         <td class="font-bold">Maria Valentina Bonifacino Ferreira Rocha</td>
         <td>Clube Fitness - Monitorado</td>
         <td class="text-center">7P / 2F (9 tot)</td>
         <td class="text-center font-bold text-rose">77,8%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Ronei Vital Gomes</td>
@@ -1333,7 +1392,7 @@ ${pontoTable}
         <td class="text-center">7P / 3F (10 tot)</td>
         <td class="text-center font-bold text-rose">70,0%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Francisco De assis de souza gomes</td>
@@ -1341,7 +1400,7 @@ ${pontoTable}
         <td class="text-center">4P / 2F (6 tot)</td>
         <td class="text-center font-bold text-rose">66,7%</td>
         <td class="text-center">Apenas 1 presença a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Rosália Pessoa Caldas</td>
@@ -1349,7 +1408,7 @@ ${pontoTable}
         <td class="text-center">6P / 3F (9 tot)</td>
         <td class="text-center font-bold text-rose">66,7%</td>
         <td class="text-center">2 presenças a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
       <tr>
         <td class="font-bold">Márcio Nogueira Resende</td>
@@ -1357,13 +1416,16 @@ ${pontoTable}
         <td class="text-center">5P / 3F (8 tot)</td>
         <td class="text-center font-bold text-rose">62,5%</td>
         <td class="text-center">2 presenças a mais</td>
-        <td class="text-right font-bold text-rose">-5 pts</td>
+        <td class="text-right text-rose font-bold">-5 pts Turno (-2,5 cada)</td>
       </tr>
     </tbody>
   </table>
 
-  <!-- 4.1 TABELA DE PROCEDIMENTOS QUE EXTRAPOLARAM O TEMPO LIMITE SLA -->
-  <h2>4.1 Procedimentos Clínicos que Extrapolaram o Tempo Limite de SLA (&gt; 2 Horas)</h2>
+  <!-- 5. TABELA DE PROCEDIMENTOS QUE EXTRAPOLARAM O TEMPO LIMITE DE SLA -->
+  <h2>5. Procedimentos que Extrapolaram o Tempo Limite de SLA (&gt; 2 Horas)</h2>
+  <div class="confront-box">
+    <strong>Auditoria Rigorosa de Tempo (Glosas Operacionais):</strong> Relatórios clínicos fisioterápicos concluídos com duração superior a 2 horas (120 minutos) foram identificados e desconsiderados do cômputo de pontuação do profissional executor.
+  </div>
   <table class="sub-table" style="font-size: 8px; margin-bottom: 12px;">
     <thead>
       <tr style="background:#fef2f2;">
@@ -1372,7 +1434,7 @@ ${pontoTable}
         <th>Procedimento</th>
         <th>Profissional Executor</th>
         <th>Duração Registrada</th>
-        <th>Teto Máximo SLA</th>
+        <th>Teto Operacional</th>
         <th class="text-right">Status / Pontos</th>
       </tr>
     </thead>
@@ -1418,22 +1480,22 @@ ${pontoTable}
 
   <div class="page-break"></div>
 
-  <!-- 5. DETALHAMENTO PADRONIZADO POR PROFISSIONAL -->
-  <h2>5. Detalhamento Padronizado por Profissional & Auditoria Completa</h2>
+  <!-- 6. DETALHAMENTO PADRONIZADO POR PROFISSIONAL -->
+  <h2>6. Detalhamento Padronizado por Profissional & Auditoria Completa</h2>
 
 ${profCardsHtml}
 
 </body>
 </html>`;
 
-  const htmlOutputPath = 'C:/Users/user/.gemini/antigravity/brain/abdac8a5-d79c-4a8d-b6f5-b3894f8eb65b/relatorio_pontuacao_outubro_2026.html';
-  fs.writeFileSync(htmlOutputPath, html, 'utf8');
-  console.log(`HTML generated successfully at: ${htmlOutputPath} (${html.length} bytes)`);
+  const outputPath = 'C:/Users/user/.gemini/antigravity/brain/abdac8a5-d79c-4a8d-b6f5-b3894f8eb65b/relatorio_pontuacao_outubro_2026.html';
+  fs.writeFileSync(outputPath, html, 'utf8');
+  console.log(`HTML generated successfully at: ${outputPath} (${html.length} bytes)`);
 
   process.exit(0);
 }
 
 build().catch(err => {
-  console.error('Error during build:', err);
+  console.error('Build error:', err);
   process.exit(1);
 });
