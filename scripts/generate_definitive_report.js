@@ -1023,7 +1023,6 @@ ${pontoTable}
       <tr>
         <th>Pos.</th>
         <th>Profissional</th>
-        <th>Função / Turno</th>
         <th class="text-center">Produção (+)</th>
         <th class="text-center" style="background:#e0f2fe; color:#0369a1;">Meta Turno (+)</th>
         <th class="text-center">Déb. Fichas (-)</th>
@@ -1039,7 +1038,6 @@ ${pontoTable}
       <tr style="background:#f0fdf4;">
         <td class="font-bold text-center">1º</td>
         <td class="font-bold">Pedro Grossi</td>
-        <td>Fisioterapeuta / Treinador (Equipe Tarde)</td>
         <td class="text-center text-emerald font-bold">+60 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#ecfdf5;">+76 pts</td>
         <td class="text-center text-rose">-6 pts</td>
@@ -1053,7 +1051,6 @@ ${pontoTable}
       <tr style="background:#f0fdf4;">
         <td class="font-bold text-center">2º</td>
         <td class="font-bold">Cleiton Freitas</td>
-        <td>Fisioterapeuta / <strong>Co-Resp. Manhã</strong></td>
         <td class="text-center text-emerald font-bold">+16 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+122,5 pts</td>
         <td class="text-center text-muted">0 pts</td>
@@ -1067,7 +1064,6 @@ ${pontoTable}
       <tr style="background:#f0f9ff;">
         <td class="font-bold text-center">3º</td>
         <td class="font-bold">Matheus Poeiras Luciano</td>
-        <td>Treinador / <strong>Co-Resp. Tarde-Noite</strong></td>
         <td class="text-center text-emerald font-bold">+4 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#e0f2fe;">+133 pts</td>
         <td class="text-center text-rose">-10 pts</td>
@@ -1081,7 +1077,6 @@ ${pontoTable}
       <tr>
         <td class="font-bold text-center">4º</td>
         <td class="font-bold">Rachel Zauli Serpa</td>
-        <td>Fisioterapeuta / Equipe Manhã</td>
         <td class="text-center text-emerald font-bold">+18 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#ecfdf5;">+70 pts</td>
         <td class="text-center text-rose">-42 pts</td>
@@ -1095,7 +1090,6 @@ ${pontoTable}
       <tr>
         <td class="font-bold text-center">5º</td>
         <td class="font-bold">Albert Nunes</td>
-        <td>Diretor Clínico / Fisioterapia</td>
         <td class="text-center text-emerald font-bold">+88 pts</td>
         <td class="text-center text-muted">—</td>
         <td class="text-center text-rose">-42 pts</td>
@@ -1109,7 +1103,6 @@ ${pontoTable}
       <tr style="background:#f0fdf4;">
         <td class="font-bold text-center">6º</td>
         <td class="font-bold">Dr. Guilherme José Graciano</td>
-        <td>Fisioterapeuta / <strong>Co-Resp. Tarde-Noite</strong></td>
         <td class="text-center text-emerald font-bold">+60 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+133 pts</td>
         <td class="text-center text-muted">0 pts</td>
@@ -1123,7 +1116,6 @@ ${pontoTable}
       <tr style="background:#fef2f2;">
         <td class="font-bold text-center">7º</td>
         <td class="font-bold">Thiago Castro Lima Rocha</td>
-        <td>Fisioterapeuta (Início 16/10)</td>
         <td class="text-center text-muted">0 pts</td>
         <td class="text-center text-muted">—</td>
         <td class="text-center text-muted">0 pts</td>
@@ -1137,7 +1129,6 @@ ${pontoTable}
       <tr style="background:#fef2f2;">
         <td class="font-bold text-center">8º</td>
         <td class="font-bold">Ruthi Novais</td>
-        <td>Treinadora / Avaliadora / <strong>Co-Resp. Manhã</strong></td>
         <td class="text-center text-emerald font-bold">+8 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#dcfce7;">+122,5 pts</td>
         <td class="text-center text-rose">-34 pts</td>
@@ -1151,7 +1142,6 @@ ${pontoTable}
       <tr style="background:#fef2f2;">
         <td class="font-bold text-center">9º</td>
         <td class="font-bold">Maria Luísa Câmara Gontijo</td>
-        <td>Fisioterapeuta (Escala Fixada)</td>
         <td class="text-center text-emerald font-bold">+6 pts</td>
         <td class="text-center text-muted">—</td>
         <td class="text-center text-muted">0 pts</td>
