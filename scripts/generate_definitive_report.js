@@ -243,7 +243,7 @@ async function build() {
   activeProfList.forEach(p => clinicalByProf[p].sort((a, b) => a.data.localeCompare(b.data)));
 
   function getPontoTableForProf(rawProfName) {
-    const profName = rawProfName.replace(/^Dr\.\s*/i, '').trim();
+    const profName = rawProfName.replace(/^(Dr\.|Dra\.)\s*/i, '').trim();
     if (profName === 'Albert Nunes') {
       return `      <div class="sub-table-title">Auditoria de Ponto (Outubro / 2026)</div>
       <div class="audit-note"><strong>Isenção de Marcação Biométrica:</strong> Profissional responde pela Direção Clínica, coordenação médica e diretoria executiva, com presença integral comprovada sem exigência de controle por relógio de ponto.</div>`;
@@ -524,7 +524,7 @@ ${rows}
   }
 
   function getClinicalTableForProf(rawProfName) {
-    const profName = rawProfName.replace(/^Dr\.\s*/i, '').trim();
+    const profName = rawProfName.replace(/^(Dr\.|Dra\.)\s*/i, '').trim();
     const items = clinicalByProf[profName] || [];
     if (items.length === 0) {
       return `      <div class="sub-table-title">Produção Clínica & Procedimentos Executados (Outubro / 2026)</div>
@@ -646,7 +646,7 @@ ${rows}
       auditNote: '<strong>Auditoria Contábil Consolidada:</strong> 3º Lugar Geral (+56,5 pts). Co-responsável pelo Turno da Tarde/Noite compartilhando a liderança com Dr. Guilherme Graciano (+133 pts pela retenção de 38 alunos). Produção clínica: 1 avaliação física (+4 pts). Débitos totais de -80,5 pts (-60,5 pts de turno, -10 pts de carteira vencida e -10 pts de atrasos de ponto).'
     },
     {
-      nome: 'Rachel Zauli Serpa',
+      nome: 'Dra. Rachel Zauli Serpa',
       cargo: 'Fisioterapeuta / Equipe Manhã',
       saldoStr: 'Produção: +18 pts (4 ev.) | Meta Turno: +70 pts (35 al. × 2) | Débitos Totais: -42 pts | Saldo Líquido Final: +46 pts',
       saldoColor: '#0f766e',
@@ -666,7 +666,7 @@ ${rows}
       auditNote: '<strong>Auditoria Contábil Consolidada:</strong> 4º Lugar Geral (+46 pts). Integrante da Equipe da Manhã (+70 pts pela retenção de 35 alunos). Produção clínica: 4 procedimentos concluídos (+18 pts). Débitos: -2 pts de SLA Ficha 24h e -40 pts de alunos ativos da carteira com avaliação/ficha vencida há mais de 2 meses. Ponto com 100% de assiduidade e pontualidade perfeita (0 minutos de atraso).'
     },
     {
-      nome: 'Albert Nunes',
+      nome: 'Dr. Albert Nunes',
       cargo: 'Diretor Clínico / Fisioterapeuta',
       saldoStr: 'Produção: +88 pts (20 ev.) | Meta Turno: — (Diretoria) | Débitos Totais: -42 pts | Saldo Líquido Final: +46 pts',
       saldoColor: '#047857',
@@ -1078,7 +1078,7 @@ ${pontoTable}
       </tr>
       <tr>
         <td class="font-bold text-center">4º</td>
-        <td class="font-bold">Rachel Zauli Serpa</td>
+        <td class="font-bold">Dra. Rachel Zauli Serpa</td>
         <td class="text-center text-emerald font-bold">+18 pts</td>
         <td class="text-center font-bold text-emerald" style="background:#ecfdf5;">+70 pts</td>
         <td class="text-center text-rose">-42 pts</td>
@@ -1091,7 +1091,7 @@ ${pontoTable}
       </tr>
       <tr>
         <td class="font-bold text-center">5º</td>
-        <td class="font-bold">Albert Nunes</td>
+        <td class="font-bold">Dr. Albert Nunes</td>
         <td class="text-center text-emerald font-bold">+88 pts</td>
         <td class="text-center text-muted">—</td>
         <td class="text-center text-rose">-42 pts</td>
@@ -1178,7 +1178,7 @@ ${pontoTable}
     <div class="kpi-card" style="border-left: 4px solid #166534;">
       <div class="kpi-card-title" style="color: #166534;">Turno Manhã (06h às 12h) — 35 Alunos Retidos na Meta (72,9% de 48 alunos)</div>
       <div style="font-size: 8px; line-height: 1.45; color: #334155;">
-        <div><strong>Bonificação (+):</strong> Co-Resp. Cleiton Freitas: <strong>+122,5 pts</strong> | Co-Resp. Ruthi Novais: <strong>+122,5 pts</strong> | Equipe Rachel Zauli: <strong>+70 pts</strong></div>
+        <div><strong>Bonificação (+):</strong> Co-Resp. Cleiton Freitas: <strong>+122,5 pts</strong> | Co-Resp. Ruthi Novais: <strong>+122,5 pts</strong> | Equipe Dra. Rachel Zauli: <strong>+70 pts</strong></div>
         <div><strong>Débitos de Turno (-):</strong> Frequência &lt; 80%: -65 pts (-32,5 pts cada) | Treino Livre pendente: -68 pts (-34 pts cada) | Emergências extras: -8 pts (-4 pts cada)</div>
         <div><strong>Total de Débitos do Turno Manhã:</strong> -70,5 pts para Cleiton e -70,5 pts para Ruthi</div>
       </div>
@@ -1390,7 +1390,7 @@ ${pontoTable}
         <td class="font-bold">15/10/2026</td>
         <td class="font-bold">Lourilda Maria Santos Rocha</td>
         <td>Relatório Clínico Fisioterápico</td>
-        <td>Albert Nunes</td>
+        <td>Dr. Albert Nunes</td>
         <td class="text-rose font-bold">132m 48s (2h 13m)</td>
         <td>120 min (2h)</td>
         <td class="text-right font-bold text-rose">Extrapolou SLA (0 pts)</td>

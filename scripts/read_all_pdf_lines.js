@@ -14,8 +14,11 @@ async function run() {
   console.log(`Total de linhas: ${lines.length}`);
   
   lines.forEach((line, i) => {
-    console.log(`[L${String(i+1).padStart(4, '0')}] ${line}`);
+    if (i >= 20 && i <= 45) {
+      console.log(`[L${String(i+1).padStart(4, '0')}] ${line}`);
+    }
   });
 }
 
 run().catch(console.error);
+
