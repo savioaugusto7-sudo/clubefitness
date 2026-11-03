@@ -260,6 +260,21 @@ export default function VendaPage({ params }: { params: any }) {
   // Link do Lúcio ou proposta configurada como apenas cartão
   const isApenasCartao = id === '6ad8f13637a508193f23591e' || Boolean(proposal?.apenasCartao);
 
+  const isTotalpass = Boolean(
+    (proposal?.formaPagamentoEscolhida && /totalpass/i.test(proposal.formaPagamentoEscolhida)) ||
+    (proposal?.observacoesContratuais && /totalpass/i.test(proposal.observacoesContratuais)) ||
+    (proposal?.planoNome && /totalpass/i.test(proposal.planoNome))
+  );
+
+  const isWellhub = !isTotalpass && Boolean(
+    (proposal?.formaPagamentoEscolhida && /wellhub|gympass/i.test(proposal.formaPagamentoEscolhida)) ||
+    (proposal?.observacoesContratuais && /wellhub|gympass/i.test(proposal.observacoesContratuais)) ||
+    (proposal?.planoNome && /wellhub|gympass/i.test(proposal.planoNome))
+  );
+
+  const isCheckinPlatform = isTotalpass || isWellhub;
+  const platformLabel = isTotalpass ? 'TotalPass' : 'Wellhub';
+
   // Máximo de parcelas para Boleto / Pix (Plano Anual: estritamente 10x)
   const maxInstallmentsBoleto = (() => {
     if (isRecorrente) return 1;
@@ -342,17 +357,21 @@ export default function VendaPage({ params }: { params: any }) {
       if (!telefone.trim()) errorsList.push('Telefone / WhatsApp é obrigatório.');
     }
 
-    if (!dataVencimento) {
-      errorsList.push('Data do primeiro vencimento é obrigatória.');
-    } else {
-      const selectedDate = new Date(dataVencimento + 'T00:00:00');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const maxDate = new Date(today);
-      maxDate.setDate(maxDate.getDate() + 31);
-      
-      if (selectedDate < today || selectedDate > maxDate) {
-        errorsList.push('A data do primeiro vencimento deve estar entre hoje e os próximos 31 dias.');
+    const effectiveDataVencimento = dataVencimento || (isCheckinPlatform ? (proposal.dataInicio || new Date().toISOString().split('T')[0]) : '');
+
+    if (!isCheckinPlatform) {
+      if (!effectiveDataVencimento) {
+        errorsList.push('Data do primeiro vencimento é obrigatória.');
+      } else {
+        const selectedDate = new Date(effectiveDataVencimento + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const maxDate = new Date(today);
+        maxDate.setDate(maxDate.getDate() + 31);
+        
+        if (selectedDate < today || selectedDate > maxDate) {
+          errorsList.push('A data do primeiro vencimento deve estar entre hoje e os próximos 31 dias.');
+        }
       }
     }
 
@@ -389,12 +408,12 @@ export default function VendaPage({ params }: { params: any }) {
       planTipo: proposal.planoTipo,
       descontoTipo: proposal.descontoTipo,
       descontoValor: proposal.descontoValor,
-      parcelas: currentInstallments,
-      formaPagamento: formaPagamento,
+      parcelas: isCheckinPlatform ? 1 : currentInstallments,
+      formaPagamento: isTotalpass ? 'TotalPass' : (isWellhub ? 'Wellhub' : formaPagamento),
       dataInicio: proposal.dataInicio || todayStr,
-      dataVencimento: dataVencimento,
-      dataPrimeiroVencimento: dataVencimento,
-      diaVencimento: dataVencimento ? parseInt(dataVencimento.split('-')[2] || '5', 10) : undefined,
+      dataVencimento: effectiveDataVencimento,
+      dataPrimeiroVencimento: effectiveDataVencimento,
+      diaVencimento: effectiveDataVencimento ? parseInt(effectiveDataVencimento.split('-')[2] || '5', 10) : undefined,
       observacoesContratuais: proposal.observacoesContratuais,
       clausulaTratamentoIntensivo: id === '6ad8f13637a508193f23591e' || Boolean(proposal.clausulaTratamentoIntensivo),
       creditosMensais: proposal.creditosMensais || (proposal.frequencia * 4 + 1),
@@ -504,8 +523,8 @@ export default function VendaPage({ params }: { params: any }) {
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '16px', fontSize: '0.9rem', color: 'var(--text-dim)', textAlign: 'left', marginBottom: '25px' }}>
             <strong style={{ color: '#fff', display: 'block', marginBottom: '6px' }}>Resumo Contratado:</strong>
             • Plano: {proposal.planoNome}<br />
-            • Pagamento: {formaPagamento === 'boleto' ? `Boleto / Pix (${currentInstallments}x de R$ ${valorParcelaAtual.toFixed(2).replace('.', ',')})` : `Cartão de Crédito (${currentInstallments}x de R$ ${valorParcelaAtual.toFixed(2).replace('.', ',')})`}<br />
-            • Valor Total: R$ {finalPrice.toFixed(2).replace('.', ',')}
+            • Pagamento: {isCheckinPlatform ? `Check-in pelo ${platformLabel} (12 check-ins/mês)` : (formaPagamento === 'boleto' ? `Boleto / Pix (${currentInstallments}x de R$ ${valorParcelaAtual.toFixed(2).replace('.', ',')})` : `Cartão de Crédito (${currentInstallments}x de R$ ${valorParcelaAtual.toFixed(2).replace('.', ',')})`)}<br />
+            • Valor Total: {isCheckinPlatform ? `Check-in ${platformLabel}` : `R$ ${finalPrice.toFixed(2).replace('.', ',')}`}
           </div>
 
           <p style={{ color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: '1.6', margin: '20px 0 0 0' }}>
@@ -742,9 +761,17 @@ export default function VendaPage({ params }: { params: any }) {
               </div>
 
               <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Valor Base Negociado</span>
-                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0', color: 'var(--color-primary)' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</p>
-                {valorMensalEquivalenteAnual !== null && (
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>
+                  {isWellhub ? 'Forma de Pagamento' : 'Valor Base Negociado'}
+                </span>
+                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0', color: 'var(--color-primary)' }}>
+                  {isWellhub ? 'Check-in Wellhub' : `R$ ${basePrice.toFixed(2).replace('.', ',')}`}
+                </p>
+                {isWellhub ? (
+                  <small style={{ color: '#38bdf8', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
+                    12 check-ins obrigatórios/mês
+                  </small>
+                ) : valorMensalEquivalenteAnual !== null && (
                   <small style={{ color: '#fde047', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
                     (R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês no usufruto)
                   </small>
@@ -913,6 +940,31 @@ export default function VendaPage({ params }: { params: any }) {
               <i className="fa-solid fa-credit-card"></i> {proposal.isMinor ? '4' : '3'}. Condições de Pagamento
             </h3>
 
+            {isCheckinPlatform ? (
+              <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '2px solid var(--color-primary)', borderRadius: '12px', padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                    <i className="fa-solid fa-mobile-screen-button fa-xl"></i>
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '1.15rem', color: '#fff', display: 'block' }}>Check-in pelo {platformLabel}</strong>
+                    <small style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600 }}>12 check-ins obrigatórios por mês</small>
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.35)', borderRadius: '8px', padding: '16px', border: '1px solid rgba(255,255,255,0.06)', lineHeight: '1.6', fontSize: '0.92rem', color: '#e2e8f0' }}>
+                  <p style={{ margin: '0 0 10px 0' }}>
+                    {isTotalpass 
+                      ? 'Pela prestação dos serviços, o CONTRATANTE escolheu utilizar o Aplicativo TOTALPASS, no qual é solicitado pela CONTRATADA que seja realizado obrigatoriamente 12 (doze) check-ins por mês, através da plataforma TotalPass.'
+                      : 'Pela prestação dos serviços, o CONTRATANTE escolheu utilizar o Aplicativo WELLHUB, no qual é solicitado pela CONTRATADA que seja realizado obrigatoriamente 12 (doze) check-ins por mês, através da plataforma Gym Pass.'
+                    }
+                  </p>
+                  <p style={{ margin: 0, color: '#f87171', fontWeight: 600 }}>
+                    Caso não seja realizado os check-ins totais estipulados, será cobrado aulas avulso no valor de R$65,00 (sessenta e cinco reais) cada.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Cards de Apresentação e Escolha: Boleto / Pix vs Cartão de Crédito */}
             <div style={{ display: 'grid', gridTemplateColumns: isApenasCartao ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '25px' }}>
               
@@ -1141,6 +1193,8 @@ export default function VendaPage({ params }: { params: any }) {
                 </div>
               </div>
             </div>
+              </>
+            )}
           </div>
 
           {/* Submit Action -> Step 2 */}

@@ -150,9 +150,41 @@ function renderClausulaPagamento(options: {
   dataPrimeiroVencFormatada?: string;
   numClausula?: string;
   prefix?: string;
+  isWellhub?: boolean;
+  isTotalpass?: boolean;
 }): string {
   const num = options.numClausula || 'QUARTA';
   const pfx = options.prefix || '4';
+
+  if (options.isTotalpass) {
+    return `
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${num} - DO PAGAMENTO VIA TOTALPASS</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.1. Pela prestação dos serviços, o CONTRATANTE escolheu utilizar o Aplicativo TOTALPASS, no qual é solicitado pela CONTRATADA que seja realizado obrigatoriamente 12 (doze) check-ins por mês, através da plataforma TotalPass.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.2. Caso não seja realizado os check-ins totais estipulados, será cobrado aulas avulso no valor de R$65,00 (sessenta e cinco reais) cada.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.3. O valor dos serviços para eventuais renovações futuras será reajustado anualmente com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.
+      </p>
+    `;
+  }
+
+  if (options.isWellhub) {
+    return `
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${num} - DO PAGAMENTO VIA WELLHUB</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.1. Pela prestação dos serviços, o CONTRATANTE escolheu utilizar o Aplicativo WELLHUB, no qual é solicitado pela CONTRATADA que seja realizado obrigatoriamente 12 (doze) check-ins por mês, através da plataforma Gym Pass.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.2. Caso não seja realizado os check-ins totais estipulados, será cobrado aulas avulso no valor de R$65,00 (sessenta e cinco reais) cada.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.3. O valor dos serviços para eventuais renovações futuras será reajustado anualmente com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.
+      </p>
+    `;
+  }
 
   if (options.valorFinal <= 0) {
     return `
@@ -203,7 +235,7 @@ function renderClausulaPagamento(options: {
       ${pfx}.3. O pagamento será realizado na forma <strong>${options.formaVigencia}</strong>, por meio de <strong>${options.formaPag}</strong>, com o <strong>primeiro vencimento em ${primVencCurto}</strong>${options.parcelasCount > 1 ? ` e as parcelas subsequentes com vencimento todo dia <strong>${options.diaVenc}</strong> de cada mês subsequente` : ''}.
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.</p>
-    ${options.descVal > 0 ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.5. Fica concedido ao CONTRATANTE um desconto de <strong>${options.descontoTexto}</strong> sobre o valor de referência do plano contratado, conforme negociação entre as partes. O desconto foi aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.</p>` : ''}
+    ${options.descVal > 0 && !options.isWellhub && !options.isTotalpass ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.5. Fica concedido ao CONTRATANTE um desconto de <strong>${options.descontoTexto}</strong> sobre o valor de referência do plano contratado, conforme negociação entre as partes. O desconto foi aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.</p>` : ''}
   `;
 }
 
@@ -272,8 +304,22 @@ export function generateContractTemplate(data: ContractData): string {
   const diaVenc = data.diaVencimento || (datePrimeiroVenc.split('-')[2] ? parseInt(datePrimeiroVenc.split('-')[2], 10) : 5);
   const dataPrimeiroVencFormatada = fmtDate(datePrimeiroVenc);
 
+  const isTotalpass = Boolean(
+    (data.formaPagamento && /totalpass/i.test(data.formaPagamento)) ||
+    (data.observacoesContratuais && /totalpass/i.test(data.observacoesContratuais)) ||
+    (data.planNome && /totalpass/i.test(data.planNome))
+  );
+
+  const isWellhub = !isTotalpass && Boolean(
+    (data.formaPagamento && /wellhub|gympass/i.test(data.formaPagamento)) ||
+    (data.observacoesContratuais && /wellhub|gympass/i.test(data.observacoesContratuais)) ||
+    (data.planNome && /wellhub|gympass/i.test(data.planNome))
+  );
+
   const formaPag = (() => {
     const fp = (data.formaPagamento || '').toLowerCase().trim();
+    if (fp.includes('totalpass') || isTotalpass) return 'TotalPass';
+    if (fp.includes('wellhub') || fp.includes('gympass') || isWellhub) return 'Wellhub / Gympass';
     if (fp === 'pix') return 'Pix';
     if (fp === 'boleto') return 'Boleto Bancário';
     if (fp.includes('cart') || fp.includes('crédito') || fp.includes('credito')) return 'Cartão de Crédito';
@@ -491,7 +537,9 @@ export function generateContractTemplate(data: ContractData): string {
         diaVenc,
         dataPrimeiroVencFormatada,
         numClausula: 'QUARTA',
-        prefix: '4'
+        prefix: '4',
+        isWellhub,
+        isTotalpass
       })}
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA E PRAZO</h3>
@@ -676,7 +724,9 @@ export function generateContractTemplate(data: ContractData): string {
         diaVenc,
         dataPrimeiroVencFormatada,
         numClausula: 'QUARTA',
-        prefix: '4'
+        prefix: '4',
+        isWellhub,
+        isTotalpass
       })}
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA E PRAZO</h3>
@@ -814,7 +864,9 @@ export function generateContractTemplate(data: ContractData): string {
         diaVenc,
         dataPrimeiroVencFormatada,
         numClausula: 'QUARTA',
-        prefix: '4'
+        prefix: '4',
+        isWellhub,
+        isTotalpass
       })}
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA, PRAZO E RECESSOS</h3>
@@ -941,7 +993,9 @@ export function generateContractTemplate(data: ContractData): string {
       diaVenc,
       dataPrimeiroVencFormatada,
       numClausula: 'IV',
-      prefix: '4'
+      prefix: '4',
+      isWellhub,
+      isTotalpass
     })}
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA V - VIGÊNCIA E RESCISÃO</h3>
