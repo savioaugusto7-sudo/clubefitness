@@ -1024,12 +1024,13 @@ export async function GET(request: Request) {
 
     // Cômputo dos Pontos de Turno (Modelo B Oficial da Gestão)
     // 80% é a meta de frequência mensal.
-    // Turno da Manhã: 26 alunos retidos na meta.
-    // - Co-responsáveis (Ruthi e Cleiton): dividem 50/50 os 7 pts/aluno (3.5 pts cada = +91 pts cada)
-    // - Equipe Manhã (Rachel): 2 pts/aluno (+52 pts)
-    // Turno da Tarde/Noite: 11 alunos retidos na meta.
-    // - Co-responsáveis (Matheus e Guilherme): dividem 50/50 os 7 pts/aluno (3.5 pts cada = +38.5 pts cada)
-    // - Equipe Tarde/Noite (Pedro Grossi): 2 pts/aluno (+22 pts)
+    // O escopo de salão contempla conjuntamente: Clube Fitness - Monitorado e Tratamento Personalizado
+    // Turno da Manhã (06h às 12h): 48 alunos no turno, 35 alunos retidos na meta (≥80%).
+    // - Co-responsáveis (Ruthi e Cleiton): dividem 50/50 os 7 pts/aluno (3.5 pts cada = +122.5 pts cada)
+    // - Equipe Manhã (Rachel): 2 pts/aluno (+70 pts)
+    // Turno da Tarde/Noite (13h às 21h): 43 alunos no turno, 38 alunos retidos na meta (≥80%).
+    // - Co-responsáveis (Matheus e Guilherme): dividem 50/50 os 7 pts/aluno (3.5 pts cada = +133 pts cada)
+    // - Equipe Tarde/Noite (Pedro Grossi): 2 pts/aluno (+76 pts)
     // Demais profissionais (Albert - Diretor, Maria Luísa - Plantões, Thiago - Início 16/10): não possuem meta de turno
 
     profScoresMap.forEach((profScore) => {
@@ -1038,23 +1039,23 @@ export async function GET(request: Request) {
       let papelTurnoDesc = '';
 
       if (pName.includes('Cleiton')) {
-        pontosTurno = 91; // 26 alunos * 3.5 pts
-        papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 26 alunos × 7 pts)';
+        pontosTurno = 122.5; // 35 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 35 alunos × 7 pts)';
       } else if (pName.includes('Ruthi')) {
-        pontosTurno = 91; // 26 alunos * 3.5 pts
-        papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 26 alunos × 7 pts)';
+        pontosTurno = 122.5; // 35 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Manhã (50% de 35 alunos × 7 pts)';
       } else if (pName.includes('Rachel')) {
-        pontosTurno = 52; // 26 alunos * 2 pts
-        papelTurnoDesc = 'Equipe Turno Manhã (26 alunos retidos × 2 pts)';
+        pontosTurno = 70; // 35 alunos * 2 pts
+        papelTurnoDesc = 'Equipe Turno Manhã (35 alunos retidos × 2 pts)';
       } else if (pName.includes('Matheus')) {
-        pontosTurno = 38.5; // 11 alunos * 3.5 pts
-        papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 11 alunos × 7 pts)';
+        pontosTurno = 133; // 38 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 38 alunos × 7 pts)';
       } else if (pName.includes('Guilherme')) {
-        pontosTurno = 38.5; // 11 alunos * 3.5 pts
-        papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 11 alunos × 7 pts)';
+        pontosTurno = 133; // 38 alunos * 3.5 pts
+        papelTurnoDesc = 'Co-Responsável Turno Tarde/Noite (50% de 38 alunos × 7 pts)';
       } else if (pName.includes('Pedro')) {
-        pontosTurno = 22; // 11 alunos * 2 pts
-        papelTurnoDesc = 'Equipe Turno Tarde/Noite (11 alunos retidos × 2 pts)';
+        pontosTurno = 76; // 38 alunos * 2 pts
+        papelTurnoDesc = 'Equipe Turno Tarde/Noite (38 alunos retidos × 2 pts)';
       }
 
       profScore.detalhes.retencaoAltaAlunos = totalAlunosAltaFreq;
