@@ -28,6 +28,8 @@ import RotinaSemanalModal from './RotinaSemanalModal';
 import RelatoriosMensaisPanel from './RelatoriosMensaisPanel';
 import CentralAvaliacoesPanel from './CentralAvaliacoesPanel';
 import TrancamentoPanel from './TrancamentoPanel';
+import { useSession } from 'next-auth/react';
+import { isSavioAdmin } from '@/lib/auth-savio';
 
 
 export const normalizeText = (str: string) => {
@@ -98,6 +100,54 @@ interface DashboardAdminProps {
 }
 
 export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdminProps) {
+  const { data: session } = useSession();
+  const user = session?.user as any;
+  const isSavio = isSavioAdmin(user);
+  const isAuthorizedAdmin =
+    isSavio ||
+    user?.role === 'admin' ||
+    user?.tipo === 'admin' ||
+    (Array.isArray(user?.activeRoles) && user.activeRoles.includes('admin'));
+
+  const [generatingFinancialPdf, setGeneratingFinancialPdf] = useState(false);
+  const [generatingReportType, setGeneratingReportType] = useState<string | null>(null);
+  const [financialPdfFeedback, setFinancialPdfFeedback] = useState<string | null>(null);
+
+  const handleGeneratePdfReport = async (tipo: 'fechamento' | 'acompanhamento') => {
+    if (generatingReportType) return;
+    setGeneratingReportType(tipo);
+    setFinancialPdfFeedback(null);
+    try {
+      const res = await fetch('/api/admin/executive-report/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, mes: '2026-10' })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFinancialPdfFeedback(`${tipo === 'fechamento' ? 'Fechamento' : 'Acompanhamento'} gerado com sucesso! Baixando...`);
+        const link = document.createElement('a');
+        link.href = data.downloadUrl || `/api/admin/executive-report/download?format=${tipo === 'fechamento' ? 'financeiro' : 'acompanhamento'}&mes=2026-10`;
+        link.download = tipo === 'fechamento' ? 'ClubeFitness_Fechamento_2026-10.pdf' : 'ClubeFitness_Acompanhamento_2026-10.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => setFinancialPdfFeedback(null), 5000);
+      } else {
+        alert(data.error || 'Erro ao compilar relatório.');
+      }
+    } catch (err) {
+      console.error('Erro ao gerar relatório:', err);
+      alert('Erro de conexão ao gerar o relatório.');
+    } finally {
+      setGeneratingReportType(null);
+    }
+  };
+
+  const handleGenerateFinancialPdf = async () => {
+    await handleGeneratePdfReport('fechamento');
+  };
+
   const [clients, setClients] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -6247,10 +6297,68 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       {/* 9. View: Financeiro */}
       {activeTab === 'financeiro' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div className="view-title-group">
               <h1>Controle Financeiro</h1>
               <p>Gerencie as despesas, mensalidades e simule recebimentos.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.4)', padding: '6px 12px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <button
+                  onClick={() => handleGeneratePdfReport('fechamento')}
+                  disabled={Boolean(generatingReportType)}
+                  className="btn btn-sm"
+                  style={{
+                    background: '#10b981',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: generatingReportType ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                    opacity: generatingReportType ? 0.7 : 1
+                  }}
+                  title="Emitir Relatório Consolidado de Fechamento Mensal em PDF (10 Páginas)"
+                >
+                  <i className={generatingReportType === 'fechamento' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-file-pdf'}></i>
+                  {generatingReportType === 'fechamento' ? 'Compilando Fechamento...' : 'Fechamento Mensal (PDF)'}
+                </button>
+
+                <button
+                  onClick={() => handleGeneratePdfReport('acompanhamento')}
+                  disabled={Boolean(generatingReportType)}
+                  className="btn btn-sm"
+                  style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: generatingReportType ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)',
+                    opacity: generatingReportType ? 0.7 : 1
+                  }}
+                  title="Emitir Relatório de Acompanhamento Intermediário e Ritmo do Mês em PDF"
+                >
+                  <i className={generatingReportType === 'acompanhamento' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-chart-line'}></i>
+                  {generatingReportType === 'acompanhamento' ? 'Compilando Acompanhamento...' : 'Acompanhamento do Mês (PDF)'}
+                </button>
+              </div>
+              {financialPdfFeedback && (
+                <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
+                  {financialPdfFeedback}
+                </span>
+              )}
             </div>
           </div>
 

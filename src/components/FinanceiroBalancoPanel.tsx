@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { formatCurrencyBRL } from '@/utils/currencyMask';
+import { useSession } from 'next-auth/react';
+import { isSavioAdmin } from '@/lib/auth-savio';
 
 interface FinanceiroBalancoPanelProps {
   clients: any[];
@@ -20,7 +22,45 @@ export default function FinanceiroBalancoPanel({
   setSelectedMonth,
   onNavigateTab
 }: FinanceiroBalancoPanelProps) {
+  const { data: session } = useSession();
+  const user = session?.user as any;
+  const isAuthorized =
+    isSavioAdmin(user) ||
+    user?.role === 'admin' ||
+    user?.tipo === 'admin' ||
+    (Array.isArray(user?.activeRoles) && user.activeRoles.includes('admin'));
+
   const [dreMode, setDreMode] = useState<'sintetico' | 'analitico'>('sintetico');
+  const [downloadingType, setDownloadingType] = useState<string | null>(null);
+
+  const handleTriggerDownload = async (format: 'financeiro' | 'acompanhamento') => {
+    try {
+      setDownloadingType(format);
+      await fetch('/api/admin/executive-report/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mes: selectedMonth,
+          tipo: format === 'acompanhamento' ? 'acompanhamento' : 'fechamento'
+        })
+      });
+
+      const downloadUrl = `/api/admin/executive-report/download?format=${format}&mes=${selectedMonth}`;
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = format === 'acompanhamento'
+        ? `ClubeFitness_Acompanhamento_${selectedMonth}.pdf`
+        : `ClubeFitness_Fechamento_${selectedMonth}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Erro ao baixar relatório:', err);
+      window.open(`/api/admin/executive-report/download?format=${format}&mes=${selectedMonth}`, '_blank');
+    } finally {
+      setDownloadingType(null);
+    }
+  };
 
   // Month navigation helpers
   const handlePrevMonth = () => {
@@ -253,6 +293,60 @@ export default function FinanceiroBalancoPanel({
           >
             Mês Atual
           </button>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleTriggerDownload('financeiro')}
+              disabled={Boolean(downloadingType)}
+              className="btn btn-sm"
+              style={{
+                background: '#10b981',
+                color: '#fff',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: downloadingType ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                opacity: downloadingType ? 0.7 : 1
+              }}
+              title="Emitir Relatório Consolidado de Fechamento Mensal em PDF (10 Páginas)"
+            >
+              <i className={downloadingType === 'financeiro' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-file-pdf'}></i>
+              {downloadingType === 'financeiro' ? 'Compilando Fechamento...' : 'Fechamento Mensal (PDF)'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTriggerDownload('acompanhamento')}
+              disabled={Boolean(downloadingType)}
+              className="btn btn-sm"
+              style={{
+                background: '#0284c7',
+                color: '#fff',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: downloadingType ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)',
+                opacity: downloadingType ? 0.7 : 1
+              }}
+              title="Emitir Relatório de Acompanhamento Intermediário e Ritmo do Mês em PDF"
+            >
+              <i className={downloadingType === 'acompanhamento' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-chart-line'}></i>
+              {downloadingType === 'acompanhamento' ? 'Compilando Acompanhamento...' : 'Acompanhamento do Mês (PDF)'}
+            </button>
+          </div>
         </div>
       </div>
 

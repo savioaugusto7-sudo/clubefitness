@@ -92,12 +92,6 @@ export async function POST(request: Request) {
     const vigenciaMeses = 12;
     const dataFimCalculada = addMonths(dataInicioRenovacao, vigenciaMeses);
 
-    // Determinar valor unitario base
-    let valorUnitario = Number(customValorUnitario);
-    if (!valorUnitario) {
-      valorUnitario = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(lastContract?.valorLiquido) || Number(plan?.preco) || 0;
-    }
-
     // Identificar com segurança se o contrato anterior é ANUAL ou MENSAL:
     let isAnual = false;
     const durLower = String(com.duracao || '').toLowerCase();
@@ -117,16 +111,34 @@ export async function POST(request: Request) {
       }
     }
 
-    // Cálculo do valor total anual da renovação:
-    // - Se for anual: o valorUnitario já é o total anual do plano -> apenas aplica +5%
-    // - Se for estritamente mensal: valorUnitario é 1 mês -> multiplica por 12 e aplica +5%
-    let valorTotalAnual = 0;
-    if (isAnual) {
-      valorTotalAnual = valorUnitario * 1.05;
+    // Determinar valor total base anterior:
+    let valorTotalBase = 0;
+    if (Number(customValorUnitario) > 0) {
+      valorTotalBase = Number(customValorUnitario);
+    } else if (isAnual) {
+      if (Number(com.valorTotal) > 0) {
+        valorTotalBase = Number(com.valorTotal);
+      } else if (lastContract && Number(lastContract.valorLiquido) > 0) {
+        valorTotalBase = Number(lastContract.valorLiquido);
+      } else if (lastContract && Number(lastContract.valorBruto) > 0) {
+        valorTotalBase = Number(lastContract.valorBruto);
+      } else if (Number(com.valorUnitario) > 0) {
+        const pCount = Number(com.parcelas) || 10;
+        if (pCount > 1 && Number(com.valorUnitario) < 2500) {
+          valorTotalBase = Number(com.valorUnitario) * pCount;
+        } else {
+          valorTotalBase = Number(com.valorUnitario);
+        }
+      } else if (plan?.preco) {
+        valorTotalBase = Number(plan.preco);
+      }
     } else {
-      valorTotalAnual = (valorUnitario * 12) * 1.05;
+      const mensalidade = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(plan?.preco) || 0;
+      valorTotalBase = mensalidade * 12;
     }
 
+    const reajuste = body.reajustePercentual !== undefined ? Number(body.reajustePercentual) : 5;
+    let valorTotalAnual = valorTotalBase * (1 + (reajuste / 100));
     valorTotalAnual = Math.round(valorTotalAnual * 100) / 100;
 
     const frequencia = Number(com.frequencia) || lastContract?.frequencia || 3;
@@ -137,8 +149,8 @@ export async function POST(request: Request) {
       planoId: plan._id,
       planoNome: plan.nome || 'Clube Fitness - Monitorado',
       planoTipo: 'Anual',
-      valorAnterior: valorUnitario,
-      reajustePercentual: 5,
+      valorAnterior: valorTotalBase,
+      reajustePercentual: reajuste,
       valorReajustado: valorTotalAnual, // Armazena o valor total anual base do plano
       frequencia,
       creditosMensais,
