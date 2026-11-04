@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Financial from '@/models/Financial';
+import { checkSessionPermission } from '@/utils/authHelper';
 
 export const maxDuration = 30;
 
 export async function GET(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month'); // YYYY-MM
@@ -26,14 +28,17 @@ export async function GET(request: Request) {
     const records = await Financial.find(query).sort({ vencimento: -1 });
     return NextResponse.json({ success: true, data: records });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const body = await request.json();
+
     const {
       descricao,
       categoria,
@@ -94,12 +99,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: records });
     }
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
 
 export async function PUT(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const body = await request.json();
     const {
@@ -155,12 +162,14 @@ export async function PUT(request: Request) {
     await record.save();
     return NextResponse.json({ success: true, data: record });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -172,6 +181,7 @@ export async function DELETE(request: Request) {
     await Financial.findByIdAndDelete(id);
     return NextResponse.json({ success: true, message: 'Registro financeiro excluído com sucesso' });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }

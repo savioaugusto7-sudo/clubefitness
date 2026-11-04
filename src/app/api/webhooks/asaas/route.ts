@@ -22,11 +22,22 @@ export async function POST(request: Request) {
 
     // 1. Validação de Token de Autenticação do Webhook
     const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+    const asaasApiKey = process.env.ASAAS_API_KEY;
     const receivedToken = request.headers.get('asaas-access-token');
 
-    if (webhookToken && receivedToken && receivedToken !== webhookToken && receivedToken !== process.env.ASAAS_API_KEY) {
-      console.warn(`[Asaas Webhook] Token recebido '${receivedToken}' diverge de ASAAS_WEBHOOK_TOKEN.`);
+    // Se houver token configurado no ambiente, exige validação estrita imediata
+    if (webhookToken || asaasApiKey) {
+      const isValid = (webhookToken && receivedToken === webhookToken) ||
+                      (asaasApiKey && receivedToken === asaasApiKey);
+      if (!isValid) {
+        console.warn(`[Asaas Webhook] Acesso negado: Token '${receivedToken || 'ausente'}' não autorizado.`);
+        return NextResponse.json(
+          { success: false, error: 'Acesso não autorizado: Token de webhook inválido' },
+          { status: 401 }
+        );
+      }
     }
+
 
     const payload = await request.json();
     const { event, payment } = payload;

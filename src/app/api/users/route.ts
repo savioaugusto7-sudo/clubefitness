@@ -6,11 +6,13 @@ import Professional from '@/models/Professional';
 import Plan from '@/models/Plan';
 import { isRestrictedForTestAdmin } from '@/utils/authCheck';
 import { hashPassword } from '@/utils/auth';
+import { checkSessionPermission } from '@/utils/authHelper';
 
 export const maxDuration = 30;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     
     // Register Plan model to ensure it can be populated
@@ -36,14 +38,17 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: mergedData });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const body = await request.json();
+
     const { nome, email, tipo, cargo, especialidade, registro, roles } = body;
 
     if (!nome || !email || !tipo) {
@@ -122,14 +127,17 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: user });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
 
 export async function PUT(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const body = await request.json();
+
     const { id, nome, email, tipo, cargo, especialidade, registro, roles } = body;
 
     if (!id) {
@@ -251,12 +259,14 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, data: user });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    await checkSessionPermission(['admin'], undefined, request);
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -283,6 +293,8 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true, message: 'Usuário excluído com sucesso' });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message === 'Não autenticado' ? 401 : error.message === 'Acesso não autorizado' ? 403 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
+

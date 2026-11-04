@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/authOptions';
 import { cookies } from 'next/headers';
 import { decode } from 'next-auth/jwt';
 import Client from '@/models/Client';
+import { isSavioAdmin } from '@/lib/auth-savio';
 
 /**
  * Validação de sessão e permissão robusta para todas as rotas da aplicação:
@@ -55,17 +56,21 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
     throw new Error('Não autenticado');
   }
 
-  const userRoles = user.activeRoles || [user.role || 'client'];
-  const isStaff = userRoles.some((r: string) => ['admin', 'professional', 'receptionist'].includes(r)) ||
-                  ['admin', 'professional', 'receptionist'].includes(user.role);
+  const userRoles: string[] = Array.isArray(user.activeRoles)
+    ? user.activeRoles.map((r: any) => String(r).toLowerCase().trim())
+    : [String(user.role || user.tipo || 'client').toLowerCase().trim()];
 
-  // 1. Membros da equipe e multi-funções têm acesso total
-  if (isStaff) {
+  const isSavio = isSavioAdmin(user);
+  const isAdmin = isSavio || userRoles.includes('admin') || user.role === 'admin' || user.tipo === 'admin';
+
+  // 1. Administrador (ou Sávio) possui acesso irrestrito
+  if (isAdmin) {
     return { authorized: true, user };
   }
 
-  // 2. Valida se o cargo do usuário está entre os autorizados na rota
-  const hasPermission = requiredRoles.some(role => userRoles.includes(role));
+  // 2. Valida se o usuário possui algum dos papéis autorizados na rota
+  const normalizedRequired = requiredRoles.map(r => r.toLowerCase().trim());
+  const hasPermission = normalizedRequired.some(role => userRoles.includes(role));
   if (!hasPermission) {
     throw new Error('Acesso não autorizado');
   }
@@ -79,3 +84,4 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
 
   return { authorized: true, user };
 }
+
