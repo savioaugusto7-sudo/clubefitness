@@ -122,47 +122,80 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const res = await fetch(`/api/admin/executive-report/html?tipo=${tipo}&mes=${currentMonth}`);
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!res.ok || !data.success || !data.html) {
         throw new Error(data.error || 'Erro ao carregar dados do relatório.');
       }
 
       setFinancialPdfFeedback(`${tipo === 'fechamento' ? 'Fechamento' : 'Acompanhamento'} gerado com sucesso! Baixando...`);
 
-      const html2pdf = (window as any).html2pdf;
-      if (html2pdf && data.html) {
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'fixed';
-        wrapper.style.top = '-9999px';
-        wrapper.style.left = '0';
-        wrapper.style.width = '1024px';
-        wrapper.style.backgroundColor = '#ffffff';
-        wrapper.style.zIndex = '-9999';
+      const getHtml2pdf = async () => {
+        if ((window as any).html2pdf) return (window as any).html2pdf;
+        return new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+          script.onload = () => resolve((window as any).html2pdf);
+          script.onerror = () => resolve(null);
+          document.head.appendChild(script);
+        });
+      };
+
+      const html2pdf = await getHtml2pdf();
+      if (html2pdf) {
+        const PAGE_W = 794;
+        const pdfWrapper = document.createElement('div');
+        pdfWrapper.style.position = 'fixed';
+        pdfWrapper.style.left = '-9999px';
+        pdfWrapper.style.top = '0';
+        pdfWrapper.style.width = `${PAGE_W}px`;
+        pdfWrapper.style.backgroundColor = '#ffffff';
+        pdfWrapper.style.zIndex = '-9999';
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(data.html, 'text/html');
         doc.querySelectorAll('.no-print').forEach(el => el.remove());
 
-        wrapper.innerHTML = doc.body.innerHTML;
-        const styleTags = doc.querySelectorAll('style');
-        styleTags.forEach(s => wrapper.appendChild(s.cloneNode(true)));
+        const container = document.createElement('div');
+        container.style.width = '100%';
+        container.innerHTML = doc.body.innerHTML;
 
-        document.body.appendChild(wrapper);
+        doc.querySelectorAll('style').forEach(s => {
+          container.appendChild(s.cloneNode(true));
+        });
+
+        pdfWrapper.appendChild(container);
+        document.body.appendChild(pdfWrapper);
 
         const filename = data.filename || `ClubeFitness_${tipo === 'fechamento' ? 'Fechamento' : 'Acompanhamento'}_${currentMonth}.pdf`;
         const opt = {
-          margin: [10, 10, 10, 10],
+          margin: 8,
           filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, scrollY: 0, logging: false },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: PAGE_W,
+            width: PAGE_W,
+            logging: false
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'] }
         };
 
         try {
-          await html2pdf().set(opt).from(wrapper).save();
+          const blob: Blob = await html2pdf().set(opt).from(container).output('blob');
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
         } finally {
-          if (wrapper.parentNode) {
-            wrapper.parentNode.removeChild(wrapper);
+          if (pdfWrapper.parentNode) {
+            pdfWrapper.parentNode.removeChild(pdfWrapper);
           }
         }
       } else {

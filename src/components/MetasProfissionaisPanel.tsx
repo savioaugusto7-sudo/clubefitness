@@ -314,31 +314,24 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 <i className="fa-solid fa-lock"></i> Sávio:
               </span>
               <a
-                href={`/api/admin/executive-report/download?mes=${selectedMonth}&format=desktop`}
+                href={`/api/admin/executive-report/html?mes=${selectedMonth}&tipo=fechamento&view=true`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn btn-sm"
                 style={{ background: '#0284c7', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-                download
-                title="Baixar Relatório Executivo Oficial Auditado em PDF (Layout A4)"
+                title="Visualizar Relatório Executivo Oficial de Fechamento (Layout A4 / Imprimir)"
               >
-                <i className="fa-solid fa-file-pdf"></i> PDF Oficial
+                <i className="fa-solid fa-file-pdf"></i> Fechamento Oficial
               </a>
               <a
-                href={`/api/admin/executive-report/download?mes=${selectedMonth}&format=mobile`}
+                href={`/api/admin/executive-report/html?mes=${selectedMonth}&tipo=acompanhamento&view=true`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn btn-sm"
                 style={{ background: '#10b981', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-                download
-                title="Baixar Relatório Executivo Auditado para Celular / WhatsApp"
+                title="Visualizar Relatório de Acompanhamento e Ritmo do Mês"
               >
-                <i className="fa-solid fa-mobile-screen"></i> PDF Celular
-              </a>
-              <a
-                href={`/api/admin/executive-report/download?mes=${selectedMonth}&format=potencial`}
-                className="btn btn-sm"
-                style={{ background: '#8b5cf6', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-                download
-                title="Baixar Relatório Comparativo: Realizado vs Potencial Máximo Ideal"
-              >
-                <i className="fa-solid fa-chart-line"></i> PDF Potencial Máximo
+                <i className="fa-solid fa-chart-line"></i> Acompanhamento
               </a>
             </div>
           )}

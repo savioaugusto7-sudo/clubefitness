@@ -14,6 +14,25 @@ interface FinanceiroBalancoPanelProps {
   onNavigateTab?: (tab: string) => void;
 }
 
+async function ensureHtml2Pdf(): Promise<any> {
+  if (typeof window === 'undefined') return null;
+  if ((window as any).html2pdf) return (window as any).html2pdf;
+
+  return new Promise((resolve) => {
+    const existing = document.querySelector('script[src*="html2pdf"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve((window as any).html2pdf));
+      setTimeout(() => resolve((window as any).html2pdf), 2500);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    script.onload = () => resolve((window as any).html2pdf);
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+  });
+}
+
 export default function FinanceiroBalancoPanel({
   clients,
   financials,
@@ -38,57 +57,75 @@ export default function FinanceiroBalancoPanel({
       setDownloadingType(format);
       const res = await fetch(`/api/admin/executive-report/html?tipo=${format}&mes=${selectedMonth}`);
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Erro ao carregar relatório');
+      if (!res.ok || !data.success || !data.html) {
+        throw new Error(data.error || 'Erro ao carregar dados do relatório.');
       }
 
-      const html2pdf = (window as any).html2pdf;
-      if (html2pdf && data.html) {
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'fixed';
-        wrapper.style.top = '-9999px';
-        wrapper.style.left = '0';
-        wrapper.style.width = '1024px';
-        wrapper.style.backgroundColor = '#ffffff';
-        wrapper.style.zIndex = '-9999';
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(data.html, 'text/html');
-        doc.querySelectorAll('.no-print').forEach(el => el.remove());
-
-        wrapper.innerHTML = doc.body.innerHTML;
-        const styleTags = doc.querySelectorAll('style');
-        styleTags.forEach(s => wrapper.appendChild(s.cloneNode(true)));
-
-        document.body.appendChild(wrapper);
-
-        const filename = data.filename || `ClubeFitness_${format === 'acompanhamento' ? 'Acompanhamento' : 'Fechamento'}_${selectedMonth}.pdf`;
-        const opt = {
-          margin: [10, 10, 10, 10],
-          filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            scrollY: 0,
-            logging: false
-          },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'legacy'] }
-        };
-
-        try {
-          await html2pdf().set(opt).from(wrapper).save();
-        } finally {
-          if (wrapper.parentNode) {
-            wrapper.parentNode.removeChild(wrapper);
-          }
-        }
-      } else {
+      const html2pdf = await ensureHtml2Pdf();
+      if (!html2pdf) {
         window.open(`/api/admin/executive-report/html?tipo=${format}&mes=${selectedMonth}&view=true`, '_blank');
+        return;
+      }
+
+      const PAGE_W = 794;
+      const pdfWrapper = document.createElement('div');
+      pdfWrapper.style.position = 'fixed';
+      pdfWrapper.style.left = '-9999px';
+      pdfWrapper.style.top = '0';
+      pdfWrapper.style.width = `${PAGE_W}px`;
+      pdfWrapper.style.backgroundColor = '#ffffff';
+      pdfWrapper.style.zIndex = '-9999';
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(data.html, 'text/html');
+      doc.querySelectorAll('.no-print').forEach(el => el.remove());
+
+      const container = document.createElement('div');
+      container.style.width = '100%';
+      container.innerHTML = doc.body.innerHTML;
+
+      doc.querySelectorAll('style').forEach(s => {
+        container.appendChild(s.cloneNode(true));
+      });
+
+      pdfWrapper.appendChild(container);
+      document.body.appendChild(pdfWrapper);
+
+      const filename = data.filename || `ClubeFitness_${format === 'acompanhamento' ? 'Acompanhamento' : 'Fechamento'}_${selectedMonth}.pdf`;
+      const opt = {
+        margin: 8,
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: PAGE_W,
+          width: PAGE_W,
+          logging: false
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+
+      try {
+        const blob: Blob = await html2pdf().set(opt).from(container).output('blob');
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
+      } finally {
+        if (pdfWrapper.parentNode) {
+          pdfWrapper.parentNode.removeChild(pdfWrapper);
+        }
       }
     } catch (err) {
-      console.error('Erro ao baixar relatório:', err);
+      console.error('Erro ao gerar relatório PDF:', err);
       window.open(`/api/admin/executive-report/html?tipo=${format}&mes=${selectedMonth}&view=true`, '_blank');
     } finally {
       setDownloadingType(null);
@@ -379,6 +416,30 @@ export default function FinanceiroBalancoPanel({
               <i className={downloadingType === 'acompanhamento' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-chart-line'}></i>
               {downloadingType === 'acompanhamento' ? 'Compilando Acompanhamento...' : 'Acompanhamento do Mês (PDF)'}
             </button>
+
+            <a
+              href={`/api/admin/executive-report/html?tipo=acompanhamento&mes=${selectedMonth}&view=true`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-sm"
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#e2e8f0',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none'
+              }}
+              title="Abrir Relatório em Tela Cheia no Navegador"
+            >
+              <i className="fa-solid fa-arrow-up-right-from-square"></i>
+              Visualizar Online
+            </a>
           </div>
         </div>
       </div>
