@@ -258,7 +258,15 @@ export async function GET(request: Request) {
     const _client = Client;
     const _prof = Professional;
 
-    const schedules = await FixedSchedule.find({})
+    const { searchParams } = new URL(request.url);
+    const clienteId = searchParams.get('clienteId');
+
+    const query: any = {};
+    if (clienteId) {
+      query.clienteId = clienteId;
+    }
+
+    const schedules = await FixedSchedule.find(query)
       .populate('clienteId')
       .populate('profissionalId')
       .populate('profissionalDesignadoId')

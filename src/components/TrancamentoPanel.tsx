@@ -251,51 +251,10 @@ export default function TrancamentoPanel({
     const dataRetornoISO = `${retY}-${retM}-${retD}`;
     const dataRetornoFormatted = dtRetorno.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    // Auditoria de Horários Fixos na grade entre startISO e endISO
-    let aulasContadas = 0;
-    const aulasAuditadas: any[] = [];
-
-    if (fixedSchedules && fixedSchedules.length > 0) {
-      const cur = new Date(dtStart);
-      while (cur <= dtEnd) {
-        const curDayOfWeek = cur.getDay(); // 0 = Domingo, 1 = Segunda...
-        const curISO = cur.toISOString().slice(0, 10);
-
-        const schedsDoDia = fixedSchedules.filter((s: any) => {
-          if (Number(s.diaSemana) !== curDayOfWeek) return false;
-          if (s.dataInicio && s.dataInicio > curISO) return false;
-          if (s.dataFim && s.dataFim < curISO) return false;
-          return true;
-        });
-
-        for (const s of schedsDoDia) {
-          const serv = s.servico || 'Treino Monitorado';
-          const isLivre = serv.toLowerCase().includes('livre');
-          if (!isLivre) {
-            aulasContadas++;
-            aulasAuditadas.push({
-              data: curISO,
-              diaSemana: curDayOfWeek,
-              horario: s.horario,
-              servico: serv
-            });
-          }
-        }
-
-        cur.setDate(cur.getDate() + 1);
-      }
-    }
-
-    let creditosSugeridos = 0;
-    let detalheCalculo = '';
-
-    if (aulasContadas > 0) {
-      creditosSugeridos = aulasContadas;
-      detalheCalculo = `Auditadas ${aulasContadas} aula(s) de Treino Monitorado no período de ${diasTrancados} dias.`;
-    } else {
-      creditosSugeridos = Math.max(1, Math.round((diasTrancados / 7) * (frequencia || 1)));
-      detalheCalculo = `Baseado em ${diasTrancados} dias (~${(diasTrancados / 7).toFixed(1)} semanas) e frequência de ${frequencia || 1}x/semana do contrato.`;
-    }
+    // Cálculo oficial aprovado pelo gestor: converter período em semanas e multiplicar pela frequência contratual
+    const freqContrato = Math.max(1, Number(frequencia) || 1);
+    const creditosSugeridos = Math.max(1, semanasEquiv * freqContrato);
+    const detalheCalculo = `Cálculo por frequência: ${semanasEquiv} ${semanasEquiv === 1 ? 'semana' : 'semanas'} (~${diasTrancados} dias) × ${freqContrato} crédito(s)/semana = ${creditosSugeridos} créditos a repor.`;
 
     return {
       diasTrancados,
@@ -304,9 +263,9 @@ export default function TrancamentoPanel({
       dataRetornoFormatted,
       creditosSugeridos,
       detalheCalculo,
-      aulasAuditadas
+      aulasAuditadas: []
     };
-  }, [dataInicio, dataFim, fixedSchedules, frequencia]);
+  }, [dataInicio, dataFim, frequencia]);
 
   // Créditos totais a congelar e redistribuir (com suporte ao ajuste fino)
   const creditosCongelados = useMemo(() => {
@@ -943,7 +902,7 @@ export default function TrancamentoPanel({
                           <i className="fa-solid fa-calculator"></i>
                         </span>
                         <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
-                          Créditos a Repor (Opção 3 — Auditoria da Grade)
+                          Créditos a Repor (Cálculo por Semanas & Frequência)
                         </h4>
                         <span style={{
                           fontSize: '0.70rem',
@@ -958,11 +917,7 @@ export default function TrancamentoPanel({
                         </span>
                       </div>
                       <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: '#cbd5e1' }}>
-                        {loadingFixedSchedules ? (
-                          <span><i className="fa-solid fa-spinner fa-spin"></i> Auditando horários fixos do aluno...</span>
-                        ) : (
-                          trancamentoCalculation.detalheCalculo
-                        )}
+                        {trancamentoCalculation.detalheCalculo}
                       </p>
                     </div>
 
