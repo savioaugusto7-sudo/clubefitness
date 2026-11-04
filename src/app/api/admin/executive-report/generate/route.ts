@@ -36,34 +36,14 @@ export async function POST(request: Request) {
     const mesParam = body.mes || '2026-10';
     const tipo = body.tipo || 'fechamento'; // 'fechamento' | 'acompanhamento'
 
-    const scriptFile = tipo === 'acompanhamento'
-      ? 'generate_acompanhamento_pdf.js'
-      : 'generate_10page_master_pdf.js';
-
-    const scriptPath = path.join(process.cwd(), 'scripts', scriptFile);
-
-    if (!fs.existsSync(scriptPath)) {
-      return NextResponse.json(
-        { success: false, error: `Script gerador ${scriptFile} não encontrado no servidor.` },
-        { status: 404 }
-      );
-    }
-
-    // Executa a compilação do relatório
-    const { stdout, stderr } = await execAsync(`node "${scriptPath}" "${mesParam}"`, {
-      timeout: 120000,
-      cwd: process.cwd()
-    });
-
-    console.log(`[Generate ${tipo} Report Output]:`, stdout);
-    if (stderr) console.warn(`[Generate ${tipo} Report Stderr]:`, stderr);
-
     const downloadFormat = tipo === 'acompanhamento' ? 'acompanhamento' : 'financeiro';
 
+    // Em produção serverless (como Vercel), a renderização ocorre diretamente via HTML/html2pdf no cliente
+    // ou visualização print-ready em `/api/admin/executive-report/html`.
     return NextResponse.json({
       success: true,
-      message: `Relatório ${tipo === 'acompanhamento' ? 'de Acompanhamento' : 'de Fechamento'} gerado com sucesso!`,
-      downloadUrl: `/api/admin/executive-report/download?format=${downloadFormat}&mes=${mesParam}`
+      message: `Relatório ${tipo === 'acompanhamento' ? 'de Acompanhamento' : 'de Fechamento'} pronto!`,
+      downloadUrl: `/api/admin/executive-report/html?tipo=${downloadFormat}&mes=${mesParam}&view=true`
     });
   } catch (error: any) {
     console.error('Erro ao gerar relatório executivo via API:', error);

@@ -118,27 +118,62 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setGeneratingReportType(tipo);
     setFinancialPdfFeedback(null);
     try {
-      const res = await fetch('/api/admin/executive-report/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo, mes: '2026-10' })
-      });
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const res = await fetch(`/api/admin/executive-report/html?tipo=${tipo}&mes=${currentMonth}`);
       const data = await res.json();
-      if (res.ok && data.success) {
-        setFinancialPdfFeedback(`${tipo === 'fechamento' ? 'Fechamento' : 'Acompanhamento'} gerado com sucesso! Baixando...`);
-        const link = document.createElement('a');
-        link.href = data.downloadUrl || `/api/admin/executive-report/download?format=${tipo === 'fechamento' ? 'financeiro' : 'acompanhamento'}&mes=2026-10`;
-        link.download = tipo === 'fechamento' ? 'ClubeFitness_Fechamento_2026-10.pdf' : 'ClubeFitness_Acompanhamento_2026-10.pdf';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => setFinancialPdfFeedback(null), 5000);
-      } else {
-        alert(data.error || 'Erro ao compilar relatório.');
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao carregar dados do relatório.');
       }
+
+      setFinancialPdfFeedback(`${tipo === 'fechamento' ? 'Fechamento' : 'Acompanhamento'} gerado com sucesso! Baixando...`);
+
+      const html2pdf = (window as any).html2pdf;
+      if (html2pdf && data.html) {
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '-9999px';
+        wrapper.style.left = '0';
+        wrapper.style.width = '1024px';
+        wrapper.style.backgroundColor = '#ffffff';
+        wrapper.style.zIndex = '-9999';
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data.html, 'text/html');
+        doc.querySelectorAll('.no-print').forEach(el => el.remove());
+
+        wrapper.innerHTML = doc.body.innerHTML;
+        const styleTags = doc.querySelectorAll('style');
+        styleTags.forEach(s => wrapper.appendChild(s.cloneNode(true)));
+
+        document.body.appendChild(wrapper);
+
+        const filename = data.filename || `ClubeFitness_${tipo === 'fechamento' ? 'Fechamento' : 'Acompanhamento'}_${currentMonth}.pdf`;
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        try {
+          await html2pdf().set(opt).from(wrapper).save();
+        } finally {
+          if (wrapper.parentNode) {
+            wrapper.parentNode.removeChild(wrapper);
+          }
+        }
+      } else {
+        window.open(`/api/admin/executive-report/html?tipo=${tipo}&mes=${currentMonth}&view=true`, '_blank');
+      }
+      setTimeout(() => setFinancialPdfFeedback(null), 5000);
     } catch (err) {
       console.error('Erro ao gerar relatório:', err);
-      alert('Erro de conexão ao gerar o relatório.');
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      window.open(`/api/admin/executive-report/html?tipo=${tipo}&mes=${currentMonth}&view=true`, '_blank');
     } finally {
       setGeneratingReportType(null);
     }

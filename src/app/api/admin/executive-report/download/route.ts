@@ -75,33 +75,14 @@ export async function GET(request: Request) {
       targetPath = artifactOct;
     }
 
-    // Se o arquivo não existir, gera on-demand
+    // Se o arquivo não existir fisicamente em disco (padrão em ambientes serverless como Vercel),
+    // redireciona graciosamente para a visualização e impressão HTML auditada de alta fidelidade
     if (!targetPath || !fs.existsSync(targetPath)) {
-      console.log(`[Report Download] Arquivo ${fileName} não encontrado. Gerando sob demanda...`);
-      const scriptFile = formatParam === 'acompanhamento'
-        ? 'generate_acompanhamento_pdf.js'
-        : 'generate_10page_master_pdf.js';
-      const scriptPath = path.join(process.cwd(), 'scripts', scriptFile);
-
-      if (fs.existsSync(scriptPath)) {
-        await execAsync(`node "${scriptPath}" "${mesParam}"`, {
-          timeout: 120000,
-          cwd: process.cwd()
-        });
-        if (fs.existsSync(storagePath)) {
-          targetPath = storagePath;
-        }
-      }
-    }
-
-    if (!targetPath || !fs.existsSync(targetPath)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Relatório para o mês ${mesParam} no formato ${formatParam} não pôde ser gerado no servidor.`
-        },
-        { status: 404 }
+      const htmlUrl = new URL(
+        `/api/admin/executive-report/html?tipo=${encodeURIComponent(formatParam)}&mes=${encodeURIComponent(mesParam)}&view=true`,
+        request.url
       );
+      return NextResponse.redirect(htmlUrl, 307);
     }
 
     const fileBuffer = fs.readFileSync(targetPath);
