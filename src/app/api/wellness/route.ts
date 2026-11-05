@@ -6,6 +6,7 @@ import Appointment from '@/models/Appointment';
 import ClientWorkout from '@/models/ClientWorkout';
 import { calculateWellness } from '@/utils/wellnessHelper';
 import { calculateACWR, calculateWellnessACWRDecision } from '@/utils/acwrEngine';
+import { logClientActivity } from '@/utils/auditLogger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -98,6 +99,24 @@ export async function POST(request: Request) {
       conduta: wResult.conduta,
       regrasAtivadas: wResult.regrasAtivadas
     });
+
+    // Auditoria de preenchimento de Wellness
+    try {
+      await logClientActivity({
+        clienteId,
+        tipoAcao: 'wellness',
+        acao: 'Preencheu Questionário Wellness',
+        detalhes: `Score: ${wResult.score}/15 (${wResult.statusLabel}) | Sono: ${s}, Fadiga: ${f}, Dor: ${d}`,
+        metadata: {
+          score: wResult.score,
+          statusLabel: wResult.statusLabel,
+          appointmentId: appointmentId || null
+        },
+        request
+      });
+    } catch (logErr) {
+      console.warn('Erro ao registrar log de Wellness:', logErr);
+    }
 
     return NextResponse.json({
       success: true,

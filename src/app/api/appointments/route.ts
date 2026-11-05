@@ -8,6 +8,7 @@ import Appointment from '@/models/Appointment';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { getUsedCreditsInMonth, reconcileClientCreditsInDb } from '@/utils/serverCreditReconciliation';
+import { logClientActivity } from '@/utils/auditLogger';
 
 export const maxDuration = 30;
 
@@ -703,6 +704,29 @@ export async function POST(request: Request) {
       console.warn('Erro ao reconciliar créditos após agendamento:', recErr);
     }
 
+    // Auditoria de movimentação do cliente
+    try {
+      const dataBr = String(data).split('-').reverse().join('/');
+      await logClientActivity({
+        clienteId,
+        usuarioId: session?.user ? (session.user as any).id : null,
+        tipoAcao: 'agendou',
+        acao: isRemanejamento ? 'Troca de Horário (Remanejamento)' : 'Agendou Sessão',
+        detalhes: isRemanejamento
+          ? `Remanejou de ${prevApt?.data} às ${prevApt?.horario} para ${dataBr} às ${horario} (${servico})`
+          : `Agendou ${servico} para ${dataBr} às ${horario}`,
+        metadata: {
+          appointmentId: appointment._id,
+          modalidade: servico,
+          dataHorarioOriginal: `${data} ${horario}`,
+          remanejadoDe: prevApt ? `${prevApt.data} ${prevApt.horario}` : null
+        },
+        request
+      });
+    } catch (logErr) {
+      console.warn('Erro ao registrar log de agendamento do cliente:', logErr);
+    }
+
     return NextResponse.json({ success: true, data: appointment });
   } catch (error: any) {
     if (error.code === 11000 || (error.message && error.message.includes('unique_active_client_slot'))) {
@@ -718,6 +742,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     await dbConnect();
+    const session = await getServerSession(authOptions);
     const _p = Plan;
     const _c = Client;
     const _pr = Professional;
@@ -897,6 +922,50 @@ export async function PUT(request: Request) {
       console.warn('Erro ao reconciliar créditos após PUT:', recErr);
     }
 
+    // Auditoria de movimentação do cliente via PUT
+    try {
+      const dataBr = String(appointment.data || '').split('-').reverse().join('/');
+      if (status === 'presenca' && oldStatus !== 'presenca') {
+        await logClientActivity({
+          clienteId: appointment.clienteId,
+          usuarioId: session?.user ? (session.user as any).id : null,
+          tipoAcao: 'checkin',
+          acao: 'Check-in / Presença Confirmada',
+          detalhes: `Confirmou presença em ${appointment.servico} no dia ${dataBr} às ${appointment.horario}`,
+          metadata: {
+            appointmentId: appointment._id,
+            modalidade: appointment.servico,
+            dataHorarioOriginal: `${appointment.data} ${appointment.horario}`
+          },
+          request
+        });
+      } else if (status === 'cancelado' && oldStatus !== 'cancelado') {
+        const dataHora = new Date(`${appointment.data}T${appointment.horario}:00-03:00`);
+        const diffHoras = (dataHora.getTime() - Date.now()) / (1000 * 60 * 60);
+        const isUltimaHora = diffHoras < 2 && diffHoras >= 0;
+        const motivo = body.motivoCancelamento || body.motivo || '';
+
+        await logClientActivity({
+          clienteId: appointment.clienteId,
+          usuarioId: session?.user ? (session.user as any).id : null,
+          tipoAcao: 'cancelou',
+          acao: 'Cancelou Horário',
+          detalhes: `Cancelou ${appointment.servico} de ${dataBr} às ${appointment.horario}${motivo ? ` (Motivo: "${motivo}")` : ''}${isUltimaHora ? ' [Cancelamento com Menos de 2h de Antecedência]' : ''}`,
+          metadata: {
+            appointmentId: appointment._id,
+            modalidade: appointment.servico,
+            dataHorarioOriginal: `${appointment.data} ${appointment.horario}`,
+            motivoCancelamento: motivo || null,
+            antecedenciaHoras: Math.round(diffHoras * 10) / 10,
+            isUltimaHora
+          },
+          request
+        });
+      }
+    } catch (logErr) {
+      console.warn('Erro ao registrar log no PUT de agendamentos:', logErr);
+    }
+
     return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -906,6 +975,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await dbConnect();
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -957,6 +1027,34 @@ export async function DELETE(request: Request) {
       await reconcileClientCreditsInDb(appointment.clienteId.toString());
     } catch (recErr) {
       console.warn('Erro ao reconciliar créditos após DELETE:', recErr);
+    }
+
+    // Auditoria de Cancelamento de Horário
+    try {
+      const dataHora = new Date(`${appointment.data}T${appointment.horario}:00-03:00`);
+      const diffHoras = (dataHora.getTime() - Date.now()) / (1000 * 60 * 60);
+      const isUltimaHora = diffHoras < 2 && diffHoras >= 0;
+      const dataBr = String(appointment.data || '').split('-').reverse().join('/');
+      const motivo = searchParams.get('motivo') || '';
+
+      await logClientActivity({
+        clienteId: appointment.clienteId,
+        usuarioId: session?.user ? (session.user as any).id : null,
+        tipoAcao: 'cancelou',
+        acao: 'Cancelou Agendamento',
+        detalhes: `Desmarcou ${appointment.servico} de ${dataBr} às ${appointment.horario}${motivo ? ` (Motivo: "${motivo}")` : ''}${isUltimaHora ? ' [Cancelamento com Menos de 2h de Antecedência]' : ''}`,
+        metadata: {
+          appointmentId: appointment._id,
+          modalidade: appointment.servico,
+          dataHorarioOriginal: `${appointment.data} ${appointment.horario}`,
+          motivoCancelamento: motivo || null,
+          antecedenciaHoras: Math.round(diffHoras * 10) / 10,
+          isUltimaHora
+        },
+        request
+      });
+    } catch (logErr) {
+      console.warn('Erro ao registrar log de cancelamento no DELETE:', logErr);
     }
 
     return NextResponse.json({ success: true, message: 'Appointment deleted' });

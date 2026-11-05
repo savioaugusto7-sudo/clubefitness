@@ -28,6 +28,7 @@ import RotinaSemanalModal from './RotinaSemanalModal';
 import RelatoriosMensaisPanel from './RelatoriosMensaisPanel';
 import CentralAvaliacoesPanel from './CentralAvaliacoesPanel';
 import TrancamentoPanel from './TrancamentoPanel';
+import ClientActivityLogPanel from './ClientActivityLogPanel';
 import { useSession } from 'next-auth/react';
 import { isSavioAdmin } from '@/lib/auth-savio';
 
@@ -3848,108 +3849,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       })()}
 
 
-      {/* 2.6. View: Log de Atividades */}
-      {activeTab === 'log_atividades' && (() => {
-        const listKey = 'log_atividades';
-        const q = getSearchQuery(listKey);
-        const filtered = activityLogs.filter(log => {
-          return smartSearchMatch([
-            log.acao,
-            log.detalhes,
-            log.profissionalId?.nome,
-            log.clienteId?.dadosPessoais?.nome,
-            log.origem
-          ], q);
-        });
-        const activeP = getPage(listKey);
-        const size = getPageSize(listKey);
-        const totalPages = Math.ceil(filtered.length / size);
-        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-        const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-        return (
-          <>
-            <div className="view-header">
-              <div className="view-title-group">
-                <h1>Log de Atividades (Auditoria)</h1>
-                <p>Histórico de ações realizadas pelos profissionais no sistema.</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <SmartSearchInput
-                  value={q}
-                  onChange={val => setSearchQueryForKey('log_atividades', val)}
-                  placeholder="Buscar por ação, profissional, aluno..."
-                  resultCount={filtered.length}
-                  totalCount={activityLogs.length}
-                />
-              </div>
-            </div>
-            <div className="content-panel">
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data / Hora</th>
-                      <th>Profissional</th>
-                      <th>Ação</th>
-                      <th>Aluno Alvo</th>
-                      <th>Origem</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
-                          Nenhuma atividade registrada.
-                        </td>
-                      </tr>
-                    ) : (
-                      paginated.map(log => {
-                        const formattedDate = new Date(log.createdAt).toLocaleString('pt-BR');
-                        const profName = log.profissionalId?.nome || 'Profissional Desconhecido';
-                        const clientName = log.clienteId?.dadosPessoais?.nome || '-';
-                        const isColetivo = log.origem === 'Computador Coletivo';
-
-                        return (
-                          <tr key={log._id}>
-                            <td><strong>{formattedDate}</strong></td>
-                            <td>{profName}</td>
-                            <td>
-                              <strong>{log.acao}</strong>
-                              {log.detalhes && (
-                                <>
-                                  <br />
-                                  <small style={{ color: 'var(--text-dim)' }}>{log.detalhes}</small>
-                                </>
-                              )}
-                            </td>
-                            <td>{clientName}</td>
-                            <td>
-                              <span className={`badge ${isColetivo ? 'badge-info' : 'badge-secondary'}`}>
-                                {log.origem}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {filtered.length > 0 && (
-                <div style={{ marginTop: '16px' }}>
-                  <Pagination
-                    currentPage={curP}
-                    totalItems={filtered.length}
-                    itemsPerPage={size}
-                    onPageChange={page => setPage('log_atividades', page)}
-                  />
-                </div>
-              )}
-            </div>
-          </>
-        );
-      })()}
+      {/* 2.6. View: Log de Atividades (Auditoria Completa: Alunos & Profissionais) */}
+      {activeTab === 'log_atividades' && (
+        <ClientActivityLogPanel
+          professionalActivityLogs={activityLogs}
+          onOpenClientProfile={(cId) => {
+            window.open(`/ficha/${cId}`, '_blank');
+          }}
+        />
+      )}
 
       {/* 3. View: Clientes */}
       {activeTab === 'clientes' && (

@@ -6,6 +6,7 @@ import Contract from '@/models/Contract';
 
 import ActivityLog from '@/models/ActivityLog';
 import Appointment from '@/models/Appointment';
+import { logClientActivity } from '@/utils/auditLogger';
 
 export const maxDuration = 30;
 
@@ -285,6 +286,26 @@ export async function POST(request: Request) {
       } catch (logErr) {
         console.error('Falha ao registrar ActivityLog de trancamento:', logErr);
       }
+    }
+
+    // 6.1 Auditoria de Movimentação do Cliente
+    try {
+      await logClientActivity({
+        clienteId: clientId,
+        tipoAcao: 'trancamento',
+        acao: 'Trancamento de Plano Solicitado/Registrado',
+        detalhes: `Trancamento de ${trancStartISO} até ${dataFimISO} (${diasTrancados} dias / ${creditosTrancados} créditos). Retorno previsto: ${dataRetornoISO}.`,
+        metadata: {
+          dataInicio: trancStartISO,
+          dataFim: dataFimISO,
+          dataRetorno: dataRetornoISO,
+          diasTrancados,
+          creditosTrancados
+        },
+        request
+      });
+    } catch (clientLogErr) {
+      console.warn('Erro ao registrar log de trancamento do cliente:', clientLogErr);
     }
 
     // 7. Update current month's credits in database if credits are redistributed to current month
