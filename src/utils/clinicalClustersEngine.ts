@@ -428,3 +428,159 @@ export function identifyClinicalClusters(profile: ClientClinicalProfile): Clinic
 
   return clusters;
 }
+
+export interface ReportClusterSuggestion {
+  clusterId: string;
+  tituloCluster: string;
+  diagnosticoCinesiologicoSugerido: string;
+  metasTratamentoSugeridas: string;
+  condutaFisioterapicaSugerida: string;
+  exerciciosSugeridos: string;
+  justificativaClinica: string[];
+}
+
+/**
+ * Motor Preditivo de Clusterização Clínica para o Relatório Fisioterápico (Passo 7 do Wizard)
+ * Cruza Queixa Anatômica + Goniometria & Assimetria + Testes Funcionais/Especiais
+ * para sugerir com 1 clique a hipótese diagnóstica cinesiológica e metas de reabilitação.
+ */
+export function detectReportClinicalCluster(reportData: any): ReportClusterSuggestion {
+  const queixas = Array.isArray(reportData?.anamnese?.queixas) ? reportData.anamnese.queixas : [];
+  const queixasText = queixas.map((q: any) => `${q.regiao || ''} ${q.subRegiao || ''} ${q.queixa || ''}`).join(' ').toLowerCase();
+  const qPrincipal = String(reportData?.conteudo?.queixaPrincipal || '').toLowerCase();
+  const fullText = `${queixasText} ${qPrincipal}`;
+
+  const g = reportData?.goniometria || {};
+  const te = reportData?.testesEspeciais || {};
+  const ort = reportData?.testesOrtopedicos || {};
+
+  const getNum = (v: any) => {
+    if (!v) return 0;
+    if (typeof v === 'object') return Number(v.semForca || v.ativo || v.comForca || v.passivo) || 0;
+    return Number(v) || 0;
+  };
+
+  const isPos = (v: any) => String(v || '').toLowerCase() === 'positivo';
+
+  // 1. Cluster: Joelho / Síndrome da Dor Patelofemoral (SDPF)
+  const isJoelhoQueixa = fullText.includes('joelho') || fullText.includes('patel') || fullText.includes('menisc') || fullText.includes('ganso');
+  const sd = ort.stepDown || te.stepDown || {};
+  const hasValgo = Number(sd.valgoDinamicoJoelhoD || 0) > 10 || Number(sd.valgoDinamicoJoelhoE || 0) > 10;
+  const hasDorsiLungeRestrita = (getNum(g.tornozeloDorsi2D) > 0 && getNum(g.tornozeloDorsi2D) < 35) || (getNum(g.tornozeloDorsi2E) > 0 && getNum(g.tornozeloDorsi2E) < 35);
+  const hasThomasReto = isPos(te.thomasRetofemoralDStatus) || isPos(te.thomasRetofemoralEStatus);
+
+  if (isJoelhoQueixa || (hasValgo && hasDorsiLungeRestrita)) {
+    const just: string[] = [];
+    if (isJoelhoQueixa) just.push('Queixa álgica em compartimento de joelho');
+    if (hasValgo) just.push('Valgo dinâmico presente no Step Down Test');
+    if (hasDorsiLungeRestrita) just.push('Déficit de dorsiflexão em cadeia fechada no Lunge (< 35°)');
+    if (hasThomasReto) just.push('Encurtamento do músculo retofemoral no Teste de Thomas');
+
+    return {
+      clusterId: 'joelho_sdpf',
+      tituloCluster: 'Cluster de Disfunção Patelofemoral & Déficit de Controle Excêntrico',
+      justificativaClinica: just,
+      diagnosticoCinesiologicoSugerido: 'Disfunção femoropatelar caracterizada por sobrecarga mecânica anterior no joelho, associada a déficit de controle neuromuscular excêntrico no plano frontal (valgo dinâmico), retração do compartimento extensor anterior e restrição compensatória de dorsiflexão no tornozelo.',
+      metasTratamentoSugeridas: '1. Reduzir dor patelar (meta EVA ≤ 2/10 em 4 semanas).\n2. Restaurar amplitude de dorsiflexão no tornozelo (Lunge ≥ 35°).\n3. Otimizar controle neuromuscular no Step Down (eliminar valgo dinâmico).\n4. Fortalecer estabilizadores pélvicos (glúteo médio/máximo) e quadríceps em cadeia cinética fechada.',
+      condutaFisioterapicaSugerida: 'Terapia manual com liberação miofascial de trato iliotibial, retofemoral e retináculo lateral. Mobilização articular tibiotársica com deslizamento talar posterior. Exercícios de ativação de glúteo médio em cadeia fechada (mini-band).',
+      exerciciosSugeridos: '1. Agachamento em caixa (Box Squat) com miniban nos joelhos — 3x12.\n2. Cadeira extensora isométrica em ângulo de 60°-45° — 4 séries de 30s.\n3. Mobilidade de dorsiflexão no Lunge contra a parede — 3x15 cada perna.\n4. Elevação pélvica unipodal no solo — 3x10 cada lado.'
+    };
+  }
+
+  // 2. Cluster: Quadril / SIF (Síndrome do Impacto Fêmoro-Acetabular)
+  const isQuadrilQueixa = fullText.includes('quadril') || fullText.includes('virilha') || fullText.includes('trocanter') || fullText.includes('glute');
+  const rotIntD = getNum(g.quadrilRotIntD);
+  const rotIntE = getNum(g.quadrilRotIntE);
+  const rotExtD = getNum(g.quadrilRotExtD);
+  const rotExtE = getNum(g.quadrilRotExtE);
+  const hasSif = (rotIntD > 0 && rotExtD > 0 && (rotIntD + rotExtD) < 85) || (rotIntE > 0 && rotExtE > 0 && (rotIntE + rotExtE) < 85) || (rotIntD > 0 && rotIntD < 20) || (rotIntE > 0 && rotIntE < 20);
+  const hasThomasIlio = isPos(te.thomasIliopsoasDStatus) || isPos(te.thomasIliopsoasEStatus) || isPos(te.thomasD) || isPos(te.thomasE);
+
+  if (isQuadrilQueixa || hasSif) {
+    const just: string[] = [];
+    if (isQuadrilQueixa) just.push('Queixa álgica em virilha/quadril');
+    if (hasSif) just.push('Arco total rotacional < 85° ou rotação interna < 20° (SIF)');
+    if (hasThomasIlio) just.push('Teste de Thomas positivo para iliopsoas');
+
+    return {
+      clusterId: 'quadril_sif',
+      tituloCluster: 'Cluster de Conflito Fêmoro-Acetabular (SIF) & Restrição Capsular',
+      justificativaClinica: just,
+      diagnosticoCinesiologicoSugerido: 'Impacto femoroacetabular funcional caracterizado por bloqueio capsular rotacional do quadril (arco total de rotação < 85°), retração de flexores profundos (iliopsoas) e restrição de deslizamento da cabeça femoral.',
+      metasTratamentoSugeridas: '1. Restaurar arco total de rotação do quadril (RI + RE ≥ 85°).\n2. Alongar flexores de quadril eliminando retração no Teste de Thomas.\n3. Modular ângulo de flexão profunda para evitar compressão labral precoce.\n4. Fortalecer rotadores externos e glúteo profundo.',
+      condutaFisioterapicaSugerida: 'Mobilização articular de quadril com tração caudal e deslizamento póstero-lateral. Liberação miofascial de iliopsoas, adutores e tensor da fáscia lata. Exercícios de dissociação lombopélvica.',
+      exerciciosSugeridos: '1. Alongamento em posição de meio-ajoelhado (Half-kneeling hip flexor stretch) com retroversão pélvica — 3x40s cada lado.\n2. Clamshell com resistência elástica — 3x15.\n3. Mobilidade de rotação de quadril em 90-90 no solo — 2 minutos dinâmicos.\n4. Ponte de glúteos com isometria de 3 segundos no topo — 3x12.'
+    };
+  }
+
+  // 3. Cluster: Ombro / Conflito Subacromial & Discinesia Escapular
+  const isOmbroQueixa = fullText.includes('ombro') || fullText.includes('manguito') || fullText.includes('bursite') || fullText.includes('trapezio') || fullText.includes('escapul');
+  const de = ort.discinesiaEscapular || te.discinesiaEscapular || {};
+  const isDisc = de && de.realizou === 'sim' && !String(de.tipo || '').toUpperCase().includes('IV');
+  const rotIntOmbroD = getNum(g.ombroRotIntD);
+  const rotIntOmbroE = getNum(g.ombroRotIntE);
+  const hasGird = (rotIntOmbroD > 0 && rotIntOmbroE > 0 && Math.abs(rotIntOmbroD - rotIntOmbroE) > 15);
+
+  if (isOmbroQueixa || isDisc || hasGird) {
+    const just: string[] = [];
+    if (isOmbroQueixa) just.push('Queixa de dor em ombro/cintura escapular');
+    if (isDisc) just.push(`Discinesia escapular observada (${de.tipo || 'Presente'})`);
+    if (hasGird) just.push('Assimetria de rotação interna glenoumeral (GIRD > 15°)');
+
+    return {
+      clusterId: 'ombro_impacto',
+      tituloCluster: 'Cluster de Conflito Subacromial & Discinesia Escapular',
+      justificativaClinica: just,
+      diagnosticoCinesiologicoSugerido: 'Síndrome do impacto subacromial secundária a alteração do ritmo escapuloumeral (discinesia escapular), perda da centragem articular da cabeça do úmero e encurtamento da cápsula posterior glenoumeral (GIRD).',
+      metasTratamentoSugeridas: '1. Eliminar dor ao final da elevação do braço (arco doloroso).\n2. Simetrizar rotação interna do ombro (eliminar GIRD > 15°).\n3. Reeducar ativação de serrátil anterior e trapézio inferior.\n4. Fortalecer rotadores externos (infraespinal e redondo menor).',
+      condutaFisioterapicaSugerida: 'Terapia manual articular glenoumeral posterior e mobilização escapulotorácica. Alongamento em sleeper stretch para cápsula posterior. Fortalecimento em plano escapular (YTWL).',
+      exerciciosSugeridos: '1. Rotação externa de ombro com cotovelo apoiado a 0° de abdução — 3x15.\n2. Wall Slide com toalha ou rolo de espuma focando serrátil anterior — 3x12.\n3. Remada neutra apoiada no peito focando retração e depressão escapular — 3x12.\n4. Alongamento Sleeper Stretch suave — 3x30s cada braço.'
+    };
+  }
+
+  // 4. Cluster: Coluna / Complexo Lombopélvico (Síndrome Cruzada Pélvica)
+  const isColunaQueixa = fullText.includes('lombar') || fullText.includes('coluna') || fullText.includes('ciatic') || fullText.includes('hernia') || fullText.includes('costas');
+  const qpMax = Math.max(Number(sd.quedaPelvicaD || 0), Number(sd.quedaPelvicaE || 0));
+
+  if (isColunaQueixa || (hasThomasIlio && qpMax > 5)) {
+    const just: string[] = [];
+    if (isColunaQueixa) just.push('Queixa dolorosa lombar/ciática');
+    if (hasThomasIlio) just.push('Retração de flexores de quadril no Thomas');
+    if (qpMax > 5) just.push('Queda pélvica excessiva no Step Down (> 5°)');
+
+    return {
+      clusterId: 'coluna_lombopelvica',
+      tituloCluster: 'Cluster de Instabilidade Lombopélvica (Síndrome Cruzada Pélvica de Janda)',
+      justificativaClinica: just,
+      diagnosticoCinesiologicoSugerido: 'Instabilidade funcional lombopélvica com padrão de Síndrome Cruzada Pélvica de Janda: hiperlordose compensatória por retração de iliopsoas e eretores espinhais, inibição reflexa da musculatura glútea e sobrecarga mecânica discal em L4-L5 e L5-S1.',
+      metasTratamentoSugeridas: '1. Remissão de sintomas na flexão/extensão da coluna (EVA ≤ 1/10).\n2. Inibir hiperativação lombar superficial e ativar estabilizadores profundos (transverso abdominal/multífidos).\n3. Eliminar retroversão/antevertência pélvica disfuncional.\n4. Restabelecer força e ativação de glúteo médio e máximo.',
+      condutaFisioterapicaSugerida: 'Descompressão vertebral e mobilização lombo-sacra conforme direções da Estrela de Maigne. Liberação miofascial de quadrado lombar e iliopsoas. Estabilização segmentar do core.',
+      exerciciosSugeridos: '1. Exercício Bird-Dog (perdigueiro) mantendo coluna neutra — 3x10 cada lado com 3s de isometria.\n2. Prancha ventral e lateral adaptada — 3x30s.\n3. Ponte de glúteo com retroversão pélvica consciente — 3x12.\n4. Mobilidade lombar em gato-camelo (Cat-Cow) — 2x15 repetições fluidas.'
+    };
+  }
+
+  // 5. Cluster: Tornozelo & Pé
+  const isTornozeloQueixa = fullText.includes('tornozelo') || fullText.includes('aquiles') || fullText.includes('fascia') || fullText.includes('calcaneo') || fullText.includes('entorse');
+  if (isTornozeloQueixa || hasDorsiLungeRestrita) {
+    return {
+      clusterId: 'tornozelo_pe',
+      tituloCluster: 'Cluster de Restrição de Tornozelo & Instabilidade Podal',
+      justificativaClinica: ['Queixa álgica em tornozelo/pé ou déficit no Lunge (< 35°)'],
+      diagnosticoCinesiologicoSugerido: 'Restrição mecânica de mobilidade tibiotársica associada a rigidez do complexo gastrocnêmio-sóleo e déficit de amortecimento biomecânico no membro inferior.',
+      metasTratamentoSugeridas: '1. Atingir no mínimo 35° de dorsiflexão no teste de Lunge.\n2. Normalizar arco plantar e propriocepção estática unipodal.\n3. Fortalecer estabilizadores dinâmicos do tornozelo (tibial posterior e fibulares).',
+      condutaFisioterapicaSugerida: 'Mobilização articular talocrural com cinto de tração. Liberação miofascial de tríceps sural e fáscia plantar. Treinamento proprioceptivo unipodal.',
+      exerciciosSugeridos: '1. Mobilidade de dorsiflexão no Lunge na parede — 3x15.\n2. Fortalecimento excêntrico de panturrilha na borda do degrau — 3x12 cada lado.\n3. Short foot (exercício de pé curto) para ativação do arco plantar — 3x30s.\n4. Equilíbrio unipodal em superfície instável (disco proprioceptivo) — 3x30s cada lado.'
+    };
+  }
+
+  // 6. Cluster Padrão: Equilíbrio Biomecânico Geral
+  return {
+    clusterId: 'postural_global',
+    tituloCluster: 'Cluster de Estabilização Postural & Fortalecimento Profilático',
+    justificativaClinica: ['Manutenção preventiva e acompanhamento de parâmetros cinesiológicos simétricos'],
+    diagnosticoCinesiologicoSugerido: 'Alinhamento biomecânico e mobilidade articular preservados, sem bloqueios mecânicos primários. Manutenção do equilíbrio muscular agonista/antagonista e profilaxia de lesões.',
+    metasTratamentoSugeridas: '1. Manter simetria bilateral abaixo de 10% em todas as articulações.\n2. Progressão segura de sobrecargas em exercícios multiarticulares.\n3. Otimizar condicionamento físico funcional e prevenção ergonômica.',
+    condutaFisioterapicaSugerida: 'Supervisão de gestos biomecânicos, orientações posturais e liberação miofascial profilática pontual.',
+    exerciciosSugeridos: '1. Exercícios multiarticulares equilibrados (agachamento, remada, supino).\n2. Rotina de mobilidade global articular antes dos treinos de força.\n3. Fortalecimento de core e estabilizadores escapulotorácicos.'
+  };
+}

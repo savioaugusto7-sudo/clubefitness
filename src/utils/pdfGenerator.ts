@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
-import { calculateGoniometryAlerts, calculateStrengthTestAlerts, calculateStrengthEvolutionComparison } from '@/utils/biomechanicsEngine';
+import {
+  calculateGoniometryAlerts,
+  calculateStrengthTestAlerts,
+  calculateStrengthEvolutionComparison,
+  calculateIGRL,
+  calculateReportPredictiveAnalysis
+} from '@/utils/biomechanicsEngine';
+import { detectReportClinicalCluster } from '@/utils/clinicalClustersEngine';
 import { getStrengthAtlasKey, getDynamicStrengthAtlasBase64, renderStrengthAtlasFooterHtml, extractActiveJoints } from '@/utils/strengthAtlas';
 import { formatDateSafeBR } from '@/utils/dateFormatter';
 import { getSymmetryTier, SYMMETRY_LEGEND_HTML } from '@/utils/symmetryStandards';
@@ -2324,6 +2331,16 @@ export async function downloadReportPDF(report: any) {
       `;
     }
 
+    // Processamento de Inteligência Preditiva (IGRL, Alertas e Índices Compostos)
+    const physioPred = calculateReportPredictiveAnalysis(report);
+    const igrl = report.scoreIGRL || physioPred.igrl;
+    const physioGonioAlerts = calculateGoniometryAlerts(g);
+    const compositeAlerts = [
+      physioPred.icai,
+      physioPred.ielp,
+      physioPred.ise
+    ].filter(Boolean) as any[];
+
     // Goniometria: Filtrar somente linhas com ao menos um lado medido
     const gonioReportRowsHtml = [
       { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
@@ -2351,39 +2368,60 @@ export async function downloadReportPDF(report: any) {
       const d1 = pD.numSemForca;
       const e1 = pE.numSemForca;
       const max1 = Math.max(d1, e1);
-      const hasAsy1 = d1 > 0 && e1 > 0 && max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
+      const asy1 = (d1 > 0 && e1 > 0 && max1 > 0) ? ((Math.abs(d1 - e1) / max1) * 100) : 0;
+      const hasAsy1 = asy1 >= 10.0;
 
       const d2 = pD.numComForca;
       const e2 = pE.numComForca;
       const max2 = Math.max(d2, e2);
-      const hasAsy2 = d2 > 0 && e2 > 0 && max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
+      const asy2 = (d2 > 0 && e2 > 0 && max2 > 0) ? ((Math.abs(d2 - e2) / max2) * 100) : 0;
+      const hasAsy2 = asy2 >= 10.0;
 
+      const maxAsy = Math.max(asy1, asy2);
       const hasAsy = hasAsy1 || hasAsy2;
+      const isCriticalAsy = maxAsy >= 15.0;
       const dispD = formatGonioDisplay(valD);
       const dispE = formatGonioDisplay(valE);
 
       return `
-        <tr style="${hasAsy ? 'background: rgba(239, 68, 68, 0.05);' : ''}">
+        <tr style="${hasAsy ? (isCriticalAsy ? 'background: rgba(239, 68, 68, 0.08);' : 'background: rgba(245, 158, 11, 0.08);') : ''}">
           <td style="font-weight:600;">
             ${row.label}
-            ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0.5px 2px; font-weight:700; margin-left:4px;">⚠️ &gt;10%</span>` : ''}
+            ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:${isCriticalAsy ? '#fef2f2' : '#fffbeb'}; color:${isCriticalAsy ? '#ef4444' : '#b45309'}; border:1px solid ${isCriticalAsy ? '#fca5a5' : '#fde68a'}; border-radius:3px; padding:0.5px 3px; font-weight:700; margin-left:4px;">${isCriticalAsy ? '🔴' : '⚠️'} Δ ${maxAsy.toFixed(1)}%</span>` : ''}
           </td>
           <td style="text-align:center; color:#64748b;">${row.ref}</td>
-          <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${dispD !== '-' ? dispD : ''}</td>
-          <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${dispE !== '-' ? dispE : ''}</td>
+          <td style="text-align:center; ${hasAsy ? (isCriticalAsy ? 'color:#ef4444; font-weight:bold;' : 'color:#b45309; font-weight:bold;') : ''}">${dispD !== '-' ? dispD : ''}</td>
+          <td style="text-align:center; ${hasAsy ? (isCriticalAsy ? 'color:#ef4444; font-weight:bold;' : 'color:#b45309; font-weight:bold;') : ''}">${dispE !== '-' ? dispE : ''}</td>
         </tr>
       `;
     }).join('');
 
-    // Testes Ortopédicos Especiais: somente linhas efetivamente preenchidas
+    // Helper para formatar status tri-estado ('nao_realizado' vs 'Negativo' vs 'Positivo')
+    const formatOrthoStatusHtml = (statusVal: any, degVal?: any) => {
+      const s = String(statusVal || '').trim().toLowerCase();
+      if (!statusVal || s === 'nao_realizado' || s === '' || s === '-' || s === 'não realizado' || s === 'não avaliado') {
+        return '<span style="color:#94a3b8; font-weight:normal; font-style:italic;">— (Não Avaliado)</span>';
+      }
+      if (s === 'positivo') {
+        const degNum = parseFloat(degVal);
+        const degText = (degVal !== undefined && degVal !== null && !isNaN(degNum) && degNum > 0) ? ` (${degNum}°)` : '';
+        return `<span style="color:#ef4444; font-weight:700;">Positivo${degText}</span>`;
+      }
+      if (s === 'negativo') {
+        return '<span style="color:#10b981; font-weight:600;">Negativo</span>';
+      }
+      return statusVal;
+    };
+
+    // Testes Ortopédicos Especiais: somente linhas com dados
     const orthoReportRows: string[] = [];
     const hasOber = Boolean(isFilledText(te.oberD) || isFilledText(te.oberE));
     if (hasOber) {
       orthoReportRows.push(`
         <tr>
-          <td style="font-weight:700;">Teste de Ober</td>
-          <td style="text-align:center; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${isFilledText(te.oberD) ? te.oberD : ''}</td>
-          <td style="text-align:center; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${isFilledText(te.oberE) ? te.oberE : ''}</td>
+          <td style="font-weight:700;">Teste de Ober (Trato Iliotibial / TFL)</td>
+          <td style="text-align:center;">${formatOrthoStatusHtml(te.oberD)}</td>
+          <td style="text-align:center;">${formatOrthoStatusHtml(te.oberE)}</td>
         </tr>
       `);
     }
@@ -2397,19 +2435,13 @@ export async function downloadReportPDF(report: any) {
       Number(te.thomasIliopsoasE) > 0
     );
     if (hasThomasIlio) {
-      const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : 'Negativo');
-      const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : 'Negativo');
-      const ilioDDeg = te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && String(te.thomasIliopsoasD).trim() !== '' ? ` (${te.thomasIliopsoasD}°)` : '';
-      const ilioEDeg = te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && String(te.thomasIliopsoasE).trim() !== '' ? ` (${te.thomasIliopsoasE}°)` : '';
+      const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : te.thomasD;
+      const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : te.thomasE;
       orthoReportRows.push(`
         <tr>
-          <td style="font-weight:700;">Thomas Iliopsoas</td>
-          <td style="text-align:center; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
-            ${ilioDStatus === 'Positivo' ? `Positivo${ilioDDeg}` : 'Negativo'}
-          </td>
-          <td style="text-align:center; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
-            ${ilioEStatus === 'Positivo' ? `Positivo${ilioEDeg}` : 'Negativo'}
-          </td>
+          <td style="font-weight:700;">Thomas Iliopsoas (Flexores Profundos)</td>
+          <td style="text-align:center;">${formatOrthoStatusHtml(ilioDStatus, te.thomasIliopsoasD)}</td>
+          <td style="text-align:center;">${formatOrthoStatusHtml(ilioEStatus, te.thomasIliopsoasE)}</td>
         </tr>
       `);
     }
@@ -2423,19 +2455,13 @@ export async function downloadReportPDF(report: any) {
       Number(te.thomasRetofemoralE) > 0
     );
     if (hasThomasReto) {
-      const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : 'Negativo');
-      const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : 'Negativo');
-      const retoDDeg = te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && String(te.thomasRetofemoralD).trim() !== '' ? ` (${te.thomasRetofemoralD}°)` : '';
-      const retoEDeg = te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && String(te.thomasRetofemoralE).trim() !== '' ? ` (${te.thomasRetofemoralE}°)` : '';
+      const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : te.thomasD;
+      const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : te.thomasE;
       orthoReportRows.push(`
         <tr>
-          <td style="font-weight:700;">Thomas Retofemoral</td>
-          <td style="text-align:center; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
-            ${retoDStatus === 'Positivo' ? `Positivo${retoDDeg}` : 'Negativo'}
-          </td>
-          <td style="text-align:center; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
-            ${retoEStatus === 'Positivo' ? `Positivo${retoEDeg}` : 'Negativo'}
-          </td>
+          <td style="font-weight:700;">Thomas Retofemoral (Compartimento Anterior)</td>
+          <td style="text-align:center;">${formatOrthoStatusHtml(retoDStatus, te.thomasRetofemoralD)}</td>
+          <td style="text-align:center;">${formatOrthoStatusHtml(retoEStatus, te.thomasRetofemoralE)}</td>
         </tr>
       `);
     }
@@ -2550,6 +2576,34 @@ export async function downloadReportPDF(report: any) {
         </div>
         ` : ''}
 
+        <!-- Painel Preditivo: Índice Global de Risco Lesivo (IGRL) -->
+        ${igrl ? `
+        <div class="section-card" style="border: 1.5px solid ${igrl.borderHex || '#10b981'}; background: ${igrl.bgHex || 'rgba(16, 185, 129, 0.08)'}; padding: 10px 14px; margin-bottom: 12px; page-break-inside: avoid;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="background: #ffffff; border: 2px solid ${igrl.borderHex || '#10b981'}; border-radius: 8px; width: 44px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <span style="font-size: 6.5px; font-weight: 800; color: #64748b; text-transform: uppercase;">IGRL</span>
+                <strong style="font-size: 13px; font-weight: 900; color: ${igrl.corHex || '#10b981'}; line-height: 1;">${igrl.score || 0}</strong>
+              </div>
+              <div>
+                <div style="font-size: 9px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                  <span>ÍNDICE GLOBAL DE RISCO LESIVO (IGRL)</span>
+                  <span style="background: ${igrl.corHex || '#10b981'}; color: #ffffff; padding: 1px 6px; border-radius: 10px; font-size: 7px; font-weight: 800;">
+                    RISCO ${String(igrl.nivel || 'Baixo').toUpperCase()}
+                  </span>
+                </div>
+                <div style="font-size: 7.5px; color: #475569; margin-top: 1px;">
+                  Vetor Articular Predominante: <strong style="color: #0d9488;">${igrl.vetorPredominante || 'Geral'}</strong> &nbsp;|&nbsp; Padrão Canônico CFF
+                </div>
+              </div>
+            </div>
+            <div style="max-width: 330px; text-align: right; font-size: 7.2px; color: #334155; line-height: 1.3;">
+              <em>${igrl.diretrizClinica || ''}</em>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
         ${gonioReportRowsHtml ? `
         <div class="section-card">
           <div class="section-card-title">Amplitude de Movimento (Goniometria)</div>
@@ -2567,6 +2621,40 @@ export async function downloadReportPDF(report: any) {
                 ${gonioReportRowsHtml}
               </tbody>
             </table>
+          </div>
+        </div>
+        ` : ''}
+
+        ${physioGonioAlerts.length > 0 ? `
+        <div class="section-card" style="border: 1px solid #fca5a5; background: #fef2f2; padding: 6px 8px; margin-top: -6px; margin-bottom: 12px; page-break-inside: avoid;">
+          <div style="font-size: 8px; font-weight: 700; color: #b91c1c; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+            <span>⚠️</span> Indicativos Clínicos & Riscos Biomecânicos Detectados (${physioGonioAlerts.length})
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px;">
+            ${physioGonioAlerts.map(a => `
+              <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 4px; padding: 4px 6px; font-size: 6.8px;">
+                <strong style="color: ${a.tipo === 'critico' ? '#b91c1c' : '#c2410c'};">${a.titulo} ${a.lado ? `(${a.lado})` : ''} - ${a.valorCalculado || ''}</strong>
+                <div style="color: #475569; margin-top: 1px;">${a.descricao}</div>
+                <div style="color: #dc2626; font-weight: 600; margin-top: 1px;">Risco Clínico: ${a.riscoClinico}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        ${compositeAlerts.length > 0 ? `
+        <div class="section-card" style="border: 1px solid #fed7aa; background: #fff7ed; padding: 6px 8px; margin-top: -6px; margin-bottom: 12px; page-break-inside: avoid;">
+          <div style="font-size: 8px; font-weight: 700; color: #c2410c; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+            <span>🛡️</span> Índices Biomecânicos Compostos Avançados (${compositeAlerts.length})
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px;">
+            ${compositeAlerts.map(a => `
+              <div style="background: #ffffff; border: 1px solid #ffedd5; border-radius: 4px; padding: 4px 6px; font-size: 6.8px;">
+                <strong style="color: #c2410c;">${a.titulo} - ${a.valorCalculado || ''}</strong>
+                <div style="color: #475569; margin-top: 1px;">${a.descricao}</div>
+                <div style="color: #b45309; font-weight: 600; margin-top: 1px;">Diretriz: ${a.riscoClinico}</div>
+              </div>
+            `).join('')}
           </div>
         </div>
         ` : ''}
@@ -2710,6 +2798,41 @@ export async function downloadReportPDF(report: any) {
           <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${conteudo.exercicios}</div>
         </div>
         ` : ''}
+
+        ${(() => {
+          const dt = report.diretrizesTreino || igrl?.recomendacoesTreino;
+          if (!dt) return '';
+          return `
+          <div class="section-card" style="margin-bottom: 12px; page-break-inside: avoid; border: 1px solid #cbd5e1;">
+            <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Ponte Fisio-Treino & Diretrizes para a Musculação</span>
+              <span style="font-size: 7px; color: #64748b; font-weight: normal; text-transform: none;">Prescrição Segura Integrada</span>
+            </div>
+            <div class="section-card-content" style="padding: 8px 10px; font-size: 7.8px; line-height: 1.4;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px;">
+                  <strong style="color: #15803d; font-size: 8px; display: block; margin-bottom: 3px;">🟢 Exercícios Liberados:</strong>
+                  <ul style="margin: 0; padding-left: 12px; color: #166534;">
+                    ${(dt.liberados || []).map((ex: string) => `<li>${ex}</li>`).join('')}
+                  </ul>
+                </div>
+                <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 6px;">
+                  <strong style="color: #b45309; font-size: 8px; display: block; margin-bottom: 3px;">🟡 Exercícios Adaptados:</strong>
+                  <ul style="margin: 0; padding-left: 12px; color: #92400e;">
+                    ${(dt.adaptados || []).map((ex: string) => `<li>${ex}</li>`).join('')}
+                  </ul>
+                </div>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 6px;">
+                  <strong style="color: #b91c1c; font-size: 8px; display: block; margin-bottom: 3px;">🔴 Exercícios Bloqueados:</strong>
+                  <ul style="margin: 0; padding-left: 12px; color: #991b1b;">
+                    ${(dt.proibidos || []).map((ex: string) => `<li>${ex}</li>`).join('')}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          `;
+        })()}
 
         <!-- Assinatura Profissional / Responsável Técnico -->
         ${renderProfessionalSignatureHtml(prof)}

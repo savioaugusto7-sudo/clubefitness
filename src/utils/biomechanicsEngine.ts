@@ -317,6 +317,67 @@ export function calculateGoniometryAlerts(gonio: any): BiomechanicAlert[] {
     });
   }
 
+  // 1.9 Assimetrias Bilaterais Canônicas de Goniometria (Padrão Canônico CFF: 10% / 15% / 20%)
+  const gonioPairs = [
+    { art: 'Quadril', mov: 'Rotação Interna de Quadril', d: rotIntD, e: rotIntE },
+    { art: 'Quadril', mov: 'Rotação Externa de Quadril', d: rotExtD, e: rotExtE },
+    { art: 'Quadril', mov: 'Flexão de Quadril (Joelho Estendido)', d: getNum(gonio.quadrilFlexao1D || gonio.quadrilFlexaoJoelhoEstendidoD), e: getNum(gonio.quadrilFlexao1E || gonio.quadrilFlexaoJoelhoEstendidoE) },
+    { art: 'Quadril', mov: 'Flexão de Quadril (Joelho Fletido)', d: flexQuadJoelhoD, e: flexQuadJoelhoE },
+    { art: 'Quadril', mov: 'Abdução de Quadril', d: getNum(gonio.quadrilAbducaoD), e: getNum(gonio.quadrilAbducaoE) },
+    { art: 'Joelho', mov: 'Flexão de Joelho', d: getNum(gonio.joelhoFlexaoD), e: getNum(gonio.joelhoFlexaoE) },
+    { art: 'Joelho', mov: 'Ângulo Poplíteo de Joelho', d: getNum(gonio.joelhoPopliteoD || gonio.anguloPopliteoD), e: getNum(gonio.joelhoPopliteoE || gonio.anguloPopliteoE) },
+    { art: 'Tornozelo', mov: 'Dorsiflexão Joelho Estendido', d: dorsi1D, e: dorsi1E },
+    { art: 'Tornozelo', mov: 'Dorsiflexão em Carga (Lunge Test)', d: dorsi2D, e: dorsi2E },
+    { art: 'Tornozelo', mov: 'Flexão Plantar de Tornozelo', d: getNum(gonio.tornozeloFlexaoPlantarD), e: getNum(gonio.tornozeloFlexaoPlantarE) },
+    { art: 'Ombro', mov: 'Flexão de Ombro', d: getNum(gonio.ombroFlexaoD), e: getNum(gonio.ombroFlexaoE) },
+    { art: 'Ombro', mov: 'Abdução de Ombro', d: getNum(gonio.ombroAbducaoD), e: getNum(gonio.ombroAbducaoE) },
+    { art: 'Ombro', mov: 'Rotação Interna de Ombro', d: ombroRotIntD, e: ombroRotIntE },
+    { art: 'Ombro', mov: 'Rotação Externa de Ombro', d: getNum(gonio.ombroRotExtD), e: getNum(gonio.ombroRotExtE) }
+  ];
+
+  gonioPairs.forEach(p => {
+    if (p.d > 0 && p.e > 0) {
+      const maxVal = Math.max(p.d, p.e);
+      const minVal = Math.min(p.d, p.e);
+      const diffAbs = Math.abs(p.d - p.e);
+      const deficitPct = (diffAbs / maxVal) * 100;
+      const tier = getSymmetryTier(deficitPct);
+      if (tier.isRisk) {
+        alerts.push({
+          tipo: tier.isCritical ? 'critico' : 'atencao',
+          titulo: `Assimetria em ${p.mov} (${deficitPct.toFixed(1)}%)`,
+          articulacao: p.art,
+          lado: 'Bilateral',
+          valorCalculado: `D: ${p.d}° | E: ${p.e}° (Δ ${deficitPct.toFixed(1)}%)`,
+          referenciaIdeal: 'Diferença ≤ 10% (Padrão Canônico CFF)',
+          descricao: `Diferença de ${deficitPct.toFixed(1)}% entre o membro direito (${p.d}°) e esquerdo (${p.e}°). Classificação: ${tier.label}.`,
+          riscoClinico: `Sobrecarga articular assimétrica compensatória e risco aumentado de estresse mecânico no segmento ${p.art}.`
+        });
+      }
+    }
+  });
+
+  // 1.10 Ombro — TROM Bilateral (Total Range of Motion: RI + RE)
+  const rotExtOmbroD = getNum(gonio.ombroRotExtD);
+  const rotExtOmbroE = getNum(gonio.ombroRotExtE);
+  if (ombroRotIntD > 0 && rotExtOmbroD > 0 && ombroRotIntE > 0 && rotExtOmbroE > 0) {
+    const tromD = ombroRotIntD + rotExtOmbroD;
+    const tromE = ombroRotIntE + rotExtOmbroE;
+    const diffTrom = Math.abs(tromD - tromE);
+    if (diffTrom > 10) {
+      alerts.push({
+        tipo: 'critico',
+        titulo: 'Déficit no Arco Total de Ombro (TROM > 10°)',
+        articulacao: 'Ombro',
+        lado: 'Bilateral',
+        valorCalculado: `D: ${tromD}° | E: ${tromE}° (Δ ${diffTrom.toFixed(1)}°)`,
+        referenciaIdeal: 'Diferença ≤ 10°',
+        descricao: `Diferença de ${diffTrom.toFixed(1)}° no arco total glenoumeral entre braço direito (${tromD}°) e esquerdo (${tromE}°).`,
+        riscoClinico: 'Preditor clínico de instabilidade glenoumeral, lesão labral (SLAP) e síndrome do impacto subacromial.'
+      });
+    }
+  }
+
   return alerts;
 }
 
@@ -2264,5 +2325,361 @@ export function calculateHopBatteryAnalysis(input: HopBatteryInput | any): HopBa
     diretrizTreinador
   };
 }
+
+/**
+ * ============================================================================
+ * 12. MOTOR DE INTELIGÊNCIA PREDITIVA: IGRL & ÍNDICES COMPOSTOS
+ * Baseado no Módulo 12 da Apostila Técnica de Avaliação Física & Biomecânica CFF
+ * ============================================================================
+ */
+
+export interface IGRLFactor {
+  descricao: string;
+  pontos: number;
+  tipo: 'red_flag' | 'critico' | 'atencao';
+  articulacao?: string;
+}
+
+export interface IGRLResult {
+  score: number; // 0 a 100
+  nivel: 'Baixo' | 'Moderado' | 'Elevado';
+  corHex: string;
+  bgHex: string;
+  borderHex: string;
+  badgeClass: 'badge-success' | 'badge-warning' | 'badge-danger';
+  vetorPredominante: string;
+  fatoresRisco: IGRLFactor[];
+  diretrizClinica: string;
+  recomendacoesTreino: {
+    liberados: string[];
+    adaptados: string[];
+    proibidos: string[];
+  };
+}
+
+export interface ReportPredictiveAnalysisResult {
+  igrl: IGRLResult;
+  icai?: BiomechanicAlert | null;
+  ielp?: BiomechanicAlert | null;
+  ise?: BiomechanicAlert | null;
+  goniometriaAlerts: BiomechanicAlert[];
+  totalAlertas: number;
+}
+
+/**
+ * Calcula o Índice Global de Risco Lesivo (IGRL: 0 a 100 pontos)
+ * Pondera Red Flags (+40), Y-Test > 4cm (+25), Razão I:Q (+25), Step Down (+20),
+ * SIF (+15), Dorsiflexão Lunge severa (+15), e assimetrias goniométricas CFF (+5 a +10).
+ */
+export function calculateIGRL(reportData: any): IGRLResult {
+  let scoreTotal = 0;
+  const fatores: IGRLFactor[] = [];
+  const articulacoesPontos: Record<string, number> = {
+    Joelho: 0,
+    Quadril: 0,
+    Tornozelo: 0,
+    Coluna: 0,
+    Ombro: 0
+  };
+
+  const addFactor = (descricao: string, pontos: number, tipo: 'red_flag' | 'critico' | 'atencao', art: string = 'Joelho') => {
+    scoreTotal += pontos;
+    fatores.push({ descricao, pontos, tipo, articulacao: art });
+    if (articulacoesPontos[art] !== undefined) {
+      articulacoesPontos[art] += pontos;
+    } else {
+      articulacoesPontos[art] = pontos;
+    }
+  };
+
+  const anamnese = reportData?.anamnese || {};
+  const gonio = reportData?.goniometria || {};
+  const te = reportData?.testesEspeciais || {};
+  const ort = reportData?.testesOrtopedicos || {};
+
+  // 1. Red Flags (Sinais de Alarme Sistêmicos)
+  const queixas = Array.isArray(anamnese.queixas) ? anamnese.queixas : [];
+  const hasRedFlagSymptom = queixas.some((q: any) => 
+    (q.dorIntensidade >= 9 && q.dorTodoMomento === 'sim') ||
+    String(q.caracteristicaDor || '').toLowerCase().includes('choque') ||
+    String(q.origens || '').toLowerCase().includes('visceral')
+  );
+  if (hasRedFlagSymptom) {
+    addFactor('Sinal de Alarme Clínico (Dor constante severa / parestesia intensa)', 40, 'red_flag', 'Coluna');
+  }
+
+  // 2. Alertas de Goniometria e Assimetrias Bilaterais CFF
+  const gAlerts = calculateGoniometryAlerts(gonio);
+  gAlerts.forEach(a => {
+    const art = a.articulacao.includes('Quadril') ? 'Quadril' :
+                a.articulacao.includes('Ombro') ? 'Ombro' :
+                a.articulacao.includes('Tornozelo') ? 'Tornozelo' :
+                a.articulacao.includes('Joelho') ? 'Joelho' : 'Joelho';
+
+    if (a.tipo === 'critico') {
+      const pts = a.titulo.includes('SIF') ? 15 : a.titulo.includes('Lunge') ? 15 : 10;
+      addFactor(`${a.titulo}: ${a.descricao}`, pts, 'critico', art);
+    } else if (a.tipo === 'atencao') {
+      addFactor(`${a.titulo}`, 5, 'atencao', art);
+    }
+  });
+
+  // 3. Testes Especiais Ortopédicos (Ober e Thomas)
+  const isPos = (v: any) => String(v || '').toLowerCase() === 'positivo';
+  if (isPos(te.oberD) || isPos(te.oberE)) {
+    addFactor('Teste de Ober Positivo (Retração severa de Banda Iliotibial / TFL)', 10, 'critico', 'Quadril');
+  }
+  if (isPos(te.thomasIliopsoasDStatus) || isPos(te.thomasIliopsoasEStatus) || isPos(te.thomasD) || isPos(te.thomasE)) {
+    addFactor('Teste de Thomas Positivo para Iliopsoas (Retração de flexores profundos)', 10, 'critico', 'Quadril');
+  }
+  if (isPos(te.thomasRetofemoralDStatus) || isPos(te.thomasRetofemoralEStatus)) {
+    addFactor('Teste de Thomas Positivo para Retofemoral (Tensão no tendão patelar)', 5, 'atencao', 'Joelho');
+  }
+
+  // 4. Y-Balance Test
+  const yTest = ort.yTeste || ort.yTest || te.yTest;
+  if (yTest && (yTest.realizou === 'sim' || yTest.direita?.anterior > 0)) {
+    const antD = Number(yTest.direita?.anterior) || 0;
+    const antE = Number(yTest.esquerda?.anterior) || 0;
+    const pmD = Number(yTest.direita?.posteromedial) || 0;
+    const pmE = Number(yTest.esquerda?.posteromedial) || 0;
+    const plD = Number(yTest.direita?.posterolateral) || 0;
+    const plE = Number(yTest.esquerda?.posterolateral) || 0;
+
+    if (antD > 0 && antE > 0) {
+      const diffAnt = Math.abs(antD - antE);
+      if (diffAnt >= 4.0) {
+        addFactor(`Assimetria Anterior Crítica no Y-Test (${diffAnt.toFixed(1)} cm ≥ 4.0 cm - Risco de LCA)`, 25, 'critico', 'Joelho');
+      } else if (diffAnt >= 3.0) {
+        addFactor(`Leve Assimetria Anterior no Y-Test (${diffAnt.toFixed(1)} cm)`, 5, 'atencao', 'Joelho');
+      }
+    }
+    if (pmD > 0 && pmE > 0 && Math.abs(pmD - pmE) >= 6.0) {
+      addFactor(`Assimetria Póstero-Medial no Y-Test (${Math.abs(pmD - pmE).toFixed(1)} cm ≥ 6.0 cm)`, 10, 'atencao', 'Quadril');
+    }
+    if (plD > 0 && plE > 0 && Math.abs(plD - plE) >= 6.0) {
+      addFactor(`Assimetria Póstero-Lateral no Y-Test (${Math.abs(plD - plE).toFixed(1)} cm ≥ 6.0 cm)`, 10, 'atencao', 'Quadril');
+    }
+  }
+
+  // 5. Step Down Test
+  const sd = ort.stepDown || te.stepDown;
+  if (sd && (sd.realizou === 'sim' || sd.quedaPelvicaD !== undefined || sd.valgoDinamicoJoelhoD !== undefined)) {
+    let errosSd = 0;
+    const qpD = Number(sd.quedaPelvicaD) || 0;
+    const qpE = Number(sd.quedaPelvicaE) || 0;
+    const vgD = Number(sd.valgoDinamicoJoelhoD) || 0;
+    const vgE = Number(sd.valgoDinamicoJoelhoE) || 0;
+    const vrD = Number(sd.varoJoelhoD) || 0;
+    const vrE = Number(sd.varoJoelhoE) || 0;
+    const prpsD = Number(sd.compExcentricoPrpsD || sd.sdPrpsD) || 0;
+    const prpsE = Number(sd.compExcentricoPrpsE || sd.sdPrpsE) || 0;
+
+    if (qpD > 5 || qpE > 5) errosSd++;
+    if (vgD > 10 || vgE > 10) errosSd++;
+    if (vrD > 5 || vrE > 5) {
+      errosSd += 2;
+      addFactor('Varo Dinâmico no Step Down (Estresse no compartimento medial do joelho)', 20, 'critico', 'Joelho');
+    }
+    if ((prpsD > 0 && prpsD < 60) || (prpsE > 0 && prpsE < 60)) errosSd++;
+
+    if (errosSd >= 3) {
+      addFactor(`Controle Cinemático Global Pobre no Step Down (${errosSd} erros identificados)`, 20, 'critico', 'Joelho');
+    } else if (errosSd === 2) {
+      addFactor(`Controle Excêntrico Moderado no Step Down (${errosSd} erros)`, 10, 'atencao', 'Joelho');
+    }
+  }
+
+  // 6. Discinesia Escapular (Kibler)
+  const de = ort.discinesiaEscapular || te.discinesiaEscapular;
+  if (de && de.realizou === 'sim') {
+    const t = String(de.tipo || '').toUpperCase();
+    if (t.includes('I') || t.includes('II') || t.includes('III')) {
+      addFactor(`Discinesia Escapular (${de.tipo || 'Presente'} - Risco Subacromial)`, 15, 'critico', 'Ombro');
+    }
+    if (de.dorAbducaoUnilateralInclinacao === 'sim') {
+      addFactor('Dor na abdução com desvio escapular ativo', 10, 'critico', 'Ombro');
+    }
+  }
+
+  // Calcular Vetor Predominante (maior acúmulo de pontos)
+  let maxPts = -1;
+  let vetorPredominante = 'Complexo Funcional Geral';
+  const labelMap: Record<string, string> = {
+    Joelho: 'Complexo Patelofemoral / Déficit Excêntrico',
+    Quadril: 'Complexo Coxofemoral / Rotação & SIF',
+    Tornozelo: 'Complexo Tornozelo-Pé / Dorsiflexão Restrita',
+    Coluna: 'Complexo Lombopélvico / Estabilidade Central',
+    Ombro: 'Cintura Escapular & Manguito Rotador'
+  };
+
+  Object.entries(articulacoesPontos).forEach(([art, pts]) => {
+    if (pts > maxPts && pts > 0) {
+      maxPts = pts;
+      vetorPredominante = labelMap[art] || art;
+    }
+  });
+
+  const finalScore = Math.min(100, Math.round(scoreTotal));
+
+  let nivel: 'Baixo' | 'Moderado' | 'Elevado' = 'Baixo';
+  let corHex = '#10b981';
+  let bgHex = 'rgba(16, 185, 129, 0.12)';
+  let borderHex = '#10b981';
+  let badgeClass: 'badge-success' | 'badge-warning' | 'badge-danger' = 'badge-success';
+  let diretrizClinica = 'Apto para progressão de carga e fortalecimento biomecânico amplo.';
+
+  if (finalScore >= 60 || hasRedFlagSymptom) {
+    nivel = 'Elevado';
+    corHex = '#ef4444';
+    bgHex = 'rgba(239, 68, 68, 0.12)';
+    borderHex = '#ef4444';
+    badgeClass = 'badge-danger';
+    diretrizClinica = 'Intervenção prioritária com restrição imediata de impactos pliométricos, cargas axiais pesadas e torques rotacionais até compensação das assimetrias.';
+  } else if (finalScore >= 30) {
+    nivel = 'Moderado';
+    corHex = '#f59e0b';
+    bgHex = 'rgba(245, 158, 11, 0.12)';
+    borderHex = '#f59e0b';
+    badgeClass = 'badge-warning';
+    diretrizClinica = 'Atenção às assimetrias contralaterais. Modular velocidade e volume de impacto; priorizar reforço estabilizador isolado antes de exercícios compostos pesados.';
+  }
+
+  // Recomendações e Bloqueios para a Sala de Treino
+  const recomendacoesTreino = {
+    liberados: [
+      'Fortalecimento geral em aparelhos com carga moderada e amplitude controlada',
+      'Exercícios de mobilidade ativa nas faixas livres de dor (conforme Estrela de Maigne / Goniometria)'
+    ],
+    adaptados: [
+      'Isometria em ângulos protegidos (ex: Cadeira extensora a 60°-45° se houver dor anterior de joelho)',
+      'Exercícios unipodais com assistência de apoio e sem impacto'
+    ],
+    proibidos: [
+      finalScore >= 60 ? 'Proibidos: Saltos unipodais, pliometria, corrida rápida em esteira e levantamentos máximos (>80% 1RM)' : 'Evitar sobrecargas além da amplitude fisiológica simétrica'
+    ]
+  };
+
+  if (vetorPredominante.includes('Patelofemoral') || vetorPredominante.includes('Joelho')) {
+    recomendacoesTreino.proibidos.push('Agachamento profundo com valgo dinâmico descontrolado e aterrissagens de impacto');
+    recomendacoesTreino.adaptados.push('Box Squat (agachamento na caixa), Leg Press 45° com miniban nos joelhos e elevação pélvica');
+  } else if (vetorPredominante.includes('Coxofemoral') || vetorPredominante.includes('Quadril')) {
+    recomendacoesTreino.proibidos.push('Flexão de quadril com rotação interna forçada sob carga pesada');
+    recomendacoesTreino.adaptados.push('Liberação miofascial de flexores profundos, clamshell e abdução com elástico');
+  } else if (vetorPredominante.includes('Tornozelo')) {
+    recomendacoesTreino.proibidos.push('Exercícios balísticos e corridas com inclinação acentuada');
+    recomendacoesTreino.adaptados.push('Mobilização de dorsiflexão em Lunge contra a parede antes do agachamento');
+  } else if (vetorPredominante.includes('Escapular') || vetorPredominante.includes('Ombro')) {
+    recomendacoesTreino.proibidos.push('Desenvolvimento militar overhead, puxada atrás da nuca e supino com hiperextensão');
+    recomendacoesTreino.adaptados.push('Remadas com pegada neutra e ativação de serrátil anterior e trapézio inferior');
+  }
+
+  return {
+    score: finalScore,
+    nivel,
+    corHex,
+    bgHex,
+    borderHex,
+    badgeClass,
+    vetorPredominante,
+    fatoresRisco: fatores,
+    diretrizClinica,
+    recomendacoesTreino
+  };
+}
+
+/**
+ * Análise Preditiva Integrada do Relatório Fisioterápico
+ * Cruza Goniometria, Alertas, IGRL e os índices compostos (ICAI, IELP, ISE).
+ */
+export function calculateReportPredictiveAnalysis(reportData: any): ReportPredictiveAnalysisResult {
+  const gonio = reportData?.goniometria || {};
+  const te = reportData?.testesEspeciais || {};
+  const ort = reportData?.testesOrtopedicos || {};
+
+  const goniometriaAlerts = calculateGoniometryAlerts(gonio);
+  const igrl = calculateIGRL(reportData);
+
+  // 1. ICAI (Capacidade de Absorção de Impacto)
+  let icai: BiomechanicAlert | null = null;
+  const getNumG = (v: any) => {
+    if (!v) return 0;
+    if (typeof v === 'object') return Number(v.semForca || v.ativo || v.comForca || v.passivo) || 0;
+    return Number(v) || 0;
+  };
+  const dorsiLunge = Math.min(
+    getNumG(gonio.tornozeloDorsi2D) || 99,
+    getNumG(gonio.tornozeloDorsi2E) || 99
+  );
+  const sdPrps = Math.min(
+    Number(ort.stepDown?.compExcentricoPrpsD || te.stepDown?.compExcentricoPrpsD || 99),
+    Number(ort.stepDown?.compExcentricoPrpsE || te.stepDown?.compExcentricoPrpsE || 99)
+  );
+  if (dorsiLunge > 0 && dorsiLunge < 35 && sdPrps > 0 && sdPrps < 60) {
+    icai = {
+      tipo: 'critico',
+      titulo: 'Incapacidade de Amortecimento Articular (ICAI)',
+      articulacao: 'Joelho / Tornozelo',
+      lado: 'Bilateral',
+      valorCalculado: `Lunge: ${dorsiLunge}° | PRPS: ${sdPrps}°`,
+      referenciaIdeal: 'Dorsiflexão Lunge ≥ 35° | Controle PRPS ≥ 60°',
+      descricao: `Déficit concomitante de dorsiflexão no tornozelo (${dorsiLunge}°) e controle excêntrico de desaceleração no joelho (${sdPrps}°).`,
+      riscoClinico: 'Incapacidade mecânica de dissipar impacto na aterrissagem; sobrecarga severa no tendão patelar e meniscos. Vedar pliometria.'
+    };
+  }
+
+  // 2. IELP (Índice de Estabilidade Lombopélvica / Core Complex)
+  let ielp: BiomechanicAlert | null = null;
+  const hasThomasPos = String(te.thomasIliopsoasDStatus || te.thomasD || '').toLowerCase() === 'positivo' ||
+                       String(te.thomasIliopsoasEStatus || te.thomasE || '').toLowerCase() === 'positivo';
+  const qpMax = Math.max(
+    Number(ort.stepDown?.quedaPelvicaD || te.stepDown?.quedaPelvicaD || 0),
+    Number(ort.stepDown?.quedaPelvicaE || te.stepDown?.quedaPelvicaE || 0)
+  );
+  if (hasThomasPos && qpMax > 5) {
+    ielp = {
+      tipo: 'critico',
+      titulo: 'Síndrome Cruzada Pélvica de Janda (CORE COMPLEX)',
+      articulacao: 'Coluna Lombar / Pelve / Quadril',
+      lado: 'Bilateral',
+      valorCalculado: `Thomas (+) | Queda Pélvica: ${qpMax}°`,
+      referenciaIdeal: 'Thomas Negativo | Queda Pélvica ≤ 5°',
+      descricao: `Retração encurtada de flexores profundos de quadril associada a instabilidade frontal da pelve (${qpMax}° de inclinação no Step Down).`,
+      riscoClinico: 'Hiperlordose com inibição reflexa de glúteos e sobrecarga discal/facetária em L4-L5 e L5-S1.'
+    };
+  }
+
+  // 3. ISE (Índice de Saúde Escapulotorácica)
+  let ise: BiomechanicAlert | null = null;
+  const de = ort.discinesiaEscapular || te.discinesiaEscapular;
+  const isDiscinesia = de && de.realizou === 'sim' && !String(de.tipo || '').toUpperCase().includes('IV');
+  const rotIntOmbroD = getNumG(gonio.ombroRotIntD);
+  const rotIntOmbroE = getNumG(gonio.ombroRotIntE);
+  const diffGIRD = (rotIntOmbroD > 0 && rotIntOmbroE > 0) ? Math.abs(rotIntOmbroD - rotIntOmbroE) : 0;
+  if (isDiscinesia && diffGIRD > 15) {
+    ise = {
+      tipo: 'critico',
+      titulo: 'Risco Escapulotorácico Agudo (ISE)',
+      articulacao: 'Ombro / Cintura Escapular',
+      lado: 'Bilateral',
+      valorCalculado: `Discinesia: ${de.tipo} | GIRD: ${diffGIRD.toFixed(1)}°`,
+      referenciaIdeal: 'Sem Discinesia | GIRD ≤ 15°',
+      descricao: `Discinesia do ritmo escapular associada a assimetria rotacional glenoumeral (${diffGIRD.toFixed(1)}°).`,
+      riscoClinico: 'Risco elevado de conflito subacromial, pinçamento do supraespinal e lesão labral (SLAP) em exercícios de empurrar/arremessar.'
+    };
+  }
+
+  const totalAlertas = goniometriaAlerts.length + (icai ? 1 : 0) + (ielp ? 1 : 0) + (ise ? 1 : 0);
+
+  return {
+    igrl,
+    icai,
+    ielp,
+    ise,
+    goniometriaAlerts,
+    totalAlertas
+  };
+}
+
 
 

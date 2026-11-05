@@ -12,9 +12,12 @@ import {
   calculateYTestAnalysis,
   calculateStepDownAnalysis,
   calculateThomasAlerts,
-  calculateOberAlerts
+  calculateOberAlerts,
+  calculateIGRL,
+  calculateReportPredictiveAnalysis
 } from '@/utils/biomechanicsEngine';
 import { getSymmetryTier, SYMMETRY_LEGEND_TEXT } from '@/utils/symmetryStandards';
+import { detectReportClinicalCluster } from '@/utils/clinicalClustersEngine';
 import LiveClinicalAlert from './LiveClinicalAlert';
 import TestComparativeSummary, { ComparativeItem } from './TestComparativeSummary';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
@@ -1573,13 +1576,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     ombroFlexaoE: { semForca: '', comForca: '' }
   });
 
-  // Orthopedic tests
-  const [tOberD, setTOberD] = useState('Negativo');
-  const [tOberE, setTOberE] = useState('Negativo');
-  const [tThomasIliopsoasDStatus, setTThomasIliopsoasDStatus] = useState('Negativo');
-  const [tThomasIliopsoasEStatus, setTThomasIliopsoasEStatus] = useState('Negativo');
-  const [tThomasRetofemoralDStatus, setTThomasRetofemoralDStatus] = useState('Negativo');
-  const [tThomasRetofemoralEStatus, setTThomasRetofemoralEStatus] = useState('Negativo');
+  // Orthopedic tests (Padrão Tri-Estado CFF: 'nao_realizado' | 'Negativo' | 'Positivo')
+  const [tOberD, setTOberD] = useState('nao_realizado');
+  const [tOberE, setTOberE] = useState('nao_realizado');
+  const [tThomasIliopsoasDStatus, setTThomasIliopsoasDStatus] = useState('nao_realizado');
+  const [tThomasIliopsoasEStatus, setTThomasIliopsoasEStatus] = useState('nao_realizado');
+  const [tThomasRetofemoralDStatus, setTThomasRetofemoralDStatus] = useState('nao_realizado');
+  const [tThomasRetofemoralEStatus, setTThomasRetofemoralEStatus] = useState('nao_realizado');
   const [tThomasIliopsoasD, setTThomasIliopsoasD] = useState('');
   const [tThomasIliopsoasE, setTThomasIliopsoasE] = useState('');
   const [tThomasRetofemoralD, setTThomasRetofemoralD] = useState('');
@@ -4725,6 +4728,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           },
           customTests: repCustomTests
         };
+      }
+
+      // Inteligência Preditiva CFF: Cálculo de IGRL, Índices Compostos e Detecção de Cluster
+      try {
+        const predAnalysis = calculateReportPredictiveAnalysis(payload);
+        const clusterSug = detectReportClinicalCluster(payload);
+        payload.scoreIGRL = predAnalysis.igrl;
+        payload.indicesPreditivos = {
+          icai: predAnalysis.icai,
+          ielp: predAnalysis.ielp,
+          ise: predAnalysis.ise,
+          totalAlertas: predAnalysis.totalAlertas
+        };
+        payload.diretrizesTreino = predAnalysis.igrl.recomendacoesTreino;
+        payload.clusterClinico = {
+          id: clusterSug.clusterId,
+          titulo: clusterSug.tituloCluster,
+          justificativa: clusterSug.justificativaClinica,
+          diagnosticoSugerido: clusterSug.diagnosticoCinesiologicoSugerido
+        };
+      } catch (err) {
+        console.warn('Erro ao processar índices preditivos do relatório:', err);
       }
 
       const client = clients.find(c => c._id === repClient);
@@ -15254,15 +15279,17 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           <div style={{ flex: 1 }}>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
                             <select className="form-control form-control-sm" value={tOberD} onChange={e => setTOberD(e.target.value)}>
-                              <option value="Negativo">Negativo</option>
-                              <option value="Positivo">Positivo</option>
+                              <option value="nao_realizado">Não Realizado</option>
+                              <option value="Negativo">Negativo (Sem Retração)</option>
+                              <option value="Positivo">Positivo (Com Retração)</option>
                             </select>
                           </div>
                           <div style={{ flex: 1 }}>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
                             <select className="form-control form-control-sm" value={tOberE} onChange={e => setTOberE(e.target.value)}>
-                              <option value="Negativo">Negativo</option>
-                              <option value="Positivo">Positivo</option>
+                              <option value="nao_realizado">Não Realizado</option>
+                              <option value="Negativo">Negativo (Sem Retração)</option>
+                              <option value="Positivo">Positivo (Com Retração)</option>
                             </select>
                           </div>
                         </div>
@@ -15275,15 +15302,17 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             <div style={{ flex: 1 }}>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
                               <select className="form-control form-control-sm" value={tThomasIliopsoasDStatus} onChange={e => setTThomasIliopsoasDStatus(e.target.value)}>
-                                <option value="Negativo">Negativo</option>
-                                <option value="Positivo">Positivo</option>
+                                <option value="nao_realizado">Não Realizado</option>
+                                <option value="Negativo">Negativo (Normal)</option>
+                                <option value="Positivo">Positivo (Encurtamento)</option>
                               </select>
                             </div>
                             <div style={{ flex: 1 }}>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
                               <select className="form-control form-control-sm" value={tThomasIliopsoasEStatus} onChange={e => setTThomasIliopsoasEStatus(e.target.value)}>
-                                <option value="Negativo">Negativo</option>
-                                <option value="Positivo">Positivo</option>
+                                <option value="nao_realizado">Não Realizado</option>
+                                <option value="Negativo">Negativo (Normal)</option>
+                                <option value="Positivo">Positivo (Encurtamento)</option>
                               </select>
                             </div>
                           </div>
@@ -15313,15 +15342,17 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             <div style={{ flex: 1 }}>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
                               <select className="form-control form-control-sm" value={tThomasRetofemoralDStatus} onChange={e => setTThomasRetofemoralDStatus(e.target.value)}>
-                                <option value="Negativo">Negativo</option>
-                                <option value="Positivo">Positivo</option>
+                                <option value="nao_realizado">Não Realizado</option>
+                                <option value="Negativo">Negativo (Normal)</option>
+                                <option value="Positivo">Positivo (Encurtamento)</option>
                               </select>
                             </div>
                             <div style={{ flex: 1 }}>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
                               <select className="form-control form-control-sm" value={tThomasRetofemoralEStatus} onChange={e => setTThomasRetofemoralEStatus(e.target.value)}>
-                                <option value="Negativo">Negativo</option>
-                                <option value="Positivo">Positivo</option>
+                                <option value="nao_realizado">Não Realizado</option>
+                                <option value="Negativo">Negativo (Normal)</option>
+                                <option value="Positivo">Positivo (Encurtamento)</option>
                               </select>
                             </div>
                           </div>
@@ -16174,6 +16205,85 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         Habilitar Prescrição de Autocuidado
                       </label>
                     </div>
+
+                    {/* Card de Inteligência Preditiva: IGRL & Clusterização Clínica Automática */}
+                    {(() => {
+                      const snapReport = {
+                        anamnese: { queixas: repQueixas },
+                        conteudo: { queixaPrincipal: repQueixas[0]?.queixa || '' },
+                        goniometria: gGonio,
+                        testesEspeciais: {
+                          oberD: tOberD, oberE: tOberE,
+                          thomasIliopsoasDStatus: tThomasIliopsoasDStatus,
+                          thomasIliopsoasEStatus: tThomasIliopsoasEStatus,
+                          thomasRetofemoralDStatus: tThomasRetofemoralDStatus,
+                          thomasRetofemoralEStatus: tThomasRetofemoralEStatus
+                        },
+                        testesOrtopedicos: {
+                          yTeste: { realizou: yRealizou, direita: { anterior: yAntD, posteromedial: yPMD, posterolateral: yPLD }, esquerda: { anterior: yAntE, posteromedial: yPME, posterolateral: yPLE } },
+                          stepDown: { realizou: sdRealizou, quedaPelvicaD: sdPelvicaD, quedaPelvicaE: sdPelvicaE, aducaoQuadrilD: sdAducaoD, aducaoQuadrilE: sdAducaoE, valgoDinamicoJoelhoD: sdValgoD, valgoDinamicoJoelhoE: sdValgoE, varoJoelhoD: sdVaroD, varoJoelhoE: sdVaroE, compExcentricoPrpsD: sdPrpsD, compExcentricoPrpsE: sdPrpsE },
+                          discinesiaEscapular: { realizou: repDeRealizou, tipo: repDeTipo }
+                        }
+                      };
+
+                      const pred = calculateReportPredictiveAnalysis(snapReport);
+                      const cluster = detectReportClinicalCluster(snapReport);
+
+                      return (
+                        <div style={{ background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(16, 185, 129, 0.06))', border: '1px solid rgba(13, 148, 136, 0.35)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: '46px', height: '46px', borderRadius: '10px', background: pred.igrl.bgHex, border: `1px solid ${pred.igrl.borderHex}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: pred.igrl.corHex, textTransform: 'uppercase' }}>IGRL</span>
+                                <span style={{ fontSize: '1.05rem', fontWeight: 900, color: pred.igrl.corHex, lineHeight: 1 }}>{pred.igrl.score}</span>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span>Índice Global de Risco Lesivo:</span>
+                                  <span className={`badge ${pred.igrl.badgeClass}`} style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
+                                    Risco {pred.igrl.nivel}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                  Vetor Predominante: <strong style={{ color: '#38bdf8' }}>{pred.igrl.vetorPredominante}</strong> &nbsp;|&nbsp; {pred.totalAlertas} fatores biomecânicos detectados
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-wand-magic-sparkles" style={{ color: '#10b981' }}></i>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  Cluster Sugerido: <span style={{ color: '#10b981' }}>{cluster.tituloCluster}</span>
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                style={{ background: 'linear-gradient(135deg, #0d9488, #10b981)', color: '#ffffff', fontWeight: 600, fontSize: '0.75rem', padding: '5px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                onClick={() => {
+                                  const textConduta = `[DIAGNÓSTICO CINESIOLÓGICO FUNCIONAL]\n${cluster.diagnosticoCinesiologicoSugerido}\n\n[METAS DO TRATAMENTO]\n${cluster.metasTratamentoSugeridas}\n\n[CONDUTA TERAPÊUTICA RECOMENDADA]\n${cluster.condutaFisioterapicaSugerida}`;
+                                  setRepContent(repContent ? `${repContent}\n\n${textConduta}` : textConduta);
+                                  setIncluirConduta(true);
+
+                                  if (cluster.exerciciosSugeridos) {
+                                    setRepExercicios(repExercicios ? `${repExercicios}\n\n${cluster.exerciciosSugeridos}` : cluster.exerciciosSugeridos);
+                                    setIncluirPrescricao(true);
+                                  }
+                                }}
+                              >
+                                <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i> Carregar Sugestão do Cluster
+                              </button>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                              {cluster.diagnosticoCinesiologicoSugerido}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {incluirConduta && (() => {
                         const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
