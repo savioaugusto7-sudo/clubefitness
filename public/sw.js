@@ -1,6 +1,6 @@
 // Clube Fitness Fisio - Service Worker Inteligente
-// Versão: 1.0.3 - Resiliente e Blindado com auto-invalidação de bundles
-const CACHE_NAME = 'clubefitness-cache-v4';
+// Versão: 1.0.4 - Ícones centralizados e proporções atualizadas
+const CACHE_NAME = 'clubefitness-cache-v5';
 
 const STATIC_PRECACHE = [
   '/offline.html',
