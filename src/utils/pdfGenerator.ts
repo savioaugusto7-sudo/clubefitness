@@ -5101,13 +5101,6 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
-  const html2pdf = await ensureHtml2Pdf();
-  if (!html2pdf) {
-    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
-    safeRemoveWrapper(pdfWrapper);
-    return;
-  }
-
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
     safeRemoveWrapper(pdfWrapper);
@@ -5438,13 +5431,6 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
-
-  const html2pdf = await ensureHtml2Pdf();
-  if (!html2pdf) {
-    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
-    safeRemoveWrapper(pdfWrapper);
-    return;
-  }
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
@@ -6825,13 +6811,6 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
-  const html2pdf = await ensureHtml2Pdf();
-  if (!html2pdf) {
-    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
-    safeRemoveWrapper(pdfWrapper);
-    return;
-  }
-
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
     safeRemoveWrapper(pdfWrapper);
@@ -6919,8 +6898,8 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
     }
   }
 
-  const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) { alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.'); return; }
 
   const activeContract = contract || (client?.assinaturaPresencialImage ? client : null);
   let signatureSection = '';
@@ -7189,15 +7168,6 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   };
-
-
-
-  const html2pdf = await ensureHtml2Pdf();
-  if (!html2pdf) {
-    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
-    safeRemoveWrapper(pdfWrapper);
-    return;
-  }
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
