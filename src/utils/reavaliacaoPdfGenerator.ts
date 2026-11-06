@@ -1013,13 +1013,17 @@ export async function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputed
 
   if (html2pdf) {
     const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.position = 'absolute';
+    pdfWrapper.style.position = 'fixed';
     pdfWrapper.style.left = '0px';
-    pdfWrapper.style.top = `${window.scrollY || 0}px`;
+    pdfWrapper.style.top = '0px';
     pdfWrapper.style.width = '794px';
-    pdfWrapper.style.opacity = '0';
+    pdfWrapper.style.minWidth = '794px';
+    pdfWrapper.style.maxWidth = '794px';
     pdfWrapper.style.zIndex = '-9999';
     pdfWrapper.style.pointerEvents = 'none';
+    pdfWrapper.style.opacity = '1';
+    pdfWrapper.style.overflow = 'hidden';
+    pdfWrapper.style.backgroundColor = '#ffffff';
 
     const pdfContainer = document.createElement('div');
     pdfContainer.style.background = '#ffffff';
@@ -1597,13 +1601,17 @@ export async function downloadPhysicalComparisonPDF(computed: LongitudinalComput
 
   if (html2pdf) {
     const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.position = 'absolute';
+    pdfWrapper.style.position = 'fixed';
     pdfWrapper.style.left = '0px';
-    pdfWrapper.style.top = `${window.scrollY || 0}px`;
+    pdfWrapper.style.top = '0px';
     pdfWrapper.style.width = '794px';
-    pdfWrapper.style.opacity = '0';
+    pdfWrapper.style.minWidth = '794px';
+    pdfWrapper.style.maxWidth = '794px';
     pdfWrapper.style.zIndex = '-9999';
     pdfWrapper.style.pointerEvents = 'none';
+    pdfWrapper.style.opacity = '1';
+    pdfWrapper.style.overflow = 'hidden';
+    pdfWrapper.style.backgroundColor = '#ffffff';
 
     const pdfContainer = document.createElement('div');
     pdfContainer.style.background = '#ffffff';

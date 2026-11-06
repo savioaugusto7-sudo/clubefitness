@@ -25,6 +25,33 @@ function safeRemoveWrapper(pdfWrapper: HTMLElement) {
   }
 }
 
+export function createStandardPdfSandbox(width = 794): { pdfWrapper: HTMLDivElement; pdfContainer: HTMLDivElement } {
+  const pdfWrapper = document.createElement('div');
+  pdfWrapper.style.position = 'fixed';
+  pdfWrapper.style.top = '0px';
+  pdfWrapper.style.left = '0px';
+  pdfWrapper.style.width = `${width}px`;
+  pdfWrapper.style.minWidth = `${width}px`;
+  pdfWrapper.style.maxWidth = `${width}px`;
+  pdfWrapper.style.zIndex = '-9999';
+  pdfWrapper.style.pointerEvents = 'none';
+  pdfWrapper.style.opacity = '1';
+  pdfWrapper.style.overflow = 'hidden';
+  pdfWrapper.style.backgroundColor = '#ffffff';
+
+  const pdfContainer = document.createElement('div');
+  pdfContainer.style.background = '#ffffff';
+  pdfContainer.style.padding = '0';
+  pdfContainer.style.margin = '0';
+  pdfContainer.style.width = `${width}px`;
+  pdfContainer.style.minWidth = `${width}px`;
+  pdfContainer.style.maxWidth = `${width}px`;
+  pdfContainer.style.boxSizing = 'border-box';
+
+  pdfWrapper.appendChild(pdfContainer);
+  return { pdfWrapper, pdfContainer };
+}
+
 export async function ensureHtml2Pdf(): Promise<any> {
   if (typeof window === 'undefined') return null;
   if ((window as any).html2pdf) return (window as any).html2pdf;
@@ -168,7 +195,7 @@ async function getAvatarBase64(sex: string): Promise<string | null> {
     const res = await fetch(filename);
     if (!res.ok) throw new Error(`Failed to fetch ${filename}`);
     const text = await res.text();
-    return `data:image/png;base64,${text.trim()}`;
+    return `data:image/jpeg;base64,${text.trim()}`;
   } catch (error) {
     console.error('Error loading avatar base64:', error);
     return null;
@@ -206,7 +233,7 @@ function parseGonioField(raw: any): { semForca: string; comForca: string; numSem
           numSemForca: Number(sf) || 0,
           numComForca: Number(cf) || 0,
         };
-      } catch {}
+      } catch { }
     }
     const n = Number(raw);
     if (!isNaN(n) && raw.trim() !== '') {
@@ -318,27 +345,27 @@ function triggerDirectDownload(blob: Blob, filename: string) {
   } catch (error) {
     console.error('Erro no download direto via client-side, usando fallback do servidor:', error);
     const reader = new FileReader();
-    reader.onloadend = function() {
+    reader.onloadend = function () {
       const base64data = (reader.result as string).split(',')[1];
-      
+
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = '/api/download-pdf';
       form.target = '_blank';
       form.style.display = 'none';
-      
+
       const inputB64 = document.createElement('input');
       inputB64.type = 'hidden';
       inputB64.name = 'pdfB64';
       inputB64.value = base64data;
       form.appendChild(inputB64);
-      
+
       const inputName = document.createElement('input');
       inputName.type = 'hidden';
       inputName.name = 'filename';
       inputName.value = filename;
       form.appendChild(inputName);
-      
+
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
@@ -369,8 +396,8 @@ function buildPhysioAccumulativeEvolutionHtml(
   const diffDays = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)));
 
   // Se houver mais de 4 relatórios no histórico, selecionar Linha de Base (r0) e as 3 mais recentes
-  const displayReports = sorted.length <= 4 
-    ? sorted 
+  const displayReports = sorted.length <= 4
+    ? sorted
     : [r0, ...sorted.slice(sorted.length - 3)];
 
   const numDateCols = displayReports.length;
@@ -383,11 +410,11 @@ function buildPhysioAccumulativeEvolutionHtml(
   const dorLast = Number(rLast.conteudo?.dorEscala ?? rLast.anamnese?.queixas?.[0]?.dorIntensidade ?? 0);
   const deltaDor = dorLast - dor0;
   const pctReducaoDor = dor0 > 0 ? Math.round(((dor0 - dorLast) / dor0) * 100) : 0;
-  const deltaDorText = deltaDor < 0 
-    ? `-${Math.abs(deltaDor)} pts (-${pctReducaoDor}%)` 
-    : deltaDor > 0 
-    ? `+${deltaDor} pts (+${pctReducaoDor}%)` 
-    : '0 pts (Estável)';
+  const deltaDorText = deltaDor < 0
+    ? `-${Math.abs(deltaDor)} pts (-${pctReducaoDor}%)`
+    : deltaDor > 0
+      ? `+${deltaDor} pts (+${pctReducaoDor}%)`
+      : '0 pts (Estável)';
   const deltaDorColor = deltaDor < 0 ? '#059669' : deltaDor > 0 ? '#dc2626' : '#64748b';
 
   // 3. Movimentos de Goniometria com referências oficiais
@@ -449,8 +476,8 @@ function buildPhysioAccumulativeEvolutionHtml(
   });
 
   const ganhoMedioADM = countDeltaGonio > 0 ? (totalDeltaGonio / countDeltaGonio) : 0;
-  const pctAssimetriasCorrigidas = assimetriasIniciais > 0 
-    ? Math.round((assimetriasResolvidas / assimetriasIniciais) * 100) 
+  const pctAssimetriasCorrigidas = assimetriasIniciais > 0
+    ? Math.round((assimetriasResolvidas / assimetriasIniciais) * 100)
     : 100;
 
   // 4. Linha do Tempo de Dor & Queixas
@@ -851,10 +878,10 @@ function buildPhysioAccumulativeEvolutionHtml(
       <!-- Header Evolução Acumulativa -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 
-            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-          }
+          ${logoBase64
+      ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+      : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+    }
           <div>
             <h1 class="logo-title font-outfit" style="font-size: 17px;">PAINEL LONGITUDINAL ACUMULATIVO</h1>
             <p class="logo-subtitle">Evolução Fisioterapêutica, Goniometria e Indicadores Clínicos</p>
@@ -1030,8 +1057,8 @@ function buildPhysicalAccumulativeEvolutionHtml(
   const diffDays = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)));
 
   // Se houver mais de 4 relatórios no histórico, selecionar Linha de Base (r0) e as 3 mais recentes
-  const displayReports = sorted.length <= 4 
-    ? sorted 
+  const displayReports = sorted.length <= 4
+    ? sorted
     : [r0, ...sorted.slice(sorted.length - 3)];
 
   const numDateCols = displayReports.length;
@@ -1323,10 +1350,10 @@ function buildPhysicalAccumulativeEvolutionHtml(
       <!-- Header Evolução Acumulativa -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 
-            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-          }
+          ${logoBase64
+      ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+      : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+    }
           <div>
             <h1 class="logo-title font-outfit" style="font-size: 17px;">PAINEL LONGITUDINAL ACUMULATIVO</h1>
             <p class="logo-subtitle">Composição Corporal, Antropometria & Recomposição Física</p>
@@ -1545,28 +1572,11 @@ export async function downloadReportPDF(report: any) {
   if (typeof document !== 'undefined' && document.fonts) {
     try {
       await document.fonts.ready;
-    } catch (e) {}
+    } catch (e) { }
   }
-  
-  const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.position = 'absolute';
-  pdfWrapper.style.left = '0px';
-  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
-  pdfWrapper.style.width = '794px';
-  pdfWrapper.style.opacity = '0';
-  pdfWrapper.style.zIndex = '99999';
-  pdfWrapper.style.pointerEvents = 'none';
-  pdfWrapper.style.display = 'block';
 
-  const pdfContainer = document.createElement('div');
-  pdfContainer.style.background = '#ffffff';
+  const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(794);
   pdfContainer.style.color = '#333333';
-  pdfContainer.style.padding = '0';
-  pdfContainer.style.margin = '0';
-  pdfContainer.style.width = '794px';
-  pdfContainer.style.boxSizing = 'border-box';
-
-  pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
   const birthDate = client.dadosPessoais.dataNascimento ? new Date(client.dadosPessoais.dataNascimento) : null;
@@ -1829,10 +1839,10 @@ export async function downloadReportPDF(report: any) {
         <!-- Header -->
         <div class="grid-header">
           <div class="logo-box">
-            ${logoBase64 
-              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-            }
+            ${logoBase64
+        ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+        : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+      }
             <div>
               <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
               <p class="logo-subtitle">Fisioterapia, Quiropraxia e Fortalecimento</p>
@@ -1927,12 +1937,12 @@ export async function downloadReportPDF(report: any) {
       return true;
     };
 
-    const rawCustomTests = (te && Array.isArray(te.customTests)) 
-      ? te.customTests 
-      : (ort && Array.isArray(ort.customTests)) 
-        ? ort.customTests 
+    const rawCustomTests = (te && Array.isArray(te.customTests))
+      ? te.customTests
+      : (ort && Array.isArray(ort.customTests))
+        ? ort.customTests
         : (Array.isArray(report.customTests) ? report.customTests : (Array.isArray(report.testesVariados) ? report.testesVariados : []));
-    
+
     const validCustomTests = rawCustomTests.filter((t: any) => t && (String(t.nome || '').trim() !== '' || String(t.resultados || '').trim() !== ''));
 
     const checkPerimetriaAsymmetry = (valD: any, valE: any) => {
@@ -2295,10 +2305,10 @@ export async function downloadReportPDF(report: any) {
     if (ort.estrelaMaigne) {
       const m = ort.estrelaMaigne;
       const cx = 190, cy = 150, maxRadius = 100, scale = 2.0;
-      const angles = [-Math.PI/2, -Math.PI/6, Math.PI/6, Math.PI/2, 5*Math.PI/6, 7*Math.PI/6];
+      const angles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6];
       const refVals = [40, 40, 30, 30, 30, 40];
       const clientVals = [m.flexao, m.rotacaoD, m.inclinacaoD, m.extensao, m.inclinacaoE, m.rotacaoE];
-      
+
       const fEVA = m.flexaoEVA !== undefined ? m.flexaoEVA : 0;
       const extEVA = m.extensaoEVA !== undefined ? m.extensaoEVA : 0;
       const idEVA = m.inclinacaoDEVA !== undefined ? m.inclinacaoDEVA : 0;
@@ -2316,10 +2326,10 @@ export async function downloadReportPDF(report: any) {
 
           <!-- Grid Lines -->
           ${angles.map((ang) => {
-            const x = cx + maxRadius * Math.cos(ang);
-            const y = cy + maxRadius * Math.sin(ang);
-            return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
-          }).join('')}
+        const x = cx + maxRadius * Math.cos(ang);
+        const y = cy + maxRadius * Math.sin(ang);
+        return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
+      }).join('')}
 
           <!-- Labels for directions -->
           <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexao (EVA: ${fEVA})</text>
@@ -2331,24 +2341,24 @@ export async function downloadReportPDF(report: any) {
 
           <!-- Reference Polygon -->
           <polygon points="${angles.map((ang, idx) => {
-            const x = cx + refVals[idx] * scale * Math.cos(ang);
-            const y = cy + refVals[idx] * scale * Math.sin(ang);
-            return `${x},${y}`;
-          }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
+        const x = cx + refVals[idx] * scale * Math.cos(ang);
+        const y = cy + refVals[idx] * scale * Math.sin(ang);
+        return `${x},${y}`;
+      }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
 
           <!-- Value Polygon -->
           <polygon points="${angles.map((ang, idx) => {
-            const x = cx + clientVals[idx] * scale * Math.cos(ang);
-            const y = cy + clientVals[idx] * scale * Math.sin(ang);
-            return `${x},${y}`;
-          }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
+        const x = cx + clientVals[idx] * scale * Math.cos(ang);
+        const y = cy + clientVals[idx] * scale * Math.sin(ang);
+        return `${x},${y}`;
+      }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
 
           <!-- Value Dots -->
           ${angles.map((ang, idx) => {
-            const x = cx + clientVals[idx] * scale * Math.cos(ang);
-            const y = cy + clientVals[idx] * scale * Math.sin(ang);
-            return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
-          }).join('')}
+        const x = cx + clientVals[idx] * scale * Math.cos(ang);
+        const y = cy + clientVals[idx] * scale * Math.sin(ang);
+        return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
+      }).join('')}
         </svg>
       `;
 
@@ -2595,10 +2605,10 @@ export async function downloadReportPDF(report: any) {
         <!-- Header -->
         <div class="grid-header">
           <div class="logo-box">
-            ${logoBase64 
-              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-            }
+            ${logoBase64
+        ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+        : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+      }
             <div>
               <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
               <p class="logo-subtitle">Fisioterapia, Quiropraxia e Fortalecimento</p>
@@ -2872,9 +2882,9 @@ export async function downloadReportPDF(report: any) {
         ` : ''}
 
         ${(() => {
-          const dt = report.diretrizesTreino || igrl?.recomendacoesTreino;
-          if (!dt) return '';
-          return `
+        const dt = report.diretrizesTreino || igrl?.recomendacoesTreino;
+        if (!dt) return '';
+        return `
           <div class="section-card" style="margin-bottom: 12px; page-break-inside: avoid; border: 1px solid #cbd5e1;">
             <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
               <span>Ponte Fisio-Treino & Diretrizes para a Musculação</span>
@@ -2904,7 +2914,7 @@ export async function downloadReportPDF(report: any) {
             </div>
           </div>
           `;
-        })()}
+      })()}
 
         <!-- Assinatura Profissional / Responsável Técnico -->
         ${renderProfessionalSignatureHtml(prof)}
@@ -3152,7 +3162,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   if (typeof document !== 'undefined' && document.fonts) {
     try {
       await document.fonts.ready;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   let prof = assessment.avaliadorId || { nome: 'Avaliador', registro: 'CREF/CREFITO' };
@@ -3198,10 +3208,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   if (hasMaigneData) {
     const m = maigneObj;
     const cx = 190, cy = 150, maxRadius = 100, scale = 2.0;
-    const angles = [-Math.PI/2, -Math.PI/6, Math.PI/6, Math.PI/2, 5*Math.PI/6, 7*Math.PI/6];
+    const angles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6];
     const refVals = [40, 40, 30, 30, 30, 40];
     const clientVals = [m.flexao, m.rotacaoD, m.inclinacaoD, m.extensao, m.inclinacaoE, m.rotacaoE];
-    
+
     const fEVA = m.flexaoEVA !== undefined ? m.flexaoEVA : 0;
     const extEVA = m.extensaoEVA !== undefined ? m.extensaoEVA : 0;
     const idEVA = m.inclinacaoDEVA !== undefined ? m.inclinacaoDEVA : 0;
@@ -3219,10 +3229,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
         <!-- Grid Lines -->
         ${angles.map((ang, idx) => {
-          const x = cx + maxRadius * Math.cos(ang);
-          const y = cy + maxRadius * Math.sin(ang);
-          return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
-        }).join('')}
+      const x = cx + maxRadius * Math.cos(ang);
+      const y = cy + maxRadius * Math.sin(ang);
+      return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
+    }).join('')}
 
         <!-- Labels for directions -->
         <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexao (EVA: ${fEVA})</text>
@@ -3234,24 +3244,24 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
         <!-- Reference Polygon -->
         <polygon points="${angles.map((ang, idx) => {
-          const x = cx + refVals[idx] * scale * Math.cos(ang);
-          const y = cy + refVals[idx] * scale * Math.sin(ang);
-          return `${x},${y}`;
-        }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
+      const x = cx + refVals[idx] * scale * Math.cos(ang);
+      const y = cy + refVals[idx] * scale * Math.sin(ang);
+      return `${x},${y}`;
+    }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
 
         <!-- Value Polygon -->
         <polygon points="${angles.map((ang, idx) => {
-          const x = cx + clientVals[idx] * scale * Math.cos(ang);
-          const y = cy + clientVals[idx] * scale * Math.sin(ang);
-          return `${x},${y}`;
-        }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
+      const x = cx + clientVals[idx] * scale * Math.cos(ang);
+      const y = cy + clientVals[idx] * scale * Math.sin(ang);
+      return `${x},${y}`;
+    }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
 
         <!-- Value Dots -->
         ${angles.map((ang, idx) => {
-          const x = cx + clientVals[idx] * scale * Math.cos(ang);
-          const y = cy + clientVals[idx] * scale * Math.sin(ang);
-          return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
-        }).join('')}
+      const x = cx + clientVals[idx] * scale * Math.cos(ang);
+      const y = cy + clientVals[idx] * scale * Math.sin(ang);
+      return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
+    }).join('')}
       </svg>
     `;
 
@@ -3439,7 +3449,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     let color = '#10b981'; // Green (ideal)
     let label = 'Dentro do ideal';
     const val = Number(value);
-    
+
     if (isNaN(val)) return '';
 
     if (movement === 'quadrilFlexao1') {
@@ -3526,15 +3536,15 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const dPanturrilha = getDobraVal('panturrilha');
 
   const calculatedSomaDobras = dPeitoral + dTriceps + dSubescapular + dSubaxilar + dSuprailiaca + dAbdomen + dCoxa;
-  const finalSomaDobras = Number(assessment.dadosMedidos?.somaDobras) > 0 
-    ? Number(assessment.dadosMedidos?.somaDobras) 
+  const finalSomaDobras = Number(assessment.dadosMedidos?.somaDobras) > 0
+    ? Number(assessment.dadosMedidos?.somaDobras)
     : (calculatedSomaDobras > 0 ? calculatedSomaDobras : 0);
 
   // 2. Extração segura de peso, altura, idade e sexo
   const currentSex = assessment.dadosMedidos?.sexo || client.dadosPessoais?.sexo || 'M';
   const currentAge = Number(assessment.dadosMedidos?.idade) || Number(client.dadosPessoais?.idade) || 30;
   const currentPeso = Number(assessment.dadosMedidos?.peso) || 70;
-  
+
   const clientNameLower = (client.nome || client.dadosPessoais?.nome || '').toLowerCase();
   const defaultFallbackHeight = (currentSex === 'F' || clientNameLower.includes('manoela')) ? 1.61 : 1.75;
   let rawAltura = Number(assessment.dadosMedidos?.altura) || Number(client.dadosPessoais?.altura) || defaultFallbackHeight;
@@ -3600,7 +3610,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       { ageMin: 7, ageMax: 10, p10: 11.5, p30: 13.2, p50: 15.8, p70: 19.4, p90: 25.5 },
       { ageMin: 11, ageMax: 14, p10: 10.8, p30: 12.5, p50: 14.9, p70: 18.2, p90: 24.1 },
       { ageMin: 15, ageMax: 19, p10: 10.2, p30: 11.8, p50: 13.7, p70: 17.5, p90: 22.8 },
-      { ageMin: 20, ageMax: 29, p10: 7.9,  p30: 12.7, p50: 16.6, p70: 20.6, p90: 26.3 },
+      { ageMin: 20, ageMax: 29, p10: 7.9, p30: 12.7, p50: 16.6, p70: 20.6, p90: 26.3 },
       { ageMin: 30, ageMax: 39, p10: 11.9, p30: 16.5, p50: 19.7, p70: 23.0, p90: 27.8 },
       { ageMin: 40, ageMax: 49, p10: 14.9, p30: 19.1, p50: 21.9, p70: 24.8, p90: 29.2 },
       { ageMin: 50, ageMax: 59, p10: 16.7, p30: 20.7, p50: 23.2, p70: 26.0, p90: 30.3 },
@@ -3617,7 +3627,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       { ageMin: 60, ageMax: 200, p10: 23.1, p30: 27.5, p50: 30.5, p70: 34.2, p90: 38.5 }
     ]
   };
-  
+
   const bfList = (referenceBF as any)[currentSex] || referenceBF['M'];
   const bfRow = bfList.find((r: any) => currentAge >= r.ageMin && currentAge <= r.ageMax) || bfList[bfList.length - 1];
 
@@ -3648,7 +3658,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   let targetText = 'Não especificado';
   let totalSemanas = 0;
   const meses = assessment.dadosMedidos.objetivoMeses || 3;
-  
+
   if (assessment.dadosMedidos.tipoObjetivo) {
     const sexo = assessment.dadosMedidos.sexo || client.dadosPessoais?.sexo || 'M';
     const objectives = assessment.dadosMedidos.tipoObjetivo.split(',').filter(Boolean);
@@ -3665,10 +3675,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       const label = tipo === 'Emagrecimento' ? 'Perda' : 'Ganho';
       return `${label} (Cons/Esp/Excel): ${consTotal} / ${espTotal} / ${excTotal} kg`;
     });
-    
+
     targetText = `Projeção para ${meses} ${meses === 1 ? 'mês' : 'meses'} (${totalSemanas} sem) | Nível: ${nivel} | ${parts.join(' e ')}`;
   }
-  
+
   let diffBFText = '';
   if (pctGordura > bfMaxLimit) {
     diffBFText = `Você está ${(pctGordura - bfMaxLimit).toFixed(1)}% acima da média ideal`;
@@ -3676,24 +3686,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     diffBFText = `Você está dentro da faixa ideal`;
   }
 
-  const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.position = 'absolute';
-  pdfWrapper.style.left = '0px';
-  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
-  pdfWrapper.style.width = '794px';
-  pdfWrapper.style.opacity = '0';
-  pdfWrapper.style.zIndex = '99999';
-  pdfWrapper.style.pointerEvents = 'none';
-  pdfWrapper.style.display = 'block';
-
-  const pdfContainer = document.createElement('div');
-  pdfContainer.style.background = '#ffffff';
-  pdfContainer.style.padding = '0';
-  pdfContainer.style.margin = '0';
-  pdfContainer.style.width = '794px';
-  pdfContainer.style.boxSizing = 'border-box';
-
-  pdfWrapper.appendChild(pdfContainer);
+  const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(794);
 
   pdfContainer.innerHTML = `
     <style>
@@ -3885,10 +3878,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       <!-- Header -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 
-            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-          }
+          ${logoBase64
+      ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+      : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+    }
           <div>
             <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
             <p class="logo-subtitle">Avaliação Física e Composição Corporal</p>
@@ -3902,14 +3895,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
       <!-- Barra do Cliente -->
       ${(() => {
-        const hasAge = Number(assessment.dadosMedidos?.idade) > 0 || Number(client.dadosPessoais?.idade) > 0;
-        const objRaw = (assessment.dadosMedidos?.objetivoPrincipal || '').trim();
-        const hasObj = Boolean(objRaw && objRaw !== '-');
-        const cols: string[] = ['1.2fr'];
-        if (hasAge) cols.push('0.55fr');
-        cols.push('0.55fr');
-        if (hasObj) cols.push('1.7fr');
-        return `
+      const hasAge = Number(assessment.dadosMedidos?.idade) > 0 || Number(client.dadosPessoais?.idade) > 0;
+      const objRaw = (assessment.dadosMedidos?.objetivoPrincipal || '').trim();
+      const hasObj = Boolean(objRaw && objRaw !== '-');
+      const cols: string[] = ['1.2fr'];
+      if (hasAge) cols.push('0.55fr');
+      cols.push('0.55fr');
+      if (hasObj) cols.push('1.7fr');
+      return `
       <div class="client-bar" style="grid-template-columns: ${cols.join(' ')}; ${assessment.dadosMedidos.tipoObjetivo ? 'border-bottom: none; border-radius: 8px 8px 0 0; margin-bottom: 0;' : ''}">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
@@ -3930,7 +3923,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <strong style="font-size: ${objRaw.length > 50 ? '7.5px' : (objRaw.length > 30 ? '8.5px' : '9.5px')}; line-height: 1.15;" title="${objRaw}">${objRaw}</strong>
         </div>` : ''}
       </div>`;
-      })()}
+    })()}
 
       <!-- Barra de Metas e Planejamento -->
       ${assessment.dadosMedidos.tipoObjetivo ? `
@@ -4005,23 +3998,23 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
       <!-- Composição Corporal e Análise de Risco -->
       ${(() => {
-        const hasRCQ = cinturaVal > 0 && Number(circObj.quadril) > 0 && rcq > 0;
-        const isCleanFilled = (v: any) => v !== undefined && v !== null && String(v).trim() !== '' && !['-', 'nenhum', 'nenhuma', 'não informado'].includes(String(v).trim().toLowerCase());
-        const leftHealthRows: { label: string; val: string; green?: boolean }[] = [];
-        if (isCleanFilled(saudeGeral.sono)) leftHealthRows.push({ label: 'Sono', val: String(saudeGeral.sono).trim() });
-        if (isCleanFilled(saudeGeral.atividadeFisica)) leftHealthRows.push({ label: 'Ativ. Física', val: `${String(saudeGeral.atividadeFisica).trim()} ✓`, green: true });
+      const hasRCQ = cinturaVal > 0 && Number(circObj.quadril) > 0 && rcq > 0;
+      const isCleanFilled = (v: any) => v !== undefined && v !== null && String(v).trim() !== '' && !['-', 'nenhum', 'nenhuma', 'não informado'].includes(String(v).trim().toLowerCase());
+      const leftHealthRows: { label: string; val: string; green?: boolean }[] = [];
+      if (isCleanFilled(saudeGeral.sono)) leftHealthRows.push({ label: 'Sono', val: String(saudeGeral.sono).trim() });
+      if (isCleanFilled(saudeGeral.atividadeFisica)) leftHealthRows.push({ label: 'Ativ. Física', val: `${String(saudeGeral.atividadeFisica).trim()} ✓`, green: true });
 
-        const rightHealthRows: { label: string; val: string; green?: boolean }[] = [];
-        if (isCleanFilled(saudeGeral.nutricao)) rightHealthRows.push({ label: 'Nutrição', val: `${String(saudeGeral.nutricao).trim()} ✓`, green: true });
-        if (isCleanFilled(saudeGeral.medicamentos)) rightHealthRows.push({ label: 'Medicamentos', val: String(saudeGeral.medicamentos).trim() });
-        if (isCleanFilled(saudeGeral.cirurgias)) rightHealthRows.push({ label: 'Cirurgias', val: String(saudeGeral.cirurgias).trim() });
-        if (isCleanFilled(saudeGeral.queixas)) rightHealthRows.push({ label: 'Queixas', val: String(saudeGeral.queixas).trim() });
+      const rightHealthRows: { label: string; val: string; green?: boolean }[] = [];
+      if (isCleanFilled(saudeGeral.nutricao)) rightHealthRows.push({ label: 'Nutrição', val: `${String(saudeGeral.nutricao).trim()} ✓`, green: true });
+      if (isCleanFilled(saudeGeral.medicamentos)) rightHealthRows.push({ label: 'Medicamentos', val: String(saudeGeral.medicamentos).trim() });
+      if (isCleanFilled(saudeGeral.cirurgias)) rightHealthRows.push({ label: 'Cirurgias', val: String(saudeGeral.cirurgias).trim() });
+      if (isCleanFilled(saudeGeral.queixas)) rightHealthRows.push({ label: 'Queixas', val: String(saudeGeral.queixas).trim() });
 
-        const hasRiskAndHealthCard = hasRCQ || leftHealthRows.length > 0 || rightHealthRows.length > 0;
-        const hasLeftCol = hasRCQ || leftHealthRows.length > 0;
-        const hasRightCol = rightHealthRows.length > 0;
+      const hasRiskAndHealthCard = hasRCQ || leftHealthRows.length > 0 || rightHealthRows.length > 0;
+      const hasLeftCol = hasRCQ || leftHealthRows.length > 0;
+      const hasRightCol = rightHealthRows.length > 0;
 
-        return `
+      return `
       <div style="display: grid; grid-template-columns: ${hasRiskAndHealthCard ? '1fr 1fr' : '1fr'}; gap: 12px; margin-bottom: 8px;">
         <!-- Composição Corporal -->
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
@@ -4090,59 +4083,59 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           </div>
         </div>` : ''}
       </div>`;
-      })()}
+    })()}
 
       <!-- Dobras e Circunferências -->
       ${(() => {
         const dobrasRows = [
           { label: 'Peitoral', val: dPeitoral, cx: 44, cy: 56 },
-          { label: 'Tríceps', val: dTriceps, cx: 33, cy: 65 },
-          { label: 'Subescapular', val: dSubescapular, cx: 58, cy: 55 },
-          { label: 'Subaxilar (Axilar Média)', val: dSubaxilar, cx: 39, cy: 65 },
-          { label: 'Supra-ilíaca', val: dSuprailiaca, cx: 58, cy: 82 },
-          { label: 'Abdômen', val: dAbdomen, cx: 44, cy: 82 },
-          { label: 'Coxa', val: dCoxa, cx: 45, cy: 130 },
-          { label: 'Panturrilha', val: dPanturrilha, cx: 45, cy: 165 }
+          { label: 'Tríceps', val: dTriceps, cx: 25, cy: 68 },
+          { label: 'Subescapular', val: dSubescapular, cx: 56, cy: 56 },
+          { label: 'Subaxilar (Axilar Média)', val: dSubaxilar, cx: 34, cy: 65 },
+          { label: 'Supra-ilíaca', val: dSuprailiaca, cx: 36, cy: 84 },
+          { label: 'Abdômen', val: dAbdomen, cx: 43, cy: 94 },
+          { label: 'Coxa', val: dCoxa, cx: 42, cy: 136 },
+          { label: 'Panturrilha', val: dPanturrilha, cx: 42, cy: 172 }
         ].filter(r => Number(r.val) > 0);
         const hasDobrasCard = dobrasRows.length > 0 || finalSomaDobras > 0;
 
-        const fmtBiCirc = (d: any, e: any) => {
-          const nd = Number(d) || 0;
-          const ne = Number(e) || 0;
-          if (nd <= 0 && ne <= 0) return '';
-          if (nd > 0 && ne > 0) return `${nd} / ${ne} cm`;
-          return nd > 0 ? `${nd} cm (Dir.)` : `${ne} cm (Esq.)`;
-        };
-        const circRows: { label: string; val: string }[] = [];
-        if (Number(circunferencias.pescoco) > 0) circRows.push({ label: 'Pescoço', val: `${circunferencias.pescoco} cm` });
-        if (Number(circunferencias.ombros) > 0) circRows.push({ label: 'Ombros', val: `${circunferencias.ombros} cm` });
-        if (Number(circunferencias.torax) > 0) circRows.push({ label: 'Tórax', val: `${circunferencias.torax} cm` });
-        const bracoTxt = fmtBiCirc(circunferencias.braçoD, circunferencias.braçoE);
-        if (bracoTxt) circRows.push({ label: 'Braço Dir. / Esq.', val: bracoTxt });
-        const antebracoTxt = fmtBiCirc(circunferencias.antebraçoD, circunferencias.antebraçoE);
-        if (antebracoTxt) circRows.push({ label: 'Antebraço Dir. / Esq.', val: antebracoTxt });
-        if (Number(circunferencias.cintura) > 0) circRows.push({ label: 'Cintura', val: `${circunferencias.cintura} cm` });
-        if (Number(circunferencias.abdomen) > 0) circRows.push({ label: 'Abdômen', val: `${circunferencias.abdomen} cm` });
-        if (Number(circunferencias.quadril) > 0) circRows.push({ label: 'Quadril', val: `${circunferencias.quadril} cm` });
-        const coxaTxt = fmtBiCirc(circunferencias.coxaD, circunferencias.coxaE);
-        if (coxaTxt) circRows.push({ label: 'Coxa Dir. / Esq.', val: coxaTxt });
-        const pantTxt = fmtBiCirc(circunferencias.panturrilhaD, circunferencias.panturrilhaE);
-        if (pantTxt) circRows.push({ label: 'Panturrilha Dir. / Esq.', val: pantTxt });
-        const hasCircCard = circRows.length > 0;
+      const fmtBiCirc = (d: any, e: any) => {
+        const nd = Number(d) || 0;
+        const ne = Number(e) || 0;
+        if (nd <= 0 && ne <= 0) return '';
+        if (nd > 0 && ne > 0) return `${nd} / ${ne} cm`;
+        return nd > 0 ? `${nd} cm (Dir.)` : `${ne} cm (Esq.)`;
+      };
+      const circRows: { label: string; val: string }[] = [];
+      if (Number(circunferencias.pescoco) > 0) circRows.push({ label: 'Pescoço', val: `${circunferencias.pescoco} cm` });
+      if (Number(circunferencias.ombros) > 0) circRows.push({ label: 'Ombros', val: `${circunferencias.ombros} cm` });
+      if (Number(circunferencias.torax) > 0) circRows.push({ label: 'Tórax', val: `${circunferencias.torax} cm` });
+      const bracoTxt = fmtBiCirc(circunferencias.braçoD, circunferencias.braçoE);
+      if (bracoTxt) circRows.push({ label: 'Braço Dir. / Esq.', val: bracoTxt });
+      const antebracoTxt = fmtBiCirc(circunferencias.antebraçoD, circunferencias.antebraçoE);
+      if (antebracoTxt) circRows.push({ label: 'Antebraço Dir. / Esq.', val: antebracoTxt });
+      if (Number(circunferencias.cintura) > 0) circRows.push({ label: 'Cintura', val: `${circunferencias.cintura} cm` });
+      if (Number(circunferencias.abdomen) > 0) circRows.push({ label: 'Abdômen', val: `${circunferencias.abdomen} cm` });
+      if (Number(circunferencias.quadril) > 0) circRows.push({ label: 'Quadril', val: `${circunferencias.quadril} cm` });
+      const coxaTxt = fmtBiCirc(circunferencias.coxaD, circunferencias.coxaE);
+      if (coxaTxt) circRows.push({ label: 'Coxa Dir. / Esq.', val: coxaTxt });
+      const pantTxt = fmtBiCirc(circunferencias.panturrilhaD, circunferencias.panturrilhaE);
+      if (pantTxt) circRows.push({ label: 'Panturrilha Dir. / Esq.', val: pantTxt });
+      const hasCircCard = circRows.length > 0;
 
-        if (!hasDobrasCard && !hasCircCard) return '';
+      if (!hasDobrasCard && !hasCircCard) return '';
 
-        return `
+      return `
       <div style="display: grid; grid-template-columns: ${hasDobrasCard && hasCircCard ? '1fr 1fr' : '1fr'}; gap: 12px;">
         ${hasDobrasCard ? `
         <!-- Dobras Cutâneas -->
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
           <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Dobras Cutâneas (mm)</h3>
           
-          <div style="display:flex; gap: 10px;">
+          <div style="display:flex; gap: 10px; align-items: center;">
             <!-- Silhueta com pontos -->
-            <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
-              <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
+            <div style="width: 75px; height: 150px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+              <img src="${avatarB64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: fill; opacity: 0.88;" />
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                 ${dobrasRows.map(d => `<circle cx="${d.cx}" cy="${d.cy}" r="3" fill="#10b981" title="${d.label}"></circle>`).join('')}
               </svg>
@@ -4169,25 +4162,25 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
           <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Circunferências (Perímetros em cm)</h3>
           
-          <div style="display:flex; gap: 10px;">
+          <div style="display:flex; gap: 10px; align-items: center;">
             <!-- Silhueta com linhas -->
-            <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
-              <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
+            <div style="width: 75px; height: 150px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+              <img src="${avatarB64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: fill; opacity: 0.88;" />
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                ${Number(circunferencias.pescoco) > 0 ? `<line x1="45" y1="38" x2="55" y2="38" stroke="#10b981" stroke-width="2" title="Pescoço"></line>` : ''}
-                ${Number(circunferencias.ombros) > 0 ? `<line x1="31" y1="48" x2="69" y2="48" stroke="#10b981" stroke-width="2" title="Ombros"></line>` : ''}
-                ${Number(circunferencias.torax) > 0 ? `<line x1="35" y1="60" x2="65" y2="60" stroke="#10b981" stroke-width="2" title="Tórax"></line>` : ''}
-                ${Number(circunferencias.braçoD) > 0 ? `<line x1="32" y1="70" x2="36" y2="70" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>` : ''}
-                ${Number(circunferencias.braçoE) > 0 ? `<line x1="64" y1="70" x2="68" y2="70" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>` : ''}
-                ${Number(circunferencias.cintura) > 0 ? `<line x1="41" y1="85" x2="59" y2="85" stroke="#10b981" stroke-width="2" title="Cintura"></line>` : ''}
-                ${Number(circunferencias.antebraçoD) > 0 ? `<line x1="30" y1="90" x2="33" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>` : ''}
-                ${Number(circunferencias.antebraçoE) > 0 ? `<line x1="67" y1="90" x2="70" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>` : ''}
-                ${Number(circunferencias.abdomen) > 0 ? `<line x1="40" y1="94" x2="60" y2="94" stroke="#10b981" stroke-width="2" title="Abdômen"></line>` : ''}
-                ${Number(circunferencias.quadril) > 0 ? `<line x1="38" y1="102" x2="62" y2="102" stroke="#10b981" stroke-width="2" title="Quadril"></line>` : ''}
-                ${Number(circunferencias.coxaD) > 0 ? `<line x1="42" y1="130" x2="48" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>` : ''}
-                ${Number(circunferencias.coxaE) > 0 ? `<line x1="52" y1="130" x2="58" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>` : ''}
-                ${Number(circunferencias.panturrilhaD) > 0 ? `<line x1="43" y1="165" x2="47" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>` : ''}
-                ${Number(circunferencias.panturrilhaE) > 0 ? `<line x1="53" y1="165" x2="57" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>` : ''}
+                ${Number(circunferencias.pescoco) > 0 ? `<line x1="43" y1="31" x2="57" y2="31" stroke="#10b981" stroke-width="2" title="Pescoço"></line>` : ''}
+                ${Number(circunferencias.ombros) > 0 ? `<line x1="28" y1="42" x2="72" y2="42" stroke="#10b981" stroke-width="2" title="Ombros"></line>` : ''}
+                ${Number(circunferencias.torax) > 0 ? `<line x1="33" y1="58" x2="67" y2="58" stroke="#10b981" stroke-width="2" title="Tórax"></line>` : ''}
+                ${Number(circunferencias.braçoD) > 0 ? `<line x1="20" y1="68" x2="27" y2="68" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>` : ''}
+                ${Number(circunferencias.braçoE) > 0 ? `<line x1="73" y1="68" x2="80" y2="68" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>` : ''}
+                ${Number(circunferencias.cintura) > 0 ? `<line x1="37" y1="82" x2="63" y2="82" stroke="#10b981" stroke-width="2" title="Cintura"></line>` : ''}
+                ${Number(circunferencias.antebraçoD) > 0 ? `<line x1="16" y1="92" x2="22" y2="92" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>` : ''}
+                ${Number(circunferencias.antebraçoE) > 0 ? `<line x1="78" y1="92" x2="84" y2="92" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>` : ''}
+                ${Number(circunferencias.abdomen) > 0 ? `<line x1="36" y1="94" x2="64" y2="94" stroke="#10b981" stroke-width="2" title="Abdômen"></line>` : ''}
+                ${Number(circunferencias.quadril) > 0 ? `<line x1="34" y1="110" x2="66" y2="110" stroke="#10b981" stroke-width="2" title="Quadril"></line>` : ''}
+                ${Number(circunferencias.coxaD) > 0 ? `<line x1="35" y1="135" x2="48" y2="135" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>` : ''}
+                ${Number(circunferencias.coxaE) > 0 ? `<line x1="52" y1="135" x2="65" y2="135" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>` : ''}
+                ${Number(circunferencias.panturrilhaD) > 0 ? `<line x1="36" y1="172" x2="46" y2="172" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>` : ''}
+                ${Number(circunferencias.panturrilhaE) > 0 ? `<line x1="54" y1="172" x2="64" y2="172" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>` : ''}
               </svg>
             </div>
 
@@ -4201,7 +4194,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           </div>
         </div>` : ''}
       </div>`;
-      })()}
+    })()}
       
       <!-- Footer Decorado Página 1 -->
       <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
@@ -4227,57 +4220,57 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
       <!-- Flexibilidade e Mobilidade (Goniometria) -->
       ${(() => {
-        const gonioAssessmentRows = [
-          { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
-          { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
-          { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
-          { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
-          { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
-          { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
-          { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
-          { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
-          { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
-          { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
-          { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
-          { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
-          { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
-        ].filter(row => {
-          const g = dadosMedidos.goniometria || {};
-          const pD = parseGonioField(g[row.key + 'D']);
-          const pE = parseGonioField(g[row.key + 'E']);
-          return pD.semForca !== '' || pD.comForca !== '' || pE.semForca !== '' || pE.comForca !== '';
-        });
+      const gonioAssessmentRows = [
+        { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
+        { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
+        { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
+        { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
+        { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
+        { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
+        { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
+        { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
+        { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
+        { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
+        { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
+        { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
+        { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
+      ].filter(row => {
+        const g = dadosMedidos.goniometria || {};
+        const pD = parseGonioField(g[row.key + 'D']);
+        const pE = parseGonioField(g[row.key + 'E']);
+        return pD.semForca !== '' || pD.comForca !== '' || pE.semForca !== '' || pE.comForca !== '';
+      });
 
-        const te = testesEspeciais || {};
-        const hasOber = Boolean((te.oberD && te.oberD !== '-') || (te.oberE && te.oberE !== '-'));
-        const hasIlio = Boolean(
-          te.thomasIliopsoasDStatus !== undefined ||
-          te.thomasIliopsoasEStatus !== undefined ||
-          (te.thomasD && te.thomasD !== '-') ||
-          (te.thomasE && te.thomasE !== '-') ||
-          (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' && Number(te.thomasIliopsoasD) > 0) ||
-          (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' && Number(te.thomasIliopsoasE) > 0)
-        );
-        const hasReto = Boolean(
-          te.thomasRetofemoralDStatus !== undefined ||
-          te.thomasRetofemoralEStatus !== undefined ||
-          (te.thomasD && te.thomasD !== '-') ||
-          (te.thomasE && te.thomasE !== '-') ||
-          (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' && Number(te.thomasRetofemoralD) > 0) ||
-          (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' && Number(te.thomasRetofemoralE) > 0)
-        );
+      const te = testesEspeciais || {};
+      const hasOber = Boolean((te.oberD && te.oberD !== '-') || (te.oberE && te.oberE !== '-'));
+      const hasIlio = Boolean(
+        te.thomasIliopsoasDStatus !== undefined ||
+        te.thomasIliopsoasEStatus !== undefined ||
+        (te.thomasD && te.thomasD !== '-') ||
+        (te.thomasE && te.thomasE !== '-') ||
+        (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' && Number(te.thomasIliopsoasD) > 0) ||
+        (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' && Number(te.thomasIliopsoasE) > 0)
+      );
+      const hasReto = Boolean(
+        te.thomasRetofemoralDStatus !== undefined ||
+        te.thomasRetofemoralEStatus !== undefined ||
+        (te.thomasD && te.thomasD !== '-') ||
+        (te.thomasE && te.thomasE !== '-') ||
+        (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' && Number(te.thomasRetofemoralD) > 0) ||
+        (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' && Number(te.thomasRetofemoralE) > 0)
+      );
 
-        const hasSpecialTestsRows = hasOber || hasIlio || hasReto || hasMaigneData || Boolean(stepDownRowsHtml) || Boolean(yTestRowsHtml) || Boolean(termografiaIsRealizado);
-        const hasGonioRows = gonioAssessmentRows.length > 0;
+      const hasSpecialTestsRows = hasOber || hasIlio || hasReto || hasMaigneData || Boolean(stepDownRowsHtml) || Boolean(yTestRowsHtml) || Boolean(termografiaIsRealizado);
+      const hasGonioRows = gonioAssessmentRows.length > 0;
 
-        if (!hasGonioRows && !hasSpecialTestsRows) return '';
+      if (!hasGonioRows && !hasSpecialTestsRows) return '';
 
-        const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
-        const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
-        const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
-        const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
+      const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
+      const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
+      const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
+      const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
 
-        return `
+      return `
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
         <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">${hasGonioRows ? 'Flexibilidade e Mobilidade Articular (Goniometria)' : 'Testes Ortopédicos e Funcionais'}</h3>
         
@@ -4296,25 +4289,25 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               </thead>
               <tbody>
                 ${gonioAssessmentRows.map(row => {
-                  const g = dadosMedidos.goniometria || {};
-                  const valD = g[row.key + 'D'];
-                  const valE = g[row.key + 'E'];
-                  const pD = parseGonioField(valD);
-                  const pE = parseGonioField(valE);
+        const g = dadosMedidos.goniometria || {};
+        const valD = g[row.key + 'D'];
+        const valE = g[row.key + 'E'];
+        const pD = parseGonioField(valD);
+        const pE = parseGonioField(valE);
 
-                  const d1 = pD.numSemForca;
-                  const e1 = pE.numSemForca;
-                  const max1 = Math.max(d1, e1);
-                  const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
+        const d1 = pD.numSemForca;
+        const e1 = pE.numSemForca;
+        const max1 = Math.max(d1, e1);
+        const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
 
-                  const d2 = pD.numComForca;
-                  const e2 = pE.numComForca;
-                  const max2 = Math.max(d2, e2);
-                  const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
+        const d2 = pD.numComForca;
+        const e2 = pE.numComForca;
+        const max2 = Math.max(d2, e2);
+        const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
 
-                  const hasAsy = hasAsy1 || hasAsy2;
+        const hasAsy = hasAsy1 || hasAsy2;
 
-                  return `
+        return `
                     <tr style="border-bottom: 1px solid #f1f5f9; ${hasAsy ? 'background: rgba(239, 68, 68, 0.04);' : ''}">
                       <td style="font-weight:600; padding: 3px 6px; font-size:7.2px; color: #1e293b;">
                         ${row.label}
@@ -4325,7 +4318,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                       <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valE)}</td>
                     </tr>
                   `;
-                }).join('')}
+      }).join('')}
               </tbody>
             </table>
           </div>` : ''}
@@ -4440,7 +4433,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <span><span style="display:inline-block; width:5px; height:5px; background:#ef4444; border-radius:50%;"></span> Abaixo do ideal (Mobilidade reduzida)</span>
         </div>` : ''}
       </div>`;
-      })()}
+    })()}
 
       <!-- Evolução Corporal (Histórico de Gráficos e Tabela) -->
       <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-bottom: 12px;">
@@ -4770,13 +4763,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   } else {
     // Fluxo padrão — sem anexos
     const html2pdf = await ensureHtml2Pdf();
-  if (!html2pdf) {
-    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
-    safeRemoveWrapper(pdfWrapper);
-    return;
-  }
+    if (!html2pdf) {
+      alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
+      safeRemoveWrapper(pdfWrapper);
+      return;
+    }
 
-  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       triggerDirectDownload(blob, filename);
       safeRemoveWrapper(pdfWrapper);
     }).catch((err: any) => {
@@ -4821,25 +4814,8 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
     return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
   };
 
-  const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.position = 'absolute';
-  pdfWrapper.style.left = '0px';
-  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
-  pdfWrapper.style.width = '794px';
-  pdfWrapper.style.opacity = '0';
-  pdfWrapper.style.zIndex = '99999';
-  pdfWrapper.style.pointerEvents = 'none';
-  pdfWrapper.style.display = 'block';
-
-  const pdfContainer = document.createElement('div');
-  pdfContainer.style.background = '#ffffff';
+  const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(794);
   pdfContainer.style.color = '#1e293b';
-  pdfContainer.style.padding = '0';
-  pdfContainer.style.margin = '0';
-  pdfContainer.style.width = '794px';
-  pdfContainer.style.boxSizing = 'border-box';
-
-  pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
   // Resolução profunda e segura dos dados do cliente
@@ -4879,8 +4855,8 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
   const profObj = typeof profNome === 'object' && profNome !== null
     ? profNome
     : (prontuario.profissionalId && typeof prontuario.profissionalId === 'object'
-        ? prontuario.profissionalId
-        : { nome: profNome || 'Profissional', registro: profRegistro || 'CREFITO' });
+      ? prontuario.profissionalId
+      : { nome: profNome || 'Profissional', registro: profRegistro || 'CREFITO' });
 
   pdfContainer.innerHTML = `
     <style>
@@ -5047,10 +5023,10 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
       <!-- HEADER OFICIAL DO SISTEMA (IMAGEM 2) -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 
-            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif;">CFF</div>`
-          }
+          ${logoBase64
+      ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+      : `<div style="width: 48px; height: 48px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif;">CFF</div>`
+    }
           <div>
             <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
             <p class="logo-subtitle">PRONTUÁRIO CLÍNICO DE ACOMPANHAMENTO</p>
@@ -5064,14 +5040,14 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
 
       <!-- BARRA DO ALUNO OFICIAL (IMAGEM 2) -->
       ${(() => {
-        const hasAge = ageText !== '-';
-        const docParts = [cpf !== '-' ? `CPF: ${cpf}` : '', tel !== '-' ? `Tel: ${tel}` : ''].filter(Boolean);
-        const hasDoc = docParts.length > 0;
-        const cols = ['1.2fr'];
-        if (hasAge) cols.push('0.55fr');
-        cols.push('0.55fr');
-        if (hasDoc) cols.push('1.7fr');
-        return `
+      const hasAge = ageText !== '-';
+      const docParts = [cpf !== '-' ? `CPF: ${cpf}` : '', tel !== '-' ? `Tel: ${tel}` : ''].filter(Boolean);
+      const hasDoc = docParts.length > 0;
+      const cols = ['1.2fr'];
+      if (hasAge) cols.push('0.55fr');
+      cols.push('0.55fr');
+      if (hasDoc) cols.push('1.7fr');
+      return `
       <div class="client-bar" style="grid-template-columns: ${cols.join(' ')};">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
@@ -5092,7 +5068,7 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
           <strong>${docParts.join(' • ')}</strong>
         </div>` : ''}
       </div>`;
-      })()}
+    })()}
 
       <!-- SEÇÃO CLÍNICA COM HEADER ESCURO (IMAGEM 3) E TEXTO JUSTIFICADO -->
       <div class="section-card">
@@ -5124,6 +5100,13 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
+
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
+    safeRemoveWrapper(pdfWrapper);
+    return;
+  }
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
@@ -5197,25 +5180,8 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
     }
   }
 
-  const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.position = 'absolute';
-  pdfWrapper.style.left = '0px';
-  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
-  pdfWrapper.style.width = '794px';
-  pdfWrapper.style.opacity = '0';
-  pdfWrapper.style.zIndex = '99999';
-  pdfWrapper.style.pointerEvents = 'none';
-  pdfWrapper.style.display = 'block';
-
-  const pdfContainer = document.createElement('div');
-  pdfContainer.style.background = '#ffffff';
+  const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(794);
   pdfContainer.style.color = '#1e293b';
-  pdfContainer.style.padding = '0';
-  pdfContainer.style.margin = '0';
-  pdfContainer.style.width = '794px';
-  pdfContainer.style.boxSizing = 'border-box';
-
-  pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
   const profObj = typeof profNome === 'object' && profNome !== null
@@ -5388,10 +5354,10 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
       <!-- HEADER OFICIAL DO SISTEMA -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 
-            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif;">CFF</div>`
-          }
+          ${logoBase64
+      ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+      : `<div style="width: 48px; height: 48px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif;">CFF</div>`
+    }
           <div>
             <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
             <p class="logo-subtitle">HISTÓRICO CONSOLIDADO DE PRONTUÁRIOS</p>
@@ -5405,14 +5371,14 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
 
       <!-- BARRA DO ALUNO OFICIAL -->
       ${(() => {
-        const hasAge = ageText !== '-';
-        const docParts = [cpf !== '-' ? `CPF: ${cpf}` : '', tel !== '-' ? `Tel: ${tel}` : ''].filter(Boolean);
-        const hasDoc = docParts.length > 0;
-        const cols = ['1.2fr'];
-        if (hasAge) cols.push('0.55fr');
-        cols.push('0.55fr');
-        if (hasDoc) cols.push('1.7fr');
-        return `
+      const hasAge = ageText !== '-';
+      const docParts = [cpf !== '-' ? `CPF: ${cpf}` : '', tel !== '-' ? `Tel: ${tel}` : ''].filter(Boolean);
+      const hasDoc = docParts.length > 0;
+      const cols = ['1.2fr'];
+      if (hasAge) cols.push('0.55fr');
+      cols.push('0.55fr');
+      if (hasDoc) cols.push('1.7fr');
+      return `
       <div class="client-bar" style="grid-template-columns: ${cols.join(' ')};">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
@@ -5433,14 +5399,14 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
           <strong>${docParts.join(' • ')}</strong>
         </div>` : ''}
       </div>`;
-      })()}
+    })()}
 
       <!-- LISTA DE EVOLUÇÕES EM CARDS PADRONIZADOS -->
       ${sorted.map((p, idx) => {
-        const obsItem = p.conteudo || p.observacoes || p.texto || 'Nenhuma observação registrada.';
-        const dataItem = fmtDate(p.data || p.createdAt || '');
-        const pProf = p.profissionalId && typeof p.profissionalId === 'object' ? p.profissionalId.nome : '';
-        return `
+      const obsItem = p.conteudo || p.observacoes || p.texto || 'Nenhuma observação registrada.';
+      const dataItem = fmtDate(p.data || p.createdAt || '');
+      const pProf = p.profissionalId && typeof p.profissionalId === 'object' ? p.profissionalId.nome : '';
+      return `
           <div class="section-card">
             <div class="section-card-title">
               <span>🩺 Evolução #${sorted.length - idx} ${pProf ? `• Fisioterapeuta: ${pProf}` : ''}</span>
@@ -5449,7 +5415,7 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
             <div class="section-card-content">${obsItem}</div>
           </div>
         `;
-      }).join('')}
+    }).join('')}
 
       <!-- ASSINATURA CONSOLIDADA -->
       <div style="margin-top: 24px; page-break-inside: avoid !important; break-inside: avoid !important;">
@@ -5472,6 +5438,13 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
+
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
+    safeRemoveWrapper(pdfWrapper);
+    return;
+  }
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
@@ -5624,11 +5597,8 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
     getDynamicStrengthAtlasBase64(atlasKey, testedJoints)
   ]);
 
-  const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:794px;opacity:0;z-index:99999;pointer-events:none;display:block;`;
-  const pdfContainer = document.createElement('div');
-  pdfContainer.style.cssText = 'background:#ffffff;color:#1e293b;padding:0;margin:0;width:794px;box-sizing:border-box;';
-  pdfWrapper.appendChild(pdfContainer);
+  const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(794);
+  pdfContainer.style.color = '#1e293b';
   document.body.appendChild(pdfWrapper);
 
   const pdfStyles = `
@@ -6093,9 +6063,9 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
     // 9. NOVO ÍNDICE: CORE COMPLEX (Estabilidade Lombopélvica de Janda)
     const extTroncoForce = getAvgForceN('Coluna / Tronco', 'Extensão') || getAvgForceN('Tronco', 'Extensão') || getAvgForceN('Coluna', 'Extensão');
     const extTroncoPCVal = extTroncoForce > 0 && pesoNum > 0 ? (extTroncoForce / 9.80665 / pesoNum) * 100 : 0;
-    const isThomasPos = st.thomasPositivo === true || 
-                        client?.dadosMedidos?.testesEspeciais?.thomasIliopsoasDStatus === 'positivo' || 
-                        client?.dadosMedidos?.testesEspeciais?.thomasIliopsoasEStatus === 'positivo';
+    const isThomasPos = st.thomasPositivo === true ||
+      client?.dadosMedidos?.testesEspeciais?.thomasIliopsoasDStatus === 'positivo' ||
+      client?.dadosMedidos?.testesEspeciais?.thomasIliopsoasEStatus === 'positivo';
     if (isThomasPos && extTroncoPCVal > 0 && extTroncoPCVal < 100) {
       riscosOrtopedicos.push({
         titulo: 'Síndrome Cruzada Pélvica de Janda (CORE COMPLEX)',
@@ -6121,7 +6091,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
     const testsHtml = st.testesRealizados.map((t: any) => {
       const refData = STRENGTH_REFERENCE_TABLE[t.articulacao]?.[t.movimento]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };
       const refText = refData.min > 0 ? `${refData.min}-${refData.max} %PC` : '';
-      
+
       let badgeClass = 'badge-green';
       if (t.classificacao === 'DÉFICIT LEVE') badgeClass = 'badge-blue';
       else if (t.classificacao === 'DÉFICIT MODERADO') badgeClass = 'badge-orange';
@@ -6274,7 +6244,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
       </div>
     `;
 
-    const observationHtml = st.observacoes 
+    const observationHtml = st.observacoes
       ? `<div class="pdf-section-wrapper avoid-break">
           <div class="section-card" style="margin-bottom: 0;">
             <div class="section-card-title">Observações Clínicas / Recomendações</div>
@@ -6291,10 +6261,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
           <!-- Header Clínico de Evolução -->
           <div class="grid-header" style="padding-bottom: 8px; margin-bottom: 10px;">
             <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
-                : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
-              }
+              ${logoBase64
+        ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
+        : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
+      }
               <div>
                 <strong style="font-size: 13px; color: #0f172a; font-family: 'Outfit', sans-serif;">CLUBE FITNESS FISIO &nbsp;•&nbsp; LAUDO CIENTÍFICO DE EVOLUÇÃO LONGITUDINAL</strong>
                 <p style="font-size: 8px; color: #64748b; margin: 0;">Paciente: <strong>${nome}</strong> &nbsp;|&nbsp; Intervalo: <strong>${fmtDate(evolution.dataAnterior || '')} ➔ ${fmtDate(evolution.dataAtual)}</strong> ${evolution.diasIntervalo ? `(${evolution.diasIntervalo} dias)` : ''}</p>
@@ -6376,14 +6346,14 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                   </thead>
                   <tbody>
                     ${evolution.items.map(it => {
-                      const hasPrev = it.forcaAntN !== null;
-                      const isGain = (it.deltaPct || 0) > 2;
-                      const isLoss = (it.deltaPct || 0) < -2;
-                      const badgeBg = isGain ? '#dcfce7' : (isLoss ? '#fee2e2' : '#f1f5f9');
-                      const badgeColor = isGain ? '#15803d' : (isLoss ? '#b91c1c' : '#475569');
-                      const deltaSign = (it.deltaN || 0) > 0 ? '+' : '';
+        const hasPrev = it.forcaAntN !== null;
+        const isGain = (it.deltaPct || 0) > 2;
+        const isLoss = (it.deltaPct || 0) < -2;
+        const badgeBg = isGain ? '#dcfce7' : (isLoss ? '#fee2e2' : '#f1f5f9');
+        const badgeColor = isGain ? '#15803d' : (isLoss ? '#b91c1c' : '#475569');
+        const deltaSign = (it.deltaN || 0) > 0 ? '+' : '';
 
-                      return `
+        return `
                         <tr style="${isGain ? 'background-color:#f0fdf4;' : ''}">
                           <td><strong>${it.articulacao}</strong> - ${it.movimento}</td>
                           <td style="text-align:center;">${it.lado}</td>
@@ -6403,14 +6373,14 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                             ` : '<span style="color:#94a3b8; font-size:7.5px;">1º Teste</span>'}
                           </td>
                           <td style="text-align:center; font-size:7.5px;">
-                            ${it.classificacaoAnt && it.classificacaoAnt !== it.classificacaoAtual 
-                              ? `<span style="color:#64748b;">${it.classificacaoAnt}</span> <strong style="color:#0284c7;">➔</strong> <strong style="color:#0f172a;">${it.classificacaoAtual}</strong>`
-                              : `<span style="color:#475569;">${it.classificacaoAtual || 'Normal'}</span>`
-                            }
+                            ${it.classificacaoAnt && it.classificacaoAnt !== it.classificacaoAtual
+            ? `<span style="color:#64748b;">${it.classificacaoAnt}</span> <strong style="color:#0284c7;">➔</strong> <strong style="color:#0f172a;">${it.classificacaoAtual}</strong>`
+            : `<span style="color:#475569;">${it.classificacaoAtual || 'Normal'}</span>`
+          }
                           </td>
                         </tr>
                       `;
-                    }).join('')}
+      }).join('')}
                   </tbody>
                 </table>
               </div>
@@ -6436,14 +6406,14 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                     </thead>
                     <tbody>
                       ${evolution.symmetries.map(s => {
-                        const hasPrev = s.simetriaAnt !== null;
-                        const delta = s.deltaSimetria || 0;
-                        const deltaSign = delta > 0 ? '+' : '';
-                        const isGain = delta > 0.5;
-                        const simVal = Math.min(100, Math.max(0, s.simetriaAtual));
-                        const tier = getSymmetryTier(s.deficitAtual, s.simetriaAtual);
+        const hasPrev = s.simetriaAnt !== null;
+        const delta = s.deltaSimetria || 0;
+        const deltaSign = delta > 0 ? '+' : '';
+        const isGain = delta > 0.5;
+        const simVal = Math.min(100, Math.max(0, s.simetriaAtual));
+        const tier = getSymmetryTier(s.deficitAtual, s.simetriaAtual);
 
-                        return `
+        return `
                           <tr>
                             <td><strong>${s.articulacao}</strong> - ${s.movimento}</td>
                             <td style="text-align:right; color:#64748b;">${hasPrev ? `${s.simetriaAnt?.toFixed(1)}%` : '—'}</td>
@@ -6466,7 +6436,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
                             </td>
                           </tr>
                         `;
-                      }).join('')}
+      }).join('')}
                     </tbody>
                   </table>
                 </div>
@@ -6522,10 +6492,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
           <!-- 1. Header Clínico Principal -->
           <div class="grid-header">
             <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-                : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
-              }
+              ${logoBase64
+        ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+        : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
+      }
               <div>
                 <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
                 <p class="logo-subtitle">Laudo Clínico de Avaliação de Força & Simetria Biomecânica</p>
@@ -6539,13 +6509,13 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
 
           <!-- 2. Ficha do Aluno -->
           ${(() => {
-            const hasCpf = Boolean(cpf && cpf !== '-');
-            const hasPeso = Boolean(peso && peso !== '-' && Number(peso) > 0);
-            const cols = ['1.5fr'];
-            if (hasCpf) cols.push('1fr');
-            if (hasPeso) cols.push('0.8fr');
-            cols.push('0.8fr');
-            return `
+        const hasCpf = Boolean(cpf && cpf !== '-');
+        const hasPeso = Boolean(peso && peso !== '-' && Number(peso) > 0);
+        const cols = ['1.5fr'];
+        if (hasCpf) cols.push('1fr');
+        if (hasPeso) cols.push('0.8fr');
+        cols.push('0.8fr');
+        return `
           <div class="client-bar" style="grid-template-columns: ${cols.join(' ')};">
             <div class="client-bar-item">
               <span>Aluno / Paciente</span>
@@ -6566,7 +6536,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
               <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
             </div>
           </div>`;
-          })()}
+      })()}
 
           <!-- 3. Mapeamento Anatômico Integrado Dual-Body -->
           <div class="pdf-section-wrapper" style="margin-top: 4px; margin-bottom: 8px;">
@@ -6633,10 +6603,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
           <!-- Mini Header Clínico de Continuação -->
           <div class="grid-header" style="padding-bottom: 8px; margin-bottom: 12px;">
             <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
-                : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
-              }
+              ${logoBase64
+        ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
+        : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
+      }
               <div>
                 <strong style="font-size: 13px; color: #0f172a; font-family: 'Outfit', sans-serif;">CLUBE FITNESS FISIO &nbsp;•&nbsp; LAUDO QUANTITATIVO</strong>
                 <p style="font-size: 8px; color: #64748b; margin: 0;">Paciente: <strong>${nome}</strong> &nbsp;|&nbsp; Data: <strong>${data}</strong></p>
@@ -6767,10 +6737,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
         <!-- Header -->
         <div class="grid-header">
           <div class="logo-box">
-            ${logoBase64 
-              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-            }
+            ${logoBase64
+        ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+        : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+      }
             <div>
               <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
               <p class="logo-subtitle">Análise Comparativa de Força Muscular Máxima (1RM)</p>
@@ -6855,6 +6825,13 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
+    safeRemoveWrapper(pdfWrapper);
+    return;
+  }
+
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
     safeRemoveWrapper(pdfWrapper);
@@ -6868,15 +6845,15 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any, p
 // HELPERS — valor por extenso em português
 // ==========================================================
 function valorExtenso(valor: number): string {
-  const unidades = ['','um','dois','três','quatro','cinco','seis','sete','oito','nove'];
-  const dezenas = ['','dez','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
-  const dezenove = ['dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
-  const centenas = ['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
-  function grp(n: number): string { if (!n) return ''; let r=''; const c=Math.floor(n/100),d=Math.floor((n%100)/10),u=n%10; if(c>0){r+=(c===1&&!d&&!u)?'cem':centenas[c];} if(d>0){if(r)r+=' e ';if(d===1){r+=dezenove[u];return r;}r+=dezenas[d];}if(u>0){if(r)r+=' e ';r+=unidades[u];}return r; }
-  const int=Math.floor(valor), cts=Math.round((valor-int)*100);
-  let t=''; if(!int){t='zero reais';}else if(int===1){t='um real';}else{const m=Math.floor(int/1000),r=int%1000;if(m>0){t=m===1?'mil':`${grp(m)} mil`;if(r>0)t+=(r<100||r%100===0)?` e ${grp(r)}`:` ${grp(r)}`;}else t=grp(r);t+=' reais';}
-  const ct=cts>0?(cts===1?'um centavo':`${grp(cts)} centavos`):'';
-  return ct?(!int?ct:`${t} e ${ct}`):t;
+  const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+  const dezenas = ['', 'dez', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+  const dezenove = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+  const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+  function grp(n: number): string { if (!n) return ''; let r = ''; const c = Math.floor(n / 100), d = Math.floor((n % 100) / 10), u = n % 10; if (c > 0) { r += (c === 1 && !d && !u) ? 'cem' : centenas[c]; } if (d > 0) { if (r) r += ' e '; if (d === 1) { r += dezenove[u]; return r; } r += dezenas[d]; } if (u > 0) { if (r) r += ' e '; r += unidades[u]; } return r; }
+  const int = Math.floor(valor), cts = Math.round((valor - int) * 100);
+  let t = ''; if (!int) { t = 'zero reais'; } else if (int === 1) { t = 'um real'; } else { const m = Math.floor(int / 1000), r = int % 1000; if (m > 0) { t = m === 1 ? 'mil' : `${grp(m)} mil`; if (r > 0) t += (r < 100 || r % 100 === 0) ? ` e ${grp(r)}` : ` ${grp(r)}`; } else t = grp(r); t += ' reais'; }
+  const ct = cts > 0 ? (cts === 1 ? 'um centavo' : `${grp(cts)} centavos`) : '';
+  return ct ? (!int ? ct : `${t} e ${ct}`) : t;
 }
 
 // ==========================================================
@@ -6892,13 +6869,13 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
   }
 
   // Thorough scan of all possible attached PDF locations
-  const attachedPdf = 
-    contract?.contratoAnexo || 
-    contract?.contratoPdfBase64 || 
+  const attachedPdf =
+    contract?.contratoAnexo ||
+    contract?.contratoPdfBase64 ||
     contract?.contratoAnexoPdf ||
-    client?.contratoAnexo || 
-    client?.contratoPdfBase64 || 
-    client?.dadosComerciais?.contratoAnexo || 
+    client?.contratoAnexo ||
+    client?.contratoPdfBase64 ||
+    client?.dadosComerciais?.contratoAnexo ||
     client?.dadosComerciais?.contratoPdfBase64 ||
     client?.contrato?.contratoAnexo ||
     client?.contrato?.contratoPdfBase64;
@@ -6942,8 +6919,8 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
     }
   }
 
-  const html2pdf = await ensureHtml2Pdf();
-  if (!html2pdf) { alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.'); return; }
+  const html2pdf = (window as any).html2pdf;
+  if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
 
   const activeContract = contract || (client?.assinaturaPresencialImage ? client : null);
   let signatureSection = '';
@@ -6969,15 +6946,15 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
   const fmtDate = (d: any) => formatDateSafeBR(d);
   const com = client.dadosComerciais || {};
   const pes = client.dadosPessoais || {};
-  
+
   const planNome = plan?.nome || 'Plano Personalizado';
   const isAnual = (plan?.tipo === 'Anual' || (com.duracao || '').toLowerCase() === 'anual' || planNome.toLowerCase().includes('anual'));
-  
+
   // 1. Cálculos Automáticos de Valores e Descontos - Prioriza valor informado/negociado
   const basePreco = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(com.valorLiquido) || Number(plan?.preco) || 0;
   const descVal = Number(com.descontoValor) || 0;
   const descTipo = com.descontoTipo || 'percentual';
-  
+
   let valorFinal = com.valorLiquido !== undefined && com.valorLiquido !== null && com.valorLiquido > 0
     ? Number(com.valorLiquido)
     : basePreco;
@@ -6989,37 +6966,37 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
       valorFinal = Math.max(0, basePreco - descVal);
     }
   }
-  
+
   const numParcelas = Number(com.parcelas) || 1;
   const valorParcela = valorFinal / numParcelas;
-  
+
   // 2. Vigência e Datas
   const today = new Date().toISOString().split('T')[0];
   const dataInicio = com.dataInicio || com.vencimento || today;
   const vigMeses = isAnual ? 12 : 1;
-  
+
   const endD = new Date(dataInicio + 'T00:00:00');
   endD.setMonth(endD.getMonth() + vigMeses);
   const dataFim = endD.toISOString().split('T')[0];
-  
-  const formaPagText = ({pix:'Pix',boleto:'Boleto Bancário',cartao:'Cartão de Crédito/Débito',dinheiro:'Dinheiro'} as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
+
+  const formaPagText = ({ pix: 'Pix', boleto: 'Boleto Bancário', cartao: 'Cartão de Crédito/Débito', dinheiro: 'Dinheiro' } as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
   const now = new Date();
-  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-  const diaVenc = com.vencimento ? parseInt(com.vencimento.split('-')[2]||'5',10) : now.getDate();
+  const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const diaVenc = com.vencimento ? parseInt(com.vencimento.split('-')[2] || '5', 10) : now.getDate();
 
   // Endereço completo estruturado
   const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
-  
+
   // Serviços Inclusos do Plano
   const servicosList = plan?.servicosPermitidos?.length > 0
     ? plan.servicosPermitidos.join(', ')
     : 'Treinos Monitorados, Fisioterapia, Recovery, Quiropraxia';
-    
+
   // Benefícios Inclusos do Plano
   const beneficiosList = plan?.beneficiosInclusos || [];
 
   const calculatedCreditosMensais = Number(com.creditosTotal) || (com.frequencia ? (Number(com.frequencia) === 1 ? 4 : Number(com.frequencia) === 2 ? 9 : Number(com.frequencia) === 3 ? 13 : Number(com.frequencia) === 4 ? 17 : 22) : plan?.creditosTotal || 0);
-  
+
   if (!templateOverride) {
     templateOverride = getUnifiedTemplate({
       clientNome: pes.nome || '',
@@ -7134,14 +7111,9 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
   // A4 page width in pixels at 96dpi = 794px
   const PAGE_W = 794;
 
-  const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:${PAGE_W}px;opacity:0;z-index:99999;pointer-events:none;overflow:hidden;`;
-
-  const pdfContainer = document.createElement('div');
+  const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(PAGE_W);
   // Use internal padding of 56px (~15mm) as margins and set options.margin to 0 to prevent right-edge clipping
   pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:56px;margin:0;`;
-
-  pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
   // If a rich templateOverride was passed (HTML from generateContractTemplate), use it directly.
@@ -7192,7 +7164,7 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
       ${contratoBody}
       <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px;font-size:10pt;">
         <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
-        <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
+        <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome || '-'}</small></div></div>
       </div>
       ${signatureSection}
     `;
@@ -7201,7 +7173,7 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
   // Margins in mm (set to 0 since we use internal 56px padding to prevent right-edge cropping)
   const options = {
     margin: 0,
-    filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`,
+    filename: `Contrato_${(pes.nome || 'Aluno').replace(/\s+/g, '_')}_${today}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: {
       scale: 2,
@@ -7217,6 +7189,15 @@ export async function downloadContractPDF(client: any, plan: any, templateOverri
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   };
+
+
+
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
+    safeRemoveWrapper(pdfWrapper);
+    return;
+  }
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
@@ -7257,14 +7238,14 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     const fmtDate = (d: any) => formatDateSafeBR(d);
     const com = client.dadosComerciais || {};
     const pes = client.dadosPessoais || {};
-    
+
     const planNome = plan?.nome || 'Plano Personalizado';
     const isAnual = (plan?.tipo === 'Anual' || (com.duracao || '').toLowerCase() === 'anual' || planNome.toLowerCase().includes('anual'));
-    
+
     const basePreco = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(com.valorLiquido) || Number(plan?.preco) || 0;
     const descVal = Number(com.descontoValor) || 0;
     const descTipo = com.descontoTipo || 'percentual';
-    
+
     let valorFinal = com.valorLiquido !== undefined && com.valorLiquido !== null && com.valorLiquido > 0
       ? Number(com.valorLiquido)
       : basePreco;
@@ -7276,26 +7257,26 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
         valorFinal = Math.max(0, basePreco - descVal);
       }
     }
-    
+
     const numParcelas = Number(com.parcelas) || 1;
     const valorParcela = valorFinal / numParcelas;
-    
+
     const today = new Date().toISOString().split('T')[0];
     const dataInicio = com.dataInicio || com.vencimento || today;
     const vigMeses = isAnual ? 12 : 1;
-    
+
     const endD = new Date(dataInicio + 'T00:00:00');
     endD.setMonth(endD.getMonth() + vigMeses);
     const dataFim = endD.toISOString().split('T')[0];
-    
-    const formaPagText = ({pix:'Pix',boleto:'Boleto Bancário',cartao:'Cartão de Crédito/Débito',dinheiro:'Dinheiro'} as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
+
+    const formaPagText = ({ pix: 'Pix', boleto: 'Boleto Bancário', cartao: 'Cartão de Crédito/Débito', dinheiro: 'Dinheiro' } as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
     const now = new Date();
-    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-    const diaVenc = com.vencimento ? parseInt(com.vencimento.split('-')[2]||'5',10) : now.getDate();
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const diaVenc = com.vencimento ? parseInt(com.vencimento.split('-')[2] || '5', 10) : now.getDate();
 
     const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
     const servicosList = plan?.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treinos Monitorados, Fisioterapia, Recovery, Quiropraxia';
-    
+
     const calculatedCreditosMensais = Number(com.creditosTotal) || (com.frequencia ? (Number(com.frequencia) === 1 ? 4 : Number(com.frequencia) === 2 ? 9 : Number(com.frequencia) === 3 ? 13 : Number(com.frequencia) === 4 ? 17 : 22) : plan?.creditosTotal || 0);
 
     if (!templateOverride) {
@@ -7385,7 +7366,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
         ${contratoBody}
         <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px;font-size:10pt;">
           <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
-          <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
+          <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome || '-'}</small></div></div>
         </div>
         ${signatureSection}
       `;
@@ -7393,7 +7374,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
 
     const options = {
       margin: 0,
-      filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`,
+      filename: `Contrato_${(pes.nome || 'Aluno').replace(/\s+/g, '_')}_${today}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -7446,7 +7427,7 @@ export async function downloadContractSummaryPDF(client: any, contractOrProposal
     return n.includes('captação') || n.includes('captacao') || n === 'lead' || n === 'aguardando ativação' || n === 'novo lead';
   };
 
-  const rawPlanoNome = 
+  const rawPlanoNome =
     doc?.planoNome ||
     (!isInvalidPlanName(plan?.nome) ? plan?.nome : null) ||
     (!isInvalidPlanName(client?.dadosComerciais?.planoNome) ? client?.dadosComerciais?.planoNome : null) ||
@@ -7455,11 +7436,11 @@ export async function downloadContractSummaryPDF(client: any, contractOrProposal
 
   const planoNome = isInvalidPlanName(rawPlanoNome) ? 'Clube Fitness – Monitorado' : rawPlanoNome;
 
-  const nomeAluno = 
-    client?.dadosPessoais?.nome || 
-    client?.nome || 
+  const nomeAluno =
+    client?.dadosPessoais?.nome ||
+    client?.nome ||
     doc?.dadosPreenchidos?.nome ||
-    doc?.assinaturaNome || 
+    doc?.assinaturaNome ||
     'Aluno';
 
   // Frequência semanal
@@ -7497,10 +7478,10 @@ export async function downloadContractSummaryPDF(client: any, contractOrProposal
 
   // Duração e Vigência
   const rawDuracao = String(
-    doc?.duracao || 
-    doc?.planoTipo || 
-    plan?.tipo || 
-    client?.dadosComerciais?.duracao || 
+    doc?.duracao ||
+    doc?.planoTipo ||
+    plan?.tipo ||
+    client?.dadosComerciais?.duracao ||
     'anual'
   ).toLowerCase();
 
