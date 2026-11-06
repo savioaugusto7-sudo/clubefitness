@@ -7,6 +7,7 @@ import { LongitudinalComputedResult } from './longitudinalEngine';
 import { ClinicalNarrative } from './clinicalReasoningEngine';
 import { detectCompartment, COMPARTIMENTOS_METADATA } from './fisioterapiaQueixasCatalog';
 import { getSymmetryTier, SYMMETRY_LEGEND_HTML } from './symmetryStandards';
+import { ensureHtml2Pdf } from './pdfGenerator';
 
 export function generateReavaliacaoHTML(computed: LongitudinalComputedResult, narrative: ClinicalNarrative): string {
   const { identificacao, objetivoDoLaudo, historicoClinicoBase, tabelaEVA, tabelaForca, tabelaRazoes, tabelaSimetria, testesFuncionais, tabelaGoniometria, tabelaTestesOrtopedicos } = computed;
@@ -1001,7 +1002,7 @@ export async function downloadReavaliacaoLaudoPDF(computed: LongitudinalComputed
   }
 
   const htmlContent = generateReavaliacaoHTML(computed, narrative);
-  const html2pdf = (window as any).html2pdf;
+  const html2pdf = await ensureHtml2Pdf();
 
   const safeName = (computed?.identificacao?.paciente || 'Paciente')
     .normalize('NFD')
@@ -1585,7 +1586,7 @@ export async function downloadPhysicalComparisonPDF(computed: LongitudinalComput
   if (typeof window === 'undefined') return;
 
   const htmlContent = generatePhysicalComparisonHTML(computed, narrative);
-  const html2pdf = (window as any).html2pdf;
+  const html2pdf = await ensureHtml2Pdf();
 
   const safeName = (computed?.identificacao?.paciente || 'Aluno')
     .normalize('NFD')

@@ -25,6 +25,56 @@ function safeRemoveWrapper(pdfWrapper: HTMLElement) {
   }
 }
 
+export async function ensureHtml2Pdf(): Promise<any> {
+  if (typeof window === 'undefined') return null;
+  if ((window as any).html2pdf) return (window as any).html2pdf;
+
+  return new Promise((resolve, reject) => {
+    let script = document.querySelector('script[src*="html2pdf"]') as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      if ((window as any).html2pdf) {
+        clearInterval(interval);
+        resolve((window as any).html2pdf);
+      } else if (Date.now() - startTime > 15000) {
+        clearInterval(interval);
+        reject(new Error('Tempo esgotado ao carregar o motor html2pdf. Verifique sua conexão.'));
+      }
+    }, 100);
+  });
+}
+
+export async function ensurePdfLib(): Promise<any> {
+  if (typeof window === 'undefined') return null;
+  if ((window as any).PDFLib) return (window as any).PDFLib;
+
+  return new Promise((resolve, reject) => {
+    let script = document.querySelector('script[src*="pdf-lib"]') as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      if ((window as any).PDFLib) {
+        clearInterval(interval);
+        resolve((window as any).PDFLib);
+      } else if (Date.now() - startTime > 15000) {
+        clearInterval(interval);
+        reject(new Error('Tempo esgotado ao carregar o motor PDF-Lib. Verifique sua conexão.'));
+      }
+    }, 100);
+  });
+}
+
 export function renderProfessionalSignatureHtml(profInput: any): string {
   if (!profInput) {
     return `
@@ -126,7 +176,9 @@ async function getAvatarBase64(sex: string): Promise<string | null> {
 }
 
 function base64ToBlob(base64: string, mime: string): Blob {
-  const byteString = atob(base64.split(',')[1] || base64);
+  const raw = base64.includes(',') ? base64.split(',')[1] : base64;
+  const clean = raw.trim().replace(/\s+/g, '');
+  const byteString = atob(clean);
   const ab = new ArrayBuffer(byteString.length);
   const ia = new Uint8Array(ab);
   for (let i = 0; i < byteString.length; i++) {
@@ -1410,13 +1462,33 @@ function buildPhysicalAccumulativeEvolutionHtml(
 
 export async function downloadReportPDF(report: any) {
   if (typeof window === 'undefined') return;
-  const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) {
-    alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
-    return;
-  }
   if (!report) {
     console.error('downloadReportPDF was called with null or undefined report');
+    return;
+  }
+
+  // Auto-recuperar documento completo se campos de anexos ou termografia foram omitidos na listagem
+  if (report._id && (!report.pdf_url && !report.termografia)) {
+    try {
+      const res = await fetch(`/api/reports?id=${report._id}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success && json.data) {
+        report = {
+          ...json.data,
+          ...report,
+          pdf_url: json.data.pdf_url || report.pdf_url,
+          termografia: json.data.termografia || report.termografia,
+          examesComplementares: json.data.examesComplementares || report.examesComplementares
+        };
+      }
+    } catch (fetchErr) {
+      console.warn('Fallback ao objeto local do relatório:', fetchErr);
+    }
+  }
+
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
     return;
   }
 
@@ -2852,7 +2924,7 @@ export async function downloadReportPDF(report: any) {
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.pdf-page', '.no-break', '.pdf-page:last-child'] }
   };
 
   const hasAttachedPdf = !!report.pdf_url && report.incluirAnexoNoPdf !== false && report.exibirPdfUrlNoPdf !== false;
@@ -2865,8 +2937,9 @@ export async function downloadReportPDF(report: any) {
   async function buildPhysioTermoPagePdf(): Promise<Uint8Array | null> {
     if (!hasTermografiaImage) return null;
     try {
-      if (typeof PDFLib === 'undefined') return null;
-      const { PDFDocument, rgb, StandardFonts } = PDFLib;
+      const pdflib = (window as any).PDFLib;
+      if (!pdflib) return null;
+      const { PDFDocument, rgb, StandardFonts } = pdflib;
       const termoDoc = await PDFDocument.create();
       const page = termoDoc.addPage([595.28, 841.89]); // A4 portrait
       const fontBold = await termoDoc.embedFont(StandardFonts.HelveticaBold);
@@ -2918,15 +2991,17 @@ export async function downloadReportPDF(report: any) {
 
   try {
     if (needsMerge) {
+      await ensurePdfLib();
       const pdfSystemBuffer: any = await html2pdf().set(options).from(pdfContainer).output('arraybuffer');
       safeRemoveWrapper(pdfWrapper);
-      if (typeof PDFLib === 'undefined') {
+      const pdflib = (window as any).PDFLib;
+      if (!pdflib) {
         console.warn('A biblioteca de mesclagem (pdf-lib) não foi carregada. Baixando apenas o relatório do sistema...');
         const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
         triggerDirectDownload(rawBlob, options.filename);
         return;
       }
-      const { PDFDocument } = PDFLib;
+      const { PDFDocument } = pdflib;
       const mergedPdf = await PDFDocument.create();
 
       // 1. Páginas do sistema (Relatório de Fisioterapia)
@@ -3031,13 +3106,33 @@ function calculateObjectiveWeeklyRate(peso: number, sexo: string, freq: number, 
 
 export async function downloadAssessmentPDF(assessment: any, allAssessments?: any[]) {
   if (typeof window === 'undefined') return;
-  const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) {
-    alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
-    return;
-  }
   if (!assessment) {
     console.error('downloadAssessmentPDF was called with null or undefined assessment');
+    return;
+  }
+
+  // Auto-recuperar documento completo se campos de anexos ou pdf_url foram omitidos na listagem
+  if (assessment._id && (!assessment.pdf_url || !assessment.dadosMedidos || !assessment.dadosMedidos.circunferencias)) {
+    try {
+      const res = await fetch(`/api/assessments?id=${assessment._id}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success && json.data) {
+        assessment = {
+          ...json.data,
+          ...assessment,
+          pdf_url: json.data.pdf_url || assessment.pdf_url,
+          dadosMedidos: json.data.dadosMedidos || assessment.dadosMedidos,
+          examesComplementares: json.data.examesComplementares || assessment.examesComplementares
+        };
+      }
+    } catch (fetchErr) {
+      console.warn('Fallback ao objeto local de avaliação:', fetchErr);
+    }
+  }
+
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
     return;
   }
 
@@ -3622,15 +3717,22 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         font-family: 'Inter', sans-serif;
         box-sizing: border-box;
         width: 794px;
-        height: 1110px;
-        padding: 30px 40px;
+        min-height: 1120px;
+        max-height: 1120px;
+        height: 1120px;
+        padding: 26px 36px;
         position: relative;
-        overflow: hidden;
-        page-break-inside: avoid;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
         page-break-after: always;
+        break-after: page;
+        margin: 0 !important;
       }
       .pdf-page:last-child {
-        page-break-after: avoid;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        margin-bottom: 0 !important;
       }
       .font-outfit {
         font-family: 'Outfit', sans-serif;
@@ -4424,7 +4526,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   `;
 
   if (fullClientHistory.length >= 2) {
-    pdfWrapper.innerHTML += buildPhysicalAccumulativeEvolutionHtml(fullClientHistory, client, prof, logoBase64);
+    pdfContainer.innerHTML += buildPhysicalAccumulativeEvolutionHtml(fullClientHistory, client, prof, logoBase64);
   }
 
   // Anexar temporariamente o wrapper ao body para desenhar os gráficos Chart.js
@@ -4537,15 +4639,16 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.pdf-page', '.no-break', '.pdf-page:last-child'] }
   };
 
   // ===== Helper to build Termografia page 3 as a PDF Uint8Array via PDFLib =====
   async function buildTermografiaPagePdf(): Promise<Uint8Array | null> {
     if (!hasTermografiaImage) return null;
     try {
-      if (typeof PDFLib === 'undefined') return null;
-      const { PDFDocument, rgb, StandardFonts } = PDFLib;
+      const pdflib = (window as any).PDFLib;
+      if (!pdflib) return null;
+      const { PDFDocument, rgb, StandardFonts } = pdflib;
       const termoDoc = await PDFDocument.create();
       const page = termoDoc.addPage([595.28, 841.89]); // A4 portrait in points
       const font = await termoDoc.embedFont(StandardFonts.HelveticaBold);
@@ -4586,15 +4689,17 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   }
 
   const hasExamesPdfs = (assessment.examesComplementares || []).some((e: any) => !!e.pdfB64);
-  const needsMerge = assessment.pdf_url || hasTermografiaImage || hasExamesPdfs;
+  const needsMerge = Boolean(assessment.pdf_url || hasTermografiaImage || hasExamesPdfs);
 
   if (needsMerge) {
+    await ensurePdfLib();
     // Fluxo unificado: mescla sistema + termografia + postural + exames complementares
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
         safeRemoveWrapper(pdfWrapper);
 
-        if (typeof PDFLib === 'undefined') {
+        const pdflib = (window as any).PDFLib;
+        if (!pdflib) {
           console.warn('A biblioteca de manipulação de PDF (pdf-lib) não foi carregada.');
           alert('Aviso: A biblioteca de mesclagem (pdf-lib) não pôde ser carregada. O relatório será baixado sem os PDFs anexos.');
           const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
@@ -4602,7 +4707,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           return;
         }
 
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument } = pdflib;
         const mergedPdf = await PDFDocument.create();
 
         // 1. Páginas do sistema (avaliação)
@@ -4664,7 +4769,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     });
   } else {
     // Fluxo padrão — sem anexos
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
+    safeRemoveWrapper(pdfWrapper);
+    return;
+  }
+
+  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       triggerDirectDownload(blob, filename);
       safeRemoveWrapper(pdfWrapper);
     }).catch((err: any) => {
@@ -4683,13 +4795,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 // ==========================================================
 export async function downloadProntuarioPDF(prontuario: any, client: any, profNome: any = 'Profissional do Clube', profRegistro = '') {
   if (typeof window === 'undefined') return;
-  const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) {
-    alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
-    return;
-  }
   if (!prontuario) {
     console.error('downloadProntuarioPDF foi chamado com prontuário nulo');
+    return;
+  }
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) {
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
     return;
   }
 
@@ -5027,9 +5139,9 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
 // ==========================================================
 export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, profNome: any = 'Profissional do Clube', profRegistro = '') {
   if (typeof window === 'undefined') return;
-  const html2pdf = (window as any).html2pdf;
+  const html2pdf = await ensureHtml2Pdf();
   if (!html2pdf) {
-    alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
+    alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.');
     return;
   }
   if (!prontuarios || prontuarios.length === 0) {
@@ -5455,8 +5567,9 @@ async function getAnatomyAtlasBase64(): Promise<{ anterior: string; posterior: s
 }
 
 export async function downloadStrengthTestPDF(st: any, client: any, prof: any, previousStInput?: any) {
-  const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
+  if (typeof window === 'undefined') return;
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) { alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.'); return; }
 
   let prevSt: any = previousStInput || st?.previousTest || null;
 
@@ -6769,7 +6882,7 @@ function valorExtenso(valor: number): string {
 // ==========================================================
 // PDF — CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 // ==========================================================
-export function downloadContractPDF(client: any, plan: any, templateOverride?: any, contract?: any) {
+export async function downloadContractPDF(client: any, plan: any, templateOverride?: any, contract?: any) {
   if (!client) { alert('Cliente não encontrado.'); return; }
 
   // If contract object was passed as 3rd parameter by mistake
@@ -6829,8 +6942,8 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
     }
   }
 
-  const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
+  const html2pdf = await ensureHtml2Pdf();
+  if (!html2pdf) { alert('O gerador de PDF não pôde ser inicializado. Por favor, recarregue a página.'); return; }
 
   const activeContract = contract || (client?.assinaturaPresencialImage ? client : null);
   let signatureSection = '';
@@ -7105,8 +7218,6 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   };
 
-
-
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
     safeRemoveWrapper(pdfWrapper);
@@ -7117,8 +7228,8 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
 }
 
 export function getContractPDFBase64(client: any, plan: any, templateOverride?: string, contract?: any): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const html2pdf = (window as any).html2pdf;
+  return new Promise(async (resolve, reject) => {
+    const html2pdf = await ensureHtml2Pdf();
     if (!html2pdf) { reject(new Error('html2pdf.js não está carregado.')); return; }
     if (!client) { reject(new Error('Cliente não encontrado.')); return; }
 
@@ -7312,13 +7423,13 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
 // ==========================================================
 // PDF — RESUMO OFICIAL DO PLANO & BENEFÍCIOS (CONFIRMAÇÃO DE MATRÍCULA)
 // ==========================================================
-export function downloadContractSummaryPDF(client: any, contractOrProposal?: any, plan?: any, fallbackProposal?: any) {
+export async function downloadContractSummaryPDF(client: any, contractOrProposal?: any, plan?: any, fallbackProposal?: any) {
   if (!client && !contractOrProposal && !fallbackProposal) {
     alert('Dados do cliente ou da proposta/contrato não encontrados.');
     return;
   }
 
-  const html2pdf = (window as any).html2pdf;
+  const html2pdf = await ensureHtml2Pdf();
   if (!html2pdf) {
     alert('html2pdf.js não está carregado no sistema.');
     return;

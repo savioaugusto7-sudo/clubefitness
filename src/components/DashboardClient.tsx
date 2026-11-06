@@ -71,6 +71,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const [contracts, setContracts] = useState<any[]>([]);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
   const [selectedExerciseForInstruction, setSelectedExerciseForInstruction] = useState<any>(null);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
   // Trancamento States
   const [trancamentosList, setTrancamentosList] = useState<any[]>([]);
@@ -3757,10 +3758,43 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <button
                               type="button"
                               className="btn btn-secondary btn-sm"
-                              onClick={() => downloadAssessmentPDF(a, assessments)}
+                              disabled={generatingPdfId === a._id}
+                              onClick={async () => {
+                                if (generatingPdfId) return;
+                                try {
+                                  setGeneratingPdfId(a._id);
+                                  let fullAs = a;
+                                  if (a._id) {
+                                    try {
+                                      const res = await fetch(`/api/assessments?id=${a._id}`);
+                                      const json = await res.json();
+                                      if (json?.success && json.data) fullAs = json.data;
+                                    } catch (fetchErr) {
+                                      console.warn('Fallback to local assessment:', fetchErr);
+                                    }
+                                  }
+                                  if (client && (!fullAs.clienteId || typeof fullAs.clienteId === 'string')) {
+                                    fullAs.clienteId = client;
+                                  }
+                                  await downloadAssessmentPDF(fullAs, assessments);
+                                } catch (err: any) {
+                                  console.error('Error downloading assessment PDF:', err);
+                                  alert('Erro ao gerar laudo da avaliação: ' + (err?.message || 'Tente novamente'));
+                                } finally {
+                                  setGeneratingPdfId(null);
+                                }
+                              }}
                               style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                             >
-                              <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Avaliação Física (PDF)
+                              {generatingPdfId === a._id ? (
+                                <>
+                                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando Laudo com Anexos...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Avaliação Física (PDF)
+                                </>
+                              )}
                             </button>
                           </div>
                         );
@@ -3842,10 +3876,43 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <button
                               type="button"
                               className="btn btn-secondary btn-sm"
-                              onClick={() => downloadReportPDF(r)}
+                              disabled={generatingPdfId === r._id}
+                              onClick={async () => {
+                                if (generatingPdfId) return;
+                                try {
+                                  setGeneratingPdfId(r._id);
+                                  let fullRep = r;
+                                  if (r._id) {
+                                    try {
+                                      const res = await fetch(`/api/reports?id=${r._id}`);
+                                      const json = await res.json();
+                                      if (json?.success && json.data) fullRep = json.data;
+                                    } catch (fetchErr) {
+                                      console.warn('Fallback to local report:', fetchErr);
+                                    }
+                                  }
+                                  if (client && (!fullRep.clienteId || typeof fullRep.clienteId === 'string')) {
+                                    fullRep.clienteId = client;
+                                  }
+                                  await downloadReportPDF(fullRep);
+                                } catch (err: any) {
+                                  console.error('Error downloading report PDF:', err);
+                                  alert('Erro ao gerar relatório fisioterápico: ' + (err?.message || 'Tente novamente'));
+                                } finally {
+                                  setGeneratingPdfId(null);
+                                }
+                              }}
                               style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                             >
-                              <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Relatório Fisioterápico (PDF)
+                              {generatingPdfId === r._id ? (
+                                <>
+                                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando Relatório com Anexos...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Relatório Fisioterápico (PDF)
+                                </>
+                              )}
                             </button>
                           </div>
                         );
@@ -3918,10 +3985,30 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            onClick={() => downloadStrengthTestPDF(st, client, null)}
+                            disabled={generatingPdfId === st._id}
+                            onClick={async () => {
+                              if (generatingPdfId) return;
+                              try {
+                                setGeneratingPdfId(st._id);
+                                await downloadStrengthTestPDF(st, client, null);
+                              } catch (err: any) {
+                                console.error('Error downloading strength test PDF:', err);
+                                alert('Erro ao gerar teste de força: ' + (err?.message || 'Tente novamente'));
+                              } finally {
+                                setGeneratingPdfId(null);
+                              }
+                            }}
                             style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                           >
-                            <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Teste de Força (PDF)
+                            {generatingPdfId === st._id ? (
+                              <>
+                                <i className="fa-solid fa-spinner fa-spin"></i> Gerando Teste de Força...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Baixar Teste de Força (PDF)
+                              </>
+                            )}
                           </button>
                         </div>
                       ))}

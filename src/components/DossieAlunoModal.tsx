@@ -35,6 +35,7 @@ export default function DossieAlunoModal({
   const [activeDossieTab, setActiveDossieTab] = useState<'rotina' | 'clinico' | 'avaliacoes' | 'presencas'>('rotina');
   const [prontuarios, setProntuarios] = useState<any[]>([]);
   const [downloadingProntId, setDownloadingProntId] = useState<string | null>(null);
+  const [downloadingAssessmentId, setDownloadingAssessmentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && client?._id) {
@@ -588,15 +589,42 @@ export default function DossieAlunoModal({
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
+                                disabled={downloadingAssessmentId === as._id}
                                 onClick={async () => {
+                                  if (downloadingAssessmentId) return;
                                   try {
-                                    await downloadAssessmentPDF(as, assessments);
-                                  } catch (e) {
+                                    setDownloadingAssessmentId(as._id);
+                                    let fullAs = as;
+                                    if (as._id) {
+                                      try {
+                                        const res = await fetch(`/api/assessments?id=${as._id}`);
+                                        const json = await res.json();
+                                        if (json?.success && json.data) fullAs = json.data;
+                                      } catch (fetchErr) {
+                                        console.warn('Fallback to local assessment:', fetchErr);
+                                      }
+                                    }
+                                    if (client && (!fullAs.clienteId || typeof fullAs.clienteId === 'string')) {
+                                      fullAs.clienteId = client;
+                                    }
+                                    await downloadAssessmentPDF(fullAs, assessments);
+                                  } catch (e: any) {
                                     console.error(e);
+                                    alert('Erro ao gerar laudo da avaliação: ' + (e?.message || 'Tente novamente'));
+                                  } finally {
+                                    setDownloadingAssessmentId(null);
                                   }
                                 }}
                               >
-                                <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                                {downloadingAssessmentId === as._id ? (
+                                  <>
+                                    <i className="fa-solid fa-spinner fa-spin"></i> Gerando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                                  </>
+                                )}
                               </button>
                             </td>
                           </tr>
