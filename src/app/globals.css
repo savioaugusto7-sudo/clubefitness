@@ -162,13 +162,25 @@ aside.sidebar {
 .brand-logo {
   width: 44px;
   height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   object-fit: contain;
   filter: drop-shadow(0 0 10px rgba(13, 148, 136, 0.25));
   border-radius: 50%;
-  border: 2px solid rgba(13, 148, 136, 0.3);
+  border: 2px solid rgba(13, 148, 136, 0.4);
   background: #ffffff;
-  padding: 2px;
+  padding: 3px;
+  box-sizing: border-box;
+  overflow: hidden;
   transition: transform 0.3s ease;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 .brand-logo:hover {
@@ -2482,16 +2494,26 @@ body.tv-mode-active .tv-spotify-eq-bar {
 }
 
 .login-logo-circle {
-  width: 64px;
-  height: 64px;
-  background: var(--color-primary-glow);
+  width: 68px;
+  height: 68px;
+  background: #ffffff;
   border: 2px solid var(--color-primary);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   margin: 0 auto 16px auto;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 15px rgba(13, 148, 136, 0.3);
+  padding: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.login-logo-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 .login-logo-circle i {

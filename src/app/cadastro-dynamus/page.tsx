@@ -266,12 +266,15 @@ const glassCardStyle: React.CSSProperties = {
 };
 
 const logoStyle: React.CSSProperties = {
-  width: '64px',
-  height: '64px',
+  width: '68px',
+  height: '68px',
   borderRadius: '50%',
-  objectFit: 'cover',
+  objectFit: 'contain',
+  background: '#ffffff',
+  padding: '4px',
   marginBottom: '16px',
-  border: '2px solid rgba(255,255,255,0.1)'
+  border: '2px solid rgba(255,255,255,0.2)',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.25)'
 };
 
 const titleStyle: React.CSSProperties = {
