@@ -12,6 +12,30 @@ const ClientActivityLogSchema = new Schema({
     ref: 'User', 
     default: null 
   },
+  executorTipo: {
+    type: String,
+    enum: ['aluno', 'profissional', 'recepcao', 'admin', 'sistema'],
+    default: 'aluno',
+    index: true
+  },
+  executorNome: {
+    type: String,
+    default: ''
+  },
+  executorRole: {
+    type: String,
+    default: ''
+  },
+  executorUserId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  isSelfService: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   tipoAcao: { 
     type: String, 
     enum: ['agendou', 'cancelou', 'checkin', 'login', 'wellness', 'trancamento', 'perfil'], 
@@ -55,6 +79,7 @@ const ClientActivityLogSchema = new Schema({
 ClientActivityLogSchema.index({ createdAt: -1 });
 ClientActivityLogSchema.index({ clienteId: 1, createdAt: -1 });
 ClientActivityLogSchema.index({ tipoAcao: 1, createdAt: -1 });
+ClientActivityLogSchema.index({ executorTipo: 1, createdAt: -1 });
 
 export default models.ClientActivityLog || model('ClientActivityLog', ClientActivityLogSchema);
 

@@ -7,6 +7,8 @@ import Contract from '@/models/Contract';
 import ActivityLog from '@/models/ActivityLog';
 import Appointment from '@/models/Appointment';
 import { logClientActivity } from '@/utils/auditLogger';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
 
@@ -140,6 +142,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await dbConnect();
+    const session = await getServerSession(authOptions);
     const body = await request.json();
     const { clientId, contractId, dataInicio, dataFim, semanas, creditosTrancados: creditosInput, redistribuicao, profissionalId, origem } = body;
 
@@ -292,6 +295,8 @@ export async function POST(request: Request) {
     try {
       await logClientActivity({
         clienteId: clientId,
+        usuarioId: session?.user ? (session.user as any).id : null,
+        sessionUser: session?.user,
         tipoAcao: 'trancamento',
         acao: 'Trancamento de Plano Solicitado/Registrado',
         detalhes: `Trancamento de ${trancStartISO} até ${dataFimISO} (${diasTrancados} dias / ${creditosTrancados} créditos). Retorno previsto: ${dataRetornoISO}.`,

@@ -28,6 +28,7 @@ export default function ClientActivityLogPanel({
 
   const [search, setSearch] = useState<string>('');
   const [tipoAcao, setTipoAcao] = useState<string>('todos');
+  const [executorFiltro, setExecutorFiltro] = useState<string>('todos');
   const [periodo, setPeriodo] = useState<string>('hoje');
 
   // KPIs
@@ -38,7 +39,13 @@ export default function ClientActivityLogPanel({
     checkinHoje: 0,
     alunosAtivosHoje: 0,
     taxaDesistenciaHoje: 0,
-    cancelamentosUltimaHora: 0
+    cancelamentosUltimaHora: 0,
+    selfServiceHoje: 0,
+    equipeHoje: 0,
+    adminHoje: 0,
+    taxaSelfServiceHoje: 0,
+    cancelamentosUltimaHoraAluno: 0,
+    cancelamentosUltimaHoraEquipe: 0
   });
 
   // Busca dos logs de movimentação de clientes
@@ -52,6 +59,7 @@ export default function ClientActivityLogPanel({
         page: String(page),
         limit: String(limit),
         tipoAcao,
+        executor: executorFiltro,
         periodo,
         search
       });
@@ -78,7 +86,7 @@ export default function ClientActivityLogPanel({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, limit, tipoAcao, periodo, search]);
+  }, [page, limit, tipoAcao, executorFiltro, periodo, search]);
 
   useEffect(() => {
     fetchClientLogs();
@@ -185,6 +193,109 @@ export default function ClientActivityLogPanel({
           </span>
         );
     }
+  };
+
+  // Helper para renderizar badge de quem executou a ação (Aluno vs Profissional vs Admin)
+  const renderExecutorBadge = (log: any) => {
+    const isSelf = log.isSelfService || log.executorTipo === 'aluno';
+    const isProf = log.executorTipo === 'profissional';
+    const isRecep = log.executorTipo === 'recepcao';
+    const isAdmin = log.executorTipo === 'admin';
+    const nome = log.executorNome || (isSelf ? 'Próprio Aluno' : 'Equipe');
+
+    if (isSelf) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(2, 132, 199, 0.15)',
+            color: '#38bdf8',
+            border: '1px solid rgba(2, 132, 199, 0.35)',
+            padding: '4px 10px',
+            borderRadius: '8px',
+            fontSize: '0.78rem',
+            fontWeight: 800
+          }}>
+            <i className="fa-solid fa-mobile-screen"></i> Próprio Aluno
+          </span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8', paddingLeft: '4px' }}>
+            Autoatendimento (App/Portal)
+          </span>
+        </div>
+      );
+    }
+
+    if (isAdmin) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(245, 158, 11, 0.15)',
+            color: '#fbbf24',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            padding: '4px 10px',
+            borderRadius: '8px',
+            fontSize: '0.78rem',
+            fontWeight: 800
+          }}>
+            <i className="fa-solid fa-shield-halved"></i> {nome}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8', paddingLeft: '4px' }}>
+            Administração Central
+          </span>
+        </div>
+      );
+    }
+
+    if (nome.toLowerCase().includes('computador coletivo')) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(168, 85, 247, 0.15)',
+            color: '#c084fc',
+            border: '1px solid rgba(168, 85, 247, 0.35)',
+            padding: '4px 10px',
+            borderRadius: '8px',
+            fontSize: '0.78rem',
+            fontWeight: 800
+          }}>
+            <i className="fa-solid fa-desktop"></i> Computador Coletivo
+          </span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8', paddingLeft: '4px' }}>
+            Recepção / Totem
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(16, 185, 129, 0.15)',
+          color: '#34d399',
+          border: '1px solid rgba(16, 185, 129, 0.35)',
+          padding: '4px 10px',
+          borderRadius: '8px',
+          fontSize: '0.78rem',
+          fontWeight: 800
+        }}>
+          <i className="fa-solid fa-user-doctor"></i> {nome}
+        </span>
+        <span style={{ fontSize: '0.7rem', color: '#94a3b8', paddingLeft: '4px' }}>
+          {isRecep ? 'Equipe Recepção' : 'Equipe Técnica / Professor'}
+        </span>
+      </div>
+    );
   };
 
   // Helper para formatar data e horário
@@ -387,8 +498,8 @@ export default function ClientActivityLogPanel({
               <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#f59e0b', margin: '4px 0 2px' }}>
                 {kpis.cancelamentosUltimaHora}
               </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
-                Horários vagos sem tempo de reposição
+              <div style={{ fontSize: '0.74rem', color: '#fcd34d' }}>
+                {kpis.cancelamentosUltimaHoraAluno} por alunos | {kpis.cancelamentosUltimaHoraEquipe} pela equipe
               </div>
             </div>
 
@@ -408,6 +519,25 @@ export default function ClientActivityLogPanel({
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
                 Validações de frequência
+              </div>
+            </div>
+
+            {/* KPI 6: Autoatendimento / Self-Service */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderLeft: '4px solid #06b6d4',
+              borderRadius: '12px',
+              padding: '14px 18px'
+            }}>
+              <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 700 }}>
+                Autoatendimento (Alunos)
+              </div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#22d3ee', margin: '4px 0 2px' }}>
+                {kpis.taxaSelfServiceHoje}%
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
+                {kpis.selfServiceHoje} ações pelo app | {kpis.equipeHoje} pela equipe
               </div>
             </div>
           </div>
@@ -456,6 +586,27 @@ export default function ClientActivityLogPanel({
                 <option value="checkin">🔵 Apenas Check-ins</option>
                 <option value="wellness">📋 Apenas Wellness</option>
                 <option value="trancamento">❄️ Apenas Trancamentos</option>
+              </select>
+
+              {/* Seletor de Quem Executou */}
+              <select
+                className="form-control"
+                value={executorFiltro}
+                onChange={e => handleFilterChange(setExecutorFiltro, e.target.value)}
+                style={{
+                  width: 'auto',
+                  minWidth: '175px',
+                  background: 'rgba(15, 23, 42, 0.7)',
+                  color: '#f8fafc',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600
+                }}
+              >
+                <option value="todos">Todos os Executores</option>
+                <option value="aluno">📱 Feito pelo Aluno (Self-Service)</option>
+                <option value="equipe">🩺 Feito pela Equipe / Professores</option>
+                <option value="admin">🛡️ Feito pela Administração</option>
               </select>
 
               {/* Seletor de Período */}
@@ -510,31 +661,32 @@ export default function ClientActivityLogPanel({
               <table className="data-table" style={{ margin: 0 }}>
                 <thead>
                   <tr style={{ background: 'rgba(15, 23, 42, 0.8)' }}>
-                    <th style={{ width: '130px' }}>Data / Hora</th>
-                    <th style={{ width: '220px' }}>Aluno</th>
-                    <th style={{ width: '140px' }}>Ação</th>
+                    <th style={{ width: '120px' }}>Data / Hora</th>
+                    <th style={{ width: '210px' }}>Aluno</th>
+                    <th style={{ width: '190px' }}>Quem Executou</th>
+                    <th style={{ width: '130px' }}>Ação</th>
                     <th>Detalhes da Movimentação</th>
-                    <th style={{ width: '160px' }}>Origem / Dispositivo</th>
+                    <th style={{ width: '150px' }}>Origem / Dispositivo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
                         <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '1.5rem', marginBottom: '8px', display: 'block', color: '#0284c7' }}></i>
                         Carregando movimentações dos alunos...
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: '#ef4444' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#ef4444' }}>
                         <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i>
                         {error}
                       </td>
                     </tr>
                   ) : logs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
                         <i className="fa-regular fa-clipboard" style={{ fontSize: '2rem', marginBottom: '10px', display: 'block', opacity: 0.5 }}></i>
                         Nenhuma movimentação de aluno registrada com os filtros selecionados.
                       </td>
@@ -603,18 +755,23 @@ export default function ClientActivityLogPanel({
                             </div>
                           </td>
 
-                          {/* 3. Ação */}
+                          {/* 3. Quem Executou (Identificação de Autoria) */}
+                          <td>
+                            {renderExecutorBadge(log)}
+                          </td>
+
+                          {/* 4. Ação */}
                           <td>
                             {renderAcaoBadge(log)}
                           </td>
 
-                          {/* 4. Detalhes com Destaques */}
+                          {/* 5. Detalhes com Destaques */}
                           <td>
                             <div style={{ fontSize: '0.85rem', color: '#f1f5f9', fontWeight: 600 }}>
                               {log.detalhes}
                             </div>
                             {isUltimaHora && (
-                              <div style={{ marginTop: '4px' }}>
+                              <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 <span style={{
                                   background: 'rgba(239, 68, 68, 0.2)',
                                   color: '#f87171',
@@ -630,6 +787,31 @@ export default function ClientActivityLogPanel({
                                   <i className="fa-solid fa-triangle-exclamation"></i>
                                   Cancelamento Crítico (&lt; 2h de antecedência)
                                 </span>
+                                {log.isSelfService || log.executorTipo === 'aluno' ? (
+                                  <span style={{
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    color: '#fca5a5',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    padding: '2px 6px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(239, 68, 68, 0.25)'
+                                  }}>
+                                    📱 Desmarcado pelo aluno no app
+                                  </span>
+                                ) : (
+                                  <span style={{
+                                    background: 'rgba(148, 163, 184, 0.12)',
+                                    color: '#cbd5e1',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    padding: '2px 6px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(148, 163, 184, 0.2)'
+                                  }}>
+                                    Operado pela equipe ({log.executorNome || 'Recepção'})
+                                  </span>
+                                )}
                               </div>
                             )}
                             {log.metadata?.motivoCancelamento && !isUltimaHora && (

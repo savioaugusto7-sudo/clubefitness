@@ -7,6 +7,8 @@ import ClientWorkout from '@/models/ClientWorkout';
 import { calculateWellness } from '@/utils/wellnessHelper';
 import { calculateACWR, calculateWellnessACWRDecision } from '@/utils/acwrEngine';
 import { logClientActivity } from '@/utils/auditLogger';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -67,6 +69,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await dbConnect();
+    const session = await getServerSession(authOptions);
     const body = await request.json();
     const { clienteId, sono, fadiga, dorMuscular, data, horario, profissionalId, appointmentId } = body;
 
@@ -104,6 +107,8 @@ export async function POST(request: Request) {
     try {
       await logClientActivity({
         clienteId,
+        usuarioId: session?.user ? (session.user as any).id : null,
+        sessionUser: session?.user,
         tipoAcao: 'wellness',
         acao: 'Preencheu Questionário Wellness',
         detalhes: `Score: ${wResult.score}/15 (${wResult.statusLabel}) | Sono: ${s}, Fadiga: ${f}, Dor: ${d}`,

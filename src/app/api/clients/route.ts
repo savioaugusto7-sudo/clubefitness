@@ -356,9 +356,12 @@ export async function PUT(request: Request) {
         }
         Object.assign(client.dadosPessoais, updatedPessoais);
         client.markModified('dadosPessoais');
-        // Sync user name if updated
-        if (dadosPessoais.nome) {
-          await User.findByIdAndUpdate(client.userId, { nome: dadosPessoais.nome });
+        // Sync user name and email if updated
+        const userUpdates: any = {};
+        if (dadosPessoais.nome) userUpdates.nome = dadosPessoais.nome;
+        if (dadosPessoais.email) userUpdates.email = dadosPessoais.email.trim().toLowerCase();
+        if (Object.keys(userUpdates).length > 0) {
+          await User.findByIdAndUpdate(client.userId, userUpdates);
         }
       }
     }

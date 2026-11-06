@@ -710,6 +710,7 @@ export async function POST(request: Request) {
       await logClientActivity({
         clienteId,
         usuarioId: session?.user ? (session.user as any).id : null,
+        sessionUser: session?.user,
         tipoAcao: 'agendou',
         acao: isRemanejamento ? 'Troca de Horário (Remanejamento)' : 'Agendou Sessão',
         detalhes: isRemanejamento
@@ -929,6 +930,7 @@ export async function PUT(request: Request) {
         await logClientActivity({
           clienteId: appointment.clienteId,
           usuarioId: session?.user ? (session.user as any).id : null,
+          sessionUser: session?.user,
           tipoAcao: 'checkin',
           acao: 'Check-in / Presença Confirmada',
           detalhes: `Confirmou presença em ${appointment.servico} no dia ${dataBr} às ${appointment.horario}`,
@@ -948,6 +950,7 @@ export async function PUT(request: Request) {
         await logClientActivity({
           clienteId: appointment.clienteId,
           usuarioId: session?.user ? (session.user as any).id : null,
+          sessionUser: session?.user,
           tipoAcao: 'cancelou',
           acao: 'Cancelou Horário',
           detalhes: `Cancelou ${appointment.servico} de ${dataBr} às ${appointment.horario}${motivo ? ` (Motivo: "${motivo}")` : ''}${isUltimaHora ? ' [Cancelamento com Menos de 2h de Antecedência]' : ''}`,
@@ -1040,6 +1043,7 @@ export async function DELETE(request: Request) {
       await logClientActivity({
         clienteId: appointment.clienteId,
         usuarioId: session?.user ? (session.user as any).id : null,
+        sessionUser: session?.user,
         tipoAcao: 'cancelou',
         acao: 'Cancelou Agendamento',
         detalhes: `Desmarcou ${appointment.servico} de ${dataBr} às ${appointment.horario}${motivo ? ` (Motivo: "${motivo}")` : ''}${isUltimaHora ? ' [Cancelamento com Menos de 2h de Antecedência]' : ''}`,
