@@ -2934,7 +2934,7 @@ export async function downloadReportPDF(report: any) {
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.pdf-page', '.no-break', '.pdf-page:last-child'] }
+    pagebreak: { mode: ['css', 'legacy'] }
   };
 
   const hasAttachedPdf = !!report.pdf_url && report.incluirAnexoNoPdf !== false && report.exibirPdfUrlNoPdf !== false;
@@ -3414,7 +3414,57 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     .sort((a: any, b: any) => a.data.localeCompare(b.data));
 
   const history = fullClientHistory.slice(-3);
-  const totalPages = fullClientHistory.length >= 2 ? 3 : 2;
+  const gonioAssessmentRows = [
+    { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
+    { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
+    { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
+    { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
+    { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
+    { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
+    { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
+    { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
+    { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
+    { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
+    { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
+    { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
+    { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
+  ].filter(row => {
+    const g = dadosMedidos.goniometria || {};
+    const pD = parseGonioField(g[row.key + 'D']);
+    const pE = parseGonioField(g[row.key + 'E']);
+    return pD.semForca !== '' || pD.comForca !== '' || pE.semForca !== '' || pE.comForca !== '';
+  });
+
+  const te = testesEspeciais || {};
+  const hasOber = Boolean((te.oberD && te.oberD !== '-') || (te.oberE && te.oberE !== '-'));
+  const hasIlio = Boolean(
+    te.thomasIliopsoasDStatus !== undefined ||
+    te.thomasIliopsoasEStatus !== undefined ||
+    (te.thomasD && te.thomasD !== '-') ||
+    (te.thomasE && te.thomasE !== '-') ||
+    (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' && Number(te.thomasIliopsoasD) > 0) ||
+    (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' && Number(te.thomasIliopsoasE) > 0)
+  );
+  const hasReto = Boolean(
+    te.thomasRetofemoralDStatus !== undefined ||
+    te.thomasRetofemoralEStatus !== undefined ||
+    (te.thomasD && te.thomasD !== '-') ||
+    (te.thomasE && te.thomasE !== '-') ||
+    (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' && Number(te.thomasRetofemoralD) > 0) ||
+    (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' && Number(te.thomasRetofemoralE) > 0)
+  );
+
+  const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
+  const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
+  const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
+  const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
+
+  const hasSpecialTestsRows = hasOber || hasIlio || hasReto || hasMaigneData || Boolean(stepDownRowsHtml) || Boolean(yTestRowsHtml) || Boolean(termografiaIsRealizado);
+  const hasGonioRows = gonioAssessmentRows.length > 0;
+  const hasGonioOrSpecial = hasGonioRows || hasSpecialTestsRows;
+
+  const baseSystemPages = hasGonioOrSpecial ? 3 : 2;
+  const totalPages = fullClientHistory.length >= 2 ? (baseSystemPages + 1) : baseSystemPages;
 
   const dates = history.map((h: any) => formatDate(h.data).substring(0, 5));
   const weights = history.map((h: any) => h.dadosMedidos.peso);
@@ -3687,6 +3737,250 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   }
 
   const { pdfWrapper, pdfContainer } = createStandardPdfSandbox(794);
+  function renderGonioAndSpecialSectionHtml(): string {
+    if (!hasGonioOrSpecial) return '';
+    return `
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">${hasGonioRows ? 'Flexibilidade e Mobilidade Articular (Goniometria)' : 'Testes Ortopédicos e Funcionais'}</h3>
+        
+        <div style="display: flex; gap: 12px; align-items: flex-start;">
+          ${hasGonioRows ? `
+          <!-- Tabela de Goniometria (Esquerda) -->
+          <div style="flex: 1.5; min-width: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px;">
+            <table class="table-data" style="width: 100%; border-collapse: collapse; font-size: 7.5px;">
+              <thead>
+                <tr style="font-weight:bold; background: rgba(0,0,0,0.02);">
+                  <th style="padding: 4px 6px; font-size: 7.5px;">Articulação / Movimento</th>
+                  <th style="text-align:center; width:15%; padding: 4px 6px; font-size: 7.5px;">Referência</th>
+                  <th style="text-align:center; width:22%; padding: 4px 6px; font-size: 7.5px;">Direito</th>
+                  <th style="text-align:center; width:22%; padding: 4px 6px; font-size: 7.5px;">Esquerdo</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${gonioAssessmentRows.map(row => {
+                  const g = dadosMedidos.goniometria || {};
+                  const valD = g[row.key + 'D'];
+                  const valE = g[row.key + 'E'];
+                  const pD = parseGonioField(valD);
+                  const pE = parseGonioField(valE);
+
+                  const d1 = pD.numSemForca;
+                  const e1 = pE.numSemForca;
+                  const max1 = Math.max(d1, e1);
+                  const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
+
+                  const d2 = pD.numComForca;
+                  const e2 = pE.numComForca;
+                  const max2 = Math.max(d2, e2);
+                  const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
+
+                  const hasAsy = hasAsy1 || hasAsy2;
+
+                  return `
+                    <tr style="border-bottom: 1px solid #f1f5f9; ${hasAsy ? 'background: rgba(239, 68, 68, 0.04);' : ''}">
+                      <td style="font-weight:600; padding: 3px 6px; font-size:7.2px; color: #1e293b;">
+                        ${row.label}
+                        ${hasAsy ? `<span style="display:inline-block; font-size:5.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0 2px; font-weight:700; margin-left:2px;">⚠️ &gt;10%</span>` : ''}
+                      </td>
+                      <td style="text-align:center; color:#64748b; padding: 3px 6px; font-size:7.2px;">${row.ref}</td>
+                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valD)}</td>
+                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valE)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>` : ''}
+
+          ${hasSpecialTestsRows ? `
+          <!-- Testes Especiais e Maigne (Direita) -->
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px;">
+              <table class="table-data" style="width: 100%; border-collapse: collapse; font-size: 7.5px;">
+                <thead>
+                  <tr style="font-weight:bold; background: rgba(0,0,0,0.02);">
+                    <th style="padding: 4px 6px; font-size: 7.5px;">Teste Especial</th>
+                    <th style="text-align:center; padding: 4px 6px; font-size: 7.5px;">Direito</th>
+                    <th style="text-align:center; padding: 4px 6px; font-size: 7.5px;">Esquerdo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${hasOber ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Teste de Ober</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD || ''}</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE || ''}</td>
+                  </tr>` : ''}
+                  ${hasIlio ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Iliopsoas</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${ilioDStatus === 'Positivo' ? (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `Positivo (${te.thomasIliopsoasD}°)` : 'Positivo') : ilioDStatus}
+                    </td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${ilioEStatus === 'Positivo' ? (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `Positivo (${te.thomasIliopsoasE}°)` : 'Positivo') : ilioEStatus}
+                    </td>
+                  </tr>` : ''}
+                  ${hasReto ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Retofemoral</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${retoDStatus === 'Positivo' ? (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `Positivo (${te.thomasRetofemoralD}°)` : 'Positivo') : retoDStatus}
+                    </td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
+                      ${retoEStatus === 'Positivo' ? (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `Positivo (${te.thomasRetofemoralE}°)` : 'Positivo') : retoEStatus}
+                    </td>
+                  </tr>` : ''}
+                  ${hasMaigneData ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne ADM</td>
+                    <td colSpan="2" style="text-align:center; padding: 3px 6px; vertical-align: top; font-size: 7.2px;">
+                      F:${maigneObj.flexao} | E:${maigneObj.extensao} | RD:${maigneObj.rotacaoD} | RE:${maigneObj.rotacaoE} | ID:${maigneObj.inclinacaoD} | IE:${maigneObj.inclinacaoE}
+                    </td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne Dor (EVA)</td>
+                    <td colSpan="2" style="text-align:center; padding: 3px 6px; vertical-align: top; font-size: 7.2px; color: ${[maigneObj.flexaoEVA, maigneObj.extensaoEVA, maigneObj.rotacaoDEVA, maigneObj.rotacaoEEVA, maigneObj.inclinacaoDEVA, maigneObj.inclinacaoEEVA].some(val => val > 0) ? '#ef4444' : '#1e293b'};">
+                      F:${maigneObj.flexaoEVA} | E:${maigneObj.extensaoEVA} | RD:${maigneObj.rotacaoDEVA} | RE:${maigneObj.rotacaoEEVA} | ID:${maigneObj.inclinacaoDEVA} | IE:${maigneObj.inclinacaoEEVA}
+                    </td>
+                  </tr>
+                  ` : ''}
+                  ${hasMaigneData && maigneObj.observacoes && maigneObj.observacoes.trim() !== '' ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Obs. Maigne</td>
+                    <td colSpan="2" style="padding: 3px 6px; vertical-align: top; font-size: 6.8px; color: #475569;">${maigneObj.observacoes}</td>
+                  </tr>
+                  ` : ''}
+                  ${stepDownRowsHtml}
+                  ${yTestRowsHtml}
+                  ${termografiaIsRealizado ? `
+                  <tr>
+                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Termografia</td>
+                    <td colSpan="2" style="text-align:center; padding: 3px 6px; vertical-align: top; font-size: 7px; color:#10b981;">✓ Realizada (ver pág. 3)</td>
+                  </tr>` : ''}
+                </tbody>
+              </table>
+            </div>
+            
+            ${hasMaigneData ? `
+            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff;">
+              <strong style="font-size: 8px; color: #0f172a; display: block; margin-bottom: 4px; text-transform: uppercase; text-align: center; font-family: 'Outfit', sans-serif;">Estrela de Maigne</strong>
+              ${maigneSvgHtml}
+            </div>
+            ` : ''}
+          </div>` : ''}
+        </div>
+
+        <!-- Alertas Biomecânicos Detectados no Laudo -->
+        ${(() => {
+          const pdfAlerts = calculateGoniometryAlerts(dadosMedidos.goniometria);
+          if (pdfAlerts.length === 0) return '';
+
+          return `
+            <div style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 6px; padding: 6px 8px; margin-top: 6px;">
+              <div style="font-size: 8px; font-weight: 700; color: #b91c1c; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>⚠️</span> Alertas Biomecânicos & Fatores de Risco Ortopédico (${pdfAlerts.length})
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px;">
+                ${pdfAlerts.map(a => `
+                  <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 4px; padding: 4px 6px; font-size: 6.8px;">
+                    <strong style="color: ${a.tipo === 'critico' ? '#b91c1c' : '#c2410c'};">${a.titulo} ${a.lado ? `(${a.lado})` : ''} - ${a.valorCalculado || ''}</strong>
+                    <div style="color: #475569; margin-top: 1px;">${a.descricao}</div>
+                    <div style="color: #dc2626; font-weight: 600; margin-top: 1px;">Risco: ${a.riscoClinico}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${hasGonioRows ? `
+        <div style="margin-top:6px; font-size:7px; color:#64748b; display:flex; gap:10px; justify-content:center;">
+          <span>Legenda de Referência:</span>
+          <span><span style="display:inline-block; width:5px; height:5px; background:#10b981; border-radius:50%;"></span> Dentro do ideal</span>
+          <span><span style="display:inline-block; width:5px; height:5px; background:#f59e0b; border-radius:50%;"></span> Atenção (Amplitude limítrofe)</span>
+          <span><span style="display:inline-block; width:5px; height:5px; background:#ef4444; border-radius:50%;"></span> Abaixo do ideal (Mobilidade reduzida)</span>
+        </div>` : ''}
+      </div>`;
+  }
+
+  function renderEvolutionAndConductSectionHtml(): string {
+    return `
+      <!-- Evolução Corporal (Histórico de Gráficos e Tabela) -->
+      <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-bottom: 12px;">
+        <!-- Gráficos de Evolução -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
+          <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Evolução Corporal (Últimos 3 Testes)</h3>
+          
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; height: 110px;">
+            <div style="height:100%;">
+              <div style="font-size:7.5px; text-align:center; color:#64748b; margin-bottom:2px; font-weight:600;">MASSA TOTAL (kg)</div>
+              <div style="height:90px; position:relative; text-align:center;"><canvas id="pdfWeightChart" width="220" height="90" style="max-width:100%; display:inline-block;"></canvas></div>
+            </div>
+            <div style="height:100%;">
+              <div style="font-size:7.5px; text-align:center; color:#64748b; margin-bottom:2px; font-weight:600;">% GORDURA</div>
+              <div style="height:90px; position:relative; text-align:center;"><canvas id="pdfFatChart" width="220" height="90" style="max-width:100%; display:inline-block;"></canvas></div>
+            </div>
+            <div style="height:100%;">
+              <div style="font-size:7.5px; text-align:center; color:#64748b; margin-bottom:2px; font-weight:600;">MASSA MAGRA (kg)</div>
+              <div style="height:90px; position:relative; text-align:center;"><canvas id="pdfMuscleChart" width="220" height="90" style="max-width:100%; display:inline-block;"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela do Histórico -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
+          <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Histórico de Avaliações</h3>
+          <table class="table-data" style="font-size:7.5px; width:100%;">
+            <thead>
+              <tr>
+                <th style="padding:4px;">Data</th>
+                <th style="padding:4px; text-align:right;">Peso</th>
+                <th style="padding:4px; text-align:right;">% Gord.</th>
+                <th style="padding:4px; text-align:right;">M.Magra</th>
+                <th style="padding:4px; text-align:right;">IMC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${history.map((h: any) => `
+                <tr>
+                  <td style="padding:4px;"><strong>${formatDate(h.data)}</strong></td>
+                  <td style="padding:4px; text-align:right;">${(Number(h.dadosMedidos?.peso) || 0).toFixed(1)} kg</td>
+                  <td style="padding:4px; text-align:right; color:#c2410c; font-weight:600;">${(Number(h.resultadosCalculados?.percentualGordura) || 0).toFixed(1)}%</td>
+                  <td style="padding:4px; text-align:right; color:#15803d; font-weight:600;">${(Number(h.resultadosCalculados?.massaMagra) || 0).toFixed(1)} kg</td>
+                  <td style="padding:4px; text-align:right;">${(Number(h.resultadosCalculados?.imc) || 0).toFixed(1)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Referências Importantes e Padrões -->
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 12px; background: #ffffff;">
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 6px 0; text-transform: uppercase;">Referências e Padrões de Saúde</h3>
+        <ul style="margin: 6px 0 0 0; padding-left: 16px; font-size: 8.5px; line-height: 1.6; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px;">
+          <li>% de Gordura ideal (${currentSex === 'M' ? 'homens' : 'mulheres'}, ${bfRow.ageMax === 200 ? `${bfRow.ageMin} anos ou mais` : `${bfRow.ageMin}-${bfRow.ageMax} anos`}): <strong>${idealBFRange}</strong></li>
+          <li>RCQ ideal (${currentSex === 'M' ? 'homens' : 'mulheres'}): <strong>${refRCQ}</strong></li>
+          <li>IMC saudável: <strong>18,5 - 24,9</strong></li>
+          <li>Sono reparador recomendado: <strong>7 - 9 h/noite</strong></li>
+          <li>Atividade física: <strong>150 - 300 min/semana</strong></li>
+        </ul>
+      </div>
+
+      ${assessment.observacoes && String(assessment.observacoes).trim() !== '' && String(assessment.observacoes).trim() !== '-' ? `
+      <!-- Considerações Finais do Avaliador -->
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 20px;">
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Considerações Finais e Conduta do Avaliador</h3>
+        <p style="font-size: 8.5px; line-height: 1.5; color: #334155; margin: 4px 0 0 0; font-style: italic;">
+          "${assessment.observacoes}"
+        </p>
+      </div>` : ''}
+
+      <!-- Assinatura Profissional / Responsável Técnico -->
+      ${renderProfessionalSignatureHtml(prof)}
+    `;
+  }
 
   pdfContainer.innerHTML = `
     <style>
@@ -4204,310 +4498,73 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       </div>
     </div>
 
-    <!-- PÁGINA 2 -->
+    ${hasGonioOrSpecial ? `
+    <!-- PÁGINA 2: EXAME ARTICULAR & FUNCIONAL (GONIOMETRIA E TESTES) -->
     <div class="pdf-page">
       <!-- Mini Header da Página 2 -->
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 12px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <h2 class="font-outfit" style="margin:0; font-size:14px; color:#0e131f;">CLUBE FITNESS FISIO</h2>
           <span style="font-size:10px; color:#94a3b8;">/</span>
-          <span style="font-size:9.5px; color:#64748b; font-weight:600; text-transform:uppercase;">Relatório de Desempenho</span>
+          <span style="font-size:9.5px; color:#64748b; font-weight:600; text-transform:uppercase;">Exame Articular & Funcional</span>
         </div>
         <div style="font-size:9px; color:#475569;">
           Aluno: <strong>${client.dadosPessoais.nome}</strong> &nbsp;|&nbsp; Data: ${formatDate(assessment.data)}
         </div>
       </div>
 
-      <!-- Flexibilidade e Mobilidade (Goniometria) -->
-      ${(() => {
-      const gonioAssessmentRows = [
-        { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
-        { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
-        { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
-        { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
-        { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
-        { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
-        { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
-        { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão (Joelho Estendido)', ref: '20°' },
-        { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão (Joelho Fletido / Lunge)', ref: '35-45°' },
-        { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
-        { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
-        { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
-        { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
-      ].filter(row => {
-        const g = dadosMedidos.goniometria || {};
-        const pD = parseGonioField(g[row.key + 'D']);
-        const pE = parseGonioField(g[row.key + 'E']);
-        return pD.semForca !== '' || pD.comForca !== '' || pE.semForca !== '' || pE.comForca !== '';
-      });
+      <!-- Tabela de Goniometria e Testes Especiais (Inicia Imediatamente no Topo) -->
+      ${renderGonioAndSpecialSectionHtml()}
 
-      const te = testesEspeciais || {};
-      const hasOber = Boolean((te.oberD && te.oberD !== '-') || (te.oberE && te.oberE !== '-'));
-      const hasIlio = Boolean(
-        te.thomasIliopsoasDStatus !== undefined ||
-        te.thomasIliopsoasEStatus !== undefined ||
-        (te.thomasD && te.thomasD !== '-') ||
-        (te.thomasE && te.thomasE !== '-') ||
-        (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' && Number(te.thomasIliopsoasD) > 0) ||
-        (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' && Number(te.thomasIliopsoasE) > 0)
-      );
-      const hasReto = Boolean(
-        te.thomasRetofemoralDStatus !== undefined ||
-        te.thomasRetofemoralEStatus !== undefined ||
-        (te.thomasD && te.thomasD !== '-') ||
-        (te.thomasE && te.thomasE !== '-') ||
-        (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' && Number(te.thomasRetofemoralD) > 0) ||
-        (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' && Number(te.thomasRetofemoralE) > 0)
-      );
+      <!-- Footer Decorado Página 2 -->
+      <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
+        <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
+        <span>Sua saúde, nosso propósito.</span>
+        <span>Página 2 de ${totalPages}</span>
+      </div>
+    </div>
 
-      const hasSpecialTestsRows = hasOber || hasIlio || hasReto || hasMaigneData || Boolean(stepDownRowsHtml) || Boolean(yTestRowsHtml) || Boolean(termografiaIsRealizado);
-      const hasGonioRows = gonioAssessmentRows.length > 0;
-
-      if (!hasGonioRows && !hasSpecialTestsRows) return '';
-
-      const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasIliopsoasD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
-      const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasIliopsoasE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
-      const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || Number(te.thomasRetofemoralD) > 0) ? 'Positivo' : (te.thomasD === 'Negativo' ? 'Negativo' : ''));
-      const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || Number(te.thomasRetofemoralE) > 0) ? 'Positivo' : (te.thomasE === 'Negativo' ? 'Negativo' : ''));
-
-      return `
-      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">${hasGonioRows ? 'Flexibilidade e Mobilidade Articular (Goniometria)' : 'Testes Ortopédicos e Funcionais'}</h3>
-        
-        <div style="display: flex; gap: 12px; align-items: flex-start;">
-          ${hasGonioRows ? `
-          <!-- Tabela de Goniometria (Esquerda) -->
-          <div style="flex: 1.5; min-width: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px;">
-            <table class="table-data" style="width: 100%; border-collapse: collapse; font-size: 7.5px;">
-              <thead>
-                <tr style="font-weight:bold; background: rgba(0,0,0,0.02);">
-                  <th style="padding: 4px 6px; font-size: 7.5px;">Articulação / Movimento</th>
-                  <th style="text-align:center; width:15%; padding: 4px 6px; font-size: 7.5px;">Referência</th>
-                  <th style="text-align:center; width:22%; padding: 4px 6px; font-size: 7.5px;">Direito</th>
-                  <th style="text-align:center; width:22%; padding: 4px 6px; font-size: 7.5px;">Esquerdo</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${gonioAssessmentRows.map(row => {
-        const g = dadosMedidos.goniometria || {};
-        const valD = g[row.key + 'D'];
-        const valE = g[row.key + 'E'];
-        const pD = parseGonioField(valD);
-        const pE = parseGonioField(valE);
-
-        const d1 = pD.numSemForca;
-        const e1 = pE.numSemForca;
-        const max1 = Math.max(d1, e1);
-        const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
-
-        const d2 = pD.numComForca;
-        const e2 = pE.numComForca;
-        const max2 = Math.max(d2, e2);
-        const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
-
-        const hasAsy = hasAsy1 || hasAsy2;
-
-        return `
-                    <tr style="border-bottom: 1px solid #f1f5f9; ${hasAsy ? 'background: rgba(239, 68, 68, 0.04);' : ''}">
-                      <td style="font-weight:600; padding: 3px 6px; font-size:7.2px; color: #1e293b;">
-                        ${row.label}
-                        ${hasAsy ? `<span style="display:inline-block; font-size:5.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0 2px; font-weight:700; margin-left:2px;">⚠️ &gt;10%</span>` : ''}
-                      </td>
-                      <td style="text-align:center; color:#64748b; padding: 3px 6px; font-size:7.2px;">${row.ref}</td>
-                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valD)}</td>
-                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valE)}</td>
-                    </tr>
-                  `;
-      }).join('')}
-              </tbody>
-            </table>
-          </div>` : ''}
-
-          ${hasSpecialTestsRows ? `
-          <!-- Testes Especiais e Maigne (Direita) -->
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px;">
-              <table class="table-data" style="width: 100%; border-collapse: collapse; font-size: 7.5px;">
-                <thead>
-                  <tr style="font-weight:bold; background: rgba(0,0,0,0.02);">
-                    <th style="padding: 4px 6px; font-size: 7.5px;">Teste Especial</th>
-                    <th style="text-align:center; padding: 4px 6px; font-size: 7.5px;">Direito</th>
-                    <th style="text-align:center; padding: 4px 6px; font-size: 7.5px;">Esquerdo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${hasOber ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Teste de Ober</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD || ''}</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE || ''}</td>
-                  </tr>` : ''}
-                  ${hasIlio ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Iliopsoas</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
-                      ${ilioDStatus === 'Positivo' ? (te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `Positivo (${te.thomasIliopsoasD}°)` : 'Positivo') : ilioDStatus}
-                    </td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
-                      ${ilioEStatus === 'Positivo' ? (te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `Positivo (${te.thomasIliopsoasE}°)` : 'Positivo') : ilioEStatus}
-                    </td>
-                  </tr>` : ''}
-                  ${hasReto ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Thomas Retofemoral</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
-                      ${retoDStatus === 'Positivo' ? (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `Positivo (${te.thomasRetofemoralD}°)` : 'Positivo') : retoDStatus}
-                    </td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
-                      ${retoEStatus === 'Positivo' ? (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `Positivo (${te.thomasRetofemoralE}°)` : 'Positivo') : retoEStatus}
-                    </td>
-                  </tr>` : ''}
-                  ${hasMaigneData ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne ADM</td>
-                    <td colSpan="2" style="text-align:center; padding: 3px 6px; vertical-align: top; font-size: 7.2px;">
-                      F:${maigneObj.flexao} | E:${maigneObj.extensao} | RD:${maigneObj.rotacaoD} | RE:${maigneObj.rotacaoE} | ID:${maigneObj.inclinacaoD} | IE:${maigneObj.inclinacaoE}
-                    </td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne Dor (EVA)</td>
-                    <td colSpan="2" style="text-align:center; padding: 3px 6px; vertical-align: top; font-size: 7.2px; color: ${[maigneObj.flexaoEVA, maigneObj.extensaoEVA, maigneObj.rotacaoDEVA, maigneObj.rotacaoEEVA, maigneObj.inclinacaoDEVA, maigneObj.inclinacaoEEVA].some(val => val > 0) ? '#ef4444' : '#1e293b'};">
-                      F:${maigneObj.flexaoEVA} | E:${maigneObj.extensaoEVA} | RD:${maigneObj.rotacaoDEVA} | RE:${maigneObj.rotacaoEEVA} | ID:${maigneObj.inclinacaoDEVA} | IE:${maigneObj.inclinacaoEEVA}
-                    </td>
-                  </tr>
-                  ` : ''}
-                  ${hasMaigneData && maigneObj.observacoes && maigneObj.observacoes.trim() !== '' ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Obs. Maigne</td>
-                    <td colSpan="2" style="padding: 3px 6px; vertical-align: top; font-size: 6.8px; color: #475569;">${maigneObj.observacoes}</td>
-                  </tr>
-                  ` : ''}
-                  ${stepDownRowsHtml}
-                  ${yTestRowsHtml}
-                  ${termografiaIsRealizado ? `
-                  <tr>
-                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Termografia</td>
-                    <td colSpan="2" style="text-align:center; padding: 3px 6px; vertical-align: top; font-size: 7px; color:#10b981;">✓ Realizada (ver pág. 3)</td>
-                  </tr>` : ''}
-                </tbody>
-              </table>
-            </div>
-            
-            ${hasMaigneData ? `
-            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff;">
-              <strong style="font-size: 8px; color: #0f172a; display: block; margin-bottom: 4px; text-transform: uppercase; text-align: center; font-family: 'Outfit', sans-serif;">Estrela de Maigne</strong>
-              ${maigneSvgHtml}
-            </div>
-            ` : ''}
-          </div>` : ''}
+    <!-- PÁGINA 3: EVOLUÇÃO, HISTÓRICO & CONDUTA CLÍNICA -->
+    <div class="pdf-page">
+      <!-- Mini Header da Página 3 -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 class="font-outfit" style="margin:0; font-size:14px; color:#0e131f;">CLUBE FITNESS FISIO</h2>
+          <span style="font-size:10px; color:#94a3b8;">/</span>
+          <span style="font-size:9.5px; color:#64748b; font-weight:600; text-transform:uppercase;">Evolução & Conduta Clínica</span>
         </div>
-
-        <!-- Alertas Biomecânicos Detectados no Laudo -->
-        ${(() => {
-          const pdfAlerts = calculateGoniometryAlerts(dadosMedidos.goniometria);
-          if (pdfAlerts.length === 0) return '';
-
-          return `
-            <div style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 6px; padding: 6px 8px; margin-top: 6px;">
-              <div style="font-size: 8px; font-weight: 700; color: #b91c1c; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-                <span>⚠️</span> Alertas Biomecânicos & Fatores de Risco Ortopédico (${pdfAlerts.length})
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px;">
-                ${pdfAlerts.map(a => `
-                  <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 4px; padding: 4px 6px; font-size: 6.8px;">
-                    <strong style="color: ${a.tipo === 'critico' ? '#b91c1c' : '#c2410c'};">${a.titulo} ${a.lado ? `(${a.lado})` : ''} - ${a.valorCalculado || ''}</strong>
-                    <div style="color: #475569; margin-top: 1px;">${a.descricao}</div>
-                    <div style="color: #dc2626; font-weight: 600; margin-top: 1px;">Risco: ${a.riscoClinico}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `;
-        })()}
-
-        ${hasGonioRows ? `
-        <div style="margin-top:6px; font-size:7px; color:#64748b; display:flex; gap:10px; justify-content:center;">
-          <span>Legenda de Referência:</span>
-          <span><span style="display:inline-block; width:5px; height:5px; background:#10b981; border-radius:50%;"></span> Dentro do ideal</span>
-          <span><span style="display:inline-block; width:5px; height:5px; background:#f59e0b; border-radius:50%;"></span> Atenção (Amplitude limítrofe)</span>
-          <span><span style="display:inline-block; width:5px; height:5px; background:#ef4444; border-radius:50%;"></span> Abaixo do ideal (Mobilidade reduzida)</span>
-        </div>` : ''}
-      </div>`;
-    })()}
-
-      <!-- Evolução Corporal (Histórico de Gráficos e Tabela) -->
-      <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-bottom: 12px;">
-        <!-- Gráficos de Evolução -->
-        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
-          <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Evolução Corporal (Últimos 3 Testes)</h3>
-          
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; height: 110px;">
-            <div style="height:100%;">
-              <div style="font-size:7.5px; text-align:center; color:#64748b; margin-bottom:2px; font-weight:600;">MASSA TOTAL (kg)</div>
-              <div style="height:90px; position:relative; text-align:center;"><canvas id="pdfWeightChart" width="220" height="90" style="max-width:100%; display:inline-block;"></canvas></div>
-            </div>
-            <div style="height:100%;">
-              <div style="font-size:7.5px; text-align:center; color:#64748b; margin-bottom:2px; font-weight:600;">% GORDURA</div>
-              <div style="height:90px; position:relative; text-align:center;"><canvas id="pdfFatChart" width="220" height="90" style="max-width:100%; display:inline-block;"></canvas></div>
-            </div>
-            <div style="height:100%;">
-              <div style="font-size:7.5px; text-align:center; color:#64748b; margin-bottom:2px; font-weight:600;">MASSA MAGRA (kg)</div>
-              <div style="height:90px; position:relative; text-align:center;"><canvas id="pdfMuscleChart" width="220" height="90" style="max-width:100%; display:inline-block;"></canvas></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabela do Histórico -->
-        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
-          <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Histórico de Avaliações</h3>
-          <table class="table-data" style="font-size:7.5px; width:100%;">
-            <thead>
-              <tr>
-                <th style="padding:4px;">Data</th>
-                <th style="padding:4px; text-align:right;">Peso</th>
-                <th style="padding:4px; text-align:right;">% Gord.</th>
-                <th style="padding:4px; text-align:right;">M.Magra</th>
-                <th style="padding:4px; text-align:right;">IMC</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${history.map((h: any) => `
-                <tr>
-                  <td style="padding:4px;"><strong>${formatDate(h.data)}</strong></td>
-                  <td style="padding:4px; text-align:right;">${(Number(h.dadosMedidos?.peso) || 0).toFixed(1)} kg</td>
-                  <td style="padding:4px; text-align:right; color:#c2410c; font-weight:600;">${(Number(h.resultadosCalculados?.percentualGordura) || 0).toFixed(1)}%</td>
-                  <td style="padding:4px; text-align:right; color:#15803d; font-weight:600;">${(Number(h.resultadosCalculados?.massaMagra) || 0).toFixed(1)} kg</td>
-                  <td style="padding:4px; text-align:right;">${(Number(h.resultadosCalculados?.imc) || 0).toFixed(1)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+        <div style="font-size:9px; color:#475569;">
+          Aluno: <strong>${client.dadosPessoais.nome}</strong> &nbsp;|&nbsp; Data: ${formatDate(assessment.data)}
         </div>
       </div>
 
-      <!-- Referências Importantes e Padrões -->
-      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 12px; background: #ffffff;">
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 6px 0; text-transform: uppercase;">Referências e Padrões de Saúde</h3>
-        <ul style="margin: 6px 0 0 0; padding-left: 16px; font-size: 8.5px; line-height: 1.6; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px;">
-          <li>% de Gordura ideal (${currentSex === 'M' ? 'homens' : 'mulheres'}, ${bfRow.ageMax === 200 ? `${bfRow.ageMin} anos ou mais` : `${bfRow.ageMin}-${bfRow.ageMax} anos`}): <strong>${idealBFRange}</strong></li>
-          <li>RCQ ideal (${currentSex === 'M' ? 'homens' : 'mulheres'}): <strong>${refRCQ}</strong></li>
-          <li>IMC saudável: <strong>18,5 - 24,9</strong></li>
-          <li>Sono reparador recomendado: <strong>7 - 9 h/noite</strong></li>
-          <li>Atividade física: <strong>150 - 300 min/semana</strong></li>
-        </ul>
+      <!-- Evolução Corporal (Histórico de Gráficos e Tabela) - Início Imediato no Topo -->
+      ${renderEvolutionAndConductSectionHtml()}
+
+      <!-- Footer Decorado Página 3 -->
+      <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
+        <span>Clube Fitness Fisio &nbsp;|&nbsp; Telefone: (48) 99999-9999 &nbsp;|&nbsp; @clubefitnessfisio</span>
+        <span>Sua saúde, nosso propósito.</span>
+        <span>Página 3 de ${totalPages}</span>
+      </div>
+    </div>
+    ` : `
+    <!-- PÁGINA 2: EVOLUÇÃO, HISTÓRICO & CONDUTA CLÍNICA (SEM GONIOMETRIA) -->
+    <div class="pdf-page">
+      <!-- Mini Header da Página 2 -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 class="font-outfit" style="margin:0; font-size:14px; color:#0e131f;">CLUBE FITNESS FISIO</h2>
+          <span style="font-size:10px; color:#94a3b8;">/</span>
+          <span style="font-size:9.5px; color:#64748b; font-weight:600; text-transform:uppercase;">Evolução & Conduta Clínica</span>
+        </div>
+        <div style="font-size:9px; color:#475569;">
+          Aluno: <strong>${client.dadosPessoais.nome}</strong> &nbsp;|&nbsp; Data: ${formatDate(assessment.data)}
+        </div>
       </div>
 
-      ${assessment.observacoes && String(assessment.observacoes).trim() !== '' && String(assessment.observacoes).trim() !== '-' ? `
-      <!-- Considerações Finais do Avaliador -->
-      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 20px;">
-        <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Considerações Finais e Conduta do Avaliador</h3>
-        <p style="font-size: 8.5px; line-height: 1.5; color: #334155; margin: 4px 0 0 0; font-style: italic;">
-          "${assessment.observacoes}"
-        </p>
-      </div>` : ''}
-
-      <!-- Assinatura Profissional / Responsável Técnico -->
-      ${renderProfessionalSignatureHtml(prof)}
+      <!-- Evolução Corporal (Histórico de Gráficos e Tabela) - Início Imediato no Topo -->
+      ${renderEvolutionAndConductSectionHtml()}
 
       <!-- Footer Decorado Página 2 -->
       <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
@@ -4516,6 +4573,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         <span>Página 2 de ${totalPages}</span>
       </div>
     </div>
+    `}
   `;
 
   if (fullClientHistory.length >= 2) {
@@ -4632,7 +4690,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.pdf-page', '.no-break', '.pdf-page:last-child'] }
+    pagebreak: { mode: ['css', 'legacy'] }
   };
 
   // ===== Helper to build Termografia page 3 as a PDF Uint8Array via PDFLib =====
