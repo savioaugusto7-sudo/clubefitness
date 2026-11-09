@@ -405,11 +405,16 @@ export async function POST(request: Request) {
       if (paymentsRes.ok) {
         const paymentsData = await paymentsRes.json();
         if (Array.isArray(paymentsData.data)) {
-          // Remove all existing payments for this client to avoid duplicates
-          await Payment.deleteMany({ clientId: client._id });
+          // Remove existing Asaas payments for this client to avoid duplicates while preserving manual payments
+          await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+
+          // Count existing active manual payments (e.g. Dinheiro, Pix Manual, Cartão Manual)
+          const manualPaymentsCount = await Payment.countDocuments({ clientId: client._id, formaPagamento: { $ne: 'Asaas' }, status: { $ne: 'Cancelado' } });
 
           // Sort payments by dueDate ascending so parcel numbers are chronological
           paymentsData.data.sort((a: any, b: any) => a.dueDate.localeCompare(b.dueDate));
+
+          const totalInstallmentsCount = manualPaymentsCount + paymentsData.data.length;
 
           const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
             let status = 'Pendente';
@@ -430,8 +435,8 @@ export async function POST(request: Request) {
               formaPagamento: 'Asaas',
               asaasPaymentId: p.id,
               asaasInvoiceUrl: p.invoiceUrl || '',
-              parcelaNumero: idx + 1,
-              parcelasTotal: paymentsData.data.length,
+              parcelaNumero: manualPaymentsCount + idx + 1,
+              parcelasTotal: totalInstallmentsCount,
             };
           });
 
@@ -517,11 +522,16 @@ async function syncSingleCustomerAsaas(client: any, baseUrl: string, headers: an
     const paymentsData = await paymentsRes.json();
     if (!Array.isArray(paymentsData.data)) return false;
 
-    // Delete existing local payments for this client to avoid duplicates
-    await Payment.deleteMany({ clientId: client._id });
+    // Delete existing Asaas payments for this client to avoid duplicates while preserving manual payments
+    await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+
+    // Count existing active manual payments (e.g. Dinheiro, Pix Manual, Cartão Manual)
+    const manualPaymentsCount = await Payment.countDocuments({ clientId: client._id, formaPagamento: { $ne: 'Asaas' }, status: { $ne: 'Cancelado' } });
 
     // Sort payments by dueDate ascending so parcel numbers are chronological
     paymentsData.data.sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+
+    const totalInstallmentsCount = manualPaymentsCount + paymentsData.data.length;
 
     const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
       let status = 'Pendente';
@@ -542,8 +552,8 @@ async function syncSingleCustomerAsaas(client: any, baseUrl: string, headers: an
         formaPagamento: 'Asaas',
         asaasPaymentId: p.id,
         asaasInvoiceUrl: p.invoiceUrl || '',
-        parcelaNumero: idx + 1,
-        parcelasTotal: paymentsData.data.length,
+        parcelaNumero: manualPaymentsCount + idx + 1,
+        parcelasTotal: totalInstallmentsCount,
       };
     });
 
