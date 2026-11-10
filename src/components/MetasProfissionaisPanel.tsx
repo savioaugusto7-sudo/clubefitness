@@ -314,6 +314,16 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 <i className="fa-solid fa-lock"></i> Sávio:
               </span>
               <a
+                href={`/api/admin/relatorio-pontuacao/html?mes=${selectedMonth}&view=true`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm"
+                style={{ background: '#7c3aed', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '5px 11px', borderRadius: '7px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Visualizar Relatório de Pontuação Detalhado da Equipe (Layout A4 / Paginação por Profissional)"
+              >
+                <i className="fa-solid fa-file-invoice"></i> Pontuação Detalhada (PDF)
+              </a>
+              <a
                 href={`/api/admin/executive-report/html?mes=${selectedMonth}&tipo=fechamento&view=true`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -741,17 +751,40 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
 
                       {/* Ações */}
                       <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => {
-                            setSelectedProfExtrato(item);
-                            setExtratoTab('creditos');
-                          }}
-                          style={{ fontSize: '0.75rem', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          <i className="fa-solid fa-list-check"></i> Ver Extrato
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setSelectedProfExtrato(item);
+                              setExtratoTab('creditos');
+                            }}
+                            style={{ fontSize: '0.75rem', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <i className="fa-solid fa-list-check"></i> Extrato
+                          </button>
+                          <a
+                            href={`/api/admin/relatorio-pontuacao/html?mes=${selectedMonth}&profissionalId=${item.prof._id}&view=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm"
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '5px 9px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: 'rgba(124, 58, 237, 0.2)',
+                              color: '#c4b5fd',
+                              border: '1px solid rgba(124, 58, 237, 0.4)',
+                              borderRadius: '6px',
+                              textDecoration: 'none'
+                            }}
+                            title={`Imprimir Relatório Individual de ${item.prof.nome}`}
+                          >
+                            <i className="fa-solid fa-print"></i> PDF
+                          </a>
+                        </div>
                       </td>
 
                     </tr>
@@ -1773,6 +1806,30 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
               </div>
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <a
+                  href={`/api/admin/relatorio-pontuacao/html?mes=${selectedMonth}&profissionalId=${selectedProfExtrato.prof._id}&view=true`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                    border: '1px solid #8b5cf6',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textDecoration: 'none',
+                    boxShadow: '0 2px 4px rgba(124,58,237,0.2)'
+                  }}
+                  title="Imprimir ou Salvar em PDF o Relatório Individual deste profissional com paginação exclusiva"
+                >
+                  <i className="fa-solid fa-print"></i> Imprimir Individual (PDF)
+                </a>
+
                 <button
                   type="button"
                   onClick={() => handleOpenNovoAjuste(selectedProfExtrato)}

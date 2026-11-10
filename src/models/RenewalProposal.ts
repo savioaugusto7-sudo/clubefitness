@@ -9,20 +9,23 @@ const RenewalProposalSchema = new Schema({
   // Valores
   valorAnterior: { type: Number, required: true },
   reajustePercentual: { type: Number, default: 5 },
+  reajusteTipo: { type: String, default: 'padrao_5' },
   valorReajustado: { type: Number, required: true },
   frequencia: { type: Number, default: 3 },
   creditosMensais: { type: Number, default: 13 },
   
   // Vigência
   dataFimAnterior: { type: String, required: true },
-  dataInicioRenovacao: { type: String, required: true }, // 1 dia após dataFimAnterior
+  dataInicioRenovacao: { type: String, required: true },
   dataFimCalculada: { type: String, required: true },
   vigenciaMeses: { type: Number, default: 12 },
+  duracaoTipo: { type: String, default: 'anual' },
   isExpired: { type: Boolean, default: false },
 
   // Escolhas do aluno e condições excepcionais
   dataPrimeiroVencimento: { type: String, default: '' },
   formaPagamento: { type: String, default: '' },
+  formaPagamentoFixada: { type: String, default: '' },
   parcelas: { type: Number, default: 1 },
   permitir12xBoleto: { type: Boolean, default: false },
   maxParcelasBoleto: { type: Number, default: 10 },

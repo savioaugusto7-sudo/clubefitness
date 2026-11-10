@@ -57,107 +57,82 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clientId, customValorUnitario } = body;
+    const {
+      clientId,
+      planoId,
+      planoNome,
+      frequencia,
+      creditosMensais,
+      valorAnterior,
+      reajusteTipo = 'padrao_5',
+      reajustePercentual = 5,
+      valorReajustado,
+      duracaoTipo = 'anual',
+      vigenciaMeses = 12,
+      dataFimAnterior,
+      dataInicioRenovacao,
+      dataFimCalculada,
+      formaPagamento = '',
+      formaPagamentoFixada = '',
+      permitir12xBoleto = false
+    } = body;
 
     if (!clientId) {
       return NextResponse.json({ success: false, error: 'ID do aluno é obrigatório.' }, { status: 400 });
     }
 
-    // Buscar dados do aluno e último contrato em paralelo para resposta instantânea
-    const [client, lastContract, fallbackPlan] = await Promise.all([
-      Client.findById(clientId).populate('dadosComerciais.planoId').lean(),
-      Contract.findOne({ clientId }).select('dataFim valorLiquido valorBruto vigenciaMeses frequencia planoTipo').sort({ createdAt: -1 }).lean(),
-      Plan.findOne({ ativo: true }).lean()
+    // Modo Estrito (Zero Fallbacks): Todos os parâmetros comerciais devem ser explícitos
+    if (!planoId || valorReajustado === undefined || valorReajustado === null || !frequencia || !dataInicioRenovacao || !vigenciaMeses || !dataFimCalculada) {
+      return NextResponse.json({
+        success: false,
+        error: 'Modo Estrito: Todos os parâmetros da proposta de renovação (planoId, frequencia, valorReajustado, vigenciaMeses, dataInicioRenovacao, dataFimCalculada) devem ser informados explicitamente pelo configurador.'
+      }, { status: 400 });
+    }
+
+    const [client, plan] = await Promise.all([
+      Client.findById(clientId).lean(),
+      Plan.findById(planoId).lean()
     ]);
 
     if (!client) {
       return NextResponse.json({ success: false, error: 'Aluno não encontrado.' }, { status: 404 });
     }
-
-    const com = client.dadosComerciais || {};
-    const plan = com.planoId || fallbackPlan;
     if (!plan) {
-      return NextResponse.json({ success: false, error: 'Nenhum plano comercial configurado.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Plano comercial não encontrado.' }, { status: 404 });
     }
 
-    // Determinar data fim do contrato anterior
+    const vMeses = Number(vigenciaMeses) || 12;
+    const freq = Number(frequencia) || 3;
+    const creds = Number(creditosMensais) > 0 ? Number(creditosMensais) : (freq * 4 + 1);
+    const finalValor = Number(valorReajustado);
+    const baseValor = valorAnterior !== undefined ? Number(valorAnterior) : finalValor;
+
     const todayStr = new Date().toISOString().split('T')[0];
-    const dataFimAnterior = com.vencimento || lastContract?.dataFim || todayStr;
-    const isExpired = dataFimAnterior < todayStr;
+    const prevEnd = dataFimAnterior || client.dadosComerciais?.vencimento || dataInicioRenovacao;
+    const isExpired = prevEnd < todayStr;
 
-    // Regra acordada: Data de Início = Data Fim do contrato atual ou último contrato
-    const dataInicioRenovacao = dataFimAnterior;
-
-    // Renovação sempre oferece o PLANO ANUAL (12 meses)
-    const vigenciaMeses = 12;
-    const dataFimCalculada = addMonths(dataInicioRenovacao, vigenciaMeses);
-
-    // Identificar com segurança se o contrato anterior é ANUAL ou MENSAL:
-    let isAnual = false;
-    const durLower = String(com.duracao || '').toLowerCase();
-    
-    if (durLower.includes('anual') || durLower.includes('ano') || durLower.includes('12')) {
-      isAnual = true;
-    } else if (Number(com.vigenciaQtd) >= 12 || Number(com.recorrenciaMeses) >= 12) {
-      isAnual = true;
-    } else if (lastContract && (lastContract.planoTipo === 'Anual' || lastContract.vigenciaMeses >= 12)) {
-      isAnual = true;
-    } else if (com.dataInicio && com.vencimento) {
-      const dStart = new Date(com.dataInicio + 'T12:00:00').getTime();
-      const dEnd = new Date(com.vencimento + 'T12:00:00').getTime();
-      const diffDays = Math.abs(dEnd - dStart) / (1000 * 60 * 60 * 24);
-      if (diffDays > 60) {
-        isAnual = true;
-      }
-    }
-
-    // Determinar valor total base anterior:
-    let valorTotalBase = 0;
-    if (Number(customValorUnitario) > 0) {
-      valorTotalBase = Number(customValorUnitario);
-    } else if (isAnual) {
-      if (Number(com.valorTotal) > 0) {
-        valorTotalBase = Number(com.valorTotal);
-      } else if (lastContract && Number(lastContract.valorLiquido) > 0) {
-        valorTotalBase = Number(lastContract.valorLiquido);
-      } else if (lastContract && Number(lastContract.valorBruto) > 0) {
-        valorTotalBase = Number(lastContract.valorBruto);
-      } else if (Number(com.valorUnitario) > 0) {
-        const pCount = Number(com.parcelas) || 10;
-        if (pCount > 1 && Number(com.valorUnitario) < 2500) {
-          valorTotalBase = Number(com.valorUnitario) * pCount;
-        } else {
-          valorTotalBase = Number(com.valorUnitario);
-        }
-      } else if (plan?.preco) {
-        valorTotalBase = Number(plan.preco);
-      }
-    } else {
-      const mensalidade = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(plan?.preco) || 0;
-      valorTotalBase = mensalidade * 12;
-    }
-
-    const reajuste = body.reajustePercentual !== undefined ? Number(body.reajustePercentual) : 5;
-    let valorTotalAnual = valorTotalBase * (1 + (reajuste / 100));
-    valorTotalAnual = Math.round(valorTotalAnual * 100) / 100;
-
-    const frequencia = Number(com.frequencia) || lastContract?.frequencia || 3;
-    const creditosMensais = frequencia * 4 + 1;
+    const planoTipoCalculado = vMeses >= 12 ? 'Anual' : (vMeses === 1 ? 'Mensal' : `${vMeses} Meses`);
 
     const renewal = await RenewalProposal.create({
       clientId: client._id,
       planoId: plan._id,
-      planoNome: plan.nome || 'Clube Fitness - Monitorado',
-      planoTipo: 'Anual',
-      valorAnterior: valorTotalBase,
-      reajustePercentual: reajuste,
-      valorReajustado: valorTotalAnual, // Armazena o valor total anual base do plano
-      frequencia,
-      creditosMensais,
-      dataFimAnterior,
+      planoNome: planoNome || plan.nome || 'Clube Fitness - Personalizado',
+      planoTipo: planoTipoCalculado,
+      valorAnterior: baseValor,
+      reajusteTipo,
+      reajustePercentual: Number(reajustePercentual) || 0,
+      valorReajustado: finalValor,
+      frequencia: freq,
+      creditosMensais: creds,
+      dataFimAnterior: prevEnd,
       dataInicioRenovacao,
       dataFimCalculada,
-      vigenciaMeses: 12,
+      vigenciaMeses: vMeses,
+      duracaoTipo: duracaoTipo || (vMeses >= 12 ? 'anual' : 'mensal'),
+      formaPagamento: formaPagamento || '',
+      formaPagamentoFixada: formaPagamentoFixada || '',
+      permitir12xBoleto: Boolean(permitir12xBoleto),
+      maxParcelasBoleto: permitir12xBoleto ? 12 : 10,
       isExpired,
       status: 'pendente'
     });
@@ -237,9 +212,9 @@ export async function PUT(request: Request) {
       maxParc = 1;
     }
 
-    const isAnualRenewal = renewal.planoTipo === 'Anual' ||
-                           (renewal.planoNome && renewal.planoNome.toLowerCase().includes('anual')) ||
-                           Number(renewal.vigenciaMeses) >= 12;
+    const vMeses = Number(renewal.vigenciaMeses) || 12;
+    const isAnualRenewal = vMeses >= 12;
+    const durTipo = renewal.duracaoTipo || (isAnualRenewal ? 'anual' : (vMeses === 1 ? 'mensal' : `${vMeses}_meses`));
 
     let numParcelas = Math.min(Math.max(1, Number(parcelas) || 1), maxParc);
     if (isAnualRenewal) {
@@ -248,10 +223,12 @@ export async function PUT(request: Request) {
       } else if (formaPagamento === 'boleto') {
         numParcelas = is12xBoletoAllowed ? (Number(parcelas) === 10 ? 10 : 12) : 10;
       }
+    } else {
+      numParcelas = Math.min(numParcelas, vMeses);
     }
     const valorParcela = Math.round((valorFinalTotal / numParcelas) * 100) / 100;
 
-    // 3. Atualizar dados comerciais com o novo ciclo anual
+    // 3. Atualizar dados comerciais com o novo ciclo
     const diaVenc = Number(finalDataPrimeiroVencimento.split('-')[2]) || 10;
     
     if (!client.dadosComerciais) {
@@ -260,9 +237,9 @@ export async function PUT(request: Request) {
 
     client.dadosComerciais.status = 'ativo';
     client.dadosComerciais.planoId = renewal.planoId._id;
-    client.dadosComerciais.duracao = 'anual';
-    client.dadosComerciais.duracaoQtd = 1;
-    client.dadosComerciais.vigenciaQtd = 1;
+    client.dadosComerciais.duracao = durTipo;
+    client.dadosComerciais.duracaoQtd = isAnualRenewal ? 1 : vMeses;
+    client.dadosComerciais.vigenciaQtd = isAnualRenewal ? 1 : vMeses;
     client.dadosComerciais.valorUnitario = valorFinalTotal;
     client.dadosComerciais.valorAcordado = valorFinalTotal;
     client.dadosComerciais.dataInicio = renewal.dataInicioRenovacao;
@@ -297,16 +274,16 @@ export async function PUT(request: Request) {
       clientEstado: pes.estado || 'MG',
       clientCep: pes.cep || '',
       planNome: renewal.planoNome,
-      planTipo: 'Anual',
+      planTipo: isAnualRenewal ? 'Anual' : (vMeses === 1 ? 'Mensal' : `${vMeses} Meses`),
       planPreco: valorFinalTotal,
       creditosMensais: renewal.creditosMensais,
       dataInicio: renewal.dataInicioRenovacao,
       dataVencimento: finalDataPrimeiroVencimento,
       formaPagamento,
       parcelas: numParcelas,
-      vigenciaQtd: 12,
-      recorrenciaMeses: 12,
-      criarRecorrenciaMensal: true,
+      vigenciaQtd: isAnualRenewal ? 12 : vMeses,
+      recorrenciaMeses: isAnualRenewal ? 12 : vMeses,
+      criarRecorrenciaMensal: isAnualRenewal,
       unidadeContratada: 'Clube Fitness'
     });
 
@@ -345,7 +322,7 @@ export async function PUT(request: Request) {
       clientId: client._id,
       planoId: renewal.planoId._id,
       planoNome: renewal.planoNome,
-      planoTipo: 'Anual',
+      planoTipo: isAnualRenewal ? 'Anual' : (vMeses === 1 ? 'Mensal' : `${vMeses} Meses`),
       valorBruto: valorFinalTotal,
       descontoTipo: 'fixo',
       descontoValor: 0,
@@ -356,7 +333,7 @@ export async function PUT(request: Request) {
       diaVencimento: diaVenc,
       dataInicio: renewal.dataInicioRenovacao,
       dataFim: renewal.dataFimCalculada,
-      vigenciaMeses: 12,
+      vigenciaMeses: vMeses,
       responsavelVenda: 'Auto-Renovação Online (Clicksign)',
       unidadeContratada: 'Clube Fitness',
       frequencia: renewal.frequencia,
@@ -367,7 +344,7 @@ export async function PUT(request: Request) {
       clicksignUrl,
       clicksignStatus,
       contratoTexto: contractHtml,
-      observacoesContratuais: `Renovação de contrato anual (12 meses). Início contínuo em ${renewal.dataInicioRenovacao}. Condição: ${numParcelas}x de R$ ${valorParcela.toFixed(2)} via ${formaPagamento.toUpperCase()}.`
+      observacoesContratuais: `Renovação de contrato (${isAnualRenewal ? '12 meses' : `${vMeses} meses`}). Início em ${renewal.dataInicioRenovacao}. Condição: ${numParcelas}x de R$ ${valorParcela.toFixed(2)} via ${formaPagamento.toUpperCase()}.`
     });
 
     // 7. Atualizar a proposta de renovação

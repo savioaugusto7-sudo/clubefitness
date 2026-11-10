@@ -1531,28 +1531,260 @@ export default function GestaoContratosPanel({
   const [activeRenewal, setActiveRenewal] = useState<any>(null);
   const [renewalTargetClient, setRenewalTargetClient] = useState<any>(null);
 
-  const handleGenerateRenewalLink = async (client: any) => {
-    if (generatingRenewalClientId) return;
-    setGeneratingRenewalClientId(client._id);
-    setRenewalTargetClient(client);
+  // ==========================================
+  // NOVO CONFIGURADOR INTERATIVO: MONTAR LINK DE RENOVAÇÃO
+  // ==========================================
+  const [showRenewalBuilderModal, setShowRenewalBuilderModal] = useState(false);
+  const [rbClient, setRbClient] = useState<any>(null);
+  const [rbPlanoMode, setRbPlanoMode] = useState<'manter' | 'alterar'>('manter');
+  const [rbPlanoId, setRbPlanoId] = useState<string>('');
+  const [rbFrequenciaMode, setRbFrequenciaMode] = useState<'manter' | 'alterar'>('manter');
+  const [rbFrequencia, setRbFrequencia] = useState<number>(3);
+  const [rbValorMode, setRbValorMode] = useState<'reajuste_5' | 'manter' | 'custom'>('reajuste_5');
+  const [rbValorCustom, setRbValorCustom] = useState<number>(0);
+  const [rbDuracaoMode, setRbDuracaoMode] = useState<'anual_12' | 'manter' | 'outro'>('anual_12');
+  const [rbVigenciaMesesOutro, setRbVigenciaMesesOutro] = useState<number>(6);
+  const [rbDataInicioMode, setRbDataInicioMode] = useState<'termino_atual' | 'custom'>('termino_atual');
+  const [rbDataInicioCustom, setRbDataInicioCustom] = useState<string>('');
+  const [rbFormaPagMode, setRbFormaPagMode] = useState<'manter' | 'todas' | 'fixar'>('manter');
+  const [rbFormaPagFixada, setRbFormaPagFixada] = useState<string>('boleto');
+  const [rbPermitir12xBoleto, setRbPermitir12xBoleto] = useState<boolean>(false);
+  const [rbSubmitting, setRbSubmitting] = useState<boolean>(false);
+
+  const handleOpenRenewalBuilderModal = (client: any) => {
+    if (!client) return;
+    setRbClient(client);
+
+    const com = client.dadosComerciais || {};
+    const latestContract = allContractsMap[client._id];
+
+    // 1. Plano Atual
+    const curPId = com.planoId?._id || com.planoId || latestContract?.planoId || (plans[0]?._id ? String(plans[0]._id) : '');
+    setRbPlanoMode('manter');
+    setRbPlanoId(String(curPId));
+
+    // 2. Frequência Atual
+    const curFreq = Number(com.frequencia || latestContract?.frequencia || 3);
+    setRbFrequenciaMode('manter');
+    setRbFrequencia(curFreq);
+
+    // 3. Valor Atual
+    const curVal = Number(com.valorTotal || com.valorUnitario || latestContract?.valorLiquido || latestContract?.valorBruto || 0);
+    setRbValorMode('reajuste_5');
+    setRbValorCustom(curVal > 0 ? Math.round(curVal * 1.05 * 100) / 100 : 0);
+
+    // 4. Duração (Padrão: migrar para Anual 12 meses)
+    setRbDuracaoMode('anual_12');
+    setRbVigenciaMesesOutro(6);
+
+    // 5. Data de Início (Dia exato do término do contrato atual)
+    setRbDataInicioMode('termino_atual');
+    const curTerm = com.vencimento || latestContract?.dataFim || new Date().toISOString().split('T')[0];
+    setRbDataInicioCustom(curTerm);
+
+    // 6. Forma de Pagamento
+    setRbFormaPagMode('manter');
+    const curForma = (latestContract?.formaPagamento || com.formaPagamento || 'boleto').toLowerCase();
+    setRbFormaPagFixada(curForma.includes('pix') ? 'pix' : (curForma.includes('cartao') ? 'cartao' : 'boleto'));
+    setRbPermitir12xBoleto(false);
+
+    setShowRenewalBuilderModal(true);
+  };
+
+  // Redirecionar handleGenerateRenewalLink para abrir o configurador interativo
+  const handleGenerateRenewalLink = (client: any) => {
+    handleOpenRenewalBuilderModal(client);
+  };
+
+  // Cálculos dinâmicos em tempo real do configurador
+  const rbCalculations = useMemo(() => {
+    if (!rbClient) return null;
+    const com = rbClient.dadosComerciais || {};
+    const latestContract = allContractsMap[rbClient._id];
+
+    // Dados Atuais
+    const curPId = String(com.planoId?._id || com.planoId || latestContract?.planoId || (plans[0]?._id || ''));
+    const curPlanObj = plans.find(p => String(p._id) === curPId);
+    const curPName = com.planoNome || curPlanObj?.nome || latestContract?.planoNome || 'Plano Atual';
+    const curFreq = Number(com.frequencia || latestContract?.frequencia || 3);
+    const curVal = Number(com.valorTotal || com.valorUnitario || latestContract?.valorLiquido || latestContract?.valorBruto || 0);
+    const curDurMeses = Number(latestContract?.vigenciaMeses || com.vigenciaQtd || 1);
+    const curDurLabel = com.duracao === 'anual' || curDurMeses >= 12 ? 'Anual (12 meses)' : (curDurMeses === 1 ? 'Mensal (1 mês)' : `${curDurMeses} meses`);
+    const curTermino = com.vencimento || latestContract?.dataFim || new Date().toISOString().split('T')[0];
+    const curForma = (latestContract?.formaPagamento || com.formaPagamento || 'Boleto');
+
+    // 1. Plano Selecionado
+    const selectedPlanId = rbPlanoMode === 'manter' ? curPId : rbPlanoId;
+    const selectedPlanObj = plans.find(p => String(p._id) === String(selectedPlanId)) || curPlanObj;
+    const selectedPlanName = rbPlanoMode === 'manter' ? curPName : (selectedPlanObj?.nome || 'Plano Personalizado');
+
+    // 2. Frequência Selecionada
+    const selectedFreq = rbFrequenciaMode === 'manter' ? curFreq : Number(rbFrequencia);
+    const selectedCreditos = selectedFreq * 4 + 1;
+
+    // 3. Valor Selecionado
+    const baseVal = curVal > 0 ? curVal : (Number(selectedPlanObj?.preco) || 1000);
+    let reajusteTipo: 'padrao_5' | 'manter_atual' | 'customizado' = 'padrao_5';
+    let reajustePct = 5;
+    let finalVal = Math.round(baseVal * 1.05 * 100) / 100;
+
+    if (rbValorMode === 'manter') {
+      reajusteTipo = 'manter_atual';
+      reajustePct = 0;
+      finalVal = baseVal;
+    } else if (rbValorMode === 'custom') {
+      reajusteTipo = 'customizado';
+      finalVal = Number(rbValorCustom) || 0;
+      reajustePct = baseVal > 0 ? Math.round(((finalVal - baseVal) / baseVal) * 100 * 10) / 10 : 0;
+    }
+
+    // 4. Duração Selecionada
+    let vigMeses = 12;
+    let durTipo = 'anual';
+    let durLabel = 'Anual (12 Meses)';
+
+    if (rbDuracaoMode === 'manter') {
+      vigMeses = curDurMeses;
+      durTipo = curDurMeses >= 12 ? 'anual' : (curDurMeses === 1 ? 'mensal' : `${curDurMeses}_meses`);
+      durLabel = curDurLabel;
+    } else if (rbDuracaoMode === 'outro') {
+      vigMeses = Number(rbVigenciaMesesOutro) || 6;
+      durTipo = vigMeses >= 12 ? 'anual' : (vigMeses === 1 ? 'mensal' : `${vigMeses}_meses`);
+      durLabel = `${vigMeses} Meses`;
+    }
+
+    // 5. Data Início & Fim (Dia exato do término como padrão)
+    const dataInicio = rbDataInicioMode === 'termino_atual' ? curTermino : (rbDataInicioCustom || curTermino);
+    let dataFim = dataInicio;
     try {
+      const [y, m, d] = dataInicio.split('T')[0].split('-').map(Number);
+      const calcD = new Date(y, m - 1, d);
+      calcD.setMonth(calcD.getMonth() + vigMeses);
+      dataFim = `${calcD.getFullYear()}-${String(calcD.getMonth() + 1).padStart(2, '0')}-${String(calcD.getDate()).padStart(2, '0')}`;
+    } catch {
+      dataFim = dataInicio;
+    }
+
+    // 6. Forma Pagamento
+    let formaPag = '';
+    let formaPagFixada = '';
+    let formaLabel = 'Todas (Aluno escolhe Pix, Boleto ou Cartão)';
+
+    if (rbFormaPagMode === 'manter') {
+      formaPag = curForma.toLowerCase();
+      formaPagFixada = curForma.toLowerCase();
+      formaLabel = `Manter Atual (${curForma})`;
+    } else if (rbFormaPagMode === 'fixar') {
+      formaPag = rbFormaPagFixada;
+      formaPagFixada = rbFormaPagFixada;
+      formaLabel = `Fixado em ${rbFormaPagFixada.toUpperCase()}`;
+    }
+
+    return {
+      curPId,
+      curPName,
+      curFreq,
+      curVal,
+      curDurMeses,
+      curDurLabel,
+      curTermino,
+      curForma,
+      selectedPlanId,
+      selectedPlanName,
+      selectedFreq,
+      selectedCreditos,
+      baseVal,
+      reajusteTipo,
+      reajustePct,
+      finalVal,
+      vigMeses,
+      durTipo,
+      durLabel,
+      dataInicio,
+      dataFim,
+      formaPag,
+      formaPagFixada,
+      formaLabel
+    };
+  }, [rbClient, rbPlanoMode, rbPlanoId, rbFrequenciaMode, rbFrequencia, rbValorMode, rbValorCustom, rbDuracaoMode, rbVigenciaMesesOutro, rbDataInicioMode, rbDataInicioCustom, rbFormaPagMode, rbFormaPagFixada, plans, allContractsMap]);
+
+  const handleConfirmRenewalBuilder = async (action: 'copy' | 'whatsapp' = 'copy') => {
+    if (!rbClient || !rbCalculations) return;
+    if (rbCalculations.finalVal <= 0) {
+      alert('Por favor, informe um valor de renovação válido superior a zero.');
+      return;
+    }
+    if (!rbCalculations.selectedPlanId) {
+      alert('Por favor, selecione um plano.');
+      return;
+    }
+
+    setRbSubmitting(true);
+    setGeneratingRenewalClientId(rbClient._id);
+    try {
+      const payload = {
+        clientId: rbClient._id,
+        planoId: rbCalculations.selectedPlanId,
+        planoNome: rbCalculations.selectedPlanName,
+        frequencia: rbCalculations.selectedFreq,
+        creditosMensais: rbCalculations.selectedCreditos,
+        valorAnterior: rbCalculations.baseVal,
+        reajusteTipo: rbCalculations.reajusteTipo,
+        reajustePercentual: rbCalculations.reajustePct,
+        valorReajustado: rbCalculations.finalVal,
+        duracaoTipo: rbCalculations.durTipo,
+        vigenciaMeses: rbCalculations.vigMeses,
+        dataFimAnterior: rbCalculations.curTermino,
+        dataInicioRenovacao: rbCalculations.dataInicio,
+        dataFimCalculada: rbCalculations.dataFim,
+        formaPagamento: rbCalculations.formaPag,
+        formaPagamentoFixada: rbCalculations.formaPagFixada,
+        permitir12xBoleto: rbPermitir12xBoleto
+      };
+
       const res = await fetch('/api/renovacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: client._id })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
+
       if (data.success && data.data) {
-        const url = window.location.origin + '/renovacao/' + data.data._id;
-        setGeneratedRenewalUrl(url);
+        const fullUrl = window.location.origin + '/renovacao/' + data.data._id;
+        setGeneratedRenewalUrl(fullUrl);
         setActiveRenewal(data.data);
+        setRenewalTargetClient(rbClient);
+        setShowRenewalBuilderModal(false);
+
+        if (action === 'whatsapp') {
+          const nomeAluno = rbClient.dadosPessoais?.nome || 'Aluno';
+          const primeiroNome = nomeAluno.split(' ')[0];
+          const tel = (rbClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
+          const planoNome = rbCalculations.selectedPlanName;
+          const [ano, mes, dia] = (rbCalculations.curTermino || '').split('-');
+          const dataFmt = (dia && mes && ano) ? `${dia}/${mes}/${ano}` : rbCalculations.curTermino;
+
+          const msg = `Olá, ${primeiroNome}! Tudo bem? Seu plano ${planoNome} encerra em ${dataFmt}. Preparamos sua proposta de renovação com condição especial. Confira todos os detalhes e confirme sua continuidade em 1 clique no link abaixo:\n\n👉 ${fullUrl}`;
+
+          if (tel) {
+            window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+          } else {
+            navigator.clipboard.writeText(fullUrl);
+            alert('Link gerado e copiado! Aluno não possui telefone cadastrado para abertura direta do WhatsApp.');
+          }
+        } else {
+          navigator.clipboard.writeText(fullUrl);
+          alert('Link de renovação gerado e copiado com sucesso para a área de transferência!');
+        }
+
         setShowRenewalModal(true);
       } else {
-        alert('Erro ao gerar link de renovação: ' + data.error);
+        alert('Erro ao gerar renovação: ' + data.error);
       }
     } catch (err: any) {
       alert('Erro de conexão ao gerar link de renovação: ' + err.message);
     } finally {
+      setRbSubmitting(false);
       setGeneratingRenewalClientId(null);
     }
   };
@@ -6913,6 +7145,938 @@ export default function GestaoContratosPanel({
                 Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL INTERATIVO: MONTAR LINK DE RENOVAÇÃO
+          ========================================================= */}
+      {showRenewalBuilderModal && rbClient && rbCalculations && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.88)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '820px',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(245, 158, 11, 0.1)',
+            overflow: 'hidden'
+          }}>
+            {/* 1. CABEÇALHO DO MODAL */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              background: 'linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)'
+            }}>
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fbbf24',
+                  fontSize: '1.3rem',
+                  flexShrink: 0
+                }}>
+                  <i className="fa-solid fa-arrows-rotate"></i>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc' }}>
+                      Montar Proposta de Renovação
+                    </h2>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: 'rgba(245, 158, 11, 0.18)',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      color: '#fbbf24',
+                      fontSize: '0.72rem',
+                      fontWeight: 700
+                    }}>
+                      Configurador Assistido
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <span>Aluno: <strong style={{ color: '#f1f5f9' }}>{rbClient.dadosPessoais?.nome || 'Aluno'}</strong></span>
+                    {rbClient.dadosPessoais?.cpf && <span>• CPF: {rbClient.dadosPessoais.cpf}</span>}
+                    {rbClient.dadosPessoais?.telefone && <span>• Tel: {rbClient.dadosPessoais.telefone}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowRenewalBuilderModal(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#94a3b8',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem'
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* 2. CORPO SCROLLÁVEL DO MODAL */}
+            <div style={{
+              padding: '20px 24px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+
+              {/* CARD 1: PLANO COMERCIAL */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '14px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-dumbbell" style={{ color: '#38bdf8' }}></i>
+                    1. Plano Comercial
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Atual: <strong style={{ color: '#38bdf8' }}>{rbCalculations.curPName}</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRbPlanoMode('manter')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbPlanoMode === 'manter' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbPlanoMode === 'manter' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbPlanoMode === 'manter' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbPlanoMode === 'manter' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbPlanoMode === 'manter' ? '#38bdf8' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Manter Plano Atual</div>
+                      <div style={{ fontSize: '0.74rem', color: '#38bdf8', marginTop: '2px' }}>{rbCalculations.curPName}</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbPlanoMode('alterar')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbPlanoMode === 'alterar' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbPlanoMode === 'alterar' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbPlanoMode === 'alterar' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbPlanoMode === 'alterar' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbPlanoMode === 'alterar' ? '#38bdf8' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Alterar Plano Comercial</div>
+                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Selecionar outro plano da clínica</div>
+                    </div>
+                  </button>
+                </div>
+
+                {rbPlanoMode === 'alterar' && (
+                  <div style={{ marginTop: '4px' }}>
+                    <select
+                      className="form-select"
+                      value={rbPlanoId}
+                      onChange={e => setRbPlanoId(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid #38bdf8',
+                        color: '#ffffff',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {plans.map(p => (
+                        <option key={p._id} value={p._id}>
+                          {p.nome} — R$ {Number(p.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 2: FREQUÊNCIA SEMANAL & CRÉDITOS */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '14px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-calendar-check" style={{ color: '#22d3ee' }}></i>
+                    2. Frequência Semanal & Franquia
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Atual: <strong style={{ color: '#22d3ee' }}>{rbCalculations.curFreq}x/sem ({rbCalculations.curFreq * 4 + 1} créditos/mês)</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRbFrequenciaMode('manter')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbFrequenciaMode === 'manter' ? '2px solid #22d3ee' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbFrequenciaMode === 'manter' ? 'rgba(34, 211, 238, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbFrequenciaMode === 'manter' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbFrequenciaMode === 'manter' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbFrequenciaMode === 'manter' ? '#22d3ee' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Manter Frequência Atual</div>
+                      <div style={{ fontSize: '0.74rem', color: '#22d3ee', marginTop: '2px' }}>{rbCalculations.curFreq}x/sem ({rbCalculations.curFreq * 4 + 1} créditos mensais)</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbFrequenciaMode('alterar')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbFrequenciaMode === 'alterar' ? '2px solid #22d3ee' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbFrequenciaMode === 'alterar' ? 'rgba(34, 211, 238, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbFrequenciaMode === 'alterar' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbFrequenciaMode === 'alterar' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbFrequenciaMode === 'alterar' ? '#22d3ee' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Alterar Frequência</div>
+                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Aumentar ou reduzir dias na semana</div>
+                    </div>
+                  </button>
+                </div>
+
+                {rbFrequenciaMode === 'alterar' && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    {[1, 2, 3, 4, 5, 6].map(f => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setRbFrequencia(f)}
+                        style={{
+                          flex: '1 1 auto',
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          border: rbFrequencia === f ? '2px solid #22d3ee' : '1px solid rgba(255,255,255,0.1)',
+                          background: rbFrequencia === f ? 'rgba(34, 211, 238, 0.2)' : 'rgba(255,255,255,0.03)',
+                          color: rbFrequencia === f ? '#ffffff' : '#94a3b8',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {f}x/sem ({f * 4 + 1} cr.)
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 3: VALOR DO INVESTIMENTO & POLÍTICA DE REAJUSTE */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '14px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-money-bill-wave" style={{ color: '#10b981' }}></i>
+                    3. Valor do Investimento & Reajuste
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Valor Contratado Atual: <strong style={{ color: '#f1f5f9' }}>R$ {rbCalculations.baseVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                  {/* Opção A: +5% Padrão */}
+                  <button
+                    type="button"
+                    onClick={() => setRbValorMode('reajuste_5')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbValorMode === 'reajuste_5' ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbValorMode === 'reajuste_5' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbValorMode === 'reajuste_5' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbValorMode === 'reajuste_5' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbValorMode === 'reajuste_5' ? '#10b981' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Aplicar Reajuste Padrão (+5%)</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#34d399', marginTop: '2px' }}>
+                        R$ {(rbCalculations.baseVal * 1.05).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <span style={{ fontSize: '0.7rem', fontWeight: 500, color: '#94a3b8', marginLeft: '6px' }}>(+ R$ {(rbCalculations.baseVal * 0.05).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Opção B: Manter Valor Atual */}
+                  <button
+                    type="button"
+                    onClick={() => setRbValorMode('manter')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbValorMode === 'manter' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbValorMode === 'manter' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbValorMode === 'manter' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbValorMode === 'manter' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbValorMode === 'manter' ? '#38bdf8' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Manter Valor Atual</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
+                        R$ {rbCalculations.baseVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <span style={{ fontSize: '0.7rem', fontWeight: 500, color: '#94a3b8', marginLeft: '6px' }}>(Sem reajuste)</span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Opção C: Customizado */}
+                  <button
+                    type="button"
+                    onClick={() => setRbValorMode('custom')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbValorMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbValorMode === 'custom' ? 'rgba(251, 191, 36, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbValorMode === 'custom' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbValorMode === 'custom' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbValorMode === 'custom' ? '#fbbf24' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Informar Novo Valor</div>
+                      <div style={{ fontSize: '0.74rem', color: '#fbbf24', marginTop: '2px' }}>Digitar valor negociado</div>
+                    </div>
+                  </button>
+                </div>
+
+                {rbValorMode === 'custom' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fbbf24' }}>R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={rbValorCustom}
+                      onChange={e => setRbValorCustom(Number(e.target.value))}
+                      placeholder="0.00"
+                      style={{
+                        maxWidth: '220px',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid #fbbf24',
+                        color: '#ffffff',
+                        fontSize: '1rem',
+                        fontWeight: 700
+                      }}
+                    />
+                    <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                      Variação: {rbCalculations.reajustePct >= 0 ? `+${rbCalculations.reajustePct}%` : `${rbCalculations.reajustePct}%`} em relação ao anterior
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 4: DURAÇÃO DO NOVO CONTRATO */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '14px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-clock" style={{ color: '#f59e0b' }}></i>
+                    4. Duração da Renovação
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Atual: <strong style={{ color: '#f59e0b' }}>{rbCalculations.curDurLabel}</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRbDuracaoMode('anual_12')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbDuracaoMode === 'anual_12' ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbDuracaoMode === 'anual_12' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbDuracaoMode === 'anual_12' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbDuracaoMode === 'anual_12' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbDuracaoMode === 'anual_12' ? '#f59e0b' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Migrar para Anual (12 Meses)</div>
+                      <div style={{ fontSize: '0.74rem', color: '#fbbf24', marginTop: '2px' }}>Padrão Clube de Retenção</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbDuracaoMode('manter')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbDuracaoMode === 'manter' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbDuracaoMode === 'manter' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbDuracaoMode === 'manter' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbDuracaoMode === 'manter' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbDuracaoMode === 'manter' ? '#38bdf8' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Manter Duração Atual</div>
+                      <div style={{ fontSize: '0.74rem', color: '#38bdf8', marginTop: '2px' }}>{rbCalculations.curDurLabel}</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbDuracaoMode('outro')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbDuracaoMode === 'outro' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbDuracaoMode === 'outro' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbDuracaoMode === 'outro' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbDuracaoMode === 'outro' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbDuracaoMode === 'outro' ? '#a855f7' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Outro Período</div>
+                      <div style={{ fontSize: '0.74rem', color: '#c084fc', marginTop: '2px' }}>Semestral, Trimestral ou Custom</div>
+                    </div>
+                  </button>
+                </div>
+
+                {rbDuracaoMode === 'outro' && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    {[1, 3, 6, 12].map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setRbVigenciaMesesOutro(m)}
+                        style={{
+                          flex: '1 1 auto',
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          border: rbVigenciaMesesOutro === m ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
+                          background: rbVigenciaMesesOutro === m ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.03)',
+                          color: rbVigenciaMesesOutro === m ? '#ffffff' : '#94a3b8',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {m === 1 ? '1 Mês (Mensal)' : (m === 6 ? '6 Meses (Semestral)' : `${m} Meses`)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 5: DATA DE INÍCIO DA VIGÊNCIA */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '14px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-regular fa-calendar-days" style={{ color: '#ec4899' }}></i>
+                    5. Data de Início da Nova Vigência
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Término Atual: <strong style={{ color: '#ec4899' }}>{rbCalculations.curTermino ? rbCalculations.curTermino.split('-').reverse().join('/') : '—'}</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRbDataInicioMode('termino_atual')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbDataInicioMode === 'termino_atual' ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbDataInicioMode === 'termino_atual' ? 'rgba(236, 72, 153, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbDataInicioMode === 'termino_atual' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbDataInicioMode === 'termino_atual' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbDataInicioMode === 'termino_atual' ? '#ec4899' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Dia Exato do Término Atual</div>
+                      <div style={{ fontSize: '0.74rem', color: '#f472b6', marginTop: '2px' }}>
+                        📅 Início em {rbCalculations.curTermino ? rbCalculations.curTermino.split('-').reverse().join('/') : '—'} (Padrão Oficial)
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbDataInicioMode('custom')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbDataInicioMode === 'custom' ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbDataInicioMode === 'custom' ? 'rgba(236, 72, 153, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbDataInicioMode === 'custom' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbDataInicioMode === 'custom' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbDataInicioMode === 'custom' ? '#ec4899' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Data Personalizada</div>
+                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Selecionar data de início específica</div>
+                    </div>
+                  </button>
+                </div>
+
+                {rbDataInicioMode === 'custom' && (
+                  <div style={{ marginTop: '4px' }}>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={rbDataInicioCustom}
+                      onChange={e => setRbDataInicioCustom(e.target.value)}
+                      style={{
+                        maxWidth: '220px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid #ec4899',
+                        color: '#ffffff',
+                        fontSize: '0.88rem'
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div style={{ fontSize: '0.76rem', color: '#94a3b8', background: 'rgba(0,0,0,0.25)', padding: '6px 10px', borderRadius: '6px' }}>
+                  <i className="fa-solid fa-circle-info" style={{ color: '#ec4899', marginRight: '6px' }}></i>
+                  Vigência calculada do novo ciclo: <strong>{rbCalculations.dataInicio.split('-').reverse().join('/')}</strong> até <strong>{rbCalculations.dataFim.split('-').reverse().join('/')}</strong> ({rbCalculations.vigMeses} meses).
+                </div>
+              </div>
+
+              {/* CARD 6: FORMA DE PAGAMENTO & PARCELAMENTO */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '14px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-credit-card" style={{ color: '#6366f1' }}></i>
+                    6. Forma de Pagamento & Parcelamento
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Atual: <strong style={{ color: '#6366f1' }}>{rbCalculations.curForma}</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRbFormaPagMode('manter')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbFormaPagMode === 'manter' ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbFormaPagMode === 'manter' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbFormaPagMode === 'manter' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbFormaPagMode === 'manter' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbFormaPagMode === 'manter' ? '#6366f1' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Manter Forma Atual</div>
+                      <div style={{ fontSize: '0.74rem', color: '#818cf8', marginTop: '2px' }}>{rbCalculations.curForma}</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbFormaPagMode('todas')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbFormaPagMode === 'todas' ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbFormaPagMode === 'todas' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbFormaPagMode === 'todas' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbFormaPagMode === 'todas' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbFormaPagMode === 'todas' ? '#6366f1' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Permitir Todas</div>
+                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Aluno escolhe no link</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRbFormaPagMode('fixar')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: rbFormaPagMode === 'fixar' ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
+                      background: rbFormaPagMode === 'fixar' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rbFormaPagMode === 'fixar' ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <i className={`fa-${rbFormaPagMode === 'fixar' ? 'solid fa-circle-check' : 'regular fa-circle'}`} style={{ color: rbFormaPagMode === 'fixar' ? '#6366f1' : '#64748b' }}></i>
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Fixar Forma de Pagamento</div>
+                      <div style={{ fontSize: '0.74rem', color: '#818cf8', marginTop: '2px' }}>Exigir forma específica</div>
+                    </div>
+                  </button>
+                </div>
+
+                {rbFormaPagMode === 'fixar' && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    {[
+                      { id: 'boleto', label: 'Boleto Bancário', icon: 'fa-barcode' },
+                      { id: 'pix', label: 'Pix', icon: 'fa-qrcode' },
+                      { id: 'cartao', label: 'Cartão de Crédito', icon: 'fa-credit-card' }
+                    ].map(f => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setRbFormaPagFixada(f.id)}
+                        style={{
+                          flex: '1 1 auto',
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          border: rbFormaPagFixada === f.id ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.1)',
+                          background: rbFormaPagFixada === f.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.03)',
+                          color: rbFormaPagFixada === f.id ? '#ffffff' : '#94a3b8',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <i className={`fa-solid ${f.icon}`}></i> {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#cbd5e1', cursor: 'pointer', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    checked={rbPermitir12xBoleto}
+                    onChange={e => setRbPermitir12xBoleto(e.target.checked)}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                  <span>Permitir parcelamento em até <strong>12x no boleto bancário</strong> (o padrão contratual é até 10x).</span>
+                </label>
+              </div>
+
+              {/* CARD DE RESUMO COMPARATIVO (ANTES VS DEPOIS) */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '16px',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-scale-balanced"></i> Resumo Comparativo: Contrato Atual vs Nova Renovação
+                  </span>
+                  <span style={{ fontSize: '0.74rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', fontWeight: 700 }}>
+                    Revisão Prévia
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {/* Coluna 1: Atual */}
+                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 14px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
+                    <div style={{ fontWeight: 700, color: '#94a3b8', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '4px' }}>
+                      📋 CONTRATO ATUAL (VENCENDO)
+                    </div>
+                    <div><span style={{ color: '#94a3b8' }}>Plano:</span> <strong style={{ color: '#f1f5f9' }}>{rbCalculations.curPName}</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Frequência:</span> <strong style={{ color: '#f1f5f9' }}>{rbCalculations.curFreq}x/sem ({rbCalculations.curFreq * 4 + 1} cr.)</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Duração:</span> <strong style={{ color: '#f1f5f9' }}>{rbCalculations.curDurLabel}</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Investimento:</span> <strong style={{ color: '#f1f5f9' }}>R$ {rbCalculations.baseVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Término:</span> <strong style={{ color: '#f1f5f9' }}>{rbCalculations.curTermino.split('-').reverse().join('/')}</strong></div>
+                  </div>
+
+                  {/* Coluna 2: Nova Renovação */}
+                  <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '12px 14px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
+                    <div style={{ fontWeight: 700, color: '#34d399', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '4px' }}>
+                      🚀 NOVA PROPOSTA DE RENOVAÇÃO
+                    </div>
+                    <div><span style={{ color: '#94a3b8' }}>Plano:</span> <strong style={{ color: '#34d399' }}>{rbCalculations.selectedPlanName}</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Frequência:</span> <strong style={{ color: '#34d399' }}>{rbCalculations.selectedFreq}x/sem ({rbCalculations.selectedCreditos} cr.)</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Duração:</span> <strong style={{ color: '#34d399' }}>{rbCalculations.durLabel}</strong></div>
+                    <div>
+                      <span style={{ color: '#94a3b8' }}>Novo Investimento:</span>{' '}
+                      <strong style={{ fontSize: '0.95rem', color: '#10b981' }}>
+                        R$ {rbCalculations.finalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </strong>
+                      <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginLeft: '6px' }}>
+                        ({rbCalculations.reajustePct >= 0 ? `+${rbCalculations.reajustePct}%` : `${rbCalculations.reajustePct}%`})
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#94a3b8' }}>Vigência:</span>{' '}
+                      <strong style={{ color: '#34d399' }}>
+                        {rbCalculations.dataInicio.split('-').reverse().join('/')} → {rbCalculations.dataFim.split('-').reverse().join('/')}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estimativas de parcelas */}
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                  borderTop: '1px solid rgba(255,255,255,0.06)',
+                  paddingTop: '8px',
+                  fontSize: '0.74rem',
+                  color: '#cbd5e1'
+                }}>
+                  <span>📄 Boleto: <strong>10x de R$ {(rbCalculations.finalVal / 10).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                  <span>•</span>
+                  <span>💳 Cartão: <strong>12x de R$ {((rbCalculations.finalVal * 1.05) / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                  <span>•</span>
+                  <span>⚡ Pix: <strong>R$ {rbCalculations.finalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* 3. RODAPÉ DE AÇÕES DO MODAL */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              background: '#090d16',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowRenewalBuilderModal(false)}
+                disabled={rbSubmitting}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  color: '#94a3b8',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmRenewalBuilder('copy')}
+                  disabled={rbSubmitting}
+                  style={{
+                    padding: '11px 18px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(251, 191, 36, 0.5)',
+                    background: 'rgba(251, 191, 36, 0.15)',
+                    color: '#fbbf24',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: rbSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {rbSubmitting ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-link"></i>}
+                  Gerar e Copiar Link
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleConfirmRenewalBuilder('whatsapp')}
+                  disabled={rbSubmitting}
+                  style={{
+                    padding: '11px 22px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.88rem',
+                    cursor: rbSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)'
+                  }}
+                >
+                  {rbSubmitting ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-brands fa-whatsapp" style={{ fontSize: '1.1rem' }}></i>}
+                  Gerar e Abrir no WhatsApp
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

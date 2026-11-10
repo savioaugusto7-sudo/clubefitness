@@ -70,10 +70,22 @@ export default function RenovacaoPage({ params }: { params: any }) {
           const isAnualRen = ren.planoTipo === 'Anual' || 
                             (ren.planoNome && ren.planoNome.toLowerCase().includes('anual')) ||
                             Number(ren.vigenciaMeses) >= 12 ||
-                            Boolean(ren.duracao === 'anual');
-          if (isAnualRen) {
+                            Boolean(ren.duracao === 'anual') ||
+                            Boolean(ren.duracaoTipo === 'anual');
+
+          if (ren.formaPagamentoFixada) {
+            setFormaPagamento(ren.formaPagamentoFixada);
+            if (isAnualRen) {
+              setParcelas(ren.formaPagamentoFixada === 'cartao' ? 12 : (isSpecial12x ? 12 : 10));
+            } else {
+              setParcelas(1);
+            }
+          } else if (isAnualRen) {
             setFormaPagamento('boleto');
             setParcelas(isSpecial12x ? 12 : 10);
+          } else {
+            setFormaPagamento(ren.formaPagamento || 'pix');
+            setParcelas(1);
           }
         } else {
           setErrorMsg(json.error || 'Link de renovação não encontrado.');
@@ -548,7 +560,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
                   { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista', equiv: null },
                   { id: 'boleto', label: `Boleto (até ${is12xBoletoAllowed ? 12 : 10}x)`, icon: 'fa-barcode', desc: 'Sem acréscimo', equiv: null },
                   { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: 'Parcelamento flexível', equiv: null }
-                ]).map(item => (
+                ]).filter(item => !renewal?.formaPagamentoFixada || item.id === renewal?.formaPagamentoFixada).map(item => (
                   <button
                     key={item.id}
                     type="button"
