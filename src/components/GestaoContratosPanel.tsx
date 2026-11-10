@@ -8104,12 +8104,17 @@ export default function GestaoContratosPanel({
             <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Plano:</span>
-                <strong>{activeRenewal.planoNome} (Anual)</strong>
+                <strong>
+                  {activeRenewal.planoNome}
+                  {activeRenewal.duracaoTipo === 'anual' || activeRenewal.vigenciaMeses >= 12
+                    ? ' (Anual)'
+                    : (activeRenewal.vigenciaMeses === 1 ? ' (Mensal)' : (activeRenewal.vigenciaMeses ? ` (${activeRenewal.vigenciaMeses} Meses)` : ''))}
+                </strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Vigência do Novo Contrato:</span>
                 <strong style={{ color: '#10b981' }}>
-                  12 meses ({new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')} até {new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR')})
+                  {new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')} até {new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </strong>
               </div>
               <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -8119,9 +8124,17 @@ export default function GestaoContratosPanel({
                 </span>
               </div>
               <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span>📄 Boleto / Pix 10x de R$ {(activeRenewal.valorReajustado / 10).toFixed(2).replace('.', ',')}</span>
-                <span>•</span>
-                <span>💳 Cartão 12x de R$ {((activeRenewal.valorReajustado * 1.05) / 12).toFixed(2).replace('.', ',')}</span>
+                {activeRenewal.vigenciaMeses >= 12 ? (
+                  <>
+                    <span>📄 Boleto / Pix 10x de R$ {(activeRenewal.valorReajustado / 10).toFixed(2).replace('.', ',')}</span>
+                    <span>•</span>
+                    <span>💳 Cartão 12x de R$ {((activeRenewal.valorReajustado * 1.05) / 12).toFixed(2).replace('.', ',')}</span>
+                  </>
+                ) : (
+                  <span>
+                    Forma: <strong>{activeRenewal.formaPagamentoFixada ? activeRenewal.formaPagamentoFixada.toUpperCase() : 'Boleto / Pix / Cartão'}</strong> ({activeRenewal.vigenciaMeses === 1 ? '1 mês de acesso' : `${activeRenewal.vigenciaMeses} meses de acesso`})
+                  </span>
+                )}
               </div>
             </div>
 
@@ -8164,26 +8177,36 @@ export default function GestaoContratosPanel({
                 const dataInicioFormat = activeRenewal.dataInicioRenovacao ? new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR') : '';
                 const dataFimCalcFormat = activeRenewal.dataFimCalculada ? new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR') : '';
                 
+                const isAnualRenew = activeRenewal.duracaoTipo === 'anual' || activeRenewal.vigenciaMeses >= 12;
+                const duracaoLabel = isAnualRenew 
+                  ? ' (Anual)' 
+                  : (activeRenewal.vigenciaMeses === 1 ? ' (Mensal)' : (activeRenewal.vigenciaMeses ? ` (${activeRenewal.vigenciaMeses} Meses)` : ''));
+                const condicaoPagamento = isAnualRenew
+                  ? '10x no Boleto/Pix ou 12x no Cartão'
+                  : (activeRenewal.formaPagamentoFixada 
+                      ? `${activeRenewal.formaPagamentoFixada.toUpperCase()} - Total R$ ${activeRenewal.valorReajustado.toFixed(2).replace('.', ',')}` 
+                      : `Total R$ ${activeRenewal.valorReajustado.toFixed(2).replace('.', ',')}`);
+
                 let message = '';
                 if (activeRenewal.isExpired) {
                   message = 
                     `🏋️‍♂️ *Olá, ${clientName}! Tudo bem?*\n\n` +
                     `Preparamos as condições exclusivas para a *Renovação do seu Plano* no *Clube Fitness & Fisio*! 📄✨\n\n` +
                     `📋 *Detalhes da sua Renovação:*\n` +
-                    `• *Plano:* ${planoNome} (Anual)\n` +
-                    `• *Vigência:* 12 meses (${dataInicioFormat} até ${dataFimCalcFormat})\n` +
-                    `• *Pagamento:* 10x no Boleto/Pix ou 12x no Cartão\n\n` +
+                    `• *Plano:* ${planoNome}${duracaoLabel}\n` +
+                    `• *Vigência:* ${dataInicioFormat} até ${dataFimCalcFormat}\n` +
+                    `• *Pagamento:* ${condicaoPagamento}\n\n` +
                     `Clique no link abaixo para conferir as condições, revisar e assinar digitalmente pelo WhatsApp:\n` +
                     `👉 ${generatedRenewalUrl}\n\n` +
                     `_Qualquer dúvida, estamos à sua inteira disposição!_ 💚`;
                 } else {
                   message = 
                     `🏋️‍♂️ *Olá, ${clientName}! Tudo bem?*\n\n` +
-                    `Seu plano atual no *Clube Fitness & Fisio* encerra no dia *${dataFimFormat}*. Preparamos as condições exclusivas da sua *Renovação Anual* para você continuar seus treinos sem interrupções! 📄✨\n\n` +
+                    `Seu plano atual no *Clube Fitness & Fisio* encerra no dia *${dataFimFormat}*. Preparamos as condições exclusivas da sua *Renovação${isAnualRenew ? ' Anual' : ''}* para você continuar seus treinos sem interrupções! 📄✨\n\n` +
                     `📋 *Detalhes da sua Renovação:*\n` +
-                    `• *Plano:* ${planoNome} (Anual)\n` +
-                    `• *Novo Ciclo:* 12 meses (${dataInicioFormat} até ${dataFimCalcFormat})\n` +
-                    `• *Pagamento:* 10x no Boleto/Pix ou 12x no Cartão\n\n` +
+                    `• *Plano:* ${planoNome}${duracaoLabel}\n` +
+                    `• *Novo Ciclo:* ${dataInicioFormat} até ${dataFimCalcFormat}\n` +
+                    `• *Pagamento:* ${condicaoPagamento}\n\n` +
                     `Clique no link abaixo para conferir as condições, revisar e assinar digitalmente pelo WhatsApp:\n` +
                     `👉 ${generatedRenewalUrl}\n\n` +
                     `_Qualquer dúvida, estamos à sua inteira disposição!_ 💚`;

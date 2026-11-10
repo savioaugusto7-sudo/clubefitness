@@ -192,16 +192,16 @@ export default function RenovacaoPage({ params }: { params: any }) {
       clientEstado: pes.estado || 'MG',
       clientCep: pes.cep || '',
       planNome: renewal.planoNome,
-      planTipo: 'Anual',
+      planTipo: isAnual ? 'Anual' : (renewal.vigenciaMeses === 1 ? 'Mensal' : `${renewal.vigenciaMeses} Meses`),
       planPreco: currentTotal,
       creditosMensais: renewal.creditosMensais,
       dataInicio: renewal.dataInicioRenovacao,
       dataVencimento: effectiveDueDate,
       formaPagamento,
       parcelas: currentInstallments,
-      vigenciaQtd: 12,
-      recorrenciaMeses: 12,
-      criarRecorrenciaMensal: true,
+      vigenciaQtd: Number(renewal.vigenciaMeses) || (isAnual ? 12 : 1),
+      recorrenciaMeses: Number(renewal.vigenciaMeses) || (isAnual ? 12 : 1),
+      criarRecorrenciaMensal: isAnual,
       unidadeContratada: 'Clube Fitness'
     });
 
@@ -308,7 +308,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
             </div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 10px 0' }}>Contrato Enviado para Assinatura!</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.6, marginBottom: '24px' }}>
-              Parabéns, <strong>{clientName}</strong>! Sua renovação para o plano <strong>{renewal.planoNome} (Anual)</strong> (vigência de <strong>{dataInicioFormatada}</strong> até <strong>{dataFimCalculadaFormatada}</strong>) foi gerada e enviada para o <strong>Clicksign</strong>.
+              Parabéns, <strong>{clientName}</strong>! Sua renovação para o plano <strong>{renewal.planoNome}{isAnual ? ' (Anual)' : ''}</strong> (vigência de <strong>{dataInicioFormatada}</strong> até <strong>{dataFimCalculadaFormatada}</strong>) foi gerada e enviada para o <strong>Clicksign</strong>.
             </p>
 
             <div style={{ background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)', padding: '18px', borderRadius: '14px', marginBottom: '24px', textAlign: 'left' }}>
@@ -408,13 +408,18 @@ export default function RenovacaoPage({ params }: { params: any }) {
               <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '0.9rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Plano:</span>
-                  <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>{renewal.planoNome} (Anual)</strong>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>
+                    {renewal.planoNome}
+                    {isAnual 
+                      ? ' (Anual)' 
+                      : (renewal.vigenciaMeses === 1 ? ' (Mensal)' : (renewal.vigenciaMeses ? ` (${renewal.vigenciaMeses} Meses)` : ''))}
+                  </strong>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '0.9rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Vigência do Novo Contrato:</span>
                   <strong style={{ color: '#10b981' }}>
-                    12 meses ({dataInicioFormatada} até {dataFimCalculadaFormatada})
+                    {dataInicioFormatada} até {dataFimCalculadaFormatada}
                   </strong>
                 </div>
 
@@ -699,7 +704,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <i className="fa-solid fa-file-lines" style={{ color: 'var(--color-primary)' }}></i>
-                  Revisão do Contrato de Prestação de Serviços (Anual)
+                  Revisão do Contrato de Prestação de Serviços{isAnual ? ' (Anual)' : ''}
                 </h3>
                 <button 
                   type="button" 
