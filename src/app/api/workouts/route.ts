@@ -293,9 +293,9 @@ export async function POST(request: Request) {
           // Normalização de campos essenciais (suporte a reps/repeticoes, nome/exercicioId)
           const finalExercicioId = String(rawExName || 'Exercício').trim();
           const finalRepeticoes = String(
-            ex.repeticoes !== undefined && ex.repeticoes !== null && String(ex.repeticoes).trim() !== ''
+            ex.repeticoes !== undefined && ex.repeticoes !== null
               ? ex.repeticoes
-              : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '10-12')
+              : (ex.reps !== undefined && ex.reps !== null ? ex.reps : '')
           ).trim();
           const finalSeries = ex.series !== undefined && ex.series !== null && String(ex.series).trim() !== '' ? Number(ex.series) || 3 : 3;
           

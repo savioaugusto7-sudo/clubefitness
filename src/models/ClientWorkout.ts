@@ -3,7 +3,7 @@ import mongoose, { Schema, model, models } from 'mongoose';
 const WorkoutExerciseSchema = new Schema({
   exercicioId: { type: String, required: true, default: 'Exercício' },
   series: { type: Number, required: true, default: 3 },
-  repeticoes: { type: String, required: true, default: '10-12' },
+  repeticoes: { type: String, default: '' },
   carga: { type: Schema.Types.Mixed, required: true, default: '0' },
   descanso: { type: String, required: true, default: '60s' },
   observacao: { type: String, default: '' },

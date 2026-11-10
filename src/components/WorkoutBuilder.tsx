@@ -103,6 +103,7 @@ export const isUnilateralExercise = (nome: string): boolean => {
     n.includes('avanco') ||
     n.includes('bulgaro') ||
     n.includes('búlgaro') ||
+    n.includes('agachaemento') ||
     n.includes('passada') ||
     n.includes('step up') ||
     n.includes('subida no banco') ||
@@ -117,6 +118,28 @@ export const isUnilateralExercise = (nome: string): boolean => {
     n.includes('rosca concentrada') ||
     n.includes('triceps frances unilateral') ||
     n.includes('triceps coice') ||
+    n.includes('coice') ||
+    n.includes('gluteo coice') ||
+    n.includes('prancha lateral') ||
+    n.includes('side plank') ||
+    n.includes('perdigueiro') ||
+    n.includes('bird dog') ||
+    n.includes('alternad') ||
+    n.includes('single leg') ||
+    n.includes('single-leg') ||
+    n.includes('single arm') ||
+    n.includes('single-arm') ||
+    n.includes('one arm') ||
+    n.includes('one-arm') ||
+    n.includes('1 perna') ||
+    n.includes('uma perna') ||
+    n.includes('1 braco') ||
+    n.includes('um braco') ||
+    n.includes('b-stance') ||
+    n.includes('bstance') ||
+    n.includes('kickstand') ||
+    n.includes('clamshell') ||
+    n.includes('clam') ||
     n.includes('panturrilha unilateral') ||
     n.includes('elevacao pelvica unilateral') ||
     n.includes('gluteo cabo') ||
@@ -1775,7 +1798,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         updatedValidade !== undefined ? updatedValidade : workoutValidade,
         true
       );
-    }, 800);
+    }, 1200);
   };
 
   // 🌟 Seletor de Validade da Ficha (15, 30 ou 60 dias)
@@ -4638,7 +4661,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   type="text"
                                   value={item.repeticoes ?? item.reps ?? ''}
                                   onChange={e => updateItem(item.id, 'repeticoes', e.target.value)}
-                                  placeholder={item.unilateral ? "8/lado" : "12"}
+                                  placeholder="—"
                                   style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: item.unilateral ? '#38bdf8' : '#fff', fontWeight: 800, fontSize: '0.88rem' }}
                                 />
                               </div>
@@ -4940,7 +4963,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               className="form-control form-control-sm"
                               value={item.repeticoes ?? item.reps ?? ''}
                               onChange={e => updateItem(item.id, 'repeticoes', e.target.value)}
-                              placeholder={item.unilateral ? "8/lado" : "12"}
+                              placeholder="—"
                               title={item.unilateral ? "Repetições prescritas por lado (o sistema dobra automaticamente para Direita + Esquerda no volume e tempo)" : "Repetições"}
                               style={{
                                 width: '100%',
