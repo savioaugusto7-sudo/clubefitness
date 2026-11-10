@@ -98,6 +98,7 @@ export const isUnilateralExercise = (nome: string): boolean => {
   const n = normalizeText(nome);
   return (
     n.includes('unilateral') ||
+    n.includes('pistol') ||
     n.includes('afundo') ||
     n.includes('avanco') ||
     n.includes('bulgaro') ||
@@ -634,7 +635,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               nome: exName || 'Exercício',
               grupo,
               series: ex.series !== undefined && ex.series !== null ? ex.series : 3,
-              reps: String(ex.repeticoes !== undefined && ex.repeticoes !== null ? ex.repeticoes : '12'),
+              reps: String(ex.repeticoes !== undefined && ex.repeticoes !== null && String(ex.repeticoes).trim() !== '' ? ex.repeticoes : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '12')),
+              repeticoes: String(ex.repeticoes !== undefined && ex.repeticoes !== null && String(ex.repeticoes).trim() !== '' ? ex.repeticoes : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '12')),
               carga,
               unidadeCarga,
               descanso: ex.descanso !== undefined && ex.descanso !== null ? parseInt(String(ex.descanso).replace('s', '')) || 60 : 60,
@@ -836,7 +838,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           nome: exName || 'Exercício',
           grupo: matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral',
           series: ex.series !== undefined && ex.series !== null ? ex.series : 3,
-          reps: String(ex.repeticoes !== undefined && ex.repeticoes !== null ? ex.repeticoes : '12'),
+          reps: String(ex.repeticoes !== undefined && ex.repeticoes !== null && String(ex.repeticoes).trim() !== '' ? ex.repeticoes : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '12')),
+          repeticoes: String(ex.repeticoes !== undefined && ex.repeticoes !== null && String(ex.repeticoes).trim() !== '' ? ex.repeticoes : (ex.reps !== undefined && ex.reps !== null && String(ex.reps).trim() !== '' ? ex.reps : '12')),
           carga,
           unidadeCarga,
           descanso: ex.descanso !== undefined && ex.descanso !== null ? parseInt(String(ex.descanso).replace('s', '')) || 60 : 60,
@@ -1092,7 +1095,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         _id: item._id || undefined,
         exercicioId: item.nome || 'Exercício',
         series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : 3,
-        repeticoes: String(item.reps !== undefined && item.reps !== null && String(item.reps).trim() !== '' ? item.reps : '10-12'),
+        repeticoes: String(item.repeticoes !== undefined && item.repeticoes !== null && String(item.repeticoes).trim() !== '' ? item.repeticoes : (item.reps !== undefined && item.reps !== null && String(item.reps).trim() !== '' ? item.reps : '10-12')),
+        unilateral: Boolean(item.unilateral),
         carga: cargaFinal,
         unidadeCarga: item.unidadeCarga || '',
         descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null 
@@ -1213,6 +1217,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       grupo: typeof ex.exercicioId === 'object' ? (ex.exercicioId?.grupo || 'Geral') : (ex.grupo || 'Geral'),
       series: ex.series || 3,
       reps: ex.repeticoes || ex.reps || '12',
+      repeticoes: ex.repeticoes || ex.reps || '12',
       carga: (ex.carga !== undefined && ex.carga !== null) ? ex.carga : '',
       unidadeCarga: ex.unidadeCarga || 'kg',
       descanso: ex.descanso || 60,
@@ -1267,6 +1272,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       grupo: ex.grupo || ex.grupo_muscular || 'Geral',
       series: 3,
       reps: '12',
+      repeticoes: '12',
       carga: (ex.carga !== undefined && ex.carga !== null && ex.carga !== '') ? ex.carga : '',
       unidadeCarga: 'kg',
       descanso: 60,
@@ -1295,6 +1301,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           combinaGrupo: item.combinaGrupo || '',
           series: '',
           reps: '',
+          repeticoes: '',
           ritmo: '',
           carga: '',
           unidadeCarga: '',
@@ -1392,6 +1399,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     setWorkoutItems(prev => {
       const updated = prev.map(item => {
         if (item.id === id) {
+          if (field === 'repeticoes' || field === 'reps') {
+            return { ...item, repeticoes: value, reps: value };
+          }
           return { ...item, [field]: value };
         }
         return item;
@@ -1592,7 +1602,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         return {
           exercicioId: item.nome,
           series: item.series !== '' && item.series !== undefined && item.series !== null ? Number(item.series) : '',
-          repeticoes: String(item.reps || item.repeticoes || ''),
+          repeticoes: String(item.repeticoes !== undefined && item.repeticoes !== null && String(item.repeticoes).trim() !== '' ? item.repeticoes : (item.reps !== undefined && item.reps !== null && String(item.reps).trim() !== '' ? item.reps : '')),
           carga: cargaFinal,
           unidadeCarga: item.unidadeCarga || '',
           descanso: item.descanso !== '' && item.descanso !== undefined && item.descanso !== null ? `${item.descanso}s` : '',
@@ -4626,7 +4636,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                 </label>
                                 <input
                                   type="text"
-                                  value={item.repeticoes}
+                                  value={item.repeticoes ?? item.reps ?? ''}
                                   onChange={e => updateItem(item.id, 'repeticoes', e.target.value)}
                                   placeholder={item.unilateral ? "8/lado" : "12"}
                                   style={{ width: '100%', height: '24px', textAlign: 'center', background: 'transparent', border: 'none', color: item.unilateral ? '#38bdf8' : '#fff', fontWeight: 800, fontSize: '0.88rem' }}
@@ -4928,8 +4938,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             <input
                               type="text"
                               className="form-control form-control-sm"
-                              value={item.reps}
-                              onChange={e => updateItem(item.id, 'reps', e.target.value)}
+                              value={item.repeticoes ?? item.reps ?? ''}
+                              onChange={e => updateItem(item.id, 'repeticoes', e.target.value)}
                               placeholder={item.unilateral ? "8/lado" : "12"}
                               title={item.unilateral ? "Repetições prescritas por lado (o sistema dobra automaticamente para Direita + Esquerda no volume e tempo)" : "Repetições"}
                               style={{
@@ -4956,7 +4966,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             <WorkoutTempoPicker
                               value={item.ritmo || ''}
                               onChange={val => updateItem(item.id, 'ritmo', val)}
-                              reps={item.reps}
+                              reps={item.repeticoes || item.reps}
                               series={item.series}
                               exerciseName={item.nome}
                               unilateral={Boolean(item.unilateral)}
@@ -5184,7 +5194,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           {/* Coluna TEMPO do Exercício */}
                           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '34px' }}>
                             {(() => {
-                              const exTime = calculateExerciseTime(item.series, item.reps, item.ritmo, item.descanso, item.unilateral);
+                              const exTime = calculateExerciseTime(item.series, item.repeticoes || item.reps, item.ritmo, item.descanso, item.unilateral);
                               if (!exTime.isPendingTempo) {
                                 return (
                                   <div

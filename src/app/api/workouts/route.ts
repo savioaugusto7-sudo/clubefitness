@@ -348,6 +348,7 @@ export async function POST(request: Request) {
             ritmo: ex.ritmo || '',
             combinaGrupo: ex.combinaGrupo || '',
             unidadeCarga: ex.unidadeCarga || '',
+            unilateral: Boolean(ex.unilateral),
             historicoCargas
           };
         });
