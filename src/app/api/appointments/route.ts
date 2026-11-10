@@ -807,6 +807,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Status is required' }, { status: 400 });
     }
 
+    // Regra de Negócio: Horários trancados não aceitam lançamento de presença ou falta
+    if (appointment.isTrancado && (status === 'presenca' || status === 'falta')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Este horário pertence a um período de plano trancado e não aceita lançamento de presença ou falta.'
+      }, { status: 400 });
+    }
+
     // Regra Obrigatória: Para confirmar presença, o Questionário Wellness deve ser preenchido
     if (status === 'presenca') {
       if (!wellness || !wellness.sono || !wellness.fadiga || !wellness.dorMuscular) {

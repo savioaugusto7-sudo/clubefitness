@@ -3663,6 +3663,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
     const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
 
+    // Bloqueio de segurança: horários trancados não aceitam presença ou falta
+    if (apt?.isTrancado && (status === 'presenca' || status === 'falta')) {
+      alert('Este horário pertence a um plano trancado e não aceita presença ou falta.');
+      return;
+    }
+
     // If confirming presence -> Open Wellness Questionnaire for all services
     if (status === 'presenca') {
       const isEmergencia = apt?.servico === 'Emergência' || apt?.tipo === 'Emergência';
@@ -6078,7 +6084,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
               const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
               const timeState = getAptTimeState(a.horario, realTime || '00:00');
-              if ((timeState === 'past' && a.status === 'agendado') || (timeState === 'past' && isEmPendente)) {
+              if (!a.isTrancado && ((timeState === 'past' && a.status === 'agendado') || (timeState === 'past' && isEmPendente))) {
                 urgentes.push(a);
               } else if (timeState === 'current' && a.status !== 'cancelado') {
                 atuais.push(a);
@@ -6669,8 +6675,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         // Status visual elegante
                         const isPresente = a.status === 'presenca';
                         const isFalta = a.status === 'falta';
-                        const statusBadgeColor = isPresente ? '#10b981' : isFalta ? '#ef4444' : '#f59e0b';
-                        const statusLabel = isPresente ? 'Presente' : isFalta ? 'Falta' : 'Agendado';
+                        const isTrancado = Boolean(a.isTrancado);
+                        const statusBadgeColor = isTrancado ? '#fbbf24' : isPresente ? '#10b981' : isFalta ? '#ef4444' : '#f59e0b';
+                        const statusLabel = isTrancado ? '🔒 Trancado' : isPresente ? 'Presente' : isFalta ? 'Falta' : 'Agendado';
 
                         // Dados de treinos do aluno para a seleção rápida
                         const userWorkout = workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === String(client._id));
@@ -6786,31 +6793,33 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setCardMenuOpenId(null);
-                                        handleUpdateAptStatus(a._id, 'falta');
-                                      }}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        padding: '8px 12px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: '#f87171',
-                                        fontSize: '0.78rem',
-                                        fontWeight: 700,
-                                        borderRadius: '8px',
-                                        cursor: 'pointer',
-                                        textAlign: 'left'
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                    >
-                                      <i className="fa-solid fa-xmark" style={{ width: '14px' }}></i> Marcar Falta
-                                    </button>
+                                    {!isTrancado && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCardMenuOpenId(null);
+                                          handleUpdateAptStatus(a._id, 'falta');
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          color: '#f87171',
+                                          fontSize: '0.78rem',
+                                          fontWeight: 700,
+                                          borderRadius: '8px',
+                                          cursor: 'pointer',
+                                          textAlign: 'left'
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      >
+                                        <i className="fa-solid fa-xmark" style={{ width: '14px' }}></i> Marcar Falta
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -7331,39 +7340,62 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                                 </>
                               )}
 
-                              {/* Botão Primário Direito: Presença Rápida com Wellness */}
+                              {/* Botão Primário Direito: Presença Rápida com Wellness ou Indicador Trancado */}
                               <div style={{ flex: 1.1, minWidth: '115px' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm"
-                                  style={{
-                                    width: '100%',
-                                    background: isPresente 
-                                      ? 'rgba(16, 185, 129, 0.2)' 
-                                      : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                    color: isPresente ? '#34d399' : '#ffffff',
-                                    border: isPresente ? '1px solid rgba(16, 185, 129, 0.5)' : 'none',
-                                    padding: '9px 10px',
-                                    borderRadius: '10px',
-                                    fontWeight: 900,
-                                    fontSize: '0.78rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px',
-                                    cursor: 'pointer',
-                                    boxShadow: isPresente ? 'none' : '0 3px 12px rgba(16, 185, 129, 0.4)',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                  onClick={() => {
-                                    setWellnessApt(a);
-                                    setShowWellnessModal(true);
-                                  }}
-                                  title={isPresente ? "Visualizar questionário Wellness já preenchido" : "Registrar Presença e responder Questionário Wellness"}
-                                >
-                                  <i className={isPresente ? "fa-solid fa-circle-check" : "fa-solid fa-heart-pulse"}></i>
-                                  <span>{isPresente ? 'Presente ✓' : 'Presença & Wellness'}</span>
-                                </button>
+                                {isTrancado ? (
+                                  <div
+                                    style={{
+                                      width: '100%',
+                                      background: 'rgba(245, 158, 11, 0.15)',
+                                      color: '#fbbf24',
+                                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                                      padding: '9px 10px',
+                                      borderRadius: '10px',
+                                      fontWeight: 800,
+                                      fontSize: '0.78rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px'
+                                    }}
+                                    title="Plano trancado neste horário. Vaga liberada (0 créditos)."
+                                  >
+                                    <i className="fa-solid fa-lock"></i>
+                                    <span>Trancado</span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      width: '100%',
+                                      background: isPresente 
+                                        ? 'rgba(16, 185, 129, 0.2)' 
+                                        : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                      color: isPresente ? '#34d399' : '#ffffff',
+                                      border: isPresente ? '1px solid rgba(16, 185, 129, 0.5)' : 'none',
+                                      padding: '9px 10px',
+                                      borderRadius: '10px',
+                                      fontWeight: 900,
+                                      fontSize: '0.78rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px',
+                                      cursor: 'pointer',
+                                      boxShadow: isPresente ? 'none' : '0 3px 12px rgba(16, 185, 129, 0.4)',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => {
+                                      setWellnessApt(a);
+                                      setShowWellnessModal(true);
+                                    }}
+                                    title={isPresente ? "Visualizar questionário Wellness já preenchido" : "Registrar Presença e responder Questionário Wellness"}
+                                  >
+                                    <i className={isPresente ? "fa-solid fa-circle-check" : "fa-solid fa-heart-pulse"}></i>
+                                    <span>{isPresente ? 'Presente ✓' : 'Presença & Wellness'}</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -7739,15 +7771,43 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               }}>
                                 {apts.map(a => {
                                   const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                                  const isTrancado = Boolean(a.isTrancado);
                                   const isEmergencia = a.servico === 'Emergência';
                                   const isEmAtendimentoEmergencia = isEmergencia && a.status === 'presenca' && !a.finalizado;
-                                  const statusClass = isEmAtendimentoEmergencia ? 'badge-danger' : a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info';
-                                  const statusText = isEmAtendimentoEmergencia ? 'Finalizar atendimento' : a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado';
+                                  const statusClass = isTrancado ? 'badge-warning' : (isEmAtendimentoEmergencia ? 'badge-danger' : a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info');
+                                  const statusText = isTrancado ? 'Trancado' : (isEmAtendimentoEmergencia ? 'Finalizar atendimento' : a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado');
                                   
                                   // Cores do Serviço
                                   const sColors = getServiceColor(a.servico || a.tipo);
 
-                                  const actionsCell = a.status === 'agendado' ? (
+                                  const actionsCell = isTrancado ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        padding: '4px 9px',
+                                        borderRadius: '6px',
+                                        background: 'rgba(245, 158, 11, 0.15)',
+                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                        color: '#fbbf24',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 750
+                                      }}>
+                                        <i className="fa-solid fa-lock"></i> Horário Trancado
+                                      </span>
+                                      {a.status !== 'agendado' && (
+                                        <button 
+                                          className="btn btn-secondary btn-sm" 
+                                          style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
+                                          onClick={() => handleUpdateAptStatus(a._id, 'agendado')}
+                                          title="Desfazer status indevido e retornar para agendado trancado"
+                                        >
+                                          <i className="fa-solid fa-rotate-left"></i> Desfazer
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : a.status === 'agendado' ? (
                                     <div style={{ display: 'flex', gap: '6px' }}>
                                       <button 
                                         className="btn btn-sm" 
@@ -7807,8 +7867,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                                     <div 
                                       key={a._id} 
                                       style={{ 
-                                        background: 'rgba(255, 255, 255, 0.02)', 
-                                        border: '1px solid var(--border-color)', 
+                                        background: isTrancado ? 'rgba(245, 158, 11, 0.03)' : 'rgba(255, 255, 255, 0.02)', 
+                                        border: isTrancado ? '1.5px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-color)', 
                                         borderRadius: '10px', 
                                         padding: '14px',
                                         display: 'flex',
@@ -7829,9 +7889,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                                             </small>
                                           )}
                                         </div>
-                                        <span className={`badge ${statusClass}`} style={{ fontWeight: 700, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                                          {statusText}
-                                        </span>
+                                        {isTrancado ? (
+                                          <span style={{
+                                            fontSize: '0.72rem',
+                                            fontWeight: 800,
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            background: 'rgba(245, 158, 11, 0.2)',
+                                            color: '#fbbf24',
+                                            border: '1px solid rgba(245, 158, 11, 0.45)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            letterSpacing: '0.3px',
+                                            textTransform: 'uppercase'
+                                          }}>
+                                            <i className="fa-solid fa-lock"></i> Trancado
+                                          </span>
+                                        ) : (
+                                          <span className={`badge ${statusClass}`} style={{ fontWeight: 700, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                                            {statusText}
+                                          </span>
+                                        )}
                                       </div>
 
                                       {/* Seção Modalidade/Serviço Colorida com Destaque */}
