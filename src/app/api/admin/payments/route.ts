@@ -397,64 +397,9 @@ export async function POST(request: Request) {
       client.dadosComerciais.asaasCustomerId = asaasId;
       await client.save();
 
-      // Retrieve all active/open payments from Asaas for this customer and populate our database
-      const baseUrl = getAsaasBaseUrl();
-      const headers = getAsaasHeaders();
-      const paymentsRes = await fetch(`${baseUrl}/payments?customer=${asaasId}&limit=100`, { method: 'GET', headers });
-
-      if (paymentsRes.ok) {
-        const paymentsData = await paymentsRes.json();
-        if (Array.isArray(paymentsData.data)) {
-          // Remove existing Asaas payments for this client to avoid duplicates while preserving manual payments
-          await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
-
-          // Count existing active manual payments (e.g. Dinheiro, Pix Manual, Cartão Manual)
-          const manualPaymentsCount = await Payment.countDocuments({ clientId: client._id, formaPagamento: { $ne: 'Asaas' }, status: { $ne: 'Cancelado' } });
-
-          // Sort payments by dueDate ascending so parcel numbers are chronological
-          paymentsData.data.sort((a: any, b: any) => a.dueDate.localeCompare(b.dueDate));
-
-          const totalInstallmentsCount = manualPaymentsCount + paymentsData.data.length;
-
-          const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
-            let status = 'Pendente';
-            if (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') {
-              status = 'Pago';
-            } else if (p.status === 'OVERDUE') {
-              status = 'Atrasado';
-            }
-
-            return {
-              clientId: client._id,
-              clientNome: client.dadosPessoais?.nome || 'Sem Nome',
-              planoNome: p.description || 'Assinatura Asaas',
-              valor: p.value || 0,
-              vencimento: p.dueDate,
-              dataPagamento: p.paymentDate || '',
-              status,
-              formaPagamento: 'Asaas',
-              asaasPaymentId: p.id,
-              asaasInvoiceUrl: p.invoiceUrl || '',
-              parcelaNumero: manualPaymentsCount + idx + 1,
-              parcelasTotal: totalInstallmentsCount,
-            };
-          });
-
-          if (paymentRecords.length > 0) {
-            await Payment.insertMany(paymentRecords);
-
-            // Update asaasBillingStatus on contract if contract exists
-            const contract = await Contract.findOne({ clientId: client._id });
-            if (contract) {
-              const hasPago = paymentRecords.some((r: any) => r.status === 'Pago');
-              if (hasPago) {
-                contract.asaasBillingStatus = 'pago';
-                await contract.save();
-              }
-            }
-          }
-        }
-      }
+      // Sincronizar automaticamente as faturas do Asaas para o banco local
+      const { syncAsaasPaymentsToLocalDb } = await import('@/utils/asaasSync');
+      await syncAsaasPaymentsToLocalDb(client._id.toString(), asaasId);
 
       return NextResponse.json({ success: true, asaasCustomerId: asaasId });
     }

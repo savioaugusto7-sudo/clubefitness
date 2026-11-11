@@ -235,6 +235,23 @@ export async function PUT(request: Request) {
       client.dadosComerciais = {};
     }
 
+    // Arquivar contrato anterior no historicoContratos se existente (Anti-Sobrescrita)
+    if (client.dadosComerciais && client.dadosComerciais.dataInicio && (client.dadosComerciais.vencimento || client.dadosComerciais.dataFim)) {
+      const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
+      const prevSnapshot = buildContractSnapshot(
+        client.dadosComerciais, 
+        'renovado', 
+        `Renovação de contrato para novo ciclo (${renewal.planoNome || 'Plano'})`
+      );
+      if (prevSnapshot && prevSnapshot.dataInicio) {
+        if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
+        const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
+        if (!alreadyArchived) {
+          client.historicoContratos.push(prevSnapshot);
+        }
+      }
+    }
+
     client.dadosComerciais.status = 'ativo';
     client.dadosComerciais.planoId = renewal.planoId._id;
     client.dadosComerciais.duracao = durTipo;
@@ -338,6 +355,11 @@ export async function PUT(request: Request) {
       unidadeContratada: 'Clube Fitness',
       frequencia: renewal.frequencia,
       creditosTotal: renewal.creditosMensais,
+      isMinor: Boolean(client.dadosPessoais?.isMinor),
+      signerNome: dadosPreenchidos?.responsavelNome || pes.nome || '',
+      signerCpf: dadosPreenchidos?.responsavelCpf || pes.cpf || '',
+      signerEmail: pes.email || '',
+      signerTelefone: pes.telefone || '',
       status: 'pendente', // pendente de assinatura Clicksign
       clicksignDocKey,
       clicksignSignerKey,

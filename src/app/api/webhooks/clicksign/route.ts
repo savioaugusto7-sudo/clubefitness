@@ -156,7 +156,15 @@ export async function POST(request: Request) {
               let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
               const { createAsaasCustomer, updateAsaasCustomer, createAsaasPayment, createAsaasSubscription } = await import('@/utils/asaas');
               if (!asaasCustomerId) {
-                asaasCustomerId = await createAsaasCustomer(client);
+                const isMinorContract = Boolean(contract.isMinor || client.dadosPessoais?.isMinor);
+                const respData = isMinorContract && (contract.signerNome || contract.assinaturaNome) && contract.signerCpf ? {
+                  name: contract.signerNome || contract.assinaturaNome,
+                  cpf: contract.signerCpf,
+                  phone: contract.signerTelefone,
+                  email: contract.signerEmail
+                } : undefined;
+
+                asaasCustomerId = await createAsaasCustomer(client, respData);
                 client.dadosComerciais.asaasCustomerId = asaasCustomerId;
                 await client.save();
               } else {
@@ -219,8 +227,24 @@ export async function POST(request: Request) {
                   await contract.save();
                 }
               }
+
+              // Sincronizar automaticamente as faturas geradas no Asaas com a coleção local Payment
+              if (asaasCustomerId) {
+                const { syncAsaasPaymentsToLocalDb } = await import('@/utils/asaasSync');
+                await syncAsaasPaymentsToLocalDb(String(client._id), asaasCustomerId, String(contract._id)).catch(err => {
+                  console.warn('[Clicksign Webhook] Falha na sincronização automática de parcelas Asaas:', err.message);
+                });
+              }
             } catch (asaasErr: any) {
               console.warn('Erro ao criar cobrança/assinatura Asaas no webhook do Clicksign:', asaasErr.message);
+            }
+          } else if ((contract.asaasPaymentId || contract.asaasSubscriptionId) && client.dadosComerciais?.asaasCustomerId) {
+            // Se já existiam faturas no Asaas antes da assinatura, sincroniza-as agora que o contrato foi assinado
+            try {
+              const { syncAsaasPaymentsToLocalDb } = await import('@/utils/asaasSync');
+              await syncAsaasPaymentsToLocalDb(String(client._id), client.dadosComerciais.asaasCustomerId, String(contract._id));
+            } catch (err: any) {
+              console.warn('[Clicksign Webhook] Falha na sincronização pós-assinatura:', err.message);
             }
           }
 

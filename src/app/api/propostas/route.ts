@@ -254,11 +254,29 @@ export async function PUT(request: Request) {
     );
 
     const comCurrent = client.dadosComerciais || {};
+
+    // Arquivar contrato anterior no historicoContratos se existente (Anti-Sobrescrita)
+    if (comCurrent && comCurrent.dataInicio && (comCurrent.vencimento || comCurrent.dataFim)) {
+      const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
+      const prevSnapshot = buildContractSnapshot(
+        comCurrent, 
+        'renovado', 
+        `Aceite de proposta comercial (${proposal.planoNome || planObj?.nome || 'Novo Plano'})`
+      );
+      if (prevSnapshot && prevSnapshot.dataInicio) {
+        if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
+        const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
+        if (!alreadyArchived) {
+          client.historicoContratos.push(prevSnapshot);
+        }
+      }
+    }
+
     client.dadosComerciais = {
       ...comCurrent,
       planoId: proposal.planoId,
       planoNome: proposal.planoNome || planObj?.nome || comCurrent.planoNome,
-      status: 'ativo',
+      status: dispararClicksign ? 'pendente' : 'ativo',
       formaPagamento: formaPagamentoEscolhida || comCurrent.formaPagamento || 'pix',
       duracao: duracaoTipo,
       duracaoQtd: numVigenciaQtd,
@@ -346,6 +364,11 @@ export async function PUT(request: Request) {
         dataInicio: proposal.dataInicio || new Date().toISOString().split('T')[0],
         dataFim,
         vigenciaMeses,
+        isMinor: Boolean(proposal.isMinor || client.dadosPessoais?.isMinor),
+        signerNome: dadosPreenchidos?.responsavelNome || '',
+        signerCpf: dadosPreenchidos?.responsavelCpf || '',
+        signerEmail: client.dadosPessoais?.email || '',
+        signerTelefone: dadosPreenchidos?.telefone || client.dadosPessoais?.telefone || '',
         status: 'pendente',
         contratoTexto: contratoTexto || '',
         dataEmissao: new Date(),

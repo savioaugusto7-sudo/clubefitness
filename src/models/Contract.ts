@@ -63,6 +63,11 @@ const ContractSchema = new Schema({
   criarRecorrenciaMensal: { type: Boolean, default: false },
   isRecorrente: { type: Boolean, default: false },
   recorrenciaMeses: { type: Number, default: 12 },
+  isMinor: { type: Boolean, default: false },
+  signerNome: { type: String, default: '' },
+  signerCpf: { type: String, default: '' },
+  signerEmail: { type: String, default: '' },
+  signerTelefone: { type: String, default: '' },
   dataFimRecorrencia: { type: String, default: '' },
   dataFimCicloAtual: { type: String, default: '' },
   congelamento: { type: CongelamentoSchema, default: null }

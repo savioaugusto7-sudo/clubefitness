@@ -781,8 +781,16 @@ export async function POST(request: Request) {
       try {
         let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
         if (!asaasCustomerId) {
+          const isMinorContract = Boolean(body.isMinor || client.dadosPessoais?.isMinor);
+          const respData = isMinorContract && (signerNome || signerCpf) ? {
+            name: signerNome,
+            cpf: signerCpf,
+            phone: signerTelefone,
+            email: signerEmail
+          } : undefined;
+
           console.log('Criando cliente no Asaas...');
-          asaasCustomerId = await createAsaasCustomer(client);
+          asaasCustomerId = await createAsaasCustomer(client, respData);
           client.dadosComerciais.asaasCustomerId = asaasCustomerId;
           await client.save();
         }
@@ -889,6 +897,11 @@ export async function POST(request: Request) {
       criarRecorrenciaMensal: isRecorrente,
       isRecorrente,
       recorrenciaMeses,
+      isMinor: Boolean(body.isMinor || client.dadosPessoais?.isMinor),
+      signerNome: signerNome || '',
+      signerCpf: signerCpf || '',
+      signerEmail: signerEmail || '',
+      signerTelefone: signerTelefone || '',
       vigenciaMeses,
       responsavelVenda: responsavelVenda || '',
       unidadeContratada: unidadeContratada || plan.unidadeAtendimento || '',
@@ -1009,6 +1022,20 @@ export async function POST(request: Request) {
     }
 
     await client.save();
+
+    // Sincronizar automaticamente as faturas do Asaas com a coleção local Payment se o Asaas foi ativado
+    if (enviarAsaas && client.dadosComerciais?.asaasCustomerId) {
+      try {
+        const { syncAsaasPaymentsToLocalDb } = await import('@/utils/asaasSync');
+        await syncAsaasPaymentsToLocalDb(
+          String(client._id),
+          client.dadosComerciais.asaasCustomerId,
+          String(newContract._id)
+        );
+      } catch (syncErr: any) {
+        console.warn('[contracts/POST] Falha não impeditiva na sincronização automática Asaas -> payments:', syncErr.message);
+      }
+    }
 
     return NextResponse.json({ success: true, data: newContract });
   } catch (error: any) {

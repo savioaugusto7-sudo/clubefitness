@@ -1,4 +1,4 @@
-const getHeaders = () => {
+export const getHeaders = () => {
   const token = process.env.ASAAS_API_KEY;
   if (!token) {
     throw new Error('ASAAS_API_KEY não configurada nas variáveis de ambiente.');
@@ -8,6 +8,8 @@ const getHeaders = () => {
     'Content-Type': 'application/json'
   };
 };
+
+export const getAsaasHeaders = getHeaders;
 
 export const getBaseUrl = () => {
   if (process.env.ASAAS_API_URL) {
@@ -87,17 +89,38 @@ export async function configureAsaasCustomerWhatsAppOnly(customerId: string) {
   }
 }
 
-export async function createAsaasCustomer(client: any) {
+export async function createAsaasCustomer(
+  client: any, 
+  responsibleData?: { name?: string; cpf?: string; phone?: string; email?: string }
+) {
   const baseUrl = getBaseUrl();
   const headers = getHeaders();
 
-  const phone = (client.dadosPessoais?.telefone || '').replace(/\D/g, '');
-  const cpf = (client.dadosPessoais?.cpf || '').replace(/\D/g, '');
+  // Para novos contratos futuros de alunos menores de idade, priorizar os dados do responsável legal como sacado
+  const isMinor = Boolean(
+    client?.isMinor || 
+    client?.dadosPessoais?.isMinor || 
+    (client?.dadosPessoais?.dataNascimento && (await import('./dateUtils')).isMinorFromBirthDate(client.dadosPessoais.dataNascimento))
+  );
+
+  const useResponsible = Boolean(
+    isMinor && 
+    responsibleData?.name?.trim() && 
+    responsibleData?.cpf?.trim()
+  );
+
+  const rawPhone = (useResponsible && responsibleData?.phone) ? responsibleData.phone : (client.dadosPessoais?.telefone || client.telefone || '');
+  const rawCpf = (useResponsible && responsibleData?.cpf) ? responsibleData.cpf : (client.dadosPessoais?.cpf || client.cpf || '');
+  const rawName = (useResponsible && responsibleData?.name) ? responsibleData.name : (client.dadosPessoais?.nome || client.nome || '');
+  const rawEmail = (useResponsible && responsibleData?.email) ? responsibleData.email : (client.dadosPessoais?.email || client.email || '');
+
+  const phone = rawPhone.replace(/\D/g, '');
+  const cpf = rawCpf.replace(/\D/g, '');
 
   const body: any = {
-    name: client.dadosPessoais?.nome || '',
+    name: rawName.trim(),
     cpfCnpj: cpf,
-    email: client.dadosPessoais?.email || '',
+    email: rawEmail.trim(),
     notificationDisabled: false
   };
 

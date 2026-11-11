@@ -172,25 +172,29 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({ success: true, message: 'Mensalidade cancelada' });
-    } else if (event === 'PAYMENT_CREATED' && payment.subscription && client) {
+    } else if (event === 'PAYMENT_CREATED' && client) {
       if (!dbPayment) {
         const count = await Payment.countDocuments({ clientId: client._id });
+        const installmentNum = payment.installmentNumber || (count + 1);
+        const totalInstallments = payment.totalInstallments || contract?.parcelas || (payment.subscription ? (contract?.recorrenciaMeses || 12) : 1);
         const newPayment = await Payment.create({
           clientId: client._id,
           clientNome: client.dadosPessoais?.nome || 'Aluno',
           contractId: contract?._id,
-          planoNome: contract?.planoNome || 'Assinatura: Recorrência',
+          planoNome: contract?.planoNome || (payment.subscription ? 'Assinatura: Recorrência' : (payment.description || 'Cobrança Asaas')),
           valor: payment.value,
           vencimento: payment.dueDate,
           status: 'Pendente',
           formaPagamento: 'Asaas',
           asaasPaymentId: payment.id,
           asaasInvoiceUrl: payment.invoiceUrl,
-          parcelaNumero: count + 1,
-          parcelasTotal: contract?.recorrenciaMeses || 12,
-          observacoes: `Fatura gerada automaticamente pela assinatura Asaas ${payment.subscription}`
+          parcelaNumero: installmentNum,
+          parcelasTotal: totalInstallments,
+          observacoes: payment.subscription
+            ? `Fatura gerada automaticamente pela assinatura Asaas ${payment.subscription}`
+            : (payment.installment ? `Parcela ${installmentNum}/${totalInstallments} Asaas` : 'Cobrança Asaas')
         });
-        return NextResponse.json({ success: true, message: 'Nova fatura de assinatura registrada', data: newPayment });
+        return NextResponse.json({ success: true, message: 'Nova fatura Asaas registrada no financeiro', data: newPayment });
       }
     } else if (contract) {
       contract.asaasBillingStatus = (payment.status || '').toLowerCase();

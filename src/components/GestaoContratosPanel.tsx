@@ -757,15 +757,32 @@ export default function GestaoContratosPanel({
           if (!existing) {
             cMap[cId] = c;
           } else {
-            const cIsActive = c.status === 'assinado' || c.status === 'ativo' || c.clicksignStatus === 'assinado';
-            const exIsActive = existing.status === 'assinado' || existing.status === 'ativo' || existing.clicksignStatus === 'assinado';
+            // Contrato cancelado sem rescisão não deve sobrepor contrato assinado se houver
+            const cIsCanceledDraft = c.status === 'cancelado' && !c.rescisao;
+            const exIsCanceledDraft = existing.status === 'cancelado' && !existing.rescisao;
+            const cIsSigned = c.status === 'assinado' || c.status === 'ativo' || c.clicksignStatus === 'assinado';
+            const exIsSigned = existing.status === 'assinado' || existing.status === 'ativo' || existing.clicksignStatus === 'assinado';
 
-            if (cIsActive && !exIsActive) {
+            if (cIsCanceledDraft && exIsSigned) {
+              // Mantém o assinado em vez de um rascunho cancelado
+            } else if (!cIsCanceledDraft && exIsCanceledDraft) {
               cMap[cId] = c;
-            } else if (!cIsActive && exIsActive) {
-              // Mantém o contrato assinado/ativo existente
-            } else if (new Date(c.createdAt || c.dataEmissao) > new Date(existing.createdAt || existing.dataEmissao)) {
-              cMap[cId] = c;
+            } else {
+              // Prioridade: maior versão e data mais recente (novo contrato pendente Clicksign tem prioridade sobre contrato antigo)
+              const vC = Number(c.versao || 0);
+              const vEx = Number(existing.versao || 0);
+
+              if (vC > vEx) {
+                cMap[cId] = c;
+              } else if (vC < vEx) {
+                // existing é versão mais recente, mantém existing
+              } else {
+                const dateC = new Date(c.createdAt || c.dataEmissao || 0).getTime();
+                const dateEx = new Date(existing.createdAt || existing.dataEmissao || 0).getTime();
+                if (dateC > dateEx) {
+                  cMap[cId] = c;
+                }
+              }
             }
           }
 
@@ -5715,7 +5732,7 @@ export default function GestaoContratosPanel({
             ].filter(Boolean).join(' • ');
 
             const latestContractTop = (contracts && contracts.length > 0 
-              ? (contracts.find((ct: any) => ct.status === 'assinado' || ct.status === 'ativo' || ct.clicksignStatus === 'assinado') || contracts[0]) 
+              ? contracts[0]
               : null) || allContractsMap[selectedClient._id] || null;
             const currentProposalTop = activeProposal || allProposalsMap[selectedClient._id] || null;
             const planIdStrTop = latestContractTop?.planoId?._id || latestContractTop?.planoId || currentProposalTop?.planoId || selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
