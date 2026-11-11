@@ -74,10 +74,24 @@ export async function syncAsaasPaymentsToLocalDb(
     }
 
     // Filtrar cobranças ativas (ignora canceladas/estornadas no Asaas se houver)
-    const activeAsaasPayments = paymentsData.data.filter((p: any) => p.status !== 'DELETED');
+    const activeAsaasPayments = paymentsData.data.filter((p: any) => p.status !== 'DELETED' && p.status !== 'REFUNDED');
 
-    // Remover pagamentos Asaas anteriores para evitar duplicações, preservando pagamentos manuais
-    await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+    // Desduplicar cobranças do Asaas por id caso haja repetições no retorno da API
+    const seenPaymentIds = new Set<string>();
+    const uniqueAsaasPayments = activeAsaasPayments.filter((p: any) => {
+      if (!p.id || seenPaymentIds.has(p.id)) return false;
+      seenPaymentIds.add(p.id);
+      return true;
+    });
+
+    const activePaymentIds = uniqueAsaasPayments.map((p: any) => p.id);
+
+    // Remover pagamentos Asaas locais que foram excluídos ou não estão mais na lista ativa do Asaas, preservando manuais
+    await Payment.deleteMany({
+      clientId: client._id,
+      formaPagamento: 'Asaas',
+      asaasPaymentId: { $nin: activePaymentIds }
+    });
 
     // Contar pagamentos manuais ativos
     const manualPaymentsCount = await Payment.countDocuments({
@@ -87,11 +101,11 @@ export async function syncAsaasPaymentsToLocalDb(
     });
 
     // Ordenar cronologicamente por vencimento
-    activeAsaasPayments.sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+    uniqueAsaasPayments.sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
 
-    const totalInstallmentsCount = manualPaymentsCount + activeAsaasPayments.length;
+    const totalInstallmentsCount = manualPaymentsCount + uniqueAsaasPayments.length;
 
-    const paymentRecords = activeAsaasPayments.map((p: any, idx: number) => {
+    const paymentRecords = uniqueAsaasPayments.map((p: any, idx: number) => {
       let status = 'Pendente';
       if (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') {
         status = 'Pago';
@@ -118,7 +132,23 @@ export async function syncAsaasPaymentsToLocalDb(
     });
 
     if (paymentRecords.length > 0) {
-      await Payment.insertMany(paymentRecords);
+      // Upsert atômico de cada parcela por (clientId + asaasPaymentId) para garantir total idempotência
+      for (const record of paymentRecords) {
+        await Payment.findOneAndUpdate(
+          { clientId: client._id, asaasPaymentId: record.asaasPaymentId },
+          { $set: record },
+          { upsert: true, new: true }
+        );
+      }
+
+      // Remover duplicatas acidentais se existirem múltiplos registros locais com o mesmo asaasPaymentId
+      for (const asaasId of activePaymentIds) {
+        const matching = await Payment.find({ clientId: client._id, asaasPaymentId: asaasId }).sort({ updatedAt: -1 });
+        if (matching.length > 1) {
+          const idsToDelete = matching.slice(1).map((m: any) => m._id);
+          await Payment.deleteMany({ _id: { $in: idsToDelete } });
+        }
+      }
 
       // Atualizar asaasBillingStatus no contrato
       if (contract) {

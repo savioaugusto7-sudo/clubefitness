@@ -21,5 +21,6 @@ PaymentSchema.index({ clientId: 1, vencimento: 1 });
 PaymentSchema.index({ status: 1, vencimento: 1 });
 PaymentSchema.index({ vencimento: 1 });
 PaymentSchema.index({ clientNome: 1 });
+PaymentSchema.index({ asaasPaymentId: 1 });
 
 export default models.Payment || model('Payment', PaymentSchema);

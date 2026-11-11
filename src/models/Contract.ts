@@ -60,6 +60,8 @@ const ContractSchema = new Schema({
   asaasPixCopyPaste: { type: String, default: '' },
   asaasPixQrCode: { type: String, default: '' },
   asaasBillingStatus: { type: String, default: 'pendente' },
+  asaasLock: { type: Boolean, default: false },
+  asaasLockAt: { type: Date, default: null },
   criarRecorrenciaMensal: { type: Boolean, default: false },
   isRecorrente: { type: Boolean, default: false },
   recorrenciaMeses: { type: Number, default: 12 },
