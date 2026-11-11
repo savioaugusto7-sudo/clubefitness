@@ -149,3 +149,4 @@ export async function syncAsaasPaymentsToLocalDb(
     return { success: false, count: 0, error: err.message };
   }
 }
+

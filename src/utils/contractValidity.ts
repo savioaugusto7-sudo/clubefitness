@@ -166,7 +166,7 @@ export function getContractValidityInfo(
           if (vB !== vA) return vB - vA;
           return (b.dataFim || '').localeCompare(a.dataFim || '');
         });
-        contract = sorted.find((c: any) => c.status === 'assinado' || c.status === 'ativo') || sorted[0] || null;
+        contract = sorted[0] || null;
       } else if (typeof resolvedContracts === 'object') {
         contract = resolvedContracts;
       }
@@ -186,7 +186,7 @@ export function getContractValidityInfo(
           if (vB !== vA) return vB - vA;
           return (b.dataFim || '').localeCompare(a.dataFim || '');
         });
-        contract = sorted.find((c: any) => c.status === 'assinado' || c.status === 'ativo') || sorted[0] || null;
+        contract = sorted[0] || null;
       }
       paymentsList = client?.payments || [];
     }
@@ -341,41 +341,8 @@ export function getContractValidityInfo(
         isExpiringSoon = !isExpired && daysLeft <= 30;
       }
 
-      // Rescisão ou Cancelamento Formal
-      if (contractStatus === 'cancelado') {
-        return {
-          dataInicio,
-          dataFim,
-          dataFimRecorrencia,
-          dataFimCicloTotal,
-          dataInicioFormatted: formatPtBr(dataInicio),
-          dataFimFormatted: formatPtBr(dataFim),
-          dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
-          dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
-          isExpired: true,
-          isExpiringSoon: false,
-          isWithinTolerance: false,
-          toleranceDaysLeft: 0,
-          overdueDays: 0,
-          canSchedule: false,
-          daysLeft,
-          daysLeftText: 'Cancelado',
-          statusKey: 'inativo',
-          statusLabel: 'Contrato Cancelado',
-          badgeColor: '#64748b',
-          badgeBg: 'rgba(100, 116, 139, 0.12)',
-          badgeBorder: 'rgba(100, 116, 139, 0.3)',
-          parcelasInfo,
-          hasOverdueInstallment: false,
-          isEndOfRecurrenceCycle: false,
-          isRecorrente,
-          isLead: false,
-          isUncontracted: false
-        };
-      }
-
-      // Finalizado (Não Renovou)
-      if (contractStatus === 'finalizado') {
+      // Rescisão, Cancelamento Formal ou Encerramento
+      if (contractStatus === 'cancelado' || contractStatus === 'finalizado') {
         return {
           dataInicio,
           dataFim,
@@ -394,7 +361,7 @@ export function getContractValidityInfo(
           daysLeft,
           daysLeftText: 'Encerrado',
           statusKey: 'finalizado',
-          statusLabel: 'Finalizado (Não Renovou)',
+          statusLabel: 'Contrato Encerrado',
           badgeColor: '#9ca3af',
           badgeBg: 'rgba(107, 114, 128, 0.15)',
           badgeBorder: 'rgba(107, 114, 128, 0.35)',
@@ -598,7 +565,54 @@ export function getContractValidityInfo(
     }
 
     // =========================================================================
-    // 🅲 CENÁRIO 3: ALUNO SEM CONTRATO OFICIAL (Lead / Novo Cadastro)
+    // 🅲 CENÁRIO 3: ALUNO FINALIZADO / CONTRATO ENCERRADO (Sem contrato ativo)
+    // =========================================================================
+    const isClientClosed = Boolean(
+      com.status === 'finalizado' ||
+      com.status === 'cancelado' ||
+      com.status === 'inativo' ||
+      client?.status === 'finalizado' ||
+      client?.status === 'cancelado' ||
+      (com.observacoesContratuais && com.observacoesContratuais.includes('[Contrato Finalizado'))
+    );
+
+    if (isClientClosed) {
+      const dataInicioRaw = com.dataInicio || client?.createdAt || todayStr;
+      const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
+      const dataFim = com.dataFim || com.vencimento || dataInicio;
+      return {
+        dataInicio,
+        dataFim,
+        dataFimRecorrencia: dataFim,
+        dataFimCicloTotal: dataFim,
+        dataInicioFormatted: formatPtBr(dataInicio),
+        dataFimFormatted: formatPtBr(dataFim),
+        dataFimRecorrenciaFormatted: formatPtBr(dataFim),
+        dataFimCicloTotalFormatted: formatPtBr(dataFim),
+        isExpired: false,
+        isExpiringSoon: false,
+        isWithinTolerance: false,
+        toleranceDaysLeft: 0,
+        overdueDays: 0,
+        canSchedule: false,
+        daysLeft: 0,
+        daysLeftText: 'Encerrado',
+        statusKey: 'finalizado',
+        statusLabel: 'Contrato Encerrado',
+        badgeColor: '#9ca3af',
+        badgeBg: 'rgba(107, 114, 128, 0.15)',
+        badgeBorder: 'rgba(107, 114, 128, 0.35)',
+        parcelasInfo: 'Encerrado',
+        hasOverdueInstallment: false,
+        isEndOfRecurrenceCycle: false,
+        isRecorrente: false,
+        isLead: false,
+        isUncontracted: false
+      };
+    }
+
+    // =========================================================================
+    // 🅳 CENÁRIO 4: ALUNO SEM CONTRATO OFICIAL (Lead / Novo Cadastro)
     // ZERO Fallback a datas fantasmas em dadosComerciais!
     // NUNCA marcar como "Contrato Vencido" quem não tem contrato emitido!
     // =========================================================================

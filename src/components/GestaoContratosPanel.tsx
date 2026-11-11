@@ -91,11 +91,49 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   const hasPhone = isPhoneValid;
   const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasBirthDate || !hasValidEmail;
 
-  // 0. Contrato Finalizado (Não Renovou ou Encerrado)
-  if (com.status === 'finalizado' || c?.status === 'finalizado') {
+  // 0. ESTADO TERMINAL / ENCERRAMENTO UNIFICADO (Determinístico e Inabalável)
+  // Alunos com contrato cancelado, finalizado ou com registro de não renovação
+  const isClosedOrCancelled = Boolean(
+    latestContract?.status === 'cancelado' ||
+    latestContract?.status === 'finalizado' ||
+    com.status === 'finalizado' ||
+    com.status === 'cancelado' ||
+    com.status === 'inativo' ||
+    com.status === 'cancelado_agendado' ||
+    c?.status === 'finalizado' ||
+    c?.status === 'cancelado' ||
+    (com.observacoesContratuais && com.observacoesContratuais.includes('[Contrato Finalizado') && latestContract?.status !== 'assinado')
+  );
+
+  if (isClosedOrCancelled) {
+    const termDate = latestContract?.dataEncerramentoAcesso || (com.status === 'cancelado_agendado' ? (com.dataFim || com.vencimento) : null);
+    const isAccessStillActive = termDate ? new Date(termDate + 'T23:59:59') >= new Date() : false;
+
+    if (isAccessStillActive && termDate) {
+      const termDateFmt = new Date(termDate + (termDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
+      return {
+        stageKey: 'cancelado_agendado',
+        stageLabel: `🚫 Rescisão (Acesso até ${termDateFmt})`,
+        badgeBg: 'rgba(239, 68, 68, 0.22)',
+        badgeColor: '#fca5a5',
+        badgeBorder: '1px solid rgba(239, 68, 68, 0.5)',
+        orientacaoKey: 'ver_rescisao',
+        orientacaoLabel: '🚫 Ver Rescisão / Encerramento',
+        isRecorrente: false,
+        isBoleto,
+        hasAsaasBoleto,
+        hasCpf,
+        hasPhone,
+        hasEndereco,
+        hasBirthDate,
+        isMissingData,
+        info
+      };
+    }
+
     return {
       stageKey: 'finalizado',
-      stageLabel: '🏁 Contrato Finalizado (Não Renovou)',
+      stageLabel: '🏁 Contrato Encerrado',
       badgeBg: 'rgba(107, 114, 128, 0.2)',
       badgeColor: '#9ca3af',
       badgeBorder: '1px solid rgba(107, 114, 128, 0.4)',
@@ -113,64 +151,13 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 0.1. Rescisão Contratual / Cancelamento Agendado (Apenas quando houver rescisão formal ou cancelamento de aluno sem proposta ativa)
-  const isFormalRescisao = Boolean(
-    com.status === 'cancelado_agendado' ||
-    (latestContract?.rescisao && latestContract?.status === 'cancelado') ||
-    (com.status === 'cancelado' && !latestProposal)
-  );
-
-  if (isFormalRescisao) {
-    const termDate = latestContract?.dataEncerramentoAcesso || com.dataFim || com.vencimento || '';
-    const termDateFmt = termDate ? new Date(termDate + (termDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : '';
-    const isTerminated = termDate ? new Date(termDate + 'T23:59:59') < new Date() : false;
-
-    if (isTerminated) {
-      return {
-        stageKey: 'finalizado',
-        stageLabel: '🚫 Rescisão / Contrato Encerrado',
-        badgeBg: 'rgba(239, 68, 68, 0.18)',
-        badgeColor: '#f87171',
-        badgeBorder: '1px solid rgba(239, 68, 68, 0.4)',
-        orientacaoKey: 'finalizado',
-        orientacaoLabel: '📁 Histórico de Rescisão',
-        isRecorrente: false,
-        isBoleto,
-        hasAsaasBoleto,
-        hasCpf,
-        hasPhone,
-        hasEndereco,
-        hasBirthDate,
-        isMissingData,
-        info
-      };
-    }
-
-    return {
-      stageKey: 'cancelado_agendado',
-      stageLabel: termDateFmt ? `🚫 Rescisão (Acesso até ${termDateFmt})` : '🚫 Rescisão Agendada',
-      badgeBg: 'rgba(239, 68, 68, 0.22)',
-      badgeColor: '#fca5a5',
-      badgeBorder: '1px solid rgba(239, 68, 68, 0.5)',
-      orientacaoKey: 'ver_rescisao',
-      orientacaoLabel: '🚫 Ver Rescisão / Encerramento',
-      isRecorrente: false,
-      isBoleto,
-      hasAsaasBoleto,
-      hasCpf,
-      hasPhone,
-      hasEndereco,
-      hasBirthDate,
-      isMissingData,
-      info
-    };
-  }
-
   // 1. Verificar se há contrato assinado/ativo (Prioridade Máxima)
   const isContractSigned = Boolean(
     (latestContract?.status === 'assinado' || latestContract?.clicksignStatus === 'assinado' || com.status === 'assinado') &&
     latestContract?.status !== 'cancelado' &&
-    com.status !== 'cancelado_agendado'
+    latestContract?.status !== 'finalizado' &&
+    com.status !== 'cancelado_agendado' &&
+    !isClosedOrCancelled
   );
 
   // 2. Contrato Pendente de Assinatura (Clicksign / Presencial)
@@ -277,6 +264,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   );
 
   const hasActiveContract = Boolean(
+    !isClosedOrCancelled &&
     com.status !== 'lead' && (
       isContractSigned ||
       com.status === 'ativo' ||
@@ -5300,7 +5288,7 @@ export default function GestaoContratosPanel({
                                 <button
                                   type="button"
                                   onClick={() => handleOpenFinalizeModal(c)}
-                                  title="Marcar contrato como Finalizado (Não Renovou)"
+                                  title="Marcar contrato como Encerrado / Finalizado"
                                   style={{
                                     padding: '11px 12px',
                                     borderRadius: '10px',
@@ -5316,7 +5304,7 @@ export default function GestaoContratosPanel({
                                     gap: '5px'
                                   }}
                                 >
-                                  <i className="fa-solid fa-flag-checkered"></i> Não Renovou
+                                  <i className="fa-solid fa-flag-checkered"></i> Encerrar Contrato
                                 </button>
                               </div>
                               <button
@@ -5344,36 +5332,61 @@ export default function GestaoContratosPanel({
                               </button>
                             </div>
                           ) : stage.stageKey === 'finalizado' ? (
-                            /* CASO E: FINALIZADO */
-                            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenDirectContractWizard(c)}
-                                style={{
-                                  flex: '1 1 auto',
-                                  padding: '11px 14px',
-                                  borderRadius: '10px',
-                                  border: 'none',
-                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                  color: '#ffffff',
-                                  fontWeight: 800,
-                                  fontSize: '0.84rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
-                                }}
-                              >
-                                <i className="fa-solid fa-arrows-rotate"></i> Reativar / Nova Renovação
-                              </button>
+                            /* CASO E: FINALIZADO / CONTRATO ENCERRADO */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDirectContractWizard(c)}
+                                  style={{
+                                    flex: '1 1 auto',
+                                    padding: '11px 14px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    fontSize: '0.84rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                                  }}
+                                  title="Reativar aluno criando um novo contrato"
+                                >
+                                  <i className="fa-solid fa-arrows-rotate"></i> Reativar Aluno
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryModalClient(c)}
+                                  style={{
+                                    padding: '11px 12px',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(107, 114, 128, 0.4)',
+                                    background: 'rgba(107, 114, 128, 0.18)',
+                                    color: '#d1d5db',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px'
+                                  }}
+                                  title="Ver histórico e motivos de encerramento do contrato"
+                                >
+                                  <i className="fa-solid fa-clock-rotate-left"></i> Histórico
+                                </button>
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => handleSelectClient(c)}
                                 style={{
-                                  padding: '11px 12px',
-                                  borderRadius: '10px',
+                                  width: '100%',
+                                  padding: '8px 10px',
+                                  borderRadius: '8px',
                                   border: '1px solid rgba(255, 255, 255, 0.12)',
                                   background: 'rgba(255, 255, 255, 0.06)',
                                   color: '#f1f5f9',
@@ -5383,11 +5396,12 @@ export default function GestaoContratosPanel({
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: '4px'
+                                  gap: '6px',
+                                  transition: 'all 0.2s ease'
                                 }}
-                                title="Abrir Workspace do Aluno"
+                                title="Abrir Workspace do Contrato"
                               >
-                                <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i>
+                                <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i> Abrir Workspace do Contrato
                               </button>
                             </div>
                           ) : (
